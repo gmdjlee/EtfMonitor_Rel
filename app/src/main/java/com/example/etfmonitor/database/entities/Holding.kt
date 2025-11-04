@@ -83,3 +83,25 @@ data class StockChangeInfo(
     val change: Float,
     val currentAmount: Float
 )
+
+// ✅ 원화예금 추이 데이터
+data class CashDepositTrend(
+    val date: String,
+    val totalAmount: Float,
+    val etfCount: Int
+)
+
+// ✅ 종목의 전체 ETF 통합 추이
+data class StockAggregatedTrend(
+    val stockTicker: String,
+    val stockName: String,
+    val timeSeries: List<StockAggregatedTimePoint>
+)
+
+data class StockAggregatedTimePoint(
+    val date: String,
+    val totalAmount: Float,
+    val etfCount: Int,
+    val maxWeight: Float,
+    val avgWeight: Float
+)

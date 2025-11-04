@@ -226,6 +226,28 @@ class DataRepository(
         return if (dates.size >= 2) Pair(dates[1], dates[0]) else null
     }
 
+    suspend fun getAllDecreasedStocks(): List<StockChangeInfo> {
+        val dates = dao.getLatestTwoDates()
+        if (dates.size < 2) return emptyList()
+        return dao.getAllDecreasedStocks(dates[0], dates[1])
+    }
+
+    suspend fun getCashDepositTrend(): List<CashDepositTrend> {
+        return dao.getCashDepositTrend()
+    }
+
+    suspend fun getStockAggregatedTrend(stockTicker: String): StockAggregatedTrend? {
+        val timeSeries = dao.getStockAggregatedTrend(stockTicker)
+        if (timeSeries.isEmpty()) return null
+
+        val stockName = dao.getStockName(stockTicker) ?: stockTicker
+        return StockAggregatedTrend(
+            stockTicker = stockTicker,
+            stockName = stockName,
+            timeSeries = timeSeries
+        )
+    }
+
     // ========== Stock Trend ==========
 
     suspend fun getStockTrend(etfTicker: String, stockTicker: String): StockTrend? {

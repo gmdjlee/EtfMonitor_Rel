@@ -10,6 +10,7 @@ import com.etfmonitor.ui.screens.detail.DetailScreen
 import com.etfmonitor.ui.screens.home.HomeScreen
 import com.etfmonitor.ui.screens.list.EtfListScreen
 import com.etfmonitor.ui.screens.settings.SettingsScreen
+import com.etfmonitor.ui.screens.statistics.AggregatedStockTrendScreen
 import com.etfmonitor.ui.screens.statistics.StatisticsScreen
 import com.etfmonitor.ui.screens.trend.StockTrendScreen
 
@@ -25,6 +26,10 @@ sealed class Screen(val route: String) {
             "trend/$etfTicker/$stockTicker"
     }
     object Statistics : Screen("statistics")
+    // ✅ 전체 ETF 통합 종목 추이
+    object AggregatedStockTrend : Screen("aggregated_trend/{stockTicker}") {
+        fun createRoute(stockTicker: String) = "aggregated_trend/$stockTicker"
+    }
 }
 
 @Composable
@@ -90,6 +95,23 @@ fun Navigation() {
 
         composable(Screen.Statistics.route) {
             StatisticsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onStockClick = { stockTicker ->  // ✅ 추가
+                    navController.navigate(Screen.AggregatedStockTrend.createRoute(stockTicker))
+                }
+            )
+        }
+
+        // ✅ 통합 종목 추이 화면
+        composable(
+            route = Screen.AggregatedStockTrend.route,
+            arguments = listOf(
+                navArgument("stockTicker") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val stockTicker = backStackEntry.arguments?.getString("stockTicker") ?: ""
+            AggregatedStockTrendScreen(
+                stockTicker = stockTicker,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

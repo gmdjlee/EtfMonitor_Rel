@@ -226,4 +226,72 @@ interface EtfDao {
         LIMIT 2
     """)
     suspend fun getLatestTwoDates(): List<String>
+
+    /**
+     * 전체 비중 감소 종목
+     */
+    @Query("""
+    SELECT 
+        curr.stockTicker,
+        curr.stockName,
+        curr.etfTicker,
+        e.name as etfName,
+        prev.weight as previousWeight,
+        curr.weight as currentWeight,
+        (curr.weight - prev.weight) as change,
+        curr.amount as currentAmount
+    FROM holdings curr
+    INNER JOIN holdings prev 
+        ON curr.stockTicker = prev.stockTicker 
+        AND curr.etfTicker = prev.etfTicker
+    INNER JOIN etfs e ON curr.etfTicker = e.ticker
+    WHERE curr.date = :currentDate
+    AND prev.date = :previousDate
+    AND curr.weight < prev.weight - 0.01
+    ORDER BY (curr.weight - prev.weight) ASC
+""")
+    suspend fun getAllDecreasedStocks(currentDate: String, previousDate: String): List<StockChangeInfo>
+
+    /**
+     * 원화예금 추이 (모든 ETF 합계)
+     */
+    @Query("""
+        SELECT 
+            date,
+            SUM(amount) as totalAmount,
+            COUNT(DISTINCT etfTicker) as etfCount
+        FROM holdings
+        WHERE stockName LIKE '%원화예금%' OR stockName LIKE '%cash%'
+        GROUP BY date
+        ORDER BY date ASC
+    """)
+    suspend fun getCashDepositTrend(): List<CashDepositTrend>
+
+    /**
+     * 특정 종목의 전체 ETF 통합 추이
+     */
+    @Query("""
+        SELECT 
+            date,
+            SUM(amount) as totalAmount,
+            COUNT(DISTINCT etfTicker) as etfCount,
+            MAX(weight) as maxWeight,
+            AVG(weight) as avgWeight
+        FROM holdings
+        WHERE stockTicker = :stockTicker
+        GROUP BY date
+        ORDER BY date ASC
+    """)
+    suspend fun getStockAggregatedTrend(stockTicker: String): List<StockAggregatedTimePoint>
+
+    /**
+     * 종목명 가져오기
+     */
+    @Query("""
+        SELECT stockName 
+        FROM holdings 
+        WHERE stockTicker = :stockTicker 
+        LIMIT 1
+    """)
+    suspend fun getStockName(stockTicker: String): String?
 }

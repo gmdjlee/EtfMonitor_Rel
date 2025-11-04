@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.EtfMonitorApp
+import com.etfmonitor.database.entities.CashDepositTrend
 import com.etfmonitor.database.entities.StockAmountRanking
 import com.etfmonitor.database.entities.StockChangeInfo
 import com.etfmonitor.repository.DataRepository
@@ -31,6 +32,14 @@ class StatisticsViewModel(
     private val _increasedStocks = MutableStateFlow<List<StockChangeInfo>>(emptyList())
     val increasedStocks: StateFlow<List<StockChangeInfo>> = _increasedStocks.asStateFlow()
 
+    // ✅ 비중 감소 종목 추가
+    private val _decreasedStocks = MutableStateFlow<List<StockChangeInfo>>(emptyList())
+    val decreasedStocks: StateFlow<List<StockChangeInfo>> = _decreasedStocks.asStateFlow()
+
+    // ✅ 원화예금 추이 추가
+    private val _cashDepositTrend = MutableStateFlow<List<CashDepositTrend>>(emptyList())
+    val cashDepositTrend: StateFlow<List<CashDepositTrend>> = _cashDepositTrend.asStateFlow()
+
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -47,6 +56,8 @@ class StatisticsViewModel(
                 _newStocks.value = repository.getAllNewStocks()
                 _removedStocks.value = repository.getAllRemovedStocks()
                 _increasedStocks.value = repository.getAllIncreasedStocks()
+                _decreasedStocks.value = repository.getAllDecreasedStocks()  // ✅ 추가
+                _cashDepositTrend.value = repository.getCashDepositTrend()  // ✅ 추가
             } finally {
                 _isLoading.value = false
             }
