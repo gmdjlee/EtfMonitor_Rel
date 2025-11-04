@@ -1,0 +1,229 @@
+package com.etfmonitor.database
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import com.etfmonitor.database.entities.*
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface EtfDao {
+
+    // ========== ETF ==========
+
+    @Query("SELECT * FROM etfs ORDER BY name")
+    fun getAllEtfs(): Flow<List<Etf>>
+
+    @Query("SELECT * FROM etfs WHERE name LIKE '%' || :query || '%' ORDER BY name")
+    fun searchEtfs(query: String): Flow<List<Etf>>
+
+    // ✅ 단일 ETF 조회 추가
+    @Query("SELECT * FROM etfs WHERE ticker = :ticker LIMIT 1")
+    suspend fun getEtf(ticker: String): Etf?
+
+    @Query("SELECT COUNT(*) FROM etfs")
+    suspend fun getEtfCount(): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEtf(etf: Etf)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEtfs(etfs: List<Etf>)
+
+    @Query("DELETE FROM etfs")
+    suspend fun clearAllEtfs()
+
+    // ========== Holdings ==========
+
+    @Query("""
+        SELECT * FROM holdings 
+        WHERE etfTicker = :etfTicker AND date = :date
+        ORDER BY weight DESC
+    """)
+    suspend fun getHoldings(etfTicker: String, date: String): List<Holding>
+
+    @Query("""
+        SELECT DISTINCT date 
+        FROM holdings 
+        WHERE etfTicker = :etfTicker 
+        ORDER BY date DESC
+    """)
+    suspend fun getDates(etfTicker: String): List<String>
+
+    @Query("SELECT MAX(date) FROM holdings")
+    suspend fun getLatestDate(): String?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHolding(holding: Holding)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHoldings(holdings: List<Holding>)
+
+    @Query("DELETE FROM holdings")
+    suspend fun clearAllHoldings()
+
+    // ✅ 시계열 데이터 조회
+    @Query("""
+        SELECT date, weight, amount 
+        FROM holdings 
+        WHERE etfTicker = :etfTicker AND stockTicker = :stockTicker
+        ORDER BY date ASC
+    """)
+    suspend fun getHoldingTimeSeries(
+        etfTicker: String,
+        stockTicker: String
+    ): List<HoldingTimeSeries>
+
+    // ========== Stats ==========
+
+    @Query("""
+        SELECT 
+            stockTicker,
+            stockName,
+            COUNT(DISTINCT etfTicker) as etfCount,
+            SUM(amount) as totalAmount,
+            GROUP_CONCAT(DISTINCT etfTicker) as etfList
+        FROM holdings
+        WHERE date = :date
+        GROUP BY stockTicker
+        HAVING etfCount > 1
+        ORDER BY etfCount DESC, totalAmount DESC
+        LIMIT :limit
+    """)
+    suspend fun getOverlapStocks(date: String, limit: Int): List<OverlapStock>
+
+    @Query("""
+        SELECT 
+            h.stockTicker,
+            h.stockName,
+            e.name as etfName,
+            h.weight,
+            h.amount
+        FROM holdings h
+        INNER JOIN etfs e ON h.etfTicker = e.ticker
+        WHERE h.date = :date
+        ORDER BY h.amount DESC
+        LIMIT :limit
+    """)
+    suspend fun getAmountRanking(date: String, limit: Int): List<AmountRank>
+
+    // ========== 전체 통계 쿼리 ==========
+
+    /**
+     * 전 종목 금액 순위 (모든 ETF 통합)
+     */
+    @Query("""
+        SELECT 
+            stockTicker,
+            stockName,
+            SUM(amount) as totalAmount,
+            COUNT(DISTINCT etfTicker) as etfCount,
+            MAX(weight) as maxWeight,
+            GROUP_CONCAT(DISTINCT etfTicker) as etfList
+        FROM holdings
+        WHERE date = :date
+        GROUP BY stockTicker
+        ORDER BY totalAmount DESC
+    """)
+    suspend fun getStockAmountRanking(date: String): List<StockAmountRanking>
+
+    /**
+     * 전체 신규 편입 종목
+     */
+    @Query("""
+        SELECT 
+            curr.stockTicker,
+            curr.stockName,
+            curr.etfTicker,
+            e.name as etfName,
+            0.0 as previousWeight,
+            curr.weight as currentWeight,
+            curr.weight as change,
+            curr.amount as currentAmount
+        FROM holdings curr
+        INNER JOIN etfs e ON curr.etfTicker = e.ticker
+        WHERE curr.date = :currentDate
+        AND NOT EXISTS (
+            SELECT 1 FROM holdings prev
+            WHERE prev.stockTicker = curr.stockTicker
+            AND prev.etfTicker = curr.etfTicker
+            AND prev.date = :previousDate
+        )
+        ORDER BY curr.amount DESC
+    """)
+    suspend fun getAllNewStocks(currentDate: String, previousDate: String): List<StockChangeInfo>
+
+    /**
+     * 전체 제외 종목
+     */
+    @Query("""
+        SELECT 
+            prev.stockTicker,
+            prev.stockName,
+            prev.etfTicker,
+            e.name as etfName,
+            prev.weight as previousWeight,
+            0.0 as currentWeight,
+            -prev.weight as change,
+            0.0 as currentAmount
+        FROM holdings prev
+        INNER JOIN etfs e ON prev.etfTicker = e.ticker
+        WHERE prev.date = :previousDate
+        AND NOT EXISTS (
+            SELECT 1 FROM holdings curr
+            WHERE curr.stockTicker = prev.stockTicker
+            AND curr.etfTicker = prev.etfTicker
+            AND curr.date = :currentDate
+        )
+        ORDER BY prev.amount DESC
+    """)
+    suspend fun getAllRemovedStocks(currentDate: String, previousDate: String): List<StockChangeInfo>
+
+    /**
+     * 전체 비중 증가 종목
+     */
+    @Query("""
+        SELECT 
+            curr.stockTicker,
+            curr.stockName,
+            curr.etfTicker,
+            e.name as etfName,
+            prev.weight as previousWeight,
+            curr.weight as currentWeight,
+            (curr.weight - prev.weight) as change,
+            curr.amount as currentAmount
+        FROM holdings curr
+        INNER JOIN holdings prev 
+            ON curr.stockTicker = prev.stockTicker 
+            AND curr.etfTicker = prev.etfTicker
+        INNER JOIN etfs e ON curr.etfTicker = e.ticker
+        WHERE curr.date = :currentDate
+        AND prev.date = :previousDate
+        AND curr.weight > prev.weight + 0.01
+        ORDER BY (curr.weight - prev.weight) DESC
+    """)
+    suspend fun getAllIncreasedStocks(currentDate: String, previousDate: String): List<StockChangeInfo>
+
+    // ========== Settings ==========
+
+    @Query("SELECT value FROM settings WHERE key = :key")
+    suspend fun getSetting(key: String): String?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveSetting(setting: Setting)
+
+    @Query("DELETE FROM settings WHERE key = :key")
+    suspend fun deleteSetting(key: String)
+
+    /**
+     * 최근 2개 날짜 가져오기
+     */
+    @Query("""
+        SELECT DISTINCT date 
+        FROM holdings 
+        ORDER BY date DESC 
+        LIMIT 2
+    """)
+    suspend fun getLatestTwoDates(): List<String>
+}
