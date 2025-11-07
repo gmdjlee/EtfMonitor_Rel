@@ -72,6 +72,8 @@ chaquopy {
             install("pykrx")
             install("setuptools")
             install("wheel")
+            install("requests")
+            install("beautifulsoup4")
         }
     }
 }

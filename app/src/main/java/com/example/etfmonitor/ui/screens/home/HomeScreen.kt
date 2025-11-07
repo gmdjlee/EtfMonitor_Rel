@@ -22,7 +22,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 fun HomeScreen(
     onNavigateToList: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToStatistics: () -> Unit,  // ✅ 파라미터 추가
+    onNavigateToStatistics: () -> Unit,
+    onNavigateToOscillator: () -> Unit,  // ✅ 파라미터 추가
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
 ) {
     val state by viewModel.state.collectAsState()
@@ -79,7 +80,8 @@ fun HomeScreen(
                     onUpdate = { viewModel.update() },
                     onNavigateToList = onNavigateToList,
                     onNavigateToSettings = onNavigateToSettings,
-                    onNavigateToStatistics = onNavigateToStatistics  // ✅ 전달
+                    onNavigateToStatistics = onNavigateToStatistics,
+                    onNavigateToOscillator = onNavigateToOscillator  // ✅ 전달
                 )
             }
         }
@@ -130,7 +132,8 @@ private fun HomeContent(
     onUpdate: () -> Unit,
     onNavigateToList: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToStatistics: () -> Unit  // ✅ 파라미터 추가
+    onNavigateToStatistics: () -> Unit,
+    onNavigateToOscillator: () -> Unit  // ✅ 파라미터 추가
 ) {
     val hasData = (state as? HomeState.Idle)?.hasData ?: false
     val lastDate = (state as? HomeState.Idle)?.lastDate
@@ -231,6 +234,14 @@ private fun HomeContent(
                 onClick = onNavigateToStatistics
             )
         }
+
+        // ✅ 수급 오실레이터 카드 추가 (데이터 없이도 사용 가능)
+        FeatureCard(
+            icon = Icons.Default.ShowChart,
+            title = "수급 오실레이터",
+            description = "외국인/기관 수급 분석 및 매매 신호",
+            onClick = onNavigateToOscillator
+        )
 
         FeatureCard(
             icon = Icons.Default.Settings,
