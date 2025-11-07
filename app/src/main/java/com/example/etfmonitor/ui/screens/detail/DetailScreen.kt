@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.etfmonitor.database.entities.HoldingStatus
 import com.etfmonitor.database.entities.HoldingWithComparison
+import com.etfmonitor.ui.utils.AmountFormatter  // ✅ 추가
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,19 +25,17 @@ fun DetailScreen(
     viewModel: DetailViewModel = viewModel(factory = DetailViewModel.factory(etfTicker))
 ) {
     val state by viewModel.state.collectAsState()
-    val etfName by viewModel.etfName.collectAsState()  // ✅ ETF 이름 가져오기
+    val etfName by viewModel.etfName.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Column {
-                        // ✅ ETF 이름 표시
                         Text(
                             etfName,
                             style = MaterialTheme.typography.titleMedium
                         )
-                        // ✅ Ticker와 날짜 정보
                         if (state is DetailState.Success) {
                             val comparison = (state as DetailState.Success).comparison
                             Text(
@@ -144,9 +143,10 @@ private fun ComparisonCard(
                 ChangeInfo(item.change, Modifier.weight(1f))
             }
 
+            // ✅ 개선: 동적 단위 표시
             if (item.currentAmount > 0) {
                 Text(
-                    "평가금액: ${String.format("%.2f", item.currentAmount / 100_000_000)}억원",
+                    "평가금액: ${AmountFormatter.format(item.currentAmount)}",
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.End

@@ -19,6 +19,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.etfmonitor.database.entities.CashDepositTrend
 import com.etfmonitor.database.entities.StockAmountRanking
 import com.etfmonitor.database.entities.StockChangeInfo
+import com.etfmonitor.ui.utils.AmountFormatter
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
@@ -108,11 +109,12 @@ fun StatisticsScreen(
     }
 }
 
+// ✅ 1. AmountRankingTab 수정
 @Composable
 private fun AmountRankingTab(
     rankings: List<StockAmountRanking>,
     viewModel: StatisticsViewModel,
-    onStockClick: (String) -> Unit  // ✅ 추가
+    onStockClick: (String) -> Unit
 ) {
     var sortAscending by remember { mutableStateOf(false) }
 
@@ -141,6 +143,7 @@ private fun AmountRankingTab(
             }
         }
 
+        // ✅ 헤더 카드 - "금액(억)" → "금액"으로 변경
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -152,7 +155,7 @@ private fun AmountRankingTab(
             ) {
                 Text("순위", Modifier.weight(0.5f), style = MaterialTheme.typography.labelSmall)
                 Text("종목명", Modifier.weight(2f), style = MaterialTheme.typography.labelSmall)
-                Text("금액(억)", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)
+                Text("금액", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)  // ✅ 변경
                 Text("ETF수", Modifier.weight(0.7f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
             }
         }
@@ -163,21 +166,22 @@ private fun AmountRankingTab(
         ) {
             items(rankings.size) { index ->
                 val item = rankings[index]
-                AmountRankingCard(index + 1, item, onStockClick)  // ✅ 클릭 추가
+                AmountRankingCard(index + 1, item, onStockClick)
             }
         }
     }
 }
 
+// ✅ 2. AmountRankingCard 수정 - 단위 포함하여 표시
 @Composable
 private fun AmountRankingCard(
     rank: Int,
     item: StockAmountRanking,
-    onStockClick: (String) -> Unit  // ✅ 추가
+    onStockClick: (String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        onClick = { onStockClick(item.stockTicker) }  // ✅ 클릭 핸들러
+        onClick = { onStockClick(item.stockTicker) }
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -203,8 +207,9 @@ private fun AmountRankingCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            // ✅ showUnit = true로 변경하여 단위 표시
             Text(
-                String.format("%.1f", item.totalAmount / 100_000_000),
+                AmountFormatter.format(item.totalAmount, showUnit = true),
                 Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.End
@@ -332,6 +337,7 @@ private fun CashDepositTrendTab(trend: List<CashDepositTrend>) {
     }
 }
 
+// ✅ 3. CashDepositSummaryCard 개선
 @Composable
 private fun CashDepositSummaryCard(trend: List<CashDepositTrend>) {
     val first = trend.first()
@@ -357,11 +363,11 @@ private fun CashDepositSummaryCard(trend: List<CashDepositTrend>) {
             ) {
                 SummaryItem(
                     label = "현재 총액",
-                    value = String.format("%.1f억", last.totalAmount / 100_000_000)
+                    value = AmountFormatter.format(last.totalAmount)  // ✅ 개선
                 )
                 SummaryItem(
                     label = "변동액",
-                    value = String.format("%+.1f억", change / 100_000_000)
+                    value = AmountFormatter.formatChange(change)  // ✅ 개선
                 )
                 SummaryItem(
                     label = "ETF 수",
@@ -438,8 +444,13 @@ private fun CashDepositChartCard(trend: List<CashDepositTrend>) {
     }
 }
 
+// ✅ 4. CashDepositDataTable 개선
 @Composable
 private fun CashDepositDataTable(trend: List<CashDepositTrend>) {
+    // 최대값 계산
+    val maxAmount = trend.maxOfOrNull { it.totalAmount } ?: 0f
+    val headerText = AmountFormatter.getTableHeader(maxAmount)
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("상세 데이터", style = MaterialTheme.typography.titleMedium)
@@ -450,7 +461,7 @@ private fun CashDepositDataTable(trend: List<CashDepositTrend>) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text("날짜", Modifier.weight(2f), style = MaterialTheme.typography.labelSmall)
-                Text("금액(억)", Modifier.weight(1.5f), style = MaterialTheme.typography.labelSmall)
+                Text(headerText, Modifier.weight(1.5f), style = MaterialTheme.typography.labelSmall)  // ✅ 개선
                 Text("ETF수", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
             }
 
@@ -465,7 +476,7 @@ private fun CashDepositDataTable(trend: List<CashDepositTrend>) {
                 ) {
                     Text(item.date, Modifier.weight(2f), style = MaterialTheme.typography.bodySmall)
                     Text(
-                        String.format("%.2f", item.totalAmount / 100_000_000),
+                        AmountFormatter.formatForTable(item.totalAmount, maxAmount),  // ✅ 개선
                         Modifier.weight(1.5f),
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -501,15 +512,16 @@ private fun formatDateForChart(date: String): String {
     }
 }
 
+// ✅ 2. StockChangeCard 개선
 @Composable
 private fun StockChangeCard(
     stock: StockChangeInfo,
     status: HoldingStatus,
-    onStockClick: (String) -> Unit  // ✅ 추가
+    onStockClick: (String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        onClick = { onStockClick(stock.stockTicker) }  // ✅ 클릭 핸들러
+        onClick = { onStockClick(stock.stockTicker) }
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -558,9 +570,10 @@ private fun StockChangeCard(
                 }
             }
 
+            // ✅ 개선: 동적 단위
             if (stock.currentAmount > 0) {
                 Text(
-                    "평가금액: ${String.format("%.2f", stock.currentAmount / 100_000_000)}억원",
+                    "평가금액: ${AmountFormatter.format(stock.currentAmount)}",
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.End
@@ -620,6 +633,30 @@ private fun ChangeInfo(change: Float, modifier: Modifier = Modifier) {
     }
 }
 
+// ✅ 금액을 동적 단위로 포맷하는 함수
+private fun formatCashAmount(amount: Float): String {
+    return when {
+        amount >= 100_000_000 -> String.format("%.1f억", amount / 100_000_000)
+        amount >= 10_000_000 -> String.format("%.0f백만", amount / 10_000_000)
+        amount >= 10_000 -> String.format("%.0f만", amount / 10_000)
+        else -> String.format("%.0f원", amount)
+    }
+}
+
+// ✅ 변동액을 부호와 함께 표시
+private fun formatCashAmountChange(change: Float): String {
+    val sign = if (change >= 0) "+" else ""
+    return when {
+        kotlin.math.abs(change) >= 100_000_000 ->
+            String.format("%s%.1f억", sign, change / 100_000_000)
+        kotlin.math.abs(change) >= 10_000_000 ->
+            String.format("%s%.0f백만", sign, change / 10_000_000)
+        kotlin.math.abs(change) >= 10_000 ->
+            String.format("%s%.0f만", sign, change / 10_000)
+        else ->
+            String.format("%s%.0f원", sign, change)
+    }
+}
 enum class HoldingStatus {
     NEW, INCREASE, DECREASE, MAINTAIN, REMOVED
 }

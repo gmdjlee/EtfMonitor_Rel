@@ -22,15 +22,15 @@ class PyKrxClient(private val python: Python) {
     }
 
     private val etfModule by lazy {
-        Log.d(TAG, "Loading etfcollector module")
+        //Log.d(TAG, "Loading etfcollector module")
         python.getModule("etfcollector")
     }
     private val stockModule by lazy {
-        Log.d(TAG, "Loading stockcollector module")
+        //Log.d(TAG, "Loading stockcollector module")
         python.getModule("stockcollector")
     }
     private val utilModule by lazy {
-        Log.d(TAG, "Loading utils module")
+        //Log.d(TAG, "Loading utils module")
         python.getModule("utils")
     }
 
@@ -43,6 +43,7 @@ class PyKrxClient(private val python: Python) {
         excludeKeywords: List<String>
     ): List<Etf> = withContext(Dispatchers.IO) {
         try {
+            /*
             Log.d(TAG, "\n" + "=".repeat(80))
             Log.d(TAG, "PyKrxClient.getFilteredEtfList() called")
             Log.d(TAG, "=".repeat(80))
@@ -56,6 +57,7 @@ class PyKrxClient(private val python: Python) {
             Log.d(TAG, "  excludeKeywords type: ${excludeKeywords::class.simpleName}")
             Log.d(TAG, "  excludeKeywords size: ${excludeKeywords.size}")
             Log.d(TAG, "  excludeKeywords: $excludeKeywords")
+             */
 
             // ✅ 검증: 빈 리스트 확인
             if (includeKeywords.isEmpty()) {
@@ -64,14 +66,17 @@ class PyKrxClient(private val python: Python) {
             }
 
             // STEP 2: JSON 변환
-            Log.d(TAG, "\nSTEP 2: Convert to JSON")
+            //Log.d(TAG, "\nSTEP 2: Convert to JSON")
             val includeJson = Json.encodeToString(includeKeywords)
             val excludeJson = Json.encodeToString(excludeKeywords)
 
+            /*
             Log.d(TAG, "  includeJson length: ${includeJson.length}")
             Log.d(TAG, "  includeJson: $includeJson")
             Log.d(TAG, "  excludeJson length: ${excludeJson.length}")
             Log.d(TAG, "  excludeJson: $excludeJson")
+
+             */
 
             // ✅ 검증: JSON 형식 확인
             if (!includeJson.startsWith("[") || !includeJson.endsWith("]")) {
@@ -79,12 +84,15 @@ class PyKrxClient(private val python: Python) {
             }
 
             // STEP 3: Python 호출
+            /*
             Log.d(TAG, "\nSTEP 3: Call Python module")
             Log.d(TAG, "  Calling: etfModule.get_etf_list_with_names")
             Log.d(TAG, "  Parameters:")
             Log.d(TAG, "    1. date_str: $date")
             Log.d(TAG, "    2. include_keywords_json: $includeJson")
             Log.d(TAG, "    3. exclude_keywords_json: $excludeJson")
+            
+             */
 
             val jsonStr = etfModule.callAttr(
                 "get_etf_list_with_names",

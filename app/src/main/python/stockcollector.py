@@ -74,7 +74,9 @@ def get_stock_name(ticker: str) -> str:
         주식 이름
     """
     try:
-        if ticker != "010010":
+        if ticker == "010010":
+            return "원화예금"
+        else:
             name = stock.get_market_ticker_name(ticker)
             # 이름이 None이거나 빈 문자열이면 티커 반환
             if name and str(name).strip():
@@ -82,8 +84,6 @@ def get_stock_name(ticker: str) -> str:
             else:
                 print(f"No name found for {ticker}, using ticker as name")
                 return str(ticker)
-        else:
-            return "원화예금"
     except Exception as e:
         print(f"get_stock_name error for {ticker}: {e}")
         return ""

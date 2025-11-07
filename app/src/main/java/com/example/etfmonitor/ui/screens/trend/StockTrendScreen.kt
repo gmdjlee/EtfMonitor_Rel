@@ -10,7 +10,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -21,11 +20,11 @@ import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLa
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
-import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
 import com.etfmonitor.database.entities.HoldingTimeSeries
+import com.etfmonitor.ui.utils.AmountFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -126,6 +125,7 @@ private fun TrendContent(
     }
 }
 
+// ✅ 1. SummaryCard 개선
 @Composable
 private fun SummaryCard(timeSeries: List<HoldingTimeSeries>) {
     if (timeSeries.isEmpty()) return
@@ -168,7 +168,7 @@ private fun SummaryCard(timeSeries: List<HoldingTimeSeries>) {
                 )
                 SummaryItem(
                     label = "금액 변화",
-                    value = String.format("%+.2f억", amountChange / 100_000_000)
+                    value = AmountFormatter.formatChange(amountChange)  // ✅ 개선
                 )
             }
         }
@@ -183,6 +183,7 @@ private fun SummaryItem(label: String, value: String) {
     }
 }
 
+// ✅ 2. ChartCard 개선 (평가금액 차트용)
 @Composable
 private fun ChartCard(
     title: String,
@@ -195,24 +196,36 @@ private fun ChartCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
+            // ✅ 개선: 차트 제목에 동적 단위 추가
+            val maxValue = data.maxOfOrNull { valueExtractor(it) } ?: 0f
+            val isAmountChart = title.contains("금액")
+            val chartTitle = if (isAmountChart) {
+                val unit = AmountFormatter.getChartUnit(maxValue)
+                "평가금액 추이 ($unit)"
+            } else {
+                title
+            }
+
+            Text(chartTitle, style = MaterialTheme.typography.titleMedium)
 
             if (data.isEmpty()) {
                 Text("데이터 없음", style = MaterialTheme.typography.bodySmall)
             } else {
                 val modelProducer = remember { CartesianChartModelProducer() }
                 val scope = rememberCoroutineScope()
-
-                // ✅ 날짜 레이블을 위한 ExtraStore 키
                 val dateLabelsKey = remember { ExtraStore.Key<List<String>>() }
 
                 LaunchedEffect(data) {
                     scope.launch(Dispatchers.Default) {
                         modelProducer.runTransaction {
                             lineSeries {
-                                series(data.map { valueExtractor(it).toDouble() })
+                                // ✅ 개선: 차트 값 변환
+                                if (isAmountChart) {
+                                    series(data.map { AmountFormatter.toChartValue(valueExtractor(it)) })
+                                } else {
+                                    series(data.map { valueExtractor(it).toDouble() })
+                                }
                             }
-                            // ✅ 날짜 레이블 저장
                             extras { extraStore ->
                                 extraStore[dateLabelsKey] = data.map { formatDateForChart(it.date) }
                             }
@@ -229,7 +242,6 @@ private fun ChartCard(
                                 textSize = 10.sp
                             )
                         ),
-                        // ✅ X축에 날짜 표시
                         bottomAxis = rememberBottomAxis(
                             label = rememberTextComponent(
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -264,7 +276,6 @@ private fun ChartCard(
 
 // ✅ 날짜 포맷 함수 (차트용 - 짧게)
 private fun formatDateForChart(date: String): String {
-    // "2025-10-31" → "10/31"
     return try {
         val parts = date.split("-")
         if (parts.size == 3) {
@@ -277,8 +288,13 @@ private fun formatDateForChart(date: String): String {
     }
 }
 
+// ✅ 3. DataTable 개선
 @Composable
 private fun DataTable(timeSeries: List<HoldingTimeSeries>) {
+    // 최대 금액 계산
+    val maxAmount = timeSeries.maxOfOrNull { it.amount } ?: 0f
+    val amountHeader = AmountFormatter.getTableHeader(maxAmount)
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("상세 데이터", style = MaterialTheme.typography.titleMedium)
@@ -290,7 +306,7 @@ private fun DataTable(timeSeries: List<HoldingTimeSeries>) {
             ) {
                 Text("날짜", Modifier.weight(2f), style = MaterialTheme.typography.labelSmall)
                 Text("비중", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
-                Text("금액(억)", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
+                Text(amountHeader, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)  // ✅ 개선
             }
 
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
@@ -309,7 +325,7 @@ private fun DataTable(timeSeries: List<HoldingTimeSeries>) {
                         style = MaterialTheme.typography.bodySmall
                     )
                     Text(
-                        String.format("%.2f", item.amount / 100_000_000),
+                        AmountFormatter.formatForTable(item.amount, maxAmount),  // ✅ 개선
                         Modifier.weight(1f),
                         style = MaterialTheme.typography.bodySmall
                     )

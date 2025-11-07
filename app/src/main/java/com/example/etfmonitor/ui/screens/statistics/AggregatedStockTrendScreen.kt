@@ -9,7 +9,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
@@ -20,6 +19,7 @@ import com.etfmonitor.EtfMonitorApp
 import com.etfmonitor.database.entities.StockAggregatedTimePoint
 import com.etfmonitor.database.entities.StockAggregatedTrend
 import com.etfmonitor.repository.DataRepository
+import com.etfmonitor.ui.utils.AmountFormatter
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
@@ -135,6 +135,7 @@ private fun AggregatedTrendContent(
     }
 }
 
+// ✅ 1. AggregatedSummaryCard 개선
 @Composable
 private fun AggregatedSummaryCard(timeSeries: List<StockAggregatedTimePoint>) {
     if (timeSeries.isEmpty()) return
@@ -172,11 +173,11 @@ private fun AggregatedSummaryCard(timeSeries: List<StockAggregatedTimePoint>) {
             ) {
                 SummaryItem(
                     label = "현재 총액",
-                    value = String.format("%.1f억", last.totalAmount / 100_000_000)
+                    value = AmountFormatter.format(last.totalAmount)  // ✅ 개선
                 )
                 SummaryItem(
                     label = "금액 변화",
-                    value = String.format("%+.1f억", amountChange / 100_000_000)
+                    value = AmountFormatter.formatChange(amountChange)  // ✅ 개선
                 )
                 SummaryItem(
                     label = "보유 ETF",
@@ -195,6 +196,7 @@ private fun SummaryItem(label: String, value: String) {
     }
 }
 
+// ✅ 2. AggregatedChartCard 개선
 @Composable
 private fun AggregatedChartCard(
     title: String,
@@ -206,7 +208,17 @@ private fun AggregatedChartCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
+            // ✅ 개선: 차트 제목에 동적 단위 추가
+            val maxValue = data.maxOfOrNull { valueExtractor(it) } ?: 0f
+            val isAmountChart = title.contains("금액")
+            val chartTitle = if (isAmountChart) {
+                val unit = AmountFormatter.getChartUnit(maxValue)
+                "총 평가금액 추이 ($unit)"
+            } else {
+                title
+            }
+
+            Text(chartTitle, style = MaterialTheme.typography.titleMedium)
 
             if (data.isEmpty()) {
                 Text("데이터 없음", style = MaterialTheme.typography.bodySmall)
@@ -219,7 +231,12 @@ private fun AggregatedChartCard(
                     scope.launch(Dispatchers.Default) {
                         modelProducer.runTransaction {
                             lineSeries {
-                                series(data.map { valueExtractor(it).toDouble() })
+                                // ✅ 개선: 차트 값 변환
+                                if (isAmountChart) {
+                                    series(data.map { AmountFormatter.toChartValue(valueExtractor(it)) })
+                                } else {
+                                    series(data.map { valueExtractor(it).toDouble() })
+                                }
                             }
                             extras { extraStore ->
                                 extraStore[dateLabelsKey] = data.map { formatDateForChart(it.date) }
@@ -282,8 +299,13 @@ private fun formatDateForChart(date: String): String {
     }
 }
 
+// ✅ 3. AggregatedDataTable 개선
 @Composable
 private fun AggregatedDataTable(timeSeries: List<StockAggregatedTimePoint>) {
+    // 최대 금액 계산
+    val maxAmount = timeSeries.maxOfOrNull { it.totalAmount } ?: 0f
+    val amountHeader = AmountFormatter.getTableHeader(maxAmount)
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("상세 데이터", style = MaterialTheme.typography.titleMedium)
@@ -294,7 +316,7 @@ private fun AggregatedDataTable(timeSeries: List<StockAggregatedTimePoint>) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text("날짜", Modifier.weight(1.5f), style = MaterialTheme.typography.labelSmall)
-                Text("총액(억)", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
+                Text(amountHeader, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)  // ✅ 개선
                 Text("ETF수", Modifier.weight(0.8f), style = MaterialTheme.typography.labelSmall)
                 Text("최대%", Modifier.weight(0.8f), style = MaterialTheme.typography.labelSmall)
                 Text("평균%", Modifier.weight(0.8f), style = MaterialTheme.typography.labelSmall)
@@ -311,7 +333,7 @@ private fun AggregatedDataTable(timeSeries: List<StockAggregatedTimePoint>) {
                 ) {
                     Text(item.date, Modifier.weight(1.5f), style = MaterialTheme.typography.bodySmall)
                     Text(
-                        String.format("%.1f", item.totalAmount / 100_000_000),
+                        AmountFormatter.formatForTable(item.totalAmount, maxAmount),  // ✅ 개선
                         Modifier.weight(1f),
                         style = MaterialTheme.typography.bodySmall
                     )
