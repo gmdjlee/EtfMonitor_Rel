@@ -1,10 +1,12 @@
 package com.etfmonitor.ui.screens.oscillator
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,6 +31,7 @@ fun OscillatorScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val suggestions by viewModel.suggestions.collectAsState()
 
     Scaffold(
         topBar = {
@@ -54,7 +57,7 @@ fun OscillatorScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Search Card
+            // Search Card with Autocomplete
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -67,19 +70,70 @@ fun OscillatorScreen(
 
                     var textFieldValue by remember { mutableStateOf("") }
 
-                    OutlinedTextField(
-                        value = textFieldValue,
-                        onValueChange = { textFieldValue = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("종목명 또는 코드") },
-                        placeholder = { Text("예: 삼성전자") },
-                        singleLine = true
-                    )
+                    // TextField with autocomplete
+                    Column {
+                        OutlinedTextField(
+                            value = textFieldValue,
+                            onValueChange = {
+                                textFieldValue = it
+                                viewModel.updateSearchQuery(it)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("종목명 또는 코드") },
+                            placeholder = { Text("예: 삼성전자") },
+                            singleLine = true,
+                            trailingIcon = {
+                                if (textFieldValue.isNotBlank()) {
+                                    IconButton(onClick = {
+                                        textFieldValue = ""
+                                        viewModel.clearSuggestions()
+                                    }) {
+                                        Icon(Icons.Default.Clear, "지우기")
+                                    }
+                                }
+                            }
+                        )
+
+                        // Autocomplete Dropdown
+                        if (suggestions.isNotEmpty() && textFieldValue.isNotBlank()) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    suggestions.forEach { stock ->
+                                        ListItem(
+                                            headlineContent = { Text(stock.name) },
+                                            supportingContent = {
+                                                Text(
+                                                    "${stock.ticker} • ${stock.market}",
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                            },
+                                            modifier = Modifier.clickable {
+                                                textFieldValue = stock.name
+                                                viewModel.clearSuggestions()
+                                                viewModel.analyzeStock(stock.ticker)
+                                            }
+                                        )
+                                        if (stock != suggestions.last()) {
+                                            HorizontalDivider()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     Button(
                         onClick = {
                             if (textFieldValue.isNotBlank()) {
                                 viewModel.searchAndAnalyze(textFieldValue)
+                                viewModel.clearSuggestions()
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
