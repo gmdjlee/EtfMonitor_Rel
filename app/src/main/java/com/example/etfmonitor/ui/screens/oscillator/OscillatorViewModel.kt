@@ -13,6 +13,7 @@ import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.oscillator.calculator.OscillatorCalculator
 import com.etfmonitor.oscillator.model.*
 import com.etfmonitor.oscillator.python.OscillatorPyClient
+import com.etfmonitor.repository.StockAnalysisRepository
 import com.etfmonitor.repository.StockRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -36,7 +37,8 @@ sealed class OscillatorState {
 class OscillatorViewModel(
     application: Application,
     private val pyClient: OscillatorPyClient,
-    private val stockRepository: StockRepository
+    private val stockRepository: StockRepository,
+    private val stockAnalysisRepository: StockAnalysisRepository
 ) : AndroidViewModel(application) {
 
     private val _state = MutableStateFlow<OscillatorState>(OscillatorState.Idle)
@@ -97,8 +99,8 @@ class OscillatorViewModel(
 
                 val (ticker, _) = searchResult
 
-                // 2. 종목 데이터 수집
-                val stockData = pyClient.getStockAnalysis(ticker, days)
+                // 2. 종목 데이터 수집 (DB 캐시 활용)
+                val stockData = stockAnalysisRepository.getStockAnalysis(ticker, days)
                 if (stockData == null) {
                     _state.value = OscillatorState.Error("데이터를 가져올 수 없습니다")
                     return@launch
@@ -127,8 +129,8 @@ class OscillatorViewModel(
             try {
                 _state.value = OscillatorState.Loading
 
-                // 종목 데이터 수집
-                val stockData = pyClient.getStockAnalysis(ticker, days)
+                // 종목 데이터 수집 (DB 캐시 활용)
+                val stockData = stockAnalysisRepository.getStockAnalysis(ticker, days)
                 if (stockData == null) {
                     _state.value = OscillatorState.Error("데이터를 가져올 수 없습니다")
                     return@launch
@@ -162,7 +164,11 @@ class OscillatorViewModel(
                     stockDao = app.database.stockDao(),
                     python = python
                 )
-                OscillatorViewModel(app, pyClient, stockRepository)
+                val stockAnalysisRepository = StockAnalysisRepository(
+                    stockAnalysisDao = app.database.stockAnalysisDao(),
+                    python = python
+                )
+                OscillatorViewModel(app, pyClient, stockRepository, stockAnalysisRepository)
             }
         }
     }

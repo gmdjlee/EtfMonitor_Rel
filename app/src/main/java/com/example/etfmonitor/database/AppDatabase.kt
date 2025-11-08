@@ -2,6 +2,7 @@ package com.etfmonitor.database
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.etfmonitor.database.entities.Etf
@@ -9,16 +10,19 @@ import com.etfmonitor.database.entities.Holding
 import com.etfmonitor.database.entities.MarketDeposit
 import com.etfmonitor.database.entities.Setting
 import com.etfmonitor.database.entities.Stock
+import com.etfmonitor.database.entities.StockAnalysisData
 
 @Database(
-    entities = [Etf::class, Holding::class, Setting::class, Stock::class, MarketDeposit::class],
-    version = 3,
+    entities = [Etf::class, Holding::class, Setting::class, Stock::class, MarketDeposit::class, StockAnalysisData::class],
+    version = 4,
     exportSchema = false
 )
+@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun dao(): EtfDao
     abstract fun stockDao(): StockDao
     abstract fun marketDepositDao(): MarketDepositDao
+    abstract fun stockAnalysisDao(): StockAnalysisDao
 }
 
 /**
@@ -53,6 +57,29 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
                 creditAmount REAL NOT NULL,
                 creditChange REAL NOT NULL,
                 lastUpdated INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+    }
+}
+
+/**
+ * Migration from version 3 to 4: Add StockAnalysisData table
+ */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS stock_analysis_data (
+                ticker TEXT PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                dates TEXT NOT NULL,
+                marketCap TEXT NOT NULL,
+                foreign5d TEXT NOT NULL,
+                institution5d TEXT NOT NULL,
+                lastUpdated INTEGER NOT NULL,
+                dataStartDate TEXT NOT NULL,
+                dataEndDate TEXT NOT NULL
             )
             """.trimIndent()
         )
