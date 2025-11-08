@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.etfmonitor.ui.components.MarketDepositChart
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,6 +129,12 @@ fun MarketDepositScreen(
                             )
                         }
                     }
+
+                    // 증시 자금 동향 차트
+                    MarketDepositChart(
+                        data = currentState.data,
+                        latestDate = currentState.data.dates.lastOrNull()
+                    )
 
                     // 최신 데이터 요약
                     if (currentState.data.dates.isNotEmpty()) {

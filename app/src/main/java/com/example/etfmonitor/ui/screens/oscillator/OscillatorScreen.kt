@@ -15,6 +15,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.etfmonitor.oscillator.model.TradeSignal
+import com.example.etfmonitor.ui.components.MarketCapOscillatorChart
+import com.example.etfmonitor.ui.components.MacdChart
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -130,6 +132,19 @@ fun OscillatorScreen(
 
                     // Signal Analysis Card
                     SignalCard(currentState.signalAnalysis)
+
+                    // 시가총액 & 수급 오실레이터 차트
+                    MarketCapOscillatorChart(
+                        result = currentState.oscillatorResult,
+                        marketCap = currentState.stockData.marketCap,
+                        latestDate = currentState.stockData.dates.lastOrNull()
+                    )
+
+                    // MACD 차트
+                    MacdChart(
+                        result = currentState.oscillatorResult,
+                        latestDate = currentState.stockData.dates.lastOrNull()
+                    )
 
                     // Oscillator Data Card
                     DataCard(currentState.oscillatorResult)
