@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.etfmonitor.EtfMonitorApp
 import com.etfmonitor.database.entities.Setting
 import com.etfmonitor.repository.DataRepository
+import com.etfmonitor.repository.MarketDepositRepository
 import com.etfmonitor.repository.StockRepository
 import com.etfmonitor.worker.WorkManagerHelper
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,10 +24,19 @@ data class StockUpdateSettings(
     val isUpdating: Boolean = false
 )
 
+data class MarketDepositUpdateSettings(
+    val updateHour: Int = 2, // 기본값: 새벽 2시
+    val updateMinute: Int = 0,
+    val lastUpdateTime: Long? = null,
+    val depositCount: Int = 0,
+    val isUpdating: Boolean = false
+)
+
 class SettingsViewModel(
     private val application: Application,
     private val repository: DataRepository,
-    private val stockRepository: StockRepository
+    private val stockRepository: StockRepository,
+    private val marketDepositRepository: MarketDepositRepository
 ) : AndroidViewModel(application) {
 
     private val _themes = MutableStateFlow<List<String>>(emptyList())
@@ -41,6 +51,9 @@ class SettingsViewModel(
     private val _stockUpdateSettings = MutableStateFlow(StockUpdateSettings())
     val stockUpdateSettings: StateFlow<StockUpdateSettings> = _stockUpdateSettings.asStateFlow()
 
+    private val _marketDepositUpdateSettings = MutableStateFlow(MarketDepositUpdateSettings())
+    val marketDepositUpdateSettings: StateFlow<MarketDepositUpdateSettings> = _marketDepositUpdateSettings.asStateFlow()
+
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
@@ -49,6 +62,7 @@ class SettingsViewModel(
     init {
         loadSettings()
         loadStockInfo()
+        loadMarketDepositInfo()
     }
 
     private fun loadSettings() {
@@ -58,19 +72,34 @@ class SettingsViewModel(
             _defaultDays.value = repository.getDefaultDays()
 
             // Stock 업데이트 시간 로드
-            val hourStr = dao.getSetting("stock_update_hour")
-            val minuteStr = dao.getSetting("stock_update_minute")
+            val stockHourStr = dao.getSetting("stock_update_hour")
+            val stockMinuteStr = dao.getSetting("stock_update_minute")
 
-            val hour = hourStr?.toIntOrNull() ?: 1 // 기본값: 새벽 1시
-            val minute = minuteStr?.toIntOrNull() ?: 0
+            val stockHour = stockHourStr?.toIntOrNull() ?: 1 // 기본값: 새벽 1시
+            val stockMinute = stockMinuteStr?.toIntOrNull() ?: 0
 
             _stockUpdateSettings.value = _stockUpdateSettings.value.copy(
-                updateHour = hour,
-                updateMinute = minute
+                updateHour = stockHour,
+                updateMinute = stockMinute
             )
 
             // 스케줄 재설정
-            WorkManagerHelper.scheduleStockUpdate(application, hour, minute)
+            WorkManagerHelper.scheduleStockUpdate(application, stockHour, stockMinute)
+
+            // Market Deposit 업데이트 시간 로드
+            val depositHourStr = dao.getSetting("market_deposit_update_hour")
+            val depositMinuteStr = dao.getSetting("market_deposit_update_minute")
+
+            val depositHour = depositHourStr?.toIntOrNull() ?: 2 // 기본값: 새벽 2시
+            val depositMinute = depositMinuteStr?.toIntOrNull() ?: 0
+
+            _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(
+                updateHour = depositHour,
+                updateMinute = depositMinute
+            )
+
+            // 스케줄 재설정
+            WorkManagerHelper.scheduleMarketDepositUpdate(application, depositHour, depositMinute)
         }
     }
 
@@ -86,6 +115,22 @@ class SettingsViewModel(
                 )
             } catch (e: Exception) {
                 android.util.Log.e("SettingsViewModel", "Error loading stock info", e)
+            }
+        }
+    }
+
+    private fun loadMarketDepositInfo() {
+        viewModelScope.launch {
+            try {
+                val count = marketDepositRepository.getDepositCount()
+                val lastUpdate = marketDepositRepository.getLastUpdateTime()
+
+                _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(
+                    depositCount = count,
+                    lastUpdateTime = lastUpdate
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsViewModel", "Error loading market deposit info", e)
             }
         }
     }
@@ -188,6 +233,48 @@ class SettingsViewModel(
         }
     }
 
+    fun setMarketDepositUpdateTime(hour: Int, minute: Int) {
+        viewModelScope.launch {
+            try {
+                dao.saveSetting(Setting("market_deposit_update_hour", hour.toString()))
+                dao.saveSetting(Setting("market_deposit_update_minute", minute.toString()))
+
+                _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(
+                    updateHour = hour,
+                    updateMinute = minute
+                )
+
+                WorkManagerHelper.scheduleMarketDepositUpdate(application, hour, minute)
+                _message.value = "증시 자금 업데이트 시간이 ${hour}:${String.format("%02d", minute)}로 설정되었습니다"
+            } catch (e: Exception) {
+                _message.value = "시간 설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun updateMarketDepositsNow() {
+        viewModelScope.launch {
+            try {
+                _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(isUpdating = true)
+                _message.value = "증시 자금 데이터 업데이트 중..."
+
+                val result = marketDepositRepository.updateDeposits(numPages = 10)
+
+                if (result.isSuccess) {
+                    val count = result.getOrNull() ?: 0
+                    loadMarketDepositInfo()
+                    _message.value = "업데이트 완료: ${count}개 데이터"
+                } else {
+                    _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
+                }
+            } catch (e: Exception) {
+                _message.value = "오류 발생: ${e.message}"
+            } finally {
+                _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(isUpdating = false)
+            }
+        }
+    }
+
     fun clearMessage() {
         _message.value = null
     }
@@ -202,6 +289,10 @@ class SettingsViewModel(
                     repository = app.repository,
                     stockRepository = StockRepository(
                         stockDao = app.database.stockDao(),
+                        python = app.python
+                    ),
+                    marketDepositRepository = MarketDepositRepository(
+                        marketDepositDao = app.database.marketDepositDao(),
                         python = app.python
                     )
                 ) as T

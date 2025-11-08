@@ -21,7 +21,10 @@ class EtfMonitorApp : Application() {
             AppDatabase::class.java,
             "etf_monitor.db"
         )
-            .addMigrations(com.etfmonitor.database.MIGRATION_1_2)
+            .addMigrations(
+                com.etfmonitor.database.MIGRATION_1_2,
+                com.etfmonitor.database.MIGRATION_2_3
+            )
             .build()
     }
 

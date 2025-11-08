@@ -14,6 +14,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.etfmonitor.repository.MarketDepositRepository
 import com.etfmonitor.repository.StockRepository
 import com.etfmonitor.ui.Navigation
 import com.etfmonitor.ui.theme.EtfMonitorTheme
@@ -49,6 +50,9 @@ class MainActivity : ComponentActivity() {
 
         // Stock DB 초기화 및 WorkManager 설정
         initializeStockDatabase()
+
+        // Market Deposit DB 초기화 및 WorkManager 설정
+        initializeMarketDepositDatabase()
 
         setContent {
             EtfMonitorTheme {
@@ -105,6 +109,53 @@ class MainActivity : ComponentActivity() {
                 Log.d("MainActivity", "WorkManager scheduled for $hour:${String.format("%02d", minute)}")
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error initializing stock database", e)
+            }
+        }
+    }
+
+    private fun initializeMarketDepositDatabase() {
+        lifecycleScope.launch {
+            try {
+                val app = application as EtfMonitorApp
+                val marketDepositDao = app.database.marketDepositDao()
+                val marketDepositRepository = MarketDepositRepository(marketDepositDao, app.python)
+
+                // Market Deposit DB가 비어있으면 초기화
+                val depositCount = marketDepositRepository.getDepositCount()
+                if (depositCount == 0) {
+                    Log.d("MainActivity", "Initializing market deposit database...")
+                    val result = marketDepositRepository.initializeDeposits(numPages = 10)
+                    if (result.isSuccess) {
+                        val count = result.getOrNull() ?: 0
+                        Log.d("MainActivity", "Market deposit database initialized with $count records")
+                    } else {
+                        Log.e("MainActivity", "Failed to initialize market deposit database: ${result.exceptionOrNull()?.message}")
+                    }
+                } else {
+                    Log.d("MainActivity", "Market deposit database already has $depositCount records")
+                }
+
+                // WorkManager 스케줄 설정 (설정된 시간 로드)
+                val dao = app.database.dao()
+                val hourStr = dao.getSetting("market_deposit_update_hour")
+                val minuteStr = dao.getSetting("market_deposit_update_minute")
+
+                val hour = hourStr?.toIntOrNull() ?: 2 // 기본값: 새벽 2시
+                val minute = minuteStr?.toIntOrNull() ?: 0
+
+                // 기본값 저장 (설정이 없는 경우)
+                if (hourStr == null) {
+                    dao.saveSetting(com.etfmonitor.database.entities.Setting("market_deposit_update_hour", hour.toString()))
+                }
+                if (minuteStr == null) {
+                    dao.saveSetting(com.etfmonitor.database.entities.Setting("market_deposit_update_minute", minute.toString()))
+                }
+
+                // WorkManager 스케줄 설정
+                WorkManagerHelper.scheduleMarketDepositUpdate(this@MainActivity, hour, minute)
+                Log.d("MainActivity", "Market deposit WorkManager scheduled for $hour:${String.format("%02d", minute)}")
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error initializing market deposit database", e)
             }
         }
     }
