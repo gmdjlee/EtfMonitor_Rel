@@ -27,13 +27,9 @@ class MarketDepositUpdateWorker(
             Log.d(TAG, "Starting market deposit database update...")
 
             val app = applicationContext as EtfMonitorApp
-            val marketDepositRepository = MarketDepositRepository(
-                marketDepositDao = app.database.marketDepositDao(),
-                python = app.python
-            )
-
+            // Use singleton repository from EtfMonitorApp for optimized memory usage
             // 10페이지 정도 데이터 수집 (약 100일치)
-            val result = marketDepositRepository.updateDeposits(numPages = 10)
+            val result = app.marketDepositRepository.updateDeposits(numPages = 10)
 
             if (result.isSuccess) {
                 val count = result.getOrNull() ?: 0

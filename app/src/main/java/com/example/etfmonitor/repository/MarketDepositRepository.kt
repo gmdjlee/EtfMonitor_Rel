@@ -6,14 +6,11 @@ import com.etfmonitor.database.MarketDepositDao
 import com.etfmonitor.database.entities.MarketDeposit
 import com.etfmonitor.oscillator.model.MarketDepositData
 import com.etfmonitor.oscillator.python.OscillatorPyClient
+import com.etfmonitor.utils.DateFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 
 class MarketDepositRepository(
     private val marketDepositDao: MarketDepositDao,
@@ -27,8 +24,6 @@ class MarketDepositRepository(
     private val pyClient by lazy {
         OscillatorPyClient(python)
     }
-
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     fun getAllDeposits(): Flow<List<MarketDeposit>> = marketDepositDao.getAllDeposits()
 
@@ -102,7 +97,7 @@ class MarketDepositRepository(
             // 1. DB에서 기존 데이터 확인
             val existingDeposits = marketDepositDao.getRecentDeposits(limit).first()
 
-            val today = dateFormat.format(Date())
+            val today = DateFormatter.formatToday()
             val shouldUpdate = shouldUpdateMarketData(existingDeposits, today)
 
             if (!shouldUpdate && existingDeposits.isNotEmpty()) {

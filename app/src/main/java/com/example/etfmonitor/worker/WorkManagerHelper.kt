@@ -10,14 +10,22 @@ object WorkManagerHelper {
     private const val TAG = "WorkManagerHelper"
 
     /**
-     * 매일 지정된 시간에 주식 DB 업데이트 작업 스케줄링
+     * 매일 지정된 시간에 작업 스케줄링 (Generic)
      *
      * @param context Context
      * @param hour 업데이트할 시간 (0-23)
      * @param minute 업데이트할 분 (0-59)
+     * @param workName 작업 고유 이름
+     * @param taskName 로깅용 작업 이름
      */
-    fun scheduleStockUpdate(context: Context, hour: Int, minute: Int) {
-        Log.d(TAG, "Scheduling stock update for ${hour}:${minute}")
+    private inline fun <reified W : CoroutineWorker> scheduleDailyUpdate(
+        context: Context,
+        hour: Int,
+        minute: Int,
+        workName: String,
+        taskName: String
+    ) {
+        Log.d(TAG, "Scheduling $taskName update for ${hour}:${minute}")
 
         // 다음 실행 시간 계산
         val currentTime = Calendar.getInstance()
@@ -42,51 +50,85 @@ object WorkManagerHelper {
             .build()
 
         // 매일 반복 작업 생성
-        val workRequest = PeriodicWorkRequestBuilder<StockUpdateWorker>(
+        val workRequest = PeriodicWorkRequestBuilder<W>(
             repeatInterval = 1,
             repeatIntervalTimeUnit = TimeUnit.DAYS
         )
             .setConstraints(constraints)
             .setInitialDelay(initialDelay, TimeUnit.MILLISECONDS)
-            .addTag(StockUpdateWorker.WORK_NAME)
+            .addTag(workName)
             .build()
 
         // 기존 작업 취소 후 새로 등록
         WorkManager.getInstance(context).apply {
-            cancelUniqueWork(StockUpdateWorker.WORK_NAME)
+            cancelUniqueWork(workName)
             enqueueUniquePeriodicWork(
-                StockUpdateWorker.WORK_NAME,
+                workName,
                 ExistingPeriodicWorkPolicy.REPLACE,
                 workRequest
             )
         }
 
-        Log.d(TAG, "Stock update scheduled successfully")
+        Log.d(TAG, "$taskName update scheduled successfully")
+    }
+
+    /**
+     * 매일 지정된 시간에 주식 DB 업데이트 작업 스케줄링
+     *
+     * @param context Context
+     * @param hour 업데이트할 시간 (0-23)
+     * @param minute 업데이트할 분 (0-59)
+     */
+    fun scheduleStockUpdate(context: Context, hour: Int, minute: Int) {
+        scheduleDailyUpdate<StockUpdateWorker>(
+            context = context,
+            hour = hour,
+            minute = minute,
+            workName = StockUpdateWorker.WORK_NAME,
+            taskName = "stock"
+        )
+    }
+
+    /**
+     * 작업 취소 (Generic)
+     */
+    private fun cancelUpdate(context: Context, workName: String, taskName: String) {
+        Log.d(TAG, "Cancelling $taskName update schedule")
+        WorkManager.getInstance(context).cancelUniqueWork(workName)
+    }
+
+    /**
+     * 즉시 수동 업데이트 실행 (Generic)
+     */
+    private inline fun <reified W : CoroutineWorker> runUpdateNow(
+        context: Context,
+        taskName: String
+    ) {
+        Log.d(TAG, "Running $taskName update immediately")
+
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val workRequest = OneTimeWorkRequestBuilder<W>()
+            .setConstraints(constraints)
+            .build()
+
+        WorkManager.getInstance(context).enqueue(workRequest)
     }
 
     /**
      * 스케줄링 취소
      */
     fun cancelStockUpdate(context: Context) {
-        Log.d(TAG, "Cancelling stock update schedule")
-        WorkManager.getInstance(context).cancelUniqueWork(StockUpdateWorker.WORK_NAME)
+        cancelUpdate(context, StockUpdateWorker.WORK_NAME, "stock")
     }
 
     /**
      * 즉시 수동 업데이트 실행
      */
     fun runStockUpdateNow(context: Context) {
-        Log.d(TAG, "Running stock update immediately")
-
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        val workRequest = OneTimeWorkRequestBuilder<StockUpdateWorker>()
-            .setConstraints(constraints)
-            .build()
-
-        WorkManager.getInstance(context).enqueue(workRequest)
+        runUpdateNow<StockUpdateWorker>(context, "stock")
     }
 
     /**
@@ -97,75 +139,26 @@ object WorkManagerHelper {
      * @param minute 업데이트할 분 (0-59)
      */
     fun scheduleMarketDepositUpdate(context: Context, hour: Int, minute: Int) {
-        Log.d(TAG, "Scheduling market deposit update for ${hour}:${minute}")
-
-        // 다음 실행 시간 계산
-        val currentTime = Calendar.getInstance()
-        val scheduledTime = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, hour)
-            set(Calendar.MINUTE, minute)
-            set(Calendar.SECOND, 0)
-
-            // 이미 지난 시간이면 다음날로 설정
-            if (before(currentTime)) {
-                add(Calendar.DAY_OF_MONTH, 1)
-            }
-        }
-
-        val initialDelay = scheduledTime.timeInMillis - currentTime.timeInMillis
-
-        Log.d(TAG, "Initial delay: ${initialDelay / 1000 / 60} minutes")
-
-        // Constraints 설정 (네트워크 필요)
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        // 매일 반복 작업 생성
-        val workRequest = PeriodicWorkRequestBuilder<MarketDepositUpdateWorker>(
-            repeatInterval = 1,
-            repeatIntervalTimeUnit = TimeUnit.DAYS
+        scheduleDailyUpdate<MarketDepositUpdateWorker>(
+            context = context,
+            hour = hour,
+            minute = minute,
+            workName = MarketDepositUpdateWorker.WORK_NAME,
+            taskName = "market deposit"
         )
-            .setConstraints(constraints)
-            .setInitialDelay(initialDelay, TimeUnit.MILLISECONDS)
-            .addTag(MarketDepositUpdateWorker.WORK_NAME)
-            .build()
-
-        // 기존 작업 취소 후 새로 등록
-        WorkManager.getInstance(context).apply {
-            cancelUniqueWork(MarketDepositUpdateWorker.WORK_NAME)
-            enqueueUniquePeriodicWork(
-                MarketDepositUpdateWorker.WORK_NAME,
-                ExistingPeriodicWorkPolicy.REPLACE,
-                workRequest
-            )
-        }
-
-        Log.d(TAG, "Market deposit update scheduled successfully")
     }
 
     /**
      * 증시 자금 스케줄링 취소
      */
     fun cancelMarketDepositUpdate(context: Context) {
-        Log.d(TAG, "Cancelling market deposit update schedule")
-        WorkManager.getInstance(context).cancelUniqueWork(MarketDepositUpdateWorker.WORK_NAME)
+        cancelUpdate(context, MarketDepositUpdateWorker.WORK_NAME, "market deposit")
     }
 
     /**
      * 즉시 증시 자금 수동 업데이트 실행
      */
     fun runMarketDepositUpdateNow(context: Context) {
-        Log.d(TAG, "Running market deposit update immediately")
-
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        val workRequest = OneTimeWorkRequestBuilder<MarketDepositUpdateWorker>()
-            .setConstraints(constraints)
-            .build()
-
-        WorkManager.getInstance(context).enqueue(workRequest)
+        runUpdateNow<MarketDepositUpdateWorker>(context, "market deposit")
     }
 }

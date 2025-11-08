@@ -6,12 +6,9 @@ import com.etfmonitor.database.StockAnalysisDao
 import com.etfmonitor.database.entities.StockAnalysisData
 import com.etfmonitor.oscillator.model.StockData
 import com.etfmonitor.oscillator.python.OscillatorPyClient
+import com.etfmonitor.utils.DateFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 
 class StockAnalysisRepository(
     private val stockAnalysisDao: StockAnalysisDao,
@@ -26,8 +23,6 @@ class StockAnalysisRepository(
         OscillatorPyClient(python)
     }
 
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-
     /**
      * 종목 분석 데이터 가져오기 (DB 캐시 활용)
      * DB에 데이터가 있고 최신이면 DB에서, 없거나 오래되면 Python에서 가져옴
@@ -37,7 +32,7 @@ class StockAnalysisRepository(
             // 1. DB에서 기존 데이터 확인
             val cachedData = stockAnalysisDao.getAnalysisData(ticker)
 
-            val today = dateFormat.format(Date())
+            val today = DateFormatter.formatToday()
             val shouldUpdate = shouldUpdateData(cachedData, today, days)
 
             if (!shouldUpdate && cachedData != null) {

@@ -27,12 +27,8 @@ class StockUpdateWorker(
             Log.d(TAG, "Starting stock database update...")
 
             val app = applicationContext as EtfMonitorApp
-            val stockRepository = StockRepository(
-                stockDao = app.database.stockDao(),
-                python = app.python
-            )
-
-            val result = stockRepository.updateStocks()
+            // Use singleton repository from EtfMonitorApp for optimized memory usage
+            val result = app.stockRepository.updateStocks()
 
             if (result.isSuccess) {
                 val count = result.getOrNull() ?: 0

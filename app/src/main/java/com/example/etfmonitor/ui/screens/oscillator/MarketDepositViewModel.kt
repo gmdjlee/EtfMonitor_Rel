@@ -73,12 +73,10 @@ class MarketDepositViewModel(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 val app = EtfMonitorApp.instance
+                // Use singleton repository from EtfMonitorApp for optimized memory usage
                 return MarketDepositViewModel(
                     application = app,
-                    repository = MarketDepositRepository(
-                        marketDepositDao = app.database.marketDepositDao(),
-                        python = app.python
-                    )
+                    repository = app.marketDepositRepository
                 ) as T
             }
         }

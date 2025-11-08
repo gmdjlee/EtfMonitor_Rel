@@ -158,17 +158,14 @@ class OscillatorViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as EtfMonitorApp
-                val python = app.python
-                val pyClient = OscillatorPyClient(python)
-                val stockRepository = StockRepository(
-                    stockDao = app.database.stockDao(),
-                    python = python
+                val pyClient = OscillatorPyClient(app.python)
+                // Use singleton repositories from EtfMonitorApp for optimized memory usage
+                OscillatorViewModel(
+                    app,
+                    pyClient,
+                    app.stockRepository,
+                    app.stockAnalysisRepository
                 )
-                val stockAnalysisRepository = StockAnalysisRepository(
-                    stockAnalysisDao = app.database.stockAnalysisDao(),
-                    python = python
-                )
-                OscillatorViewModel(app, pyClient, stockRepository, stockAnalysisRepository)
             }
         }
     }
