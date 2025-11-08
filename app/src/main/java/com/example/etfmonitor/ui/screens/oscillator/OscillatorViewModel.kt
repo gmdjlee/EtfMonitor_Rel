@@ -9,6 +9,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.chaquo.python.Python
 import com.etfmonitor.EtfMonitorApp
+import com.etfmonitor.database.SearchHistoryDao
+import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.oscillator.calculator.OscillatorCalculator
 import com.etfmonitor.oscillator.model.*
@@ -38,7 +40,8 @@ class OscillatorViewModel(
     application: Application,
     private val pyClient: OscillatorPyClient,
     private val stockRepository: StockRepository,
-    private val stockAnalysisRepository: StockAnalysisRepository
+    private val stockAnalysisRepository: StockAnalysisRepository,
+    private val searchHistoryDao: SearchHistoryDao
 ) : AndroidViewModel(application) {
 
     private val _state = MutableStateFlow<OscillatorState>(OscillatorState.Idle)
@@ -50,7 +53,63 @@ class OscillatorViewModel(
     private val _suggestions = MutableStateFlow<List<Stock>>(emptyList())
     val suggestions: StateFlow<List<Stock>> = _suggestions.asStateFlow()
 
+    private val _searchHistory = MutableStateFlow<List<SearchHistory>>(emptyList())
+    val searchHistory: StateFlow<List<SearchHistory>> = _searchHistory.asStateFlow()
+
     private var searchJob: Job? = null
+
+    init {
+        loadSearchHistory()
+    }
+
+    /**
+     * 검색 히스토리 로드
+     */
+    private fun loadSearchHistory() {
+        viewModelScope.launch {
+            try {
+                // 설정에서 히스토리 개수 가져오기 (기본값: 15)
+                val app = getApplication<EtfMonitorApp>()
+                val limitStr = app.database.dao().getSetting("search_history_limit")
+                val limit = limitStr?.toIntOrNull() ?: 15
+
+                searchHistoryDao.getRecentSearches(limit).collect { history ->
+                    _searchHistory.value = history
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("OscillatorViewModel", "Error loading search history", e)
+            }
+        }
+    }
+
+    /**
+     * 검색 히스토리에 저장
+     */
+    private suspend fun saveToHistory(ticker: String, name: String, market: String) {
+        try {
+            val app = getApplication<EtfMonitorApp>()
+            val limitStr = app.database.dao().getSetting("search_history_limit")
+            val limit = limitStr?.toIntOrNull() ?: 15
+
+            // 기존 동일 종목 삭제 (중복 방지)
+            searchHistoryDao.deleteByTicker(ticker)
+
+            // 새 히스토리 추가
+            searchHistoryDao.insertSearch(
+                SearchHistory(
+                    ticker = ticker,
+                    name = name,
+                    market = market
+                )
+            )
+
+            // 오래된 히스토리 삭제 (limit 개수 초과분)
+            searchHistoryDao.deleteOldSearches(limit)
+
+        } catch (e: Exception) {
+            android.util.Log.e("OscillatorViewModel", "Error saving search history", e)
+        }
+    }
 
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
@@ -106,10 +165,16 @@ class OscillatorViewModel(
                     return@launch
                 }
 
-                // 3. 오실레이터 계산
+                // 3. 검색 히스토리에 저장
+                val stock = stockRepository.searchStocks(ticker).first().firstOrNull()
+                if (stock != null) {
+                    saveToHistory(stock.ticker, stock.name, stock.market)
+                }
+
+                // 4. 오실레이터 계산
                 val oscillatorResult = OscillatorCalculator.calculate(stockData)
 
-                // 4. 신호 분석
+                // 5. 신호 분석
                 val signalAnalysis = OscillatorCalculator.analyzeSignal(oscillatorResult)
 
                 _state.value = OscillatorState.Success(
@@ -134,6 +199,12 @@ class OscillatorViewModel(
                 if (stockData == null) {
                     _state.value = OscillatorState.Error("데이터를 가져올 수 없습니다")
                     return@launch
+                }
+
+                // 검색 히스토리에 저장
+                val stock = stockRepository.searchStocks(ticker).first().firstOrNull()
+                if (stock != null) {
+                    saveToHistory(stock.ticker, stock.name, stock.market)
                 }
 
                 // 오실레이터 계산
@@ -164,7 +235,8 @@ class OscillatorViewModel(
                     app,
                     pyClient,
                     app.stockRepository,
-                    app.stockAnalysisRepository
+                    app.stockAnalysisRepository,
+                    app.database.searchHistoryDao()
                 )
             }
         }

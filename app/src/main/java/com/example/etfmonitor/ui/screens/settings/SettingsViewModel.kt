@@ -54,6 +54,9 @@ class SettingsViewModel(
     private val _marketDepositUpdateSettings = MutableStateFlow(MarketDepositUpdateSettings())
     val marketDepositUpdateSettings: StateFlow<MarketDepositUpdateSettings> = _marketDepositUpdateSettings.asStateFlow()
 
+    private val _searchHistoryLimit = MutableStateFlow(15)
+    val searchHistoryLimit: StateFlow<Int> = _searchHistoryLimit.asStateFlow()
+
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
@@ -70,6 +73,10 @@ class SettingsViewModel(
             _themes.value = repository.getThemes()
             _exclusions.value = repository.getExclusions()
             _defaultDays.value = repository.getDefaultDays()
+
+            // 검색 히스토리 개수 로드
+            val historyLimitStr = dao.getSetting("search_history_limit")
+            _searchHistoryLimit.value = historyLimitStr?.toIntOrNull() ?: 15
 
             // Stock 업데이트 시간 로드
             val stockHourStr = dao.getSetting("stock_update_hour")
@@ -271,6 +278,40 @@ class SettingsViewModel(
                 _message.value = "오류 발생: ${e.message}"
             } finally {
                 _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(isUpdating = false)
+            }
+        }
+    }
+
+    fun setSearchHistoryLimit(limit: Int) {
+        viewModelScope.launch {
+            try {
+                dao.saveSetting(Setting("search_history_limit", limit.toString()))
+                _searchHistoryLimit.value = limit
+                _message.value = "검색 히스토리가 최대 ${limit}개로 설정되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun initializeData(days: Int) {
+        viewModelScope.launch {
+            try {
+                com.etfmonitor.service.DataCollectionService.startInitialize(application, days)
+                _message.value = "데이터 초기화를 시작합니다"
+            } catch (e: Exception) {
+                _message.value = "초기화 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun updateData() {
+        viewModelScope.launch {
+            try {
+                com.etfmonitor.service.DataCollectionService.startUpdate(application)
+                _message.value = "데이터 업데이트를 시작합니다"
+            } catch (e: Exception) {
+                _message.value = "업데이트 실패: ${e.message}"
             }
         }
     }

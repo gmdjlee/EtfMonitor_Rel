@@ -16,7 +16,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.etfmonitor.oscillator.model.TradeSignal
 import com.etfmonitor.ui.components.MarketCapOscillatorChart
 import com.etfmonitor.ui.components.MacdChart
 import com.etfmonitor.ui.components.LoadingCard
@@ -32,6 +31,7 @@ fun OscillatorScreen(
     val state by viewModel.state.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val suggestions by viewModel.suggestions.collectAsState()
+    val searchHistory by viewModel.searchHistory.collectAsState()
 
     Scaffold(
         topBar = {
@@ -146,6 +146,40 @@ fun OscillatorScreen(
                 }
             }
 
+            // Search History
+            if (searchHistory.isNotEmpty() && textFieldValue.isBlank() && state is OscillatorState.Idle) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "최근 검색",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        searchHistory.forEach { history ->
+                            ListItem(
+                                headlineContent = { Text(history.name) },
+                                supportingContent = {
+                                    Text(
+                                        "${history.ticker} • ${history.market}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                },
+                                modifier = Modifier.clickable {
+                                    viewModel.analyzeStock(history.ticker)
+                                }
+                            )
+                            if (history != searchHistory.last()) {
+                                HorizontalDivider()
+                            }
+                        }
+                    }
+                }
+            }
+
             // State Content
             when (val currentState = state) {
                 is OscillatorState.Loading -> {
@@ -171,9 +205,6 @@ fun OscillatorScreen(
                             )
                         }
                     }
-
-                    // Signal Analysis Card
-                    SignalCard(currentState.signalAnalysis)
 
                     // 시가총액 & 수급 오실레이터 차트
                     MarketCapOscillatorChart(
@@ -201,91 +232,6 @@ fun OscillatorScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun SignalCard(analysis: com.etfmonitor.oscillator.model.SignalAnalysis) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = when (analysis.signal) {
-                TradeSignal.STRONG_BUY -> Color(0xFF1B5E20)
-                TradeSignal.BUY -> Color(0xFF388E3C)
-                TradeSignal.NEUTRAL -> MaterialTheme.colorScheme.surfaceVariant
-                TradeSignal.SELL -> Color(0xFFD32F2F)
-                TradeSignal.STRONG_SELL -> Color(0xFFB71C1C)
-            }
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                "매매 신호",
-                style = MaterialTheme.typography.titleMedium,
-                color = if (analysis.signal == TradeSignal.NEUTRAL)
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                else
-                    Color.White
-            )
-
-            Text(
-                when (analysis.signal) {
-                    TradeSignal.STRONG_BUY -> "강력 매수"
-                    TradeSignal.BUY -> "매수"
-                    TradeSignal.NEUTRAL -> "중립"
-                    TradeSignal.SELL -> "매도"
-                    TradeSignal.STRONG_SELL -> "강력 매도"
-                },
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = if (analysis.signal == TradeSignal.NEUTRAL)
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                else
-                    Color.White
-            )
-
-            HorizontalDivider()
-
-            InfoRow("점수", "${analysis.score.toInt()}/100")
-            InfoRow("추세", analysis.trend)
-            InfoRow("외국인", analysis.foreignTrend)
-            InfoRow("기관", analysis.institutionTrend)
-
-            HorizontalDivider()
-
-            Text(
-                analysis.recommendation,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = if (analysis.signal == TradeSignal.NEUTRAL)
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                else
-                    Color.White
-            )
-        }
-    }
-}
-
-@Composable
-private fun InfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.7f)
-        )
-        Text(
-            value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = Color.White
-        )
     }
 }
 

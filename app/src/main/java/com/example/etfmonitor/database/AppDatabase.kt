@@ -8,13 +8,14 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.etfmonitor.database.entities.Etf
 import com.etfmonitor.database.entities.Holding
 import com.etfmonitor.database.entities.MarketDeposit
+import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.database.entities.Setting
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.StockAnalysisData
 
 @Database(
-    entities = [Etf::class, Holding::class, Setting::class, Stock::class, MarketDeposit::class, StockAnalysisData::class],
-    version = 4,
+    entities = [Etf::class, Holding::class, Setting::class, Stock::class, MarketDeposit::class, StockAnalysisData::class, SearchHistory::class],
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -23,6 +24,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun stockDao(): StockDao
     abstract fun marketDepositDao(): MarketDepositDao
     abstract fun stockAnalysisDao(): StockAnalysisDao
+    abstract fun searchHistoryDao(): SearchHistoryDao
 }
 
 /**
@@ -80,6 +82,25 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
                 lastUpdated INTEGER NOT NULL,
                 dataStartDate TEXT NOT NULL,
                 dataEndDate TEXT NOT NULL
+            )
+            """.trimIndent()
+        )
+    }
+}
+
+/**
+ * Migration from version 4 to 5: Add SearchHistory table
+ */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS search_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                ticker TEXT NOT NULL,
+                name TEXT NOT NULL,
+                market TEXT NOT NULL,
+                searchedAt INTEGER NOT NULL
             )
             """.trimIndent()
         )

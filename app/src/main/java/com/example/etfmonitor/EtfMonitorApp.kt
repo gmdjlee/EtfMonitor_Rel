@@ -27,7 +27,8 @@ class EtfMonitorApp : Application() {
             .addMigrations(
                 com.etfmonitor.database.MIGRATION_1_2,
                 com.etfmonitor.database.MIGRATION_2_3,
-                com.etfmonitor.database.MIGRATION_3_4
+                com.etfmonitor.database.MIGRATION_3_4,
+                com.etfmonitor.database.MIGRATION_4_5
             )
             .build()
     }

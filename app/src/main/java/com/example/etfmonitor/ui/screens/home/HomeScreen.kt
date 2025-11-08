@@ -28,9 +28,17 @@ fun HomeScreen(
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
 ) {
     val state by viewModel.state.collectAsState()
+    val showFirstRunDialog by viewModel.showFirstRunDialog.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     var showDaysDialog by remember { mutableStateOf(false) }
+
+    // 첫 실행 다이얼로그 표시
+    LaunchedEffect(showFirstRunDialog) {
+        if (showFirstRunDialog) {
+            showDaysDialog = true
+        }
+    }
 
     LaunchedEffect(state) {
         when (val s = state) {
@@ -77,8 +85,6 @@ fun HomeScreen(
                 HomeContent(
                     modifier = Modifier.padding(padding),
                     state = s,
-                    onInitialize = { showDaysDialog = true },
-                    onUpdate = { viewModel.update() },
                     onNavigateToList = onNavigateToList,
                     onNavigateToSettings = onNavigateToSettings,
                     onNavigateToStatistics = onNavigateToStatistics,
@@ -91,10 +97,18 @@ fun HomeScreen(
 
     if (showDaysDialog) {
         DaysSelectionDialog(
-            onDismiss = { showDaysDialog = false },
+            onDismiss = {
+                showDaysDialog = false
+                if (showFirstRunDialog) {
+                    viewModel.onFirstRunDialogShown()
+                }
+            },
             onConfirm = { days ->
                 viewModel.initialize(days)
                 showDaysDialog = false
+                if (showFirstRunDialog) {
+                    viewModel.onFirstRunDialogShown()
+                }
             }
         )
     }
@@ -130,8 +144,6 @@ private fun LoadingScreen(
 private fun HomeContent(
     modifier: Modifier = Modifier,
     state: HomeState,
-    onInitialize: () -> Unit,
-    onUpdate: () -> Unit,
     onNavigateToList: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToStatistics: () -> Unit,
@@ -171,49 +183,13 @@ private fun HomeContent(
                 )
                 Text(
                     if (hasData) "액티브 ETF 구성 종목 모니터링"
-                    else "시작하려면 초기화를 진행하세요"
+                    else "시작하려면 설정에서 초기화를 진행하세요"
                 )
                 if (lastDate != null) {
                     Text(
                         "마지막 업데이트: $lastDate",
                         style = MaterialTheme.typography.labelSmall
                     )
-                }
-            }
-        }
-
-        // Data Management
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text("데이터 관리", style = MaterialTheme.typography.titleMedium)
-
-                if (!hasData) {
-                    Button(
-                        onClick = onInitialize,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Download, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("초기화")
-                    }
-                    Text(
-                        "수집할 기간을 선택할 수 있습니다",
-                        style = MaterialTheme.typography.bodySmall,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                } else {
-                    OutlinedButton(
-                        onClick = onUpdate,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Refresh, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("데이터 업데이트")
-                    }
                 }
             }
         }
