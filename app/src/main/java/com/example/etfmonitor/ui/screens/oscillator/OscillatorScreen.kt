@@ -49,6 +49,8 @@ fun OscillatorScreen(
             )
         }
     ) { padding ->
+        var textFieldValue by remember { mutableStateOf("") }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -67,8 +69,6 @@ fun OscillatorScreen(
                         "종목 검색",
                         style = MaterialTheme.typography.titleMedium
                     )
-
-                    var textFieldValue by remember { mutableStateOf("") }
 
                     // TextField with autocomplete
                     Column {
