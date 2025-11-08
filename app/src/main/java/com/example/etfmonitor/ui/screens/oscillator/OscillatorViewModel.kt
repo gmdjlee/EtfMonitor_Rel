@@ -19,6 +19,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 sealed class OscillatorState {
@@ -69,15 +70,12 @@ class OscillatorViewModel(
     }
 
     private suspend fun searchStockSuggestions(query: String) {
-        viewModelScope.launch {
-            try {
-                stockRepository.searchStocks(query).collect { stocks ->
-                    _suggestions.value = stocks.take(10) // 최대 10개만 표시
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("OscillatorViewModel", "Error searching stocks", e)
-                _suggestions.value = emptyList()
-            }
+        try {
+            val stocks = stockRepository.searchStocks(query).first()
+            _suggestions.value = stocks.take(10) // 최대 10개만 표시
+        } catch (e: Exception) {
+            android.util.Log.e("OscillatorViewModel", "Error searching stocks", e)
+            _suggestions.value = emptyList()
         }
     }
 
