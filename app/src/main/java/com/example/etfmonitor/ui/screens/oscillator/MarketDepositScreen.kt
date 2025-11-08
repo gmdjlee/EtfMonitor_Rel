@@ -17,7 +17,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.etfmonitor.ui.components.MarketDepositChart
 import com.etfmonitor.ui.components.LoadingCard
 import com.etfmonitor.ui.components.ErrorCard
-import com.etfmonitor.ui.components.IdleCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,6 +35,14 @@ fun MarketDepositScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로")
                     }
                 },
+                actions = {
+                    IconButton(
+                        onClick = { viewModel.refreshData() },
+                        enabled = state !is MarketDepositState.Loading
+                    ) {
+                        Icon(Icons.Default.Refresh, "새로고침")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -51,41 +58,6 @@ fun MarketDepositScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 분석 버튼 카드
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        "고객예탁금 & 신용잔고",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-
-                    Text(
-                        "네이버 증권에서 최신 증시 자금 동향 데이터를 수집합니다",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                    )
-
-                    Button(
-                        onClick = { viewModel.analyzeMarket() },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = state !is MarketDepositState.Loading
-                    ) {
-                        Icon(Icons.Default.Refresh, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("자금 동향 분석")
-                    }
-                }
-            }
-
             // 상태별 UI
             when (val currentState = state) {
                 is MarketDepositState.Loading -> {
@@ -265,7 +237,7 @@ fun MarketDepositScreen(
                 }
 
                 is MarketDepositState.Idle -> {
-                    IdleCard(message = "버튼을 눌러 증시 자금 동향을 확인하세요")
+                    // 사용하지 않음 (자동 로드)
                 }
             }
         }
