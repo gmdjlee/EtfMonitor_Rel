@@ -8,7 +8,6 @@ import com.etfmonitor.oscillator.python.OscillatorPyClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 
 class StockRepository(
     private val stockDao: StockDao,
@@ -40,22 +39,15 @@ class StockRepository(
             Log.d(TAG, "Initializing stock data from Python...")
 
             // Python에서 전체 종목 리스트 가져오기
-            val result = pyClient.getAllStocksList()
+            val stockList = pyClient.getAllStocksList()
 
-            if (result == null) {
+            if (stockList.isEmpty()) {
                 Log.e(TAG, "Failed to get stocks list from Python")
                 return@withContext Result.failure(Exception("Python 모듈 호출 실패"))
             }
 
-            // JSON 파싱
-            val jsonArray = JSONArray(result)
-            val stocks = mutableListOf<Stock>()
-
-            for (i in 0 until jsonArray.length()) {
-                val obj = jsonArray.getJSONObject(i)
-                val ticker = obj.getString("ticker")
-                val name = obj.getString("name")
-
+            // List<Pair<String, String>>를 Stock 엔티티로 변환
+            val stocks = stockList.map { (ticker, name) ->
                 // market 정보는 ticker 번호로 추정
                 // KOSPI: 6자리 숫자가 대부분 0으로 시작
                 // KOSDAQ: 대부분 A로 시작하거나 다른 패턴
@@ -64,13 +56,11 @@ class StockRepository(
                     else -> "KOSDAQ"
                 }
 
-                stocks.add(
-                    Stock(
-                        ticker = ticker,
-                        name = name,
-                        market = market,
-                        lastUpdated = System.currentTimeMillis()
-                    )
+                Stock(
+                    ticker = ticker,
+                    name = name,
+                    market = market,
+                    lastUpdated = System.currentTimeMillis()
                 )
             }
 
