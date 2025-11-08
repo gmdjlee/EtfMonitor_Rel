@@ -12,7 +12,6 @@ import com.etfmonitor.repository.MarketDepositRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 sealed class MarketDepositState {
@@ -43,22 +42,13 @@ class MarketDepositViewModel(
             try {
                 _state.value = MarketDepositState.Loading
 
-                // DB에서 최근 100개 데이터 가져오기
-                val deposits = repository.getRecentDeposits(100).first()
+                // DB에서 데이터 가져오기 (필요시 자동 업데이트)
+                val marketData = repository.getOrUpdateMarketData(limit = 100)
 
-                if (deposits.isEmpty()) {
+                if (marketData == null) {
                     _state.value = MarketDepositState.Error("저장된 데이터가 없습니다. 설정에서 데이터를 업데이트해주세요.")
                     return@launch
                 }
-
-                // MarketDeposit 리스트를 MarketDepositData로 변환
-                val marketData = MarketDepositData(
-                    dates = deposits.map { it.date }.reversed(), // 오래된 순서로 정렬
-                    depositAmounts = deposits.map { it.depositAmount }.reversed(),
-                    depositChanges = deposits.map { it.depositChange }.reversed(),
-                    creditAmounts = deposits.map { it.creditAmount }.reversed(),
-                    creditChanges = deposits.map { it.creditChange }.reversed()
-                )
 
                 // 시장 분석
                 val analysis = OscillatorCalculator.analyzeMarketDeposit(marketData)
