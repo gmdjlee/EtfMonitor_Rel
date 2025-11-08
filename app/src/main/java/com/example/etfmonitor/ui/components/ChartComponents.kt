@@ -1,6 +1,7 @@
 package com.etfmonitor.ui.components
 
 import android.graphics.Color
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -8,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.github.mikephil.charting.charts.CombinedChart
@@ -18,6 +20,7 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 import com.etfmonitor.R
 import com.etfmonitor.oscillator.model.MarketDepositData
 import com.etfmonitor.oscillator.model.OscillatorResult
+import com.etfmonitor.ui.theme.*
 import android.util.Log
 
 /**
@@ -35,6 +38,13 @@ fun MarketCapOscillatorChart(
         Log.w("ChartComponents", "Empty data for MarketCapOscillatorChart")
         return
     }
+
+    // Jetcaster 테마 색상 가져오기
+    val isDark = isSystemInDarkTheme()
+    val primaryColor = ChartPurple.toArgb()  // 보라색 계열
+    val tertiaryColor = ChartCyan.toArgb()   // 청록색 계열
+    val textColor = if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
     ChartCard(
         title = "시가총액 & 수급 오실레이터",
@@ -73,7 +83,9 @@ fun MarketCapOscillatorChart(
                             position = XAxis.XAxisPosition.BOTTOM
                             setDrawGridLines(true)
                             gridLineWidth = 1f
+                            gridColor = gridColor
                             enableGridDashedLine(10f, 5f, 0f)
+                            textColor = textColor
                             granularity = 1f
                             labelRotationAngle = -45f
                             setLabelCount(10, false)
@@ -93,8 +105,9 @@ fun MarketCapOscillatorChart(
                         axisLeft.apply {
                             setDrawGridLines(true)
                             gridLineWidth = 1f
+                            gridColor = gridColor
                             enableGridDashedLine(10f, 5f, 0f)
-                            textColor = Color.parseColor("#6200EE")
+                            textColor = primaryColor
                             setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
                             valueFormatter = object : ValueFormatter() {
                                 override fun getFormattedValue(value: Float): String {
@@ -112,13 +125,14 @@ fun MarketCapOscillatorChart(
                         axisRight.apply {
                             isEnabled = true
                             setDrawGridLines(false)
-                            textColor = Color.parseColor("#03DAC5")
+                            textColor = tertiaryColor
                             setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
                         }
 
                         legend.apply {
                             isEnabled = true
                             textSize = 12f
+                            textColor = textColor
                         }
                     }
                 } catch (e: Exception) {
@@ -134,14 +148,14 @@ fun MarketCapOscillatorChart(
                     }
                     val marketCapDataSet = LineDataSet(marketCapEntries, "시가총액").apply {
                         axisDependency = YAxis.AxisDependency.LEFT
-                        color = Color.parseColor("#6200EE")
+                        color = primaryColor
                         lineWidth = 2.5f
-                        setCircleColor(Color.parseColor("#6200EE"))
+                        setCircleColor(primaryColor)
                         circleRadius = 2f
                         setDrawCircleHole(false)
                         setDrawValues(false)
                         mode = LineDataSet.Mode.CUBIC_BEZIER
-                        highLightColor = Color.parseColor("#6200EE")
+                        highLightColor = primaryColor
                     }
 
                     // 오실레이터 라인
@@ -150,14 +164,14 @@ fun MarketCapOscillatorChart(
                     }
                     val oscDataSet = LineDataSet(oscEntries, "오실레이터").apply {
                         axisDependency = YAxis.AxisDependency.RIGHT
-                        color = Color.parseColor("#03DAC5")
+                        color = tertiaryColor
                         lineWidth = 2.5f
-                        setCircleColor(Color.parseColor("#03DAC5"))
+                        setCircleColor(tertiaryColor)
                         circleRadius = 2f
                         setDrawCircleHole(false)
                         setDrawValues(false)
                         mode = LineDataSet.Mode.CUBIC_BEZIER
-                        highLightColor = Color.parseColor("#03DAC5")
+                        highLightColor = tertiaryColor
                     }
 
                     val lineData = LineData(marketCapDataSet, oscDataSet)
@@ -187,6 +201,15 @@ fun MacdChart(
     latestDate: String? = null,
     modifier: Modifier = Modifier
 ) {
+    // Jetcaster 테마 색상 가져오기
+    val isDark = isSystemInDarkTheme()
+    val macdColor = ChartPurple.toArgb()      // MACD 라인
+    val signalColor = ChartOrange.toArgb()    // Signal 라인
+    val positiveColor = ChartGreen.toArgb()   // Histogram 양수
+    val negativeColor = ChartRed.toArgb()     // Histogram 음수
+    val textColor = if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
+
     ChartCard(
         title = "MACD",
         subtitle = latestDate?.let { "최신 데이터: $it" },
@@ -221,7 +244,9 @@ fun MacdChart(
                         position = XAxis.XAxisPosition.BOTTOM
                         setDrawGridLines(true)
                         gridLineWidth = 1f
+                        gridColor = gridColor
                         enableGridDashedLine(10f, 5f, 0f)
+                        textColor = textColor
                         granularity = 1f
                         labelRotationAngle = -45f
                         setLabelCount(10, false)
@@ -241,7 +266,9 @@ fun MacdChart(
                     axisLeft.apply {
                         setDrawGridLines(true)
                         gridLineWidth = 1f
+                        gridColor = gridColor
                         enableGridDashedLine(10f, 5f, 0f)
+                        textColor = textColor
                         setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
                     }
                     axisRight.isEnabled = false
@@ -249,6 +276,7 @@ fun MacdChart(
                     legend.apply {
                         isEnabled = true
                         textSize = 12f
+                        textColor = textColor
                     }
                 }
             },
@@ -259,8 +287,8 @@ fun MacdChart(
                 }
                 val barDataSet = BarDataSet(barEntries, "").apply {
                     colors = result.histogram.map { value ->
-                        if (value >= 0) Color.parseColor("#03DAC5")
-                        else Color.parseColor("#CF6679")
+                        if (value >= 0) positiveColor
+                        else negativeColor
                     }
                     setDrawValues(false)
                     isHighlightEnabled = false
@@ -274,13 +302,13 @@ fun MacdChart(
                     Entry(index.toFloat(), value.toFloat())
                 }
                 val macdDataSet = LineDataSet(macdEntries, "MACD").apply {
-                    color = Color.parseColor("#6200EE")
+                    color = macdColor
                     lineWidth = 2f
-                    setCircleColor(Color.parseColor("#6200EE"))
+                    setCircleColor(macdColor)
                     circleRadius = 2f
                     setDrawCircleHole(false)
                     setDrawValues(false)
-                    highLightColor = Color.parseColor("#6200EE")
+                    highLightColor = macdColor
                 }
 
                 // Signal 라인
@@ -288,14 +316,14 @@ fun MacdChart(
                     Entry(index.toFloat(), value.toFloat())
                 }
                 val signalDataSet = LineDataSet(signalEntries, "Signal").apply {
-                    color = Color.parseColor("#FF6200")
+                    color = signalColor
                     lineWidth = 2f
-                    setCircleColor(Color.parseColor("#FF6200"))
+                    setCircleColor(signalColor)
                     circleRadius = 2f
                     setDrawCircleHole(false)
                     setDrawValues(false)
                     enableDashedLine(10f, 5f, 0f)
-                    highLightColor = Color.parseColor("#FF6200")
+                    highLightColor = signalColor
                 }
 
                 val lineData = LineData(macdDataSet, signalDataSet)
@@ -324,6 +352,13 @@ fun MarketDepositChart(
     latestDate: String? = null,
     modifier: Modifier = Modifier
 ) {
+    // Jetcaster 테마 색상 가져오기
+    val isDark = isSystemInDarkTheme()
+    val depositColor = ChartPurple.toArgb()   // 고객예탁금 (보라색)
+    val creditColor = ChartCyan.toArgb()      // 신용잔고 (청록색)
+    val textColor = if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
+
     ChartCard(
         title = "증시 자금 동향 (고객예탁금 & 신용잔고)",
         subtitle = latestDate?.let { "최신 데이터: $it" },
@@ -354,7 +389,9 @@ fun MarketDepositChart(
                         position = XAxis.XAxisPosition.BOTTOM
                         setDrawGridLines(true)
                         gridLineWidth = 1f
+                        gridColor = gridColor
                         enableGridDashedLine(10f, 5f, 0f)
+                        textColor = textColor
                         granularity = 1f
                         labelRotationAngle = -45f
                         setLabelCount(8, false)
@@ -374,8 +411,9 @@ fun MarketDepositChart(
                     axisLeft.apply {
                         setDrawGridLines(true)
                         gridLineWidth = 1f
+                        gridColor = gridColor
                         enableGridDashedLine(10f, 5f, 0f)
-                        textColor = Color.parseColor("#6200EE")
+                        textColor = depositColor
                         setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
                         valueFormatter = object : ValueFormatter() {
                             override fun getFormattedValue(value: Float): String {
@@ -388,7 +426,7 @@ fun MarketDepositChart(
                     axisRight.apply {
                         isEnabled = true
                         setDrawGridLines(false)
-                        textColor = Color.parseColor("#03DAC5")
+                        textColor = creditColor
                         setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
                         valueFormatter = object : ValueFormatter() {
                             override fun getFormattedValue(value: Float): String {
@@ -400,6 +438,7 @@ fun MarketDepositChart(
                     legend.apply {
                         isEnabled = true
                         textSize = 12f
+                        textColor = textColor
                     }
                 }
             },
@@ -410,14 +449,14 @@ fun MarketDepositChart(
                 }
                 val depositDataSet = LineDataSet(depositEntries, "고객예탁금").apply {
                     axisDependency = YAxis.AxisDependency.LEFT
-                    color = Color.parseColor("#6200EE")
+                    color = depositColor
                     lineWidth = 2.5f
-                    setCircleColor(Color.parseColor("#6200EE"))
+                    setCircleColor(depositColor)
                     circleRadius = 2f
                     setDrawCircleHole(false)
                     setDrawValues(false)
                     mode = LineDataSet.Mode.CUBIC_BEZIER
-                    highLightColor = Color.parseColor("#6200EE")
+                    highLightColor = depositColor
                 }
 
                 // 신용잔고
@@ -426,14 +465,14 @@ fun MarketDepositChart(
                 }
                 val creditDataSet = LineDataSet(creditEntries, "신용잔고").apply {
                     axisDependency = YAxis.AxisDependency.RIGHT
-                    color = Color.parseColor("#03DAC5")
+                    color = creditColor
                     lineWidth = 2.5f
-                    setCircleColor(Color.parseColor("#03DAC5"))
+                    setCircleColor(creditColor)
                     circleRadius = 2f
                     setDrawCircleHole(false)
                     setDrawValues(false)
                     mode = LineDataSet.Mode.CUBIC_BEZIER
-                    highLightColor = Color.parseColor("#03DAC5")
+                    highLightColor = creditColor
                 }
 
                 val lineData = LineData(depositDataSet, creditDataSet)
