@@ -28,7 +28,7 @@ fun OscillatorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("수급 오실레이터") },
+                title = { Text("차트 분석") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로")

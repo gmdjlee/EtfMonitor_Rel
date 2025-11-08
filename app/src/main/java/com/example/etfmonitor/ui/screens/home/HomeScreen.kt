@@ -23,7 +23,8 @@ fun HomeScreen(
     onNavigateToList: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToStatistics: () -> Unit,
-    onNavigateToOscillator: () -> Unit,  // ✅ 파라미터 추가
+    onNavigateToOscillator: () -> Unit,
+    onNavigateToMarketDeposit: () -> Unit,  // ✅ 파라미터 추가
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
 ) {
     val state by viewModel.state.collectAsState()
@@ -81,7 +82,8 @@ fun HomeScreen(
                     onNavigateToList = onNavigateToList,
                     onNavigateToSettings = onNavigateToSettings,
                     onNavigateToStatistics = onNavigateToStatistics,
-                    onNavigateToOscillator = onNavigateToOscillator  // ✅ 전달
+                    onNavigateToOscillator = onNavigateToOscillator,
+                    onNavigateToMarketDeposit = onNavigateToMarketDeposit  // ✅ 전달
                 )
             }
         }
@@ -133,7 +135,8 @@ private fun HomeContent(
     onNavigateToList: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToStatistics: () -> Unit,
-    onNavigateToOscillator: () -> Unit  // ✅ 파라미터 추가
+    onNavigateToOscillator: () -> Unit,
+    onNavigateToMarketDeposit: () -> Unit  // ✅ 파라미터 추가
 ) {
     val hasData = (state as? HomeState.Idle)?.hasData ?: false
     val lastDate = (state as? HomeState.Idle)?.lastDate
@@ -235,12 +238,22 @@ private fun HomeContent(
             )
         }
 
-        // ✅ 수급 오실레이터 카드 추가 (데이터 없이도 사용 가능)
+        Text("수급 분석", style = MaterialTheme.typography.titleMedium)
+
+        // ✅ 수급 오실레이터 카드 (데이터 없이도 사용 가능)
         FeatureCard(
             icon = Icons.Default.ShowChart,
-            title = "수급 오실레이터",
-            description = "외국인/기관 수급 분석 및 매매 신호",
+            title = "차트 분석",
+            description = "종목별 수급 오실레이터 및 매매 신호",
             onClick = onNavigateToOscillator
+        )
+
+        // ✅ 증시 자금 카드 (데이터 없이도 사용 가능)
+        FeatureCard(
+            icon = Icons.Default.TrendingUp,
+            title = "증시 자금",
+            description = "고객예탁금 & 신용잔고 동향 분석",
+            onClick = onNavigateToMarketDeposit
         )
 
         FeatureCard(

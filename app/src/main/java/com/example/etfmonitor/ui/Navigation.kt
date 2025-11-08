@@ -14,6 +14,7 @@ import com.etfmonitor.ui.screens.statistics.AggregatedStockTrendScreen
 import com.etfmonitor.ui.screens.statistics.StatisticsScreen
 import com.etfmonitor.ui.screens.trend.StockTrendScreen
 import com.etfmonitor.ui.screens.oscillator.OscillatorScreen
+import com.etfmonitor.ui.screens.oscillator.MarketDepositScreen
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -31,8 +32,10 @@ sealed class Screen(val route: String) {
     object AggregatedStockTrend : Screen("aggregated_trend/{stockTicker}") {
         fun createRoute(stockTicker: String) = "aggregated_trend/$stockTicker"
     }
-    // ✅ 수급 오실레이터
+    // ✅ 수급 오실레이터 (차트 분석)
     object Oscillator : Screen("oscillator")
+    // ✅ 증시 자금 동향
+    object MarketDeposit : Screen("market_deposit")
 }
 
 @Composable
@@ -48,7 +51,8 @@ fun Navigation() {
                 onNavigateToList = { navController.navigate(Screen.List.route) },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                 onNavigateToStatistics = { navController.navigate(Screen.Statistics.route) },
-                onNavigateToOscillator = { navController.navigate(Screen.Oscillator.route) }  // ✅ 추가
+                onNavigateToOscillator = { navController.navigate(Screen.Oscillator.route) },
+                onNavigateToMarketDeposit = { navController.navigate(Screen.MarketDeposit.route) }
             )
         }
 
@@ -120,9 +124,16 @@ fun Navigation() {
             )
         }
 
-        // ✅ 수급 오실레이터 화면
+        // ✅ 수급 오실레이터 화면 (차트 분석)
         composable(Screen.Oscillator.route) {
             OscillatorScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // ✅ 증시 자금 동향 화면
+        composable(Screen.MarketDeposit.route) {
+            MarketDepositScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
