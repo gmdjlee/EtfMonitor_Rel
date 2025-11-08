@@ -7,6 +7,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -50,6 +51,7 @@ fun OscillatorScreen(
         }
     ) { padding ->
         var textFieldValue by remember { mutableStateOf("") }
+        var showHistoryDialog by remember { mutableStateOf(false) }
 
         Column(
             modifier = Modifier
@@ -65,10 +67,29 @@ fun OscillatorScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        "종목 검색",
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "종목 검색",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+
+                        // History 버튼
+                        if (searchHistory.isNotEmpty()) {
+                            TextButton(onClick = { showHistoryDialog = true }) {
+                                Icon(
+                                    Icons.Default.History,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text("History")
+                            }
+                        }
+                    }
 
                     // TextField with autocomplete
                     Column {
@@ -146,40 +167,6 @@ fun OscillatorScreen(
                 }
             }
 
-            // Search History
-            if (searchHistory.isNotEmpty() && textFieldValue.isBlank() && state is OscillatorState.Idle) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            "최근 검색",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        searchHistory.forEach { history ->
-                            ListItem(
-                                headlineContent = { Text(history.name) },
-                                supportingContent = {
-                                    Text(
-                                        "${history.ticker} • ${history.market}",
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                },
-                                modifier = Modifier.clickable {
-                                    viewModel.analyzeStock(history.ticker)
-                                }
-                            )
-                            if (history != searchHistory.last()) {
-                                HorizontalDivider()
-                            }
-                        }
-                    }
-                }
-            }
-
             // State Content
             when (val currentState = state) {
                 is OscillatorState.Loading -> {
@@ -232,7 +219,80 @@ fun OscillatorScreen(
                 }
             }
         }
+
+        // Search History Dialog
+        if (showHistoryDialog) {
+            SearchHistoryDialog(
+                searchHistory = searchHistory,
+                onDismiss = { showHistoryDialog = false },
+                onSelectStock = { ticker ->
+                    showHistoryDialog = false
+                    viewModel.analyzeStock(ticker)
+                }
+            )
+        }
     }
+}
+
+@Composable
+private fun SearchHistoryDialog(
+    searchHistory: List<com.etfmonitor.database.entities.SearchHistory>,
+    onDismiss: () -> Unit,
+    onSelectStock: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.History,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("최근 검색")
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (searchHistory.isEmpty()) {
+                    Text(
+                        "검색 히스토리가 없습니다",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    searchHistory.forEach { history ->
+                        ListItem(
+                            headlineContent = { Text(history.name) },
+                            supportingContent = {
+                                Text(
+                                    "${history.ticker} • ${history.market}",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            },
+                            modifier = Modifier.clickable {
+                                onSelectStock(history.ticker)
+                            }
+                        )
+                        if (history != searchHistory.last()) {
+                            HorizontalDivider()
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("닫기")
+            }
+        }
+    )
 }
 
 @Composable
