@@ -1,4 +1,4 @@
-package com.example.etfmonitor.ui.components
+package com.etfmonitor.ui.components
 
 import android.content.Context
 import android.util.Log

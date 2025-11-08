@@ -1,9 +1,9 @@
-package com.example.etfmonitor.oscillator.python
+package com.etfmonitor.oscillator.python
 
 import android.util.Log
 import com.chaquo.python.Python
-import com.example.etfmonitor.oscillator.model.MarketDepositData
-import com.example.etfmonitor.oscillator.model.StockData
+import com.etfmonitor.oscillator.model.MarketDepositData
+import com.etfmonitor.oscillator.model.StockData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject

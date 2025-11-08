@@ -14,9 +14,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.etfmonitor.oscillator.model.TradeSignal
-import com.example.etfmonitor.ui.components.MarketCapOscillatorChart
-import com.example.etfmonitor.ui.components.MacdChart
+import com.etfmonitor.oscillator.model.TradeSignal
+import com.etfmonitor.ui.components.MarketCapOscillatorChart
+import com.etfmonitor.ui.components.MacdChart
+import com.etfmonitor.ui.components.LoadingCard
+import com.etfmonitor.ui.components.ErrorCard
+import com.etfmonitor.ui.components.IdleCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,22 +95,7 @@ fun OscillatorScreen(
             // State Content
             when (val currentState = state) {
                 is OscillatorState.Loading -> {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                CircularProgressIndicator()
-                                Text("데이터 분석 중...")
-                            }
-                        }
-                    }
+                    LoadingCard(message = "데이터 분석 중...")
                 }
 
                 is OscillatorState.Success -> {
@@ -151,40 +139,11 @@ fun OscillatorScreen(
                 }
 
                 is OscillatorState.Error -> {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        )
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        ) {
-                            Text(
-                                currentState.message,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        }
-                    }
+                    ErrorCard(message = currentState.message)
                 }
 
                 is OscillatorState.Idle -> {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "종목을 검색하여 수급 오실레이터를 분석하세요",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    IdleCard(message = "종목을 검색하여 수급 오실레이터를 분석하세요")
                 }
             }
         }
@@ -192,7 +151,7 @@ fun OscillatorScreen(
 }
 
 @Composable
-private fun SignalCard(analysis: com.example.etfmonitor.oscillator.model.SignalAnalysis) {
+private fun SignalCard(analysis: com.etfmonitor.oscillator.model.SignalAnalysis) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -277,7 +236,7 @@ private fun InfoRow(label: String, value: String) {
 }
 
 @Composable
-private fun DataCard(result: com.example.etfmonitor.oscillator.model.OscillatorResult) {
+private fun DataCard(result: com.etfmonitor.oscillator.model.OscillatorResult) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),

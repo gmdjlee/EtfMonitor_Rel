@@ -6,9 +6,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.chaquo.python.Python
-import com.example.etfmonitor.oscillator.calculator.OscillatorCalculator
-import com.example.etfmonitor.oscillator.model.*
-import com.example.etfmonitor.oscillator.python.OscillatorPyClient
+import com.etfmonitor.oscillator.calculator.OscillatorCalculator
+import com.etfmonitor.oscillator.model.*
+import com.etfmonitor.oscillator.python.OscillatorPyClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

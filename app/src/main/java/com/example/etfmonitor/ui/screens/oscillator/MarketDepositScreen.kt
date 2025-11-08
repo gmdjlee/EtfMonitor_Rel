@@ -14,7 +14,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.etfmonitor.ui.components.MarketDepositChart
+import com.etfmonitor.ui.components.MarketDepositChart
+import com.etfmonitor.ui.components.LoadingCard
+import com.etfmonitor.ui.components.ErrorCard
+import com.etfmonitor.ui.components.IdleCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,22 +89,7 @@ fun MarketDepositScreen(
             // 상태별 UI
             when (val currentState = state) {
                 is MarketDepositState.Loading -> {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                CircularProgressIndicator()
-                                Text("데이터 수집 중...")
-                            }
-                        }
-                    }
+                    LoadingCard(message = "데이터 수집 중...")
                 }
 
                 is MarketDepositState.Success -> {
@@ -273,40 +261,11 @@ fun MarketDepositScreen(
                 }
 
                 is MarketDepositState.Error -> {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        )
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        ) {
-                            Text(
-                                currentState.message,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        }
-                    }
+                    ErrorCard(message = currentState.message)
                 }
 
                 is MarketDepositState.Idle -> {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "버튼을 눌러 증시 자금 동향을 확인하세요",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    IdleCard(message = "버튼을 눌러 증시 자금 동향을 확인하세요")
                 }
             }
         }

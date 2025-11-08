@@ -1,4 +1,4 @@
-package com.example.etfmonitor.ui.components
+package com.etfmonitor.ui.components
 
 import android.graphics.Color
 import androidx.compose.foundation.layout.*
@@ -16,8 +16,8 @@ import com.github.mikephil.charting.components.YAxis
 import com.github.mikephil.charting.data.*
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.etfmonitor.R
-import com.example.etfmonitor.oscillator.model.MarketDepositData
-import com.example.etfmonitor.oscillator.model.OscillatorResult
+import com.etfmonitor.oscillator.model.MarketDepositData
+import com.etfmonitor.oscillator.model.OscillatorResult
 import android.util.Log
 
 /**
