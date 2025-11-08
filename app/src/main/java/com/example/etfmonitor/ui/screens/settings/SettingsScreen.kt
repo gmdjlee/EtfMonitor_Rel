@@ -20,7 +20,8 @@ fun SettingsScreen(
 ) {
     val themes by viewModel.themes.collectAsState()
     val exclusions by viewModel.exclusions.collectAsState()
-    val defaultDays by viewModel.defaultDays.collectAsState()  // ✅ 추가
+    val defaultDays by viewModel.defaultDays.collectAsState()
+    val stockUpdateSettings by viewModel.stockUpdateSettings.collectAsState()
     val message by viewModel.message.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -55,6 +56,15 @@ fun SettingsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // ✅ 종목 DB 자동 업데이트 설정
+            item {
+                StockUpdateCard(
+                    settings = stockUpdateSettings,
+                    onTimeChange = { hour, minute -> viewModel.setUpdateTime(hour, minute) },
+                    onUpdateNow = { viewModel.updateStocksNow() }
+                )
+            }
+
             // ✅ 기본 수집 기간 설정
             item {
                 DefaultDaysCard(
@@ -505,4 +515,217 @@ private fun DatabaseCard(
             }
         )
     }
+}
+
+// 종목 DB 자동 업데이트 카드
+@Composable
+private fun StockUpdateCard(
+    settings: StockUpdateSettings,
+    onTimeChange: (Int, Int) -> Unit,
+    onUpdateNow: () -> Unit
+) {
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Schedule,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("종목 DB 자동 업데이트", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            Text(
+                "매일 지정된 시간에 종목 데이터를 자동으로 업데이트합니다",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "업데이트 시간",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "${String.format("%02d", settings.updateHour)}:${String.format("%02d", settings.updateMinute)}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Button(onClick = { showTimePicker = true }) {
+                    Text("변경")
+                }
+            }
+
+            // 마지막 업데이트 정보
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "저장된 종목 수:",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            "${settings.stockCount}개",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    settings.lastUpdateTime?.let { time ->
+                        val dateStr = java.text.SimpleDateFormat(
+                            "yyyy-MM-dd HH:mm",
+                            java.util.Locale.getDefault()
+                        ).format(java.util.Date(time))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                "마지막 업데이트:",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                dateStr,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 즉시 업데이트 버튼
+            Button(
+                onClick = onUpdateNow,
+                enabled = !settings.isUpdating,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (settings.isUpdating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("업데이트 중...")
+                } else {
+                    Icon(Icons.Default.Refresh, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("지금 업데이트")
+                }
+            }
+        }
+    }
+
+    if (showTimePicker) {
+        TimePickerDialog(
+            currentHour = settings.updateHour,
+            currentMinute = settings.updateMinute,
+            onDismiss = { showTimePicker = false },
+            onConfirm = { hour, minute ->
+                onTimeChange(hour, minute)
+                showTimePicker = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun TimePickerDialog(
+    currentHour: Int,
+    currentMinute: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Int, Int) -> Unit
+) {
+    var selectedHour by remember { mutableStateOf(currentHour) }
+    var selectedMinute by remember { mutableStateOf(currentMinute) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("업데이트 시간 설정") },
+        text = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Hour picker
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("시간", style = MaterialTheme.typography.labelSmall)
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { selectedHour = (selectedHour - 1 + 24) % 24 }) {
+                            Icon(Icons.Default.KeyboardArrowUp, "증가")
+                        }
+                    }
+                    Text(
+                        String.format("%02d", selectedHour),
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { selectedHour = (selectedHour + 1) % 24 }) {
+                            Icon(Icons.Default.KeyboardArrowDown, "감소")
+                        }
+                    }
+                }
+
+                Spacer(Modifier.width(16.dp))
+                Text(":", style = MaterialTheme.typography.headlineLarge)
+                Spacer(Modifier.width(16.dp))
+
+                // Minute picker
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("분", style = MaterialTheme.typography.labelSmall)
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { selectedMinute = (selectedMinute - 15 + 60) % 60 }) {
+                            Icon(Icons.Default.KeyboardArrowUp, "증가")
+                        }
+                    }
+                    Text(
+                        String.format("%02d", selectedMinute),
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { selectedMinute = (selectedMinute + 15) % 60 }) {
+                            Icon(Icons.Default.KeyboardArrowDown, "감소")
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(selectedHour, selectedMinute) }) {
+                Text("확인")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소")
+            }
+        }
+    )
 }

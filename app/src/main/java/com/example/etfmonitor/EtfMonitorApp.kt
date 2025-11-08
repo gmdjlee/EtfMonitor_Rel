@@ -21,7 +21,7 @@ class EtfMonitorApp : Application() {
             AppDatabase::class.java,
             "etf_monitor.db"
         )
-            .fallbackToDestructiveMigration(dropAllTables = true)
+            .addMigrations(com.etfmonitor.database.MIGRATION_1_2)
             .build()
     }
 
