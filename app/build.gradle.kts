@@ -120,4 +120,7 @@ dependencies {
 
     // WorkManager for scheduled tasks
     implementation(libs.androidx.work.runtime.ktx)
+
+    // Graphics shapes for hexagon menu
+    implementation("androidx.graphics:graphics-shapes:1.0.1")
 }

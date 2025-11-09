@@ -65,10 +65,12 @@ class MorphPolygonShape(
         val values = FloatArray(9)
         getValues(values)
         return androidx.compose.ui.graphics.Matrix(
-            values[0], values[1], values[2], 0f,
-            values[3], values[4], values[5], 0f,
-            0f, 0f, 1f, 0f,
-            values[6], values[7], values[8], 1f
+            floatArrayOf(
+                values[0], values[1], 0f, values[2],
+                values[3], values[4], 0f, values[5],
+                0f, 0f, 1f, 0f,
+                values[6], values[7], 0f, values[8]
+            )
         )
     }
 }
