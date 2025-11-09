@@ -122,5 +122,5 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
 
     // Graphics shapes for hexagon menu with morph animation
-    implementation("androidx.graphics:graphics-shapes:1.1.0-rc01")
+    implementation("androidx.graphics:graphics-shapes:1.1.0")
 }

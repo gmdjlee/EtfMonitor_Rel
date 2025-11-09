@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.vector.ImageVector
+import android.graphics.Path as AndroidPath
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
@@ -36,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
+import androidx.graphics.shapes.toPath
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 // Morph polygon shape for hexagon to star transformation
@@ -55,10 +57,11 @@ class MorphPolygonShape(
         matrix.scale(size.width / 2f, size.height / 2f)
         matrix.translate(1f, 1f)
 
-        val path = morph.toPath(progress = percentage).asComposePath()
-        path.transform(matrix)
+        val androidPath = morph.toPath(progress = percentage)
+        val composePath = androidPath.asComposePath()
+        composePath.transform(matrix)
 
-        return Outline.Generic(path)
+        return Outline.Generic(composePath)
     }
 }
 
@@ -300,8 +303,9 @@ private fun HexagonMenuItem(
 
     // Create star shape for morph target
     val shapeB = remember {
-        RoundedPolygon.star(
-            numVerticesPerRadius = 6,
+        RoundedPolygon(
+            numVertices = 6,
+            innerRadius = 0.5f,  // Creates star shape with inner vertices
             rounding = CornerRounding(0.1f)
         )
     }
