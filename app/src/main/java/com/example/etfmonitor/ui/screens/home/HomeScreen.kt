@@ -25,18 +25,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.graphics.shapes.CornerRounding
-import androidx.graphics.shapes.RoundedPolygon
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlin.math.cos
 import kotlin.math.min
+import kotlin.math.sin
 
 // Hexagon shape
 class HexagonShape : Shape {
@@ -45,23 +45,27 @@ class HexagonShape : Shape {
         layoutDirection: LayoutDirection,
         density: Density
     ): Outline {
-        val hexagon = RoundedPolygon(
-            numVertices = 6,
-            rounding = CornerRounding(0.2f)
-        )
+        val path = Path().apply {
+            val centerX = size.width / 2f
+            val centerY = size.height / 2f
+            val radius = min(size.width, size.height) / 2f
 
-        val path = hexagon.toPath()
+            // Create hexagon with 6 vertices
+            for (i in 0..6) {
+                val angle = (Math.PI / 3.0 * i - Math.PI / 6.0).toFloat()
+                val x = centerX + radius * cos(angle)
+                val y = centerY + radius * sin(angle)
 
-        // Scale and center the path
-        val scale = min(size.width, size.height) / 2f
-        val matrix = android.graphics.Matrix()
-        matrix.setScale(scale, scale)
-        matrix.postTranslate(size.width / 2f, size.height / 2f)
+                if (i == 0) {
+                    moveTo(x, y)
+                } else {
+                    lineTo(x, y)
+                }
+            }
+            close()
+        }
 
-        val androidPath = android.graphics.Path()
-        path.transform(matrix, androidPath)
-
-        return Outline.Generic(androidPath.asComposePath())
+        return Outline.Generic(path)
     }
 }
 
