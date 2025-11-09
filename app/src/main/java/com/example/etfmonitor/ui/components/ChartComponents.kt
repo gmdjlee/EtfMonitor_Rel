@@ -41,8 +41,8 @@ fun MarketCapOscillatorChart(
 
     // Jetcaster 테마 색상 가져오기
     val isDark = isSystemInDarkTheme()
-    val primaryColor = ChartPurple.toArgb()  // 보라색 계열
-    val tertiaryColor = ChartCyan.toArgb()   // 청록색 계열
+    val primaryColor = ChartOrange.toArgb()  // 시가총액 - 오렌지
+    val tertiaryColor = ChartYellow.toArgb()  // 오실레이터 - 노란색
     val textColor = if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
@@ -203,10 +203,10 @@ fun MacdChart(
 ) {
     // Jetcaster 테마 색상 가져오기
     val isDark = isSystemInDarkTheme()
-    val macdColor = ChartPurple.toArgb()      // MACD 라인
-    val signalColor = ChartOrange.toArgb()    // Signal 라인
-    val positiveColor = ChartGreen.toArgb()   // Histogram 양수
-    val negativeColor = ChartRed.toArgb()     // Histogram 음수
+    val macdColor = ChartOrange.toArgb()      // MACD 라인 - 오렌지
+    val signalColor = ChartYellow.toArgb()    // Signal 라인 - 노란색
+    val positiveColor = ChartGreen.toArgb()   // Histogram 양수 - 녹색
+    val negativeColor = ChartRed.toArgb()     // Histogram 음수 - 빨간색
     val textColor = if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
@@ -354,8 +354,8 @@ fun MarketDepositChart(
 ) {
     // Jetcaster 테마 색상 가져오기
     val isDark = isSystemInDarkTheme()
-    val depositColor = ChartPurple.toArgb()   // 고객예탁금 (보라색)
-    val creditColor = ChartCyan.toArgb()      // 신용잔고 (청록색)
+    val depositColor = ChartOrange.toArgb()   // 고객예탁금 - 오렌지
+    val creditColor = ChartPink.toArgb()      // 신용잔고 - 분홍색
     val textColor = if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
