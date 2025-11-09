@@ -22,48 +22,41 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.graphics.shapes.CornerRounding
+import androidx.graphics.shapes.Morph
+import androidx.graphics.shapes.RoundedPolygon
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlin.math.cos
-import kotlin.math.min
-import kotlin.math.sin
 
-// Hexagon shape
-class HexagonShape : Shape {
+// Morph polygon shape for hexagon to star transformation
+class MorphPolygonShape(
+    private val morph: Morph,
+    private val percentage: Float
+) : Shape {
+    private val matrix = Matrix()
+
     override fun createOutline(
         size: Size,
         layoutDirection: LayoutDirection,
         density: Density
     ): Outline {
-        val path = Path().apply {
-            val centerX = size.width / 2f
-            val centerY = size.height / 2f
-            val radius = min(size.width, size.height) / 2f
+        // Scale and translate to fit container
+        matrix.reset()
+        matrix.scale(size.width / 2f, size.height / 2f)
+        matrix.translate(1f, 1f)
 
-            // Create hexagon with 6 vertices
-            for (i in 0..6) {
-                val angle = (Math.PI / 3.0 * i - Math.PI / 6.0).toFloat()
-                val x = centerX + radius * cos(angle)
-                val y = centerY + radius * sin(angle)
-
-                if (i == 0) {
-                    moveTo(x, y)
-                } else {
-                    lineTo(x, y)
-                }
-            }
-            close()
-        }
+        val path = morph.toPath(progress = percentage).asComposePath()
+        path.transform(matrix)
 
         return Outline.Generic(path)
     }
@@ -297,13 +290,36 @@ private fun HexagonMenuItem(
     color: androidx.compose.ui.graphics.Color,
     onClick: () -> Unit
 ) {
+    // Create rounded hexagon shape
+    val shapeA = remember {
+        RoundedPolygon(
+            numVertices = 6,
+            rounding = CornerRounding(0.2f)
+        )
+    }
+
+    // Create star shape for morph target
+    val shapeB = remember {
+        RoundedPolygon.star(
+            numVerticesPerRadius = 6,
+            rounding = CornerRounding(0.1f)
+        )
+    }
+
+    // Create morph between hexagon and star
+    val morph = remember(shapeA, shapeB) {
+        Morph(shapeA, shapeB)
+    }
+
     val interactionSource = remember {
         MutableInteractionSource()
     }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val animatedScale = animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1f,
-        label = "scale",
+
+    // Animate morph progress from 0 (hexagon) to 1 (star)
+    val animatedProgress = animateFloatAsState(
+        targetValue = if (isPressed) 1f else 0f,
+        label = "progress",
         animationSpec = spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMedium)
     )
 
@@ -311,8 +327,7 @@ private fun HexagonMenuItem(
         modifier = Modifier
             .size(140.dp)
             .padding(8.dp)
-            .scale(animatedScale.value)
-            .clip(HexagonShape())
+            .clip(MorphPolygonShape(morph, animatedProgress.value))
             .background(color)
             .clickable(interactionSource = interactionSource, indication = null) {
                 onClick()
