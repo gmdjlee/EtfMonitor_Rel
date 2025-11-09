@@ -83,9 +83,9 @@ fun MarketCapOscillatorChart(
                             position = XAxis.XAxisPosition.BOTTOM
                             setDrawGridLines(true)
                             gridLineWidth = 1f
-                            gridColor = gridColor
+                            setGridColor(gridColor)
                             enableGridDashedLine(10f, 5f, 0f)
-                            textColor = textColor
+                            setTextColor(textColor)
                             granularity = 1f
                             labelRotationAngle = -45f
                             setLabelCount(10, false)
@@ -105,9 +105,9 @@ fun MarketCapOscillatorChart(
                         axisLeft.apply {
                             setDrawGridLines(true)
                             gridLineWidth = 1f
-                            gridColor = gridColor
+                            setGridColor(gridColor)
                             enableGridDashedLine(10f, 5f, 0f)
-                            textColor = primaryColor
+                            setTextColor(primaryColor)
                             setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
                             valueFormatter = object : ValueFormatter() {
                                 override fun getFormattedValue(value: Float): String {
@@ -125,14 +125,14 @@ fun MarketCapOscillatorChart(
                         axisRight.apply {
                             isEnabled = true
                             setDrawGridLines(false)
-                            textColor = tertiaryColor
+                            setTextColor(tertiaryColor)
                             setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
                         }
 
                         legend.apply {
                             isEnabled = true
                             textSize = 12f
-                            textColor = textColor
+                            setTextColor(textColor)
                         }
                     }
                 } catch (e: Exception) {
@@ -244,9 +244,9 @@ fun MacdChart(
                         position = XAxis.XAxisPosition.BOTTOM
                         setDrawGridLines(true)
                         gridLineWidth = 1f
-                        gridColor = gridColor
+                        setGridColor(gridColor)
                         enableGridDashedLine(10f, 5f, 0f)
-                        textColor = textColor
+                        setTextColor(textColor)
                         granularity = 1f
                         labelRotationAngle = -45f
                         setLabelCount(10, false)
@@ -266,9 +266,9 @@ fun MacdChart(
                     axisLeft.apply {
                         setDrawGridLines(true)
                         gridLineWidth = 1f
-                        gridColor = gridColor
+                        setGridColor(gridColor)
                         enableGridDashedLine(10f, 5f, 0f)
-                        textColor = textColor
+                        setTextColor(textColor)
                         setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
                     }
                     axisRight.isEnabled = false
@@ -276,7 +276,7 @@ fun MacdChart(
                     legend.apply {
                         isEnabled = true
                         textSize = 12f
-                        textColor = textColor
+                        setTextColor(textColor)
                     }
                 }
             },
@@ -389,9 +389,9 @@ fun MarketDepositChart(
                         position = XAxis.XAxisPosition.BOTTOM
                         setDrawGridLines(true)
                         gridLineWidth = 1f
-                        gridColor = gridColor
+                        setGridColor(gridColor)
                         enableGridDashedLine(10f, 5f, 0f)
-                        textColor = textColor
+                        setTextColor(textColor)
                         granularity = 1f
                         labelRotationAngle = -45f
                         setLabelCount(8, false)
@@ -411,9 +411,9 @@ fun MarketDepositChart(
                     axisLeft.apply {
                         setDrawGridLines(true)
                         gridLineWidth = 1f
-                        gridColor = gridColor
+                        setGridColor(gridColor)
                         enableGridDashedLine(10f, 5f, 0f)
-                        textColor = depositColor
+                        setTextColor(depositColor)
                         setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
                         valueFormatter = object : ValueFormatter() {
                             override fun getFormattedValue(value: Float): String {
@@ -426,7 +426,7 @@ fun MarketDepositChart(
                     axisRight.apply {
                         isEnabled = true
                         setDrawGridLines(false)
-                        textColor = creditColor
+                        setTextColor(creditColor)
                         setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
                         valueFormatter = object : ValueFormatter() {
                             override fun getFormattedValue(value: Float): String {
@@ -438,7 +438,7 @@ fun MarketDepositChart(
                     legend.apply {
                         isEnabled = true
                         textSize = 12f
-                        textColor = textColor
+                        setTextColor(textColor)
                     }
                 }
             },
