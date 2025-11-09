@@ -39,6 +39,9 @@ import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.toPath
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 // Morph polygon shape for hexagon to star transformation
 class MorphPolygonShape(
@@ -301,11 +304,24 @@ private fun HexagonMenuItem(
         )
     }
 
-    // Create star shape for morph target
+    // Create star shape using custom vertices with alternating inner/outer radius
     val shapeB = remember {
+        val numPoints = 6
+        val outerRadius = 1f
+        val innerRadius = 0.5f
+        val vertices = mutableListOf<androidx.graphics.shapes.FloatFloatPair>()
+
+        // Create star vertices by alternating between outer and inner radius
+        for (i in 0 until numPoints * 2) {
+            val angle = (PI / numPoints * i).toFloat()
+            val radius = if (i % 2 == 0) outerRadius else innerRadius
+            val x = cos(angle) * radius
+            val y = sin(angle) * radius
+            vertices.add(androidx.graphics.shapes.FloatFloatPair(x, y))
+        }
+
         RoundedPolygon(
-            numVertices = 6,
-            innerRadius = 0.5f,  // Creates star shape with inner vertices
+            vertices = vertices,
             rounding = CornerRounding(0.1f)
         )
     }
