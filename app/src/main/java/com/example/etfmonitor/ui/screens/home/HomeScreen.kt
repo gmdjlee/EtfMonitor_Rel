@@ -29,17 +29,105 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.vector.ImageVector
 import android.graphics.Path as AndroidPath
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.min
 import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.star
 import androidx.graphics.shapes.toPath
 import androidx.lifecycle.viewmodel.compose.viewModel
+
+// Screen size class for adaptive layout
+enum class ScreenSizeClass {
+    COMPACT,  // Small phones (width < 600dp)
+    MEDIUM,   // Large phones, small tablets (600dp <= width < 840dp)
+    EXPANDED  // Tablets, desktops (width >= 840dp)
+}
+
+// Adaptive layout configuration
+data class AdaptiveLayoutConfig(
+    val itemSize: Dp,
+    val itemSpacing: Dp,
+    val verticalSpacing: Dp,
+    val iconSize: Dp,
+    val fontSize: Int,
+    val itemsPerRow: Int
+)
+
+@Composable
+private fun getScreenSizeClass(): ScreenSizeClass {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+
+    return when {
+        screenWidth < 600.dp -> ScreenSizeClass.COMPACT
+        screenWidth < 840.dp -> ScreenSizeClass.MEDIUM
+        else -> ScreenSizeClass.EXPANDED
+    }
+}
+
+@Composable
+private fun getAdaptiveLayoutConfig(screenSizeClass: ScreenSizeClass): AdaptiveLayoutConfig {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp
+    val screenHeight = configuration.screenHeightDp
+    val isLandscape = screenWidth > screenHeight
+
+    return when (screenSizeClass) {
+        ScreenSizeClass.COMPACT -> {
+            if (isLandscape) {
+                // Landscape phone - smaller items, more per row
+                AdaptiveLayoutConfig(
+                    itemSize = 110.dp,
+                    itemSpacing = 6.dp,
+                    verticalSpacing = (-30).dp,
+                    iconSize = 32.dp,
+                    fontSize = 11,
+                    itemsPerRow = 3
+                )
+            } else {
+                // Portrait phone - medium items
+                AdaptiveLayoutConfig(
+                    itemSize = min(screenWidth / 2.5f, 160f).dp,
+                    itemSpacing = 8.dp,
+                    verticalSpacing = (-40).dp,
+                    iconSize = 38.dp,
+                    fontSize = 13,
+                    itemsPerRow = 2
+                )
+            }
+        }
+        ScreenSizeClass.MEDIUM -> {
+            // Large phones, small tablets
+            AdaptiveLayoutConfig(
+                itemSize = 180.dp,
+                itemSpacing = 12.dp,
+                verticalSpacing = (-45).dp,
+                iconSize = 48.dp,
+                fontSize = 14,
+                itemsPerRow = 3
+            )
+        }
+        ScreenSizeClass.EXPANDED -> {
+            // Tablets, desktops - larger items
+            AdaptiveLayoutConfig(
+                itemSize = 200.dp,
+                itemSpacing = 16.dp,
+                verticalSpacing = (-50).dp,
+                iconSize = 56.dp,
+                fontSize = 16,
+                itemsPerRow = if (isLandscape) 5 else 3
+            )
+        }
+    }
+}
 
 // Morph polygon shape for hexagon to star transformation
 class MorphPolygonShape(
@@ -227,6 +315,54 @@ private fun HomeContent(
     onNavigateToMarketDeposit: () -> Unit
 ) {
     val hasData = (state as? HomeState.Idle)?.hasData ?: false
+    val screenSizeClass = getScreenSizeClass()
+    val layoutConfig = getAdaptiveLayoutConfig(screenSizeClass)
+
+    // All menu items
+    val menuItems = buildList {
+        if (hasData) {
+            add(
+                MenuItem(
+                    icon = Icons.AutoMirrored.Filled.List,
+                    title = "ETF 테마 목록",
+                    color = MaterialTheme.colorScheme.primary,
+                    onClick = onNavigateToList
+                )
+            )
+            add(
+                MenuItem(
+                    icon = Icons.Default.Analytics,
+                    title = "ETF 전체 통계",
+                    color = MaterialTheme.colorScheme.secondary,
+                    onClick = onNavigateToStatistics
+                )
+            )
+        }
+        add(
+            MenuItem(
+                icon = Icons.Default.ShowChart,
+                title = "종목 수급 분석",
+                color = MaterialTheme.colorScheme.tertiary,
+                onClick = onNavigateToOscillator
+            )
+        )
+        add(
+            MenuItem(
+                icon = Icons.AutoMirrored.Filled.TrendingUp,
+                title = "증시 자금 동향",
+                color = MaterialTheme.colorScheme.primary,
+                onClick = onNavigateToMarketDeposit
+            )
+        )
+        add(
+            MenuItem(
+                icon = Icons.Default.Settings,
+                title = "설정",
+                color = MaterialTheme.colorScheme.secondary,
+                onClick = onNavigateToSettings
+            )
+        )
+    }
 
     Box(
         modifier = modifier
@@ -235,64 +371,47 @@ private fun HomeContent(
             .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Honeycomb hexagon layout
+        // Adaptive honeycomb hexagon layout
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy((-40).dp)
+            verticalArrangement = Arrangement.spacedBy(layoutConfig.verticalSpacing)
         ) {
-            // Row 1: ETF 목록, 전체 통계
-            if (hasData) {
+            // Split items into rows based on itemsPerRow
+            menuItems.chunked(layoutConfig.itemsPerRow).forEach { rowItems ->
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(layoutConfig.itemSpacing),
+                    modifier = Modifier.wrapContentWidth()
                 ) {
-                    HexagonMenuItem(
-                        icon = Icons.AutoMirrored.Filled.List,
-                        title = "ETF 테마 목록",
-                        color = MaterialTheme.colorScheme.primary,
-                        onClick = onNavigateToList
-                    )
-                    HexagonMenuItem(
-                        icon = Icons.Default.Analytics,
-                        title = "ETF 전체 통계",
-                        color = MaterialTheme.colorScheme.secondary,
-                        onClick = onNavigateToStatistics
-                    )
+                    rowItems.forEach { item ->
+                        HexagonMenuItem(
+                            icon = item.icon,
+                            title = item.title,
+                            color = item.color,
+                            onClick = item.onClick,
+                            config = layoutConfig
+                        )
+                    }
                 }
-            }
-
-            // Row 2: 차트 분석, 증시 자금, 설정
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                HexagonMenuItem(
-                    icon = Icons.Default.ShowChart,
-                    title = "종목 수급 분석",
-                    color = MaterialTheme.colorScheme.tertiary,
-                    onClick = onNavigateToOscillator
-                )
-                HexagonMenuItem(
-                    icon = Icons.AutoMirrored.Filled.TrendingUp,
-                    title = "증시 자금 동향",
-                    color = MaterialTheme.colorScheme.primary,
-                    onClick = onNavigateToMarketDeposit
-                )
-                HexagonMenuItem(
-                    icon = Icons.Default.Settings,
-                    title = "설정",
-                    color = MaterialTheme.colorScheme.secondary,
-                    onClick = onNavigateToSettings
-                )
             }
         }
     }
 }
+
+// Data class for menu items
+private data class MenuItem(
+    val icon: ImageVector,
+    val title: String,
+    val color: androidx.compose.ui.graphics.Color,
+    val onClick: () -> Unit
+)
 
 @Composable
 private fun HexagonMenuItem(
     icon: ImageVector,
     title: String,
     color: androidx.compose.ui.graphics.Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    config: AdaptiveLayoutConfig
 ) {
     // Create rounded hexagon shape
     val shapeA = remember {
@@ -329,11 +448,10 @@ private fun HexagonMenuItem(
 
     Box(
         modifier = Modifier
-            .size(160.dp)
+            .size(config.itemSize)
             .padding(8.dp)
             .clip(MorphPolygonShape(morph, animatedProgress.value))
             .background(color)
-            .size(160.dp)
             .clickable(interactionSource = interactionSource, indication = null) {
                 onClick()
             },
@@ -341,12 +459,12 @@ private fun HexagonMenuItem(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Icon(
                 icon,
                 contentDescription = null,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(config.iconSize),
                 tint = MaterialTheme.colorScheme.onPrimary
             )
             Text(
@@ -354,7 +472,8 @@ private fun HexagonMenuItem(
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onPrimary,
                 textAlign = TextAlign.Center,
-                fontSize = 13.sp
+                fontSize = config.fontSize.sp,
+                lineHeight = (config.fontSize + 2).sp
             )
         }
     }
