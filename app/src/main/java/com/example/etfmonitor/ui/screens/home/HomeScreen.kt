@@ -37,11 +37,9 @@ import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
+import androidx.graphics.shapes.star
 import androidx.graphics.shapes.toPath
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 // Morph polygon shape for hexagon to star transformation
 class MorphPolygonShape(
@@ -249,13 +247,13 @@ private fun HomeContent(
                 ) {
                     HexagonMenuItem(
                         icon = Icons.AutoMirrored.Filled.List,
-                        title = "ETF 목록",
+                        title = "ETF 테마 목록",
                         color = MaterialTheme.colorScheme.primary,
                         onClick = onNavigateToList
                     )
                     HexagonMenuItem(
                         icon = Icons.Default.Analytics,
-                        title = "전체 통계",
+                        title = "ETF 전체 통계",
                         color = MaterialTheme.colorScheme.secondary,
                         onClick = onNavigateToStatistics
                     )
@@ -268,13 +266,13 @@ private fun HomeContent(
             ) {
                 HexagonMenuItem(
                     icon = Icons.Default.ShowChart,
-                    title = "차트 분석",
+                    title = "종목 수급 분석",
                     color = MaterialTheme.colorScheme.tertiary,
                     onClick = onNavigateToOscillator
                 )
                 HexagonMenuItem(
                     icon = Icons.AutoMirrored.Filled.TrendingUp,
-                    title = "증시 자금",
+                    title = "증시 자금 동향",
                     color = MaterialTheme.colorScheme.primary,
                     onClick = onNavigateToMarketDeposit
                 )
@@ -299,29 +297,15 @@ private fun HexagonMenuItem(
     // Create rounded hexagon shape
     val shapeA = remember {
         RoundedPolygon(
-            numVertices = 6,
+            6,
             rounding = CornerRounding(0.2f)
         )
     }
 
-    // Create star shape using custom vertices with alternating inner/outer radius
+    // Create star shape for morph target
     val shapeB = remember {
-        val numPoints = 6
-        val outerRadius = 1f
-        val innerRadius = 0.5f
-        val vertices = mutableListOf<androidx.graphics.shapes.FloatFloatPair>()
-
-        // Create star vertices by alternating between outer and inner radius
-        for (i in 0 until numPoints * 2) {
-            val angle = (PI / numPoints * i).toFloat()
-            val radius = if (i % 2 == 0) outerRadius else innerRadius
-            val x = cos(angle) * radius
-            val y = sin(angle) * radius
-            vertices.add(androidx.graphics.shapes.FloatFloatPair(x, y))
-        }
-
-        RoundedPolygon(
-            vertices = vertices,
+        RoundedPolygon.star(
+            6,
             rounding = CornerRounding(0.1f)
         )
     }
@@ -345,10 +329,11 @@ private fun HexagonMenuItem(
 
     Box(
         modifier = Modifier
-            .size(140.dp)
+            .size(160.dp)
             .padding(8.dp)
             .clip(MorphPolygonShape(morph, animatedProgress.value))
             .background(color)
+            .size(160.dp)
             .clickable(interactionSource = interactionSource, indication = null) {
                 onClick()
             },
