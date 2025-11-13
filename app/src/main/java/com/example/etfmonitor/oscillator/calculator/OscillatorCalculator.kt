@@ -1,6 +1,6 @@
-package com.example.etfmonitor.oscillator.calculator
+package com.etfmonitor.oscillator.calculator
 
-import com.example.etfmonitor.oscillator.model.*
+import com.etfmonitor.oscillator.model.*
 import kotlin.math.abs
 
 /**
@@ -9,76 +9,85 @@ import kotlin.math.abs
 object OscillatorCalculator {
 
     /**
-     * 수급 오실레이터 계산
+     * 수급 오실레이터 계산 (레퍼런스 로직 기반)
      *
-     * 공식: (외국인5일 + 기관5일) / 시가총액 * 100
+     * 공식:
+     * 1. 수급비율 = (외국인5일 + 기관5일) / 시가총액
+     * 2. EMA12 = EMA(수급비율, 12)
+     * 3. EMA26 = EMA(수급비율, 26)
+     * 4. MACD = EMA12 - EMA26
+     * 5. Signal = EMA(MACD, 9)
+     * 6. Oscillator = MACD - Signal
      */
     fun calculate(data: StockData): OscillatorResult {
         val dates = data.dates
         val marketCap = data.marketCap
-        val oscillator = mutableListOf<Double>()
+        val supplyRatio = mutableListOf<Double>()
 
-        // 1. 수급 오실레이터 계산
+        // 1. 수급비율 계산 (배율 없이)
         for (i in data.marketCap.indices) {
             val mcap = data.marketCap[i].toDouble()
             val foreign = data.foreign5d[i].toDouble()
             val institution = data.institution5d[i].toDouble()
 
-            val osc = if (mcap > 0) {
-                ((foreign + institution) / mcap) * 100.0
+            val ratio = if (mcap > 0) {
+                (foreign + institution) / mcap
             } else {
                 0.0
             }
 
-            oscillator.add(osc)
+            supplyRatio.add(ratio)
         }
 
-        // 2. EMA 계산 (12일)
-        val ema = calculateEMA(oscillator, 12)
+        // 2. EMA 계산 (12일, 26일)
+        val ema12 = calculateEMA(supplyRatio, 12)
+        val ema26 = calculateEMA(supplyRatio, 26)
 
         // 3. MACD 계산
-        val ema12 = calculateEMA(oscillator, 12)
-        val ema26 = calculateEMA(oscillator, 26)
         val macd = ema12.zip(ema26) { e12, e26 -> e12 - e26 }
 
         // 4. Signal 계산 (MACD의 9일 EMA)
         val signal = calculateEMA(macd, 9)
 
-        // 5. Histogram 계산
-        val histogram = macd.zip(signal) { m, s -> m - s }
+        // 5. Oscillator 계산 (MACD - Signal = Histogram)
+        val oscillator = macd.zip(signal) { m, s -> m - s }
 
         return OscillatorResult(
             dates = dates,
-            marketCap = marketCap,  // 원본 시가총액 데이터 포함
-            oscillator = oscillator,
-            ema = ema,
+            marketCap = marketCap,
+            oscillator = oscillator,  // Histogram (MACD - Signal)
+            ema = ema12,  // 12일 EMA
             macd = macd,
             signal = signal,
-            histogram = histogram
+            histogram = oscillator  // oscillator와 동일 (호환성)
         )
     }
 
     /**
-     * EMA (지수 이동 평균) 계산
+     * EMA (지수 이동 평균) 계산 - pandas ewm(adjust=False) 방식
+     *
+     * 레퍼런스 Python 코드와 동일한 계산 방식:
+     * - alpha = 2 / (period + 1)
+     * - EMA[0] = 첫 값
+     * - EMA[t] = alpha * value[t] + (1 - alpha) * EMA[t-1]
      */
     private fun calculateEMA(values: List<Double>, period: Int): List<Double> {
         if (values.isEmpty()) return emptyList()
 
+        val alpha = 2.0 / (period + 1)
         val result = mutableListOf<Double>()
-        val multiplier = 2.0 / (period + 1)
 
-        // 첫 번째 EMA는 단순 평균
-        var ema = values.take(period).average()
+        // 첫 EMA는 첫 값 자체
+        var ema = values[0]
         result.add(ema)
 
-        // 이후 EMA 계산
-        for (i in period until values.size) {
-            ema = (values[i] - ema) * multiplier + ema
+        // 이후 EMA 계산 (pandas ewm adjust=False 방식)
+        for (i in 1 until values.size) {
+            ema = alpha * values[i] + (1 - alpha) * ema
             result.add(ema)
         }
 
-        // 앞부분을 0으로 채움
-        return List(period - 1) { 0.0 } + result
+        return result
     }
 
     /**
@@ -107,12 +116,13 @@ object OscillatorCalculator {
         var score = 0.0
 
         // 1. 오실레이터 값 평가 (±40점)
+        // 레퍼런스 로직: 수급비율 기반 (배율 없음)
         val avgOsc = recentOsc.average()
         score += when {
-            avgOsc > 0.5 -> 40.0
-            avgOsc > 0.2 -> 20.0
-            avgOsc < -0.5 -> -40.0
-            avgOsc < -0.2 -> -20.0
+            avgOsc > 0.005 -> 40.0   // 0.5% 이상
+            avgOsc > 0.002 -> 20.0   // 0.2% 이상
+            avgOsc < -0.005 -> -40.0 // -0.5% 이하
+            avgOsc < -0.002 -> -20.0 // -0.2% 이하
             else -> 0.0
         }
 
@@ -147,11 +157,11 @@ object OscillatorCalculator {
             else -> TradeSignal.NEUTRAL
         }
 
-        // 추세 설명
+        // 추세 설명 (임계값 조정)
         val trend = when {
-            avgOsc > 0.3 -> "강한 매수세"
+            avgOsc > 0.003 -> "강한 매수세"   // 0.3%
             avgOsc > 0 -> "매수 우위"
-            avgOsc < -0.3 -> "강한 매도세"
+            avgOsc < -0.003 -> "강한 매도세"  // -0.3%
             avgOsc < 0 -> "매도 우위"
             else -> "균형"
         }

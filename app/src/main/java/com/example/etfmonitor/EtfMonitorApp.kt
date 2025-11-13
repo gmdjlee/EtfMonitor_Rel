@@ -7,6 +7,9 @@ import com.chaquo.python.android.AndroidPlatform
 import com.etfmonitor.database.AppDatabase
 import com.etfmonitor.python.PyKrxClient
 import com.etfmonitor.repository.DataRepository
+import com.etfmonitor.repository.StockRepository
+import com.etfmonitor.repository.StockAnalysisRepository
+import com.etfmonitor.repository.MarketDepositRepository
 
 class EtfMonitorApp : Application() {
 
@@ -21,7 +24,12 @@ class EtfMonitorApp : Application() {
             AppDatabase::class.java,
             "etf_monitor.db"
         )
-            .fallbackToDestructiveMigration(dropAllTables = true)
+            .addMigrations(
+                com.etfmonitor.database.MIGRATION_1_2,
+                com.etfmonitor.database.MIGRATION_2_3,
+                com.etfmonitor.database.MIGRATION_3_4,
+                com.etfmonitor.database.MIGRATION_4_5
+            )
             .build()
     }
 
@@ -38,6 +46,30 @@ class EtfMonitorApp : Application() {
 
     val repository: DataRepository by lazy {
         DataRepository(database.dao(), pyKrxClient)
+    }
+
+    /**
+     * Singleton repositories for optimized memory usage
+     */
+    val stockRepository: StockRepository by lazy {
+        StockRepository(
+            stockDao = database.stockDao(),
+            python = python
+        )
+    }
+
+    val stockAnalysisRepository: StockAnalysisRepository by lazy {
+        StockAnalysisRepository(
+            stockAnalysisDao = database.stockAnalysisDao(),
+            python = python
+        )
+    }
+
+    val marketDepositRepository: MarketDepositRepository by lazy {
+        MarketDepositRepository(
+            marketDepositDao = database.marketDepositDao(),
+            python = python
+        )
     }
 
     override fun onCreate() {

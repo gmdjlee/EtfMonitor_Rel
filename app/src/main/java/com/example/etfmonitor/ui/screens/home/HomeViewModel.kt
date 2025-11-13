@@ -19,9 +19,36 @@ class HomeViewModel(
     private val _state = MutableStateFlow<HomeState>(HomeState.Loading)
     val state: StateFlow<HomeState> = _state.asStateFlow()
 
+    private val _showFirstRunDialog = MutableStateFlow(false)
+    val showFirstRunDialog: StateFlow<Boolean> = _showFirstRunDialog.asStateFlow()
+
     init {
         checkData()
         observeCollectionState()  // ✅ 전역 상태 구독
+        checkFirstRun()  // ✅ 첫 실행 체크
+    }
+
+    private fun checkFirstRun() {
+        viewModelScope.launch {
+            val app = EtfMonitorApp.instance
+            val isFirstRun = app.database.dao().getSetting("is_first_run")
+            val hasData = repository.hasData()
+
+            // 첫 실행이고 데이터가 없으면 다이얼로그 표시
+            if ((isFirstRun == null || isFirstRun == "true") && !hasData) {
+                _showFirstRunDialog.value = true
+            }
+        }
+    }
+
+    fun onFirstRunDialogShown() {
+        viewModelScope.launch {
+            val app = EtfMonitorApp.instance
+            app.database.dao().saveSetting(
+                com.etfmonitor.database.entities.Setting("is_first_run", "false")
+            )
+            _showFirstRunDialog.value = false
+        }
     }
 
     // ✅ 전역 수집 상태 관찰

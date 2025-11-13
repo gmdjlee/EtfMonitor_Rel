@@ -188,7 +188,7 @@ class DataCollectionService : Service() {
         isComplete: Boolean = false,
         isError: Boolean = false
     ) = NotificationCompat.Builder(this, CHANNEL_ID)
-        .setContentTitle("ETF Monitor")
+        .setContentTitle("Market Monitor")
         .setContentText(message)
         .setSmallIcon(android.R.drawable.stat_sys_download)
         .setPriority(NotificationCompat.PRIORITY_LOW)
