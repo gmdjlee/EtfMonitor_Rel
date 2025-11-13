@@ -5,9 +5,6 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.etfmonitor.EtfMonitorApp
-import com.etfmonitor.repository.MarketDepositRepository
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 /**
  * 매일 지정된 시간에 증시 자금 데이터 DB를 업데이트하는 Worker
@@ -22,11 +19,16 @@ class MarketDepositUpdateWorker(
         const val WORK_NAME = "market_deposit_update_work"
     }
 
-    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        try {
+    override suspend fun doWork(): Result {
+        return try {
             Log.d(TAG, "Starting market deposit database update...")
 
-            val app = applicationContext as EtfMonitorApp
+            val app = applicationContext as? EtfMonitorApp
+            if (app == null) {
+                Log.e(TAG, "Application context is not EtfMonitorApp")
+                return Result.failure()
+            }
+
             // Use singleton repository from EtfMonitorApp for optimized memory usage
             // 10페이지 정도 데이터 수집 (약 100일치)
             val result = app.marketDepositRepository.updateDeposits(numPages = 10)
@@ -36,7 +38,8 @@ class MarketDepositUpdateWorker(
                 Log.d(TAG, "Successfully updated $count market deposit records")
                 Result.success()
             } else {
-                Log.e(TAG, "Failed to update market deposits: ${result.exceptionOrNull()?.message}")
+                val error = result.exceptionOrNull()
+                Log.e(TAG, "Failed to update market deposits: ${error?.message}", error)
                 Result.retry()
             }
         } catch (e: Exception) {

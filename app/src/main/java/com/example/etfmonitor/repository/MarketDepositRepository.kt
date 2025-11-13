@@ -45,11 +45,16 @@ class MarketDepositRepository(
             Log.d(TAG, "Initializing market deposit data from Python...")
 
             // Python에서 증시 자금 데이터 가져오기
-            val marketData = pyClient.getMarketDepositData(numPages)
+            val marketData = try {
+                pyClient.getMarketDepositData(numPages)
+            } catch (e: Exception) {
+                Log.e(TAG, "Python call failed", e)
+                return@withContext Result.failure(Exception("Python 모듈 호출 실패: ${e.message}", e))
+            }
 
             if (marketData == null) {
                 Log.e(TAG, "Failed to get market deposit data from Python")
-                return@withContext Result.failure(Exception("Python 모듈 호출 실패"))
+                return@withContext Result.failure(Exception("Python 모듈 호출 실패: null 반환"))
             }
 
             // MarketDepositData를 MarketDeposit 엔티티 리스트로 변환
@@ -75,6 +80,9 @@ class MarketDepositRepository(
 
             Log.d(TAG, "Successfully initialized ${deposits.size} market deposit records")
             Result.success(deposits.size)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            Log.w(TAG, "Initialization cancelled")
+            throw e // CancellationException은 다시 던져야 함
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing market deposits", e)
             Result.failure(e)
@@ -107,7 +115,18 @@ class MarketDepositRepository(
 
             // 2. 업데이트 필요 - 최신 데이터만 가져오기
             Log.d(TAG, "Fetching latest market deposit data from Python...")
-            val latestMarketData = pyClient.getLatestMarketData()
+            val latestMarketData = try {
+                pyClient.getLatestMarketData()
+            } catch (e: Exception) {
+                Log.e(TAG, "Python call failed", e)
+                // Python 실패 시 캐시된 데이터라도 반환
+                return@withContext if (existingDeposits.isNotEmpty()) {
+                    Log.d(TAG, "Returning cached market data due to Python error")
+                    convertToMarketDepositData(existingDeposits)
+                } else {
+                    null
+                }
+            }
 
             if (latestMarketData == null) {
                 Log.e(TAG, "Failed to fetch latest market data from Python")
@@ -139,6 +158,9 @@ class MarketDepositRepository(
             // 4. 업데이트된 전체 데이터 반환
             val updatedDeposits = marketDepositDao.getRecentDeposits(limit).first()
             convertToMarketDepositData(updatedDeposits)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            Log.w(TAG, "Market data fetch cancelled")
+            throw e // CancellationException은 다시 던져야 함
         } catch (e: Exception) {
             Log.e(TAG, "Error getting or updating market data", e)
             // 에러 시 DB에 데이터가 있으면 반환
