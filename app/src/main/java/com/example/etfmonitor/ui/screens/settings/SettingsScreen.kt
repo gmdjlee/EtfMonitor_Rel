@@ -26,6 +26,7 @@ fun SettingsScreen(
     val searchHistoryLimit by viewModel.searchHistoryLimit.collectAsState()
     val stockUpdateSettings by viewModel.stockUpdateSettings.collectAsState()
     val marketDepositUpdateSettings by viewModel.marketDepositUpdateSettings.collectAsState()
+    val fearGreedUpdateSettings by viewModel.fearGreedUpdateSettings.collectAsState()
     val message by viewModel.message.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -83,6 +84,15 @@ fun SettingsScreen(
                     settings = marketDepositUpdateSettings,
                     onTimeChange = { hour, minute -> viewModel.setMarketDepositUpdateTime(hour, minute) },
                     onUpdateNow = { viewModel.updateMarketDepositsNow() }
+                )
+            }
+
+            // ✅ Fear & Greed Index DB 자동 업데이트 설정
+            item {
+                FearGreedUpdateCard(
+                    settings = fearGreedUpdateSettings,
+                    onTimeChange = { hour, minute -> viewModel.setFearGreedUpdateTime(hour, minute) },
+                    onUpdateNow = { viewModel.updateFearGreedNow() }
                 )
             }
 
@@ -964,6 +974,154 @@ private fun MarketDepositUpdateCard(
                         )
                         Text(
                             "${settings.depositCount}개",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    settings.lastUpdateTime?.let { time ->
+                        val dateStr = java.text.SimpleDateFormat(
+                            "yyyy-MM-dd HH:mm",
+                            java.util.Locale.getDefault()
+                        ).format(java.util.Date(time))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                "마지막 업데이트:",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                dateStr,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 즉시 업데이트 버튼
+            Button(
+                onClick = onUpdateNow,
+                enabled = !settings.isUpdating,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (settings.isUpdating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("업데이트 중...")
+                } else {
+                    Icon(Icons.Default.Refresh, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("지금 업데이트")
+                }
+            }
+        }
+    }
+
+    if (showTimePicker) {
+        TimePickerDialog(
+            currentHour = settings.updateHour,
+            currentMinute = settings.updateMinute,
+            onDismiss = { showTimePicker = false },
+            onConfirm = { hour, minute ->
+                onTimeChange(hour, minute)
+                showTimePicker = false
+            }
+        )
+    }
+}
+
+// Fear & Greed Index DB 자동 업데이트 카드
+@Composable
+private fun FearGreedUpdateCard(
+    settings: FearGreedUpdateSettings,
+    onTimeChange: (Int, Int) -> Unit,
+    onUpdateNow: () -> Unit
+) {
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.BarChart,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("Fear & Greed Index 자동 업데이트", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            Text(
+                "매일 지정된 시간에 Fear & Greed Index 데이터를 자동으로 업데이트합니다",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "업데이트 시간",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "${String.format("%02d", settings.updateHour)}:${String.format("%02d", settings.updateMinute)}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Button(onClick = { showTimePicker = true }) {
+                    Text("변경")
+                }
+            }
+
+            // 마지막 업데이트 정보
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "KOSPI:",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            "${settings.kospiCount}개",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "KOSDAQ:",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            "${settings.kosdaqCount}개",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )

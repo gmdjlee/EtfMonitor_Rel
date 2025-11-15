@@ -34,7 +34,7 @@ data class MarketDepositUpdateSettings(
 )
 
 data class FearGreedUpdateSettings(
-    val updateHour: Int = 1, // 기본값: 새벽 1시
+    val updateHour: Int = 3, // 기본값: 새벽 3시
     val updateMinute: Int = 0,
     val lastUpdateTime: Long? = null,
     val kospiCount: Int = 0,
@@ -127,7 +127,7 @@ class SettingsViewModel(
             val fearGreedHourStr = dao.getSetting("fear_greed_update_hour")
             val fearGreedMinuteStr = dao.getSetting("fear_greed_update_minute")
 
-            val fearGreedHour = fearGreedHourStr?.toIntOrNull() ?: 1 // 기본값: 새벽 1시
+            val fearGreedHour = fearGreedHourStr?.toIntOrNull() ?: 3 // 기본값: 새벽 3시
             val fearGreedMinute = fearGreedMinuteStr?.toIntOrNull() ?: 0
 
             _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(

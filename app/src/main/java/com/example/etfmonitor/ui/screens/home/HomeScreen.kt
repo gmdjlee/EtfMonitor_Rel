@@ -511,7 +511,7 @@ private fun DaysSelectionDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("데이터 수집 기간 선택")
+            Text("초기 데이터 수집")
         },
         text = {
             Column(
@@ -519,8 +519,9 @@ private fun DaysSelectionDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    "수집할 영업일 수를 선택하세요",
-                    style = MaterialTheme.typography.bodyMedium
+                    "ETF 데이터 수집 기간을 선택하세요",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Spacer(Modifier.height(8.dp))
@@ -555,6 +556,43 @@ private fun DaysSelectionDialog(
                     }
                 }
 
+                Spacer(Modifier.height(12.dp))
+
+                // Fear & Greed Index 안내
+                Surface(
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.BarChart,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Text(
+                                "Fear & Greed Index",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "ETF 데이터 초기화 완료 후\nFear & Greed Index 데이터 1년(365일)을\n자동으로 수집합니다.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                }
+
                 Spacer(Modifier.height(8.dp))
 
                 Surface(
@@ -575,6 +613,7 @@ private fun DaysSelectionDialog(
                         Text(
                             "• 기간이 길수록 수집 시간이 오래 걸립니다\n" +
                                     "• 25일 권장 (약 1-2분 소요)\n" +
+                                    "• Fear & Greed Index는 추가 1-2분 소요\n" +
                                     "• 최초 실행 시 Python 패키지 로딩에 추가 시간이 필요할 수 있습니다",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer

@@ -68,11 +68,6 @@ fun FearGreedScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로")
                     }
                 },
-                actions = {
-                    IconButton(onClick = { viewModel.update() }) {
-                        Icon(Icons.Default.Refresh, "업데이트")
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
