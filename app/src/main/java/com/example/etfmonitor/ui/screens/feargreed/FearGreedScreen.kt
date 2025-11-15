@@ -41,13 +41,25 @@ fun FearGreedScreen(
     val selectedMarket by viewModel.selectedMarket.collectAsState()
     val fearGreedData by viewModel.fearGreedData.collectAsState()
     val showFirstRunDialog by viewModel.showFirstRunDialog.collectAsState()
+    var showManualPeriodDialog by remember { mutableStateOf(false) }
 
     // 첫 실행 다이얼로그
     if (showFirstRunDialog) {
         FearGreedInitializeDialog(
             onDismiss = { viewModel.onFirstRunDialogShown() },
             onConfirm = { days ->
-                viewModel.onFirstRunDialogShown()
+                viewModel.onFirstRunDialogConfirmed()
+                viewModel.initialize(days)
+            }
+        )
+    }
+
+    // 수동 데이터 수집 다이얼로그
+    if (showManualPeriodDialog) {
+        FearGreedInitializeDialog(
+            onDismiss = { showManualPeriodDialog = false },
+            onConfirm = { days ->
+                showManualPeriodDialog = false
                 viewModel.initialize(days)
             }
         )
@@ -158,7 +170,7 @@ fun FearGreedScreen(
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Button(onClick = { viewModel.initialize(365) }) {
+                                Button(onClick = { showManualPeriodDialog = true }) {
                                     Text("데이터 수집")
                                 }
                             }
