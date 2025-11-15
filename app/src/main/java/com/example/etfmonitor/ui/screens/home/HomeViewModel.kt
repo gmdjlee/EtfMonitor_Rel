@@ -119,11 +119,14 @@ class HomeViewModel(
                     _state.value = newState
                 } else {
                     // 수집이 완료되면 데이터 상태 확인
-                    if (_state.value is HomeState.Initializing || _state.value is HomeState.Updating) {
+                    val wasInitializing = _state.value is HomeState.Initializing
+                    val wasUpdating = _state.value is HomeState.Updating
+
+                    if (wasInitializing || wasUpdating) {
                         checkData()
 
                         // ETF 초기화가 완료되었고 첫 실행인 경우 Fear & Greed 다이얼로그 표시
-                        if (_state.value is HomeState.Initializing && _etfInitializationCompleted.value) {
+                        if (wasInitializing && _etfInitializationCompleted.value) {
                             checkFearGreedFirstRun()
                         }
                     }
