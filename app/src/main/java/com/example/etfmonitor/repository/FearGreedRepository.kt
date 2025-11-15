@@ -194,17 +194,15 @@ class FearGreedRepository(
 
             for (record in recordsList) {
                 try {
-                    val recordMap = record.asMap()
-
-                    val date = recordMap["거래일"]?.toString() ?: continue
-                    val indexValue = recordMap[market]?.toDouble() ?: continue
-                    val fg = recordMap["FG"]?.toDouble() ?: continue
-                    val osc = recordMap["Osc"]?.toDouble() ?: continue
-                    val rsi = recordMap["RSI"]?.toDouble() ?: 0.0
-                    val mom = recordMap["Mom"]?.toDouble() ?: 0.0
-                    val pcr = recordMap["PCR"]?.toDouble() ?: 0.0
-                    val vol = recordMap["Vol"]?.toDouble() ?: 0.0
-                    val spread = recordMap["Spread"]?.toDouble() ?: 0.0
+                    val date = record["거래일"]?.toString() ?: continue
+                    val indexValue = record[market]?.toDouble() ?: continue
+                    val fg = record["FG"]?.toDouble() ?: continue
+                    val osc = record["Osc"]?.toDouble() ?: continue
+                    val rsi = record["RSI"]?.toDouble() ?: 0.0
+                    val mom = record["Mom"]?.toDouble() ?: 0.0
+                    val pcr = record["PCR"]?.toDouble() ?: 0.0
+                    val vol = record["Vol"]?.toDouble() ?: 0.0
+                    val spread = record["Spread"]?.toDouble() ?: 0.0
 
                     // 날짜 형식 변환 (Timestamp -> YYYY-MM-DD)
                     val formattedDate = formatDate(date)
