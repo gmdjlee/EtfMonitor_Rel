@@ -24,6 +24,7 @@ fun SettingsScreen(
     val exclusions by viewModel.exclusions.collectAsState()
     val defaultDays by viewModel.defaultDays.collectAsState()
     val searchHistoryLimit by viewModel.searchHistoryLimit.collectAsState()
+    val fearGreedPeriodDays by viewModel.fearGreedPeriodDays.collectAsState()
     val stockUpdateSettings by viewModel.stockUpdateSettings.collectAsState()
     val marketDepositUpdateSettings by viewModel.marketDepositUpdateSettings.collectAsState()
     val fearGreedUpdateSettings by viewModel.fearGreedUpdateSettings.collectAsState()
@@ -93,6 +94,14 @@ fun SettingsScreen(
                     settings = fearGreedUpdateSettings,
                     onTimeChange = { hour, minute -> viewModel.setFearGreedUpdateTime(hour, minute) },
                     onUpdateNow = { viewModel.updateFearGreedNow() }
+                )
+            }
+
+            // ✅ Fear & Greed Index 데이터 수집 기간 설정
+            item {
+                FearGreedPeriodCard(
+                    currentDays = fearGreedPeriodDays,
+                    onDaysChange = { viewModel.setFearGreedPeriodDays(it) }
                 )
             }
 
@@ -1183,6 +1192,174 @@ private fun FearGreedUpdateCard(
         )
     }
 }
+
+// Fear & Greed Index 데이터 수집 기간 카드
+@Composable
+private fun FearGreedPeriodCard(
+    currentDays: Int,
+    onDaysChange: (Int) -> Unit
+) {
+    var showDialog by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(animationSpec = tween(200)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = MaterialTheme.shapes.medium
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.BarChart,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("Fear & Greed Index 수집 기간", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            Text(
+                "Fear & Greed Index 데이터 초기화 시 수집할 기간",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "현재 설정",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        when (currentDays) {
+                            180 -> "6개월"
+                            365 -> "12개월"
+                            540 -> "18개월"
+                            730 -> "24개월"
+                            else -> "${currentDays}일"
+                        },
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Button(onClick = { showDialog = true }) {
+                    Text("변경")
+                }
+            }
+
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Text(
+                    "권장: 12개월 (약 365일, 약 1-2분 소요)",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+        }
+    }
+
+    if (showDialog) {
+        FearGreedPeriodSelectionDialog(
+            currentDays = currentDays,
+            onDismiss = { showDialog = false },
+            onConfirm = { days ->
+                onDaysChange(days)
+                showDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun FearGreedPeriodSelectionDialog(
+    currentDays: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    val periodOptions = listOf(
+        FearGreedPeriodOption(180, "6개월", "약 180일"),
+        FearGreedPeriodOption(365, "12개월 (권장)", "약 365일"),
+        FearGreedPeriodOption(540, "18개월", "약 540일"),
+        FearGreedPeriodOption(730, "24개월", "약 730일")
+    )
+
+    var selectedDays by remember { mutableStateOf(currentDays) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("데이터 수집 기간 설정") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    "Fear & Greed Index 데이터 수집 기간을 선택하세요",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                periodOptions.forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (selectedDays == option.days),
+                            onClick = { selectedDays = option.days }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                option.label,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                option.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(selectedDays) }) {
+                Text("확인")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소")
+            }
+        }
+    )
+}
+
+private data class FearGreedPeriodOption(
+    val days: Int,
+    val label: String,
+    val description: String
+)
 
 @Composable
 private fun TimePickerDialog(

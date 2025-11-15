@@ -44,22 +44,11 @@ fun FearGreedScreen(
 
     // 첫 실행 다이얼로그
     if (showFirstRunDialog) {
-        AlertDialog(
-            onDismissRequest = { },
-            title = { Text("Fear & Greed Index 초기화") },
-            text = { Text("Fear & Greed Index 데이터가 없습니다.\n1년치 데이터를 수집하시겠습니까? (약 1-2분 소요)") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.onFirstRunDialogShown()
-                    viewModel.initialize(365)
-                }) {
-                    Text("수집 시작")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.onFirstRunDialogShown() }) {
-                    Text("나중에")
-                }
+        FearGreedInitializeDialog(
+            onDismiss = { viewModel.onFirstRunDialogShown() },
+            onConfirm = { days ->
+                viewModel.onFirstRunDialogShown()
+                viewModel.initialize(days)
             }
         )
     }
@@ -382,3 +371,91 @@ fun FearGreedChart(
         modifier = modifier
     )
 }
+
+@Composable
+private fun FearGreedInitializeDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    val periodOptions = listOf(
+        FearGreedPeriodOption(180, "6개월", "약 180일"),
+        FearGreedPeriodOption(365, "12개월 (권장)", "약 365일"),
+        FearGreedPeriodOption(540, "18개월", "약 540일"),
+        FearGreedPeriodOption(730, "24개월", "약 730일")
+    )
+
+    var selectedDays by remember { mutableStateOf(365) } // 기본값: 12개월
+
+    AlertDialog(
+        onDismissRequest = { },
+        title = { Text("Fear & Greed Index 초기화") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "Fear & Greed Index 데이터가 없습니다.\n수집 기간을 선택하세요.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                periodOptions.forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (selectedDays == option.days),
+                            onClick = { selectedDays = option.days }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                option.label,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                option.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Text(
+                        "데이터 수집에는 선택한 기간에 따라 1-3분 정도 소요됩니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(selectedDays) }) {
+                Text("수집 시작")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("나중에")
+            }
+        }
+    )
+}
+
+private data class FearGreedPeriodOption(
+    val days: Int,
+    val label: String,
+    val description: String
+)

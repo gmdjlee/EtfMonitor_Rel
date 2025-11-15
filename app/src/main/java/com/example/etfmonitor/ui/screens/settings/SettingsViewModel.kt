@@ -71,6 +71,9 @@ class SettingsViewModel(
     private val _searchHistoryLimit = MutableStateFlow(15)
     val searchHistoryLimit: StateFlow<Int> = _searchHistoryLimit.asStateFlow()
 
+    private val _fearGreedPeriodDays = MutableStateFlow(365) // 기본값: 12개월
+    val fearGreedPeriodDays: StateFlow<Int> = _fearGreedPeriodDays.asStateFlow()
+
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
@@ -92,6 +95,10 @@ class SettingsViewModel(
             // 검색 히스토리 개수 로드
             val historyLimitStr = dao.getSetting("search_history_limit")
             _searchHistoryLimit.value = historyLimitStr?.toIntOrNull() ?: 15
+
+            // Fear & Greed 데이터 수집 기간 로드
+            val fearGreedPeriodStr = dao.getSetting("fear_greed_period_days")
+            _fearGreedPeriodDays.value = fearGreedPeriodStr?.toIntOrNull() ?: 365 // 기본값: 12개월
 
             // Stock 업데이트 시간 로드
             val stockHourStr = dao.getSetting("stock_update_hour")
@@ -380,6 +387,25 @@ class SettingsViewModel(
                 dao.saveSetting(Setting("search_history_limit", limit.toString()))
                 _searchHistoryLimit.value = limit
                 _message.value = "검색 히스토리가 최대 ${limit}개로 설정되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setFearGreedPeriodDays(days: Int) {
+        viewModelScope.launch {
+            try {
+                dao.saveSetting(Setting("fear_greed_period_days", days.toString()))
+                _fearGreedPeriodDays.value = days
+                val monthText = when (days) {
+                    180 -> "6개월"
+                    365 -> "12개월"
+                    540 -> "18개월"
+                    730 -> "24개월"
+                    else -> "${days}일"
+                }
+                _message.value = "Fear & Greed Index 데이터 수집 기간이 ${monthText}로 설정되었습니다"
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
             }
