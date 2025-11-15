@@ -121,17 +121,19 @@ class DataCollectionService : Service() {
                             updateNotification(progress.message, progress.progress)
                         }
                         is DataProgress.Success -> {
-                            // ETF 초기화 성공 후 Fear & Greed Index 초기화
-                            Log.d(TAG, "ETF initialization completed. Starting Fear & Greed Index initialization...")
-                            CollectionState.updateProgress("Fear & Greed Index 초기화 중...", 90)
+                            // ETF 초기화 성공 후 Fear & Greed Index 초기화 (1년 데이터 고정)
+                            Log.d(TAG, "ETF initialization completed. Starting Fear & Greed Index initialization (365 days)...")
+                            CollectionState.updateProgress("Fear & Greed Index 초기화 중 (1년 데이터)...", 90)
                             updateNotification("Fear & Greed Index 초기화 중...", 90)
 
                             try {
-                                val fgResult = fearGreedRepository.initializeFearGreed(days)
+                                // Fear & Greed Index는 항상 1년(365일) 데이터로 초기화
+                                val fgResult = fearGreedRepository.initializeFearGreed(365)
                                 if (fgResult.isSuccess) {
                                     val count = fgResult.getOrNull() ?: 0
                                     Log.d(TAG, "Fear & Greed Index initialization completed: $count records")
-                                    CollectionState.complete("초기화 완료 (Fear & Greed: ${count}개)")
+                                    val completionMsg = "초기화 완료 (ETF: ${progress.message.substringAfter("완료 (").substringBefore(")")}, Fear & Greed: ${count}개)"
+                                    CollectionState.complete(completionMsg)
                                     updateNotification("초기화 완료", 100, isComplete = true)
                                 } else {
                                     Log.w(TAG, "Fear & Greed Index initialization failed: ${fgResult.exceptionOrNull()?.message}")
