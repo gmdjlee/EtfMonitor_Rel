@@ -168,9 +168,16 @@ class FearGreedRepository(
                 // 결과 파싱 (KOSPI, KOSDAQ) - Python에서 튜플 (kp_df, kq_df) 반환
                 val indices = mutableListOf<FearGreedIndex>()
 
+                // 튜플을 리스트로 변환
+                val resultList = result.asList()
+                if (resultList == null || resultList.size < 2) {
+                    Log.e(TAG, "Invalid result tuple from analyze function")
+                    return@withContext emptyList()
+                }
+
                 try {
                     // 튜플의 첫 번째 요소: KOSPI 데이터
-                    val kospiDf = result[0]
+                    val kospiDf = resultList.getOrNull(0)
                     if (kospiDf != null && kospiDf.toString() != "None") {
                         Log.d(TAG, "Parsing KOSPI data...")
                         val kospiIndices = parseFearGreedData(kospiDf, "KOSPI")
@@ -185,7 +192,7 @@ class FearGreedRepository(
 
                 try {
                     // 튜플의 두 번째 요소: KOSDAQ 데이터
-                    val kosdaqDf = result[1]
+                    val kosdaqDf = resultList.getOrNull(1)
                     if (kosdaqDf != null && kosdaqDf.toString() != "None") {
                         Log.d(TAG, "Parsing KOSDAQ data...")
                         val kosdaqIndices = parseFearGreedData(kosdaqDf, "KOSDAQ")
