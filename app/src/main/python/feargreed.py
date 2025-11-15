@@ -268,11 +268,11 @@ def combine(start, end):
             print("❌ 필수 데이터 수집 실패 (Call/Put 옵션, 5년국채, 10년국채, VKOSPI)")
             return None
 
-        # 옵션 5일 이동평균
+        # 옵션 거래량 직접 사용 (이동평균 없이)
         for df, col in [(call, "Call"), (put, "Put")]:
             df.sort_values("거래일", inplace=True)
             df.reset_index(drop=True, inplace=True)
-            df[col] = df["전체"].rolling(5).mean()
+            df[col] = df["전체"]
 
         # 병합
         dfs = [
