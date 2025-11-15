@@ -111,4 +111,16 @@ dependencies {
     implementation(libs.vico.compose)
     implementation(libs.vico.compose.m3)
     implementation(libs.vico.core)
+
+    // MPAndroidChart for oscillator charts
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+    // CardView for marker layouts
+    implementation("androidx.cardview:cardview:1.0.0")
+
+    // WorkManager for scheduled tasks
+    implementation(libs.androidx.work.runtime.ktx)
+
+    // Graphics shapes for hexagon menu with morph animation
+    implementation("androidx.graphics:graphics-shapes:1.1.0")
 }

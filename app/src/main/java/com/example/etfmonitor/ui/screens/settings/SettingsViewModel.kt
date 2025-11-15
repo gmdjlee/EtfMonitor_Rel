@@ -1,18 +1,43 @@
 package com.etfmonitor.ui.screens.settings
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.EtfMonitorApp
+import com.etfmonitor.database.entities.Setting
 import com.etfmonitor.repository.DataRepository
+import com.etfmonitor.repository.MarketDepositRepository
+import com.etfmonitor.repository.StockRepository
+import com.etfmonitor.worker.WorkManagerHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+data class StockUpdateSettings(
+    val updateHour: Int = 1,
+    val updateMinute: Int = 0,
+    val lastUpdateTime: Long? = null,
+    val stockCount: Int = 0,
+    val isUpdating: Boolean = false
+)
+
+data class MarketDepositUpdateSettings(
+    val updateHour: Int = 2, // 기본값: 새벽 2시
+    val updateMinute: Int = 0,
+    val lastUpdateTime: Long? = null,
+    val depositCount: Int = 0,
+    val isUpdating: Boolean = false
+)
+
 class SettingsViewModel(
-    private val repository: DataRepository
-) : ViewModel() {
+    private val application: Application,
+    private val repository: DataRepository,
+    private val stockRepository: StockRepository,
+    private val marketDepositRepository: MarketDepositRepository
+) : AndroidViewModel(application) {
 
     private val _themes = MutableStateFlow<List<String>>(emptyList())
     val themes: StateFlow<List<String>> = _themes.asStateFlow()
@@ -20,21 +45,100 @@ class SettingsViewModel(
     private val _exclusions = MutableStateFlow<List<String>>(emptyList())
     val exclusions: StateFlow<List<String>> = _exclusions.asStateFlow()
 
-    private val _defaultDays = MutableStateFlow(25)  // ✅ 추가
-    val defaultDays: StateFlow<Int> = _defaultDays.asStateFlow()  // ✅ 추가
+    private val _defaultDays = MutableStateFlow(25)
+    val defaultDays: StateFlow<Int> = _defaultDays.asStateFlow()
+
+    private val _stockUpdateSettings = MutableStateFlow(StockUpdateSettings())
+    val stockUpdateSettings: StateFlow<StockUpdateSettings> = _stockUpdateSettings.asStateFlow()
+
+    private val _marketDepositUpdateSettings = MutableStateFlow(MarketDepositUpdateSettings())
+    val marketDepositUpdateSettings: StateFlow<MarketDepositUpdateSettings> = _marketDepositUpdateSettings.asStateFlow()
+
+    private val _searchHistoryLimit = MutableStateFlow(15)
+    val searchHistoryLimit: StateFlow<Int> = _searchHistoryLimit.asStateFlow()
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
+    private val dao = (application as EtfMonitorApp).database.dao()
+
     init {
         loadSettings()
+        loadStockInfo()
+        loadMarketDepositInfo()
     }
 
     private fun loadSettings() {
         viewModelScope.launch {
             _themes.value = repository.getThemes()
             _exclusions.value = repository.getExclusions()
-            _defaultDays.value = repository.getDefaultDays()  // ✅ 추가
+            _defaultDays.value = repository.getDefaultDays()
+
+            // 검색 히스토리 개수 로드
+            val historyLimitStr = dao.getSetting("search_history_limit")
+            _searchHistoryLimit.value = historyLimitStr?.toIntOrNull() ?: 15
+
+            // Stock 업데이트 시간 로드
+            val stockHourStr = dao.getSetting("stock_update_hour")
+            val stockMinuteStr = dao.getSetting("stock_update_minute")
+
+            val stockHour = stockHourStr?.toIntOrNull() ?: 1 // 기본값: 새벽 1시
+            val stockMinute = stockMinuteStr?.toIntOrNull() ?: 0
+
+            _stockUpdateSettings.value = _stockUpdateSettings.value.copy(
+                updateHour = stockHour,
+                updateMinute = stockMinute
+            )
+
+            // 스케줄 재설정
+            WorkManagerHelper.scheduleStockUpdate(application, stockHour, stockMinute)
+
+            // Market Deposit 업데이트 시간 로드
+            val depositHourStr = dao.getSetting("market_deposit_update_hour")
+            val depositMinuteStr = dao.getSetting("market_deposit_update_minute")
+
+            val depositHour = depositHourStr?.toIntOrNull() ?: 2 // 기본값: 새벽 2시
+            val depositMinute = depositMinuteStr?.toIntOrNull() ?: 0
+
+            _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(
+                updateHour = depositHour,
+                updateMinute = depositMinute
+            )
+
+            // 스케줄 재설정
+            WorkManagerHelper.scheduleMarketDepositUpdate(application, depositHour, depositMinute)
+        }
+    }
+
+    private fun loadStockInfo() {
+        viewModelScope.launch {
+            try {
+                val count = stockRepository.getStockCount()
+                val lastUpdate = stockRepository.getLastUpdateTime()
+
+                _stockUpdateSettings.value = _stockUpdateSettings.value.copy(
+                    stockCount = count,
+                    lastUpdateTime = lastUpdate
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsViewModel", "Error loading stock info", e)
+            }
+        }
+    }
+
+    private fun loadMarketDepositInfo() {
+        viewModelScope.launch {
+            try {
+                val count = marketDepositRepository.getDepositCount()
+                val lastUpdate = marketDepositRepository.getLastUpdateTime()
+
+                _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(
+                    depositCount = count,
+                    lastUpdateTime = lastUpdate
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsViewModel", "Error loading market deposit info", e)
+            }
         }
     }
 
@@ -94,6 +198,124 @@ class SettingsViewModel(
         }
     }
 
+    fun setUpdateTime(hour: Int, minute: Int) {
+        viewModelScope.launch {
+            try {
+                dao.saveSetting(Setting("stock_update_hour", hour.toString()))
+                dao.saveSetting(Setting("stock_update_minute", minute.toString()))
+
+                _stockUpdateSettings.value = _stockUpdateSettings.value.copy(
+                    updateHour = hour,
+                    updateMinute = minute
+                )
+
+                WorkManagerHelper.scheduleStockUpdate(application, hour, minute)
+                _message.value = "업데이트 시간이 ${hour}:${String.format("%02d", minute)}로 설정되었습니다"
+            } catch (e: Exception) {
+                _message.value = "시간 설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun updateStocksNow() {
+        viewModelScope.launch {
+            try {
+                _stockUpdateSettings.value = _stockUpdateSettings.value.copy(isUpdating = true)
+                _message.value = "종목 데이터 업데이트 중..."
+
+                val result = stockRepository.updateStocks()
+
+                if (result.isSuccess) {
+                    val count = result.getOrNull() ?: 0
+                    loadStockInfo()
+                    _message.value = "업데이트 완료: ${count}개 종목"
+                } else {
+                    _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
+                }
+            } catch (e: Exception) {
+                _message.value = "오류 발생: ${e.message}"
+            } finally {
+                _stockUpdateSettings.value = _stockUpdateSettings.value.copy(isUpdating = false)
+            }
+        }
+    }
+
+    fun setMarketDepositUpdateTime(hour: Int, minute: Int) {
+        viewModelScope.launch {
+            try {
+                dao.saveSetting(Setting("market_deposit_update_hour", hour.toString()))
+                dao.saveSetting(Setting("market_deposit_update_minute", minute.toString()))
+
+                _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(
+                    updateHour = hour,
+                    updateMinute = minute
+                )
+
+                WorkManagerHelper.scheduleMarketDepositUpdate(application, hour, minute)
+                _message.value = "증시 자금 업데이트 시간이 ${hour}:${String.format("%02d", minute)}로 설정되었습니다"
+            } catch (e: Exception) {
+                _message.value = "시간 설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun updateMarketDepositsNow() {
+        viewModelScope.launch {
+            try {
+                _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(isUpdating = true)
+                _message.value = "증시 자금 데이터 업데이트 중..."
+
+                val result = marketDepositRepository.updateDeposits(numPages = 10)
+
+                if (result.isSuccess) {
+                    val count = result.getOrNull() ?: 0
+                    loadMarketDepositInfo()
+                    _message.value = "업데이트 완료: ${count}개 데이터"
+                } else {
+                    _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
+                }
+            } catch (e: Exception) {
+                _message.value = "오류 발생: ${e.message}"
+            } finally {
+                _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(isUpdating = false)
+            }
+        }
+    }
+
+    fun setSearchHistoryLimit(limit: Int) {
+        viewModelScope.launch {
+            try {
+                dao.saveSetting(Setting("search_history_limit", limit.toString()))
+                _searchHistoryLimit.value = limit
+                _message.value = "검색 히스토리가 최대 ${limit}개로 설정되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun initializeData(days: Int) {
+        viewModelScope.launch {
+            try {
+                com.etfmonitor.service.DataCollectionService.startInitialize(application, days)
+                _message.value = "데이터 초기화를 시작합니다"
+            } catch (e: Exception) {
+                _message.value = "초기화 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun updateData() {
+        viewModelScope.launch {
+            try {
+                com.etfmonitor.service.DataCollectionService.startUpdate(application)
+                _message.value = "데이터 업데이트를 시작합니다"
+            } catch (e: Exception) {
+                _message.value = "업데이트 실패: ${e.message}"
+            }
+        }
+    }
+
     fun clearMessage() {
         _message.value = null
     }
@@ -102,8 +324,13 @@ class SettingsViewModel(
         val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val app = EtfMonitorApp.instance
+                // Use singleton repositories from EtfMonitorApp for optimized memory usage
                 return SettingsViewModel(
-                    EtfMonitorApp.instance.repository
+                    application = app,
+                    repository = app.repository,
+                    stockRepository = app.stockRepository,
+                    marketDepositRepository = app.marketDepositRepository
                 ) as T
             }
         }

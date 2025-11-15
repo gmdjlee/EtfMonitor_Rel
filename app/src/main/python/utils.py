@@ -5,6 +5,7 @@
 from pykrx import stock
 from datetime import datetime, timedelta
 import json
+import sys
 
 
 def get_business_days(start_date: str, end_date: str) -> str:
@@ -58,5 +59,65 @@ def is_business_day(date_str: str) -> bool:
     try:
         df = stock.get_market_ohlcv(date_str, date_str, '005930')
         return not df.empty
-    except:
+    except Exception as e:
+        print(f"[utils] is_business_day error: {e}", file=sys.stderr)
         return False
+
+
+def get_market_date_with_fallback():
+    """
+    마켓 데이터 조회용 날짜 반환 (오늘 또는 어제)
+
+    Returns:
+        str: YYYYMMDD 형식의 날짜
+    """
+    try:
+        today = datetime.now().strftime("%Y%m%d")
+        # 오늘 날짜로 시도
+        _ = stock.get_market_ticker_list(today, market="KOSPI")
+        return today
+    except Exception:
+        # 실패하면 어제 날짜 반환
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
+        return yesterday
+
+
+def get_all_market_tickers(date_str=None):
+    """
+    KOSPI + KOSDAQ 전체 종목 티커 조회
+
+    Args:
+        date_str: YYYYMMDD 형식의 날짜 (None이면 자동으로 최근 날짜 사용)
+
+    Returns:
+        list: 종목 티커 리스트
+    """
+    try:
+        if date_str is None:
+            date_str = get_market_date_with_fallback()
+
+        kospi_tickers = stock.get_market_ticker_list(date_str, market="KOSPI")
+        kosdaq_tickers = stock.get_market_ticker_list(date_str, market="KOSDAQ")
+
+        return list(kospi_tickers) + list(kosdaq_tickers)
+    except Exception as e:
+        print(f"[utils] get_all_market_tickers error: {e}", file=sys.stderr)
+        return []
+
+
+def get_ticker_name_safe(ticker):
+    """
+    안전한 종목명 조회 (에러 처리 포함)
+
+    Args:
+        ticker: 종목 티커
+
+    Returns:
+        str: 종목명 (조회 실패시 빈 문자열)
+    """
+    try:
+        name = stock.get_market_ticker_name(ticker)
+        return str(name) if name and str(name).strip() else ""
+    except Exception as e:
+        print(f"[utils] get_ticker_name_safe error for {ticker}: {e}", file=sys.stderr)
+        return ""

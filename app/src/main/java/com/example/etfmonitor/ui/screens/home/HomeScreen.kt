@@ -1,11 +1,19 @@
 package com.etfmonitor.ui.screens.home
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
@@ -13,9 +21,138 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Matrix
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.ui.graphics.vector.ImageVector
+import android.graphics.Path as AndroidPath
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlin.math.min
+import androidx.graphics.shapes.CornerRounding
+import androidx.graphics.shapes.Morph
+import androidx.graphics.shapes.RoundedPolygon
+import androidx.graphics.shapes.star
+import androidx.graphics.shapes.toPath
 import androidx.lifecycle.viewmodel.compose.viewModel
+
+// Screen size class for adaptive layout
+enum class ScreenSizeClass {
+    COMPACT,  // Small phones (width < 600dp)
+    MEDIUM,   // Large phones, small tablets (600dp <= width < 840dp)
+    EXPANDED  // Tablets, desktops (width >= 840dp)
+}
+
+// Adaptive layout configuration
+data class AdaptiveLayoutConfig(
+    val itemSize: Dp,
+    val itemSpacing: Dp,
+    val verticalSpacing: Dp,
+    val iconSize: Dp,
+    val fontSize: Int,
+    val itemsPerRow: Int
+)
+
+@Composable
+private fun getScreenSizeClass(): ScreenSizeClass {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+
+    return when {
+        screenWidth < 600.dp -> ScreenSizeClass.COMPACT
+        screenWidth < 840.dp -> ScreenSizeClass.MEDIUM
+        else -> ScreenSizeClass.EXPANDED
+    }
+}
+
+@Composable
+private fun getAdaptiveLayoutConfig(screenSizeClass: ScreenSizeClass): AdaptiveLayoutConfig {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp
+    val screenHeight = configuration.screenHeightDp
+    val isLandscape = screenWidth > screenHeight
+
+    return when (screenSizeClass) {
+        ScreenSizeClass.COMPACT -> {
+            if (isLandscape) {
+                // Landscape phone - smaller items, more per row
+                AdaptiveLayoutConfig(
+                    itemSize = 110.dp,
+                    itemSpacing = 6.dp,
+                    verticalSpacing = (-30).dp,
+                    iconSize = 32.dp,
+                    fontSize = 11,
+                    itemsPerRow = 3
+                )
+            } else {
+                // Portrait phone - medium items
+                AdaptiveLayoutConfig(
+                    itemSize = min(screenWidth / 2.5f, 160f).dp,
+                    itemSpacing = 8.dp,
+                    verticalSpacing = (-40).dp,
+                    iconSize = 38.dp,
+                    fontSize = 13,
+                    itemsPerRow = 2
+                )
+            }
+        }
+        ScreenSizeClass.MEDIUM -> {
+            // Large phones, small tablets
+            AdaptiveLayoutConfig(
+                itemSize = 180.dp,
+                itemSpacing = 12.dp,
+                verticalSpacing = (-45).dp,
+                iconSize = 48.dp,
+                fontSize = 14,
+                itemsPerRow = 3
+            )
+        }
+        ScreenSizeClass.EXPANDED -> {
+            // Tablets, desktops - larger items
+            AdaptiveLayoutConfig(
+                itemSize = 200.dp,
+                itemSpacing = 16.dp,
+                verticalSpacing = (-50).dp,
+                iconSize = 56.dp,
+                fontSize = 16,
+                itemsPerRow = if (isLandscape) 5 else 3
+            )
+        }
+    }
+}
+
+// Morph polygon shape for hexagon to star transformation
+class MorphPolygonShape(
+    private val morph: Morph,
+    private val percentage: Float
+) : Shape {
+    private val matrix = Matrix()
+
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density
+    ): Outline {
+        // Scale and translate to fit container
+        matrix.reset()
+        matrix.scale(size.width / 2f, size.height / 2f)
+        matrix.translate(1f, 1f)
+
+        val androidPath = morph.toPath(progress = percentage)
+        val composePath = androidPath.asComposePath()
+        composePath.transform(matrix)
+
+        return Outline.Generic(composePath)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,13 +160,23 @@ fun HomeScreen(
     onNavigateToList: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToStatistics: () -> Unit,
-    onNavigateToOscillator: () -> Unit,  // ✅ 파라미터 추가
+    onNavigateToOscillator: () -> Unit,
+    onNavigateToMarketDeposit: () -> Unit,
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
 ) {
     val state by viewModel.state.collectAsState()
+    val showFirstRunDialog by viewModel.showFirstRunDialog.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val lastDate = (state as? HomeState.Idle)?.lastDate
 
     var showDaysDialog by remember { mutableStateOf(false) }
+
+    // 첫 실행 다이얼로그 표시
+    LaunchedEffect(showFirstRunDialog) {
+        if (showFirstRunDialog) {
+            showDaysDialog = true
+        }
+    }
 
     LaunchedEffect(state) {
         when (val s = state) {
@@ -48,7 +195,18 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("ETF Monitor") },
+                title = {
+                    Column {
+                        Text("Market Monitor")
+                        lastDate?.let {
+                            Text(
+                                "업데이트: $it",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -76,12 +234,11 @@ fun HomeScreen(
                 HomeContent(
                     modifier = Modifier.padding(padding),
                     state = s,
-                    onInitialize = { showDaysDialog = true },
-                    onUpdate = { viewModel.update() },
                     onNavigateToList = onNavigateToList,
                     onNavigateToSettings = onNavigateToSettings,
                     onNavigateToStatistics = onNavigateToStatistics,
-                    onNavigateToOscillator = onNavigateToOscillator  // ✅ 전달
+                    onNavigateToOscillator = onNavigateToOscillator,
+                    onNavigateToMarketDeposit = onNavigateToMarketDeposit
                 )
             }
         }
@@ -89,10 +246,18 @@ fun HomeScreen(
 
     if (showDaysDialog) {
         DaysSelectionDialog(
-            onDismiss = { showDaysDialog = false },
+            onDismiss = {
+                showDaysDialog = false
+                if (showFirstRunDialog) {
+                    viewModel.onFirstRunDialogShown()
+                }
+            },
             onConfirm = { days ->
                 viewModel.initialize(days)
                 showDaysDialog = false
+                if (showFirstRunDialog) {
+                    viewModel.onFirstRunDialogShown()
+                }
             }
         )
     }
@@ -110,16 +275,31 @@ private fun LoadingScreen(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
             modifier = Modifier.padding(32.dp)
         ) {
-            CircularProgressIndicator(progress = { progress / 100f })
-            Text(message)
+            CircularProgressIndicator(
+                progress = { progress / 100f },
+                modifier = Modifier.size(68.dp),
+                strokeWidth = 6.dp
+            )
+            Text(
+                message,
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
             LinearProgressIndicator(
                 progress = { progress / 100f },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp),
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
             )
-            Text("$progress%", style = MaterialTheme.typography.labelMedium)
+            Text(
+                "$progress%",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
@@ -128,151 +308,173 @@ private fun LoadingScreen(
 private fun HomeContent(
     modifier: Modifier = Modifier,
     state: HomeState,
-    onInitialize: () -> Unit,
-    onUpdate: () -> Unit,
     onNavigateToList: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToStatistics: () -> Unit,
-    onNavigateToOscillator: () -> Unit  // ✅ 파라미터 추가
+    onNavigateToOscillator: () -> Unit,
+    onNavigateToMarketDeposit: () -> Unit
 ) {
     val hasData = (state as? HomeState.Idle)?.hasData ?: false
-    val lastDate = (state as? HomeState.Idle)?.lastDate
+    val screenSizeClass = getScreenSizeClass()
+    val layoutConfig = getAdaptiveLayoutConfig(screenSizeClass)
 
-    Column(
+    // All menu items
+    val menuItems = buildList {
+        if (hasData) {
+            add(
+                MenuItem(
+                    icon = Icons.AutoMirrored.Filled.List,
+                    title = "ETF 테마 목록",
+                    color = MaterialTheme.colorScheme.primary,
+                    onClick = onNavigateToList
+                )
+            )
+            add(
+                MenuItem(
+                    icon = Icons.Default.Analytics,
+                    title = "ETF 전체 통계",
+                    color = MaterialTheme.colorScheme.secondary,
+                    onClick = onNavigateToStatistics
+                )
+            )
+        }
+        add(
+            MenuItem(
+                icon = Icons.Default.ShowChart,
+                title = "종목 수급 분석",
+                color = MaterialTheme.colorScheme.tertiary,
+                onClick = onNavigateToOscillator
+            )
+        )
+        add(
+            MenuItem(
+                icon = Icons.AutoMirrored.Filled.TrendingUp,
+                title = "증시 자금 동향",
+                color = MaterialTheme.colorScheme.primary,
+                onClick = onNavigateToMarketDeposit
+            )
+        )
+        add(
+            MenuItem(
+                icon = Icons.Default.Settings,
+                title = "설정",
+                color = MaterialTheme.colorScheme.secondary,
+                onClick = onNavigateToSettings
+            )
+        )
+    }
+
+    Box(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentAlignment = Alignment.Center
     ) {
-        // Welcome Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
+        // Adaptive honeycomb hexagon layout
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(layoutConfig.verticalSpacing)
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.TrendingUp,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    "ETF Monitor",
-                    style = MaterialTheme.typography.headlineMedium
-                )
-                Text(
-                    if (hasData) "액티브 ETF 구성 종목 모니터링"
-                    else "시작하려면 초기화를 진행하세요"
-                )
-                if (lastDate != null) {
-                    Text(
-                        "마지막 업데이트: $lastDate",
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
-            }
-        }
-
-        // Data Management
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text("데이터 관리", style = MaterialTheme.typography.titleMedium)
-
-                if (!hasData) {
-                    Button(
-                        onClick = onInitialize,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Download, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("초기화")
-                    }
-                    Text(
-                        "수집할 기간을 선택할 수 있습니다",
-                        style = MaterialTheme.typography.bodySmall,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                } else {
-                    OutlinedButton(
-                        onClick = onUpdate,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Refresh, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("데이터 업데이트")
+            // Split items into rows based on itemsPerRow
+            menuItems.chunked(layoutConfig.itemsPerRow).forEach { rowItems ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(layoutConfig.itemSpacing),
+                    modifier = Modifier.wrapContentWidth()
+                ) {
+                    rowItems.forEach { item ->
+                        HexagonMenuItem(
+                            icon = item.icon,
+                            title = item.title,
+                            color = item.color,
+                            onClick = item.onClick,
+                            config = layoutConfig
+                        )
                     }
                 }
             }
         }
-
-        // Features
-        if (hasData) {
-            Text("기능", style = MaterialTheme.typography.titleMedium)
-
-            FeatureCard(
-                icon = Icons.AutoMirrored.Filled.List,
-                title = "ETF 목록",
-                description = "액티브 ETF 목록 조회 및 검색",
-                onClick = onNavigateToList
-            )
-
-            // ✅ 통계 카드 추가
-            FeatureCard(
-                icon = Icons.Default.Analytics,
-                title = "전체 통계",
-                description = "금액 순위, 신규/제외 종목, 비중 변화",
-                onClick = onNavigateToStatistics
-            )
-        }
-
-        // ✅ 수급 오실레이터 카드 추가 (데이터 없이도 사용 가능)
-        FeatureCard(
-            icon = Icons.Default.ShowChart,
-            title = "수급 오실레이터",
-            description = "외국인/기관 수급 분석 및 매매 신호",
-            onClick = onNavigateToOscillator
-        )
-
-        FeatureCard(
-            icon = Icons.Default.Settings,
-            title = "설정",
-            description = "테마 및 제외 키워드 관리",
-            onClick = onNavigateToSettings
-        )
     }
 }
 
+// Data class for menu items
+private data class MenuItem(
+    val icon: ImageVector,
+    val title: String,
+    val color: androidx.compose.ui.graphics.Color,
+    val onClick: () -> Unit
+)
+
 @Composable
-private fun FeatureCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun HexagonMenuItem(
+    icon: ImageVector,
     title: String,
-    description: String,
-    onClick: () -> Unit
+    color: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit,
+    config: AdaptiveLayoutConfig
 ) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+    // Create rounded hexagon shape
+    val shapeA = remember {
+        RoundedPolygon(
+            6,
+            rounding = CornerRounding(0.2f)
+        )
+    }
+
+    // Create star shape for morph target
+    val shapeB = remember {
+        RoundedPolygon.star(
+            6,
+            rounding = CornerRounding(0.1f)
+        )
+    }
+
+    // Create morph between hexagon and star
+    val morph = remember(shapeA, shapeB) {
+        Morph(shapeA, shapeB)
+    }
+
+    val interactionSource = remember {
+        MutableInteractionSource()
+    }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    // Animate morph progress from 0 (hexagon) to 1 (star)
+    val animatedProgress = animateFloatAsState(
+        targetValue = if (isPressed) 1f else 0f,
+        label = "progress",
+        animationSpec = spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMedium)
+    )
+
+    Box(
+        modifier = Modifier
+            .size(config.itemSize)
+            .padding(8.dp)
+            .clip(MorphPolygonShape(morph, animatedProgress.value))
+            .background(color)
+            .clickable(interactionSource = interactionSource, indication = null) {
+                onClick()
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Icon(icon, null, Modifier.size(40.dp), MaterialTheme.colorScheme.primary)
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(description, style = MaterialTheme.typography.bodySmall)
-            }
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, null)
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(config.iconSize),
+                tint = MaterialTheme.colorScheme.onPrimary
+            )
+            Text(
+                title,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimary,
+                textAlign = TextAlign.Center,
+                fontSize = config.fontSize.sp,
+                lineHeight = (config.fontSize + 2).sp
+            )
         }
     }
 }

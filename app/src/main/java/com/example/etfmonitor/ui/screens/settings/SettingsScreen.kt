@@ -1,5 +1,7 @@
 package com.etfmonitor.ui.screens.settings
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -20,7 +22,10 @@ fun SettingsScreen(
 ) {
     val themes by viewModel.themes.collectAsState()
     val exclusions by viewModel.exclusions.collectAsState()
-    val defaultDays by viewModel.defaultDays.collectAsState()  // ✅ 추가
+    val defaultDays by viewModel.defaultDays.collectAsState()
+    val searchHistoryLimit by viewModel.searchHistoryLimit.collectAsState()
+    val stockUpdateSettings by viewModel.stockUpdateSettings.collectAsState()
+    val marketDepositUpdateSettings by viewModel.marketDepositUpdateSettings.collectAsState()
     val message by viewModel.message.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -55,11 +60,45 @@ fun SettingsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // ✅ 데이터 관리 (홈에서 이동)
+            item {
+                DataManagementCard(
+                    onInitialize = { days -> viewModel.initializeData(days) },
+                    onUpdate = { viewModel.updateData() }
+                )
+            }
+
+            // ✅ 종목 DB 자동 업데이트 설정
+            item {
+                StockUpdateCard(
+                    settings = stockUpdateSettings,
+                    onTimeChange = { hour, minute -> viewModel.setUpdateTime(hour, minute) },
+                    onUpdateNow = { viewModel.updateStocksNow() }
+                )
+            }
+
+            // ✅ 증시 자금 DB 자동 업데이트 설정
+            item {
+                MarketDepositUpdateCard(
+                    settings = marketDepositUpdateSettings,
+                    onTimeChange = { hour, minute -> viewModel.setMarketDepositUpdateTime(hour, minute) },
+                    onUpdateNow = { viewModel.updateMarketDepositsNow() }
+                )
+            }
+
             // ✅ 기본 수집 기간 설정
             item {
                 DefaultDaysCard(
                     currentDays = defaultDays,
                     onDaysChange = { viewModel.setDefaultDays(it) }
+                )
+            }
+
+            // ✅ 검색 히스토리 개수 설정
+            item {
+                SearchHistoryLimitCard(
+                    currentLimit = searchHistoryLimit,
+                    onLimitChange = { viewModel.setSearchHistoryLimit(it) }
                 )
             }
 
@@ -99,9 +138,15 @@ private fun DefaultDaysCard(
 ) {
     var showDialog by remember { mutableStateOf(false) }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(animationSpec = tween(200)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = MaterialTheme.shapes.medium
+    ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
@@ -166,6 +211,212 @@ private fun DefaultDaysCard(
             onConfirm = { days ->
                 onDaysChange(days)
                 showDialog = false
+            }
+        )
+    }
+}
+
+// ✅ 검색 히스토리 개수 카드
+@Composable
+private fun SearchHistoryLimitCard(
+    currentLimit: Int,
+    onLimitChange: (Int) -> Unit
+) {
+    var showDialog by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.History,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("검색 히스토리", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            Text(
+                "차트 분석에서 저장할 최대 검색 히스토리 개수",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "현재 설정",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "${currentLimit}개",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Button(onClick = { showDialog = true }) {
+                    Text("변경")
+                }
+            }
+
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Text(
+                    "범위: 5~30개 (기본: 15개)",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+        }
+    }
+
+    if (showDialog) {
+        SearchHistoryLimitDialog(
+            currentLimit = currentLimit,
+            onDismiss = { showDialog = false },
+            onConfirm = { limit ->
+                onLimitChange(limit)
+                showDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun SearchHistoryLimitDialog(
+    currentLimit: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    var selectedLimit by remember { mutableStateOf(currentLimit) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("검색 히스토리 개수 설정") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("저장할 최대 검색 히스토리 개수를 선택하세요")
+
+                // Slider
+                Column {
+                    Text(
+                        "${selectedLimit}개",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Slider(
+                        value = selectedLimit.toFloat(),
+                        onValueChange = { selectedLimit = it.toInt() },
+                        valueRange = 5f..30f,
+                        steps = 24 // 5~30, step 1
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("5개", style = MaterialTheme.typography.bodySmall)
+                        Text("30개", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(selectedLimit) }) {
+                Text("확인")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소")
+            }
+        }
+    )
+}
+
+// ✅ 데이터 관리 카드 (홈에서 이동)
+@Composable
+private fun DataManagementCard(
+    onInitialize: (Int) -> Unit,
+    onUpdate: () -> Unit
+) {
+    var showDaysDialog by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Storage,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("데이터 관리", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            Text(
+                "ETF 데이터 초기화 및 업데이트",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Button(
+                onClick = { showDaysDialog = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Download, null)
+                Spacer(Modifier.width(8.dp))
+                Text("데이터 초기화")
+            }
+
+            OutlinedButton(
+                onClick = onUpdate,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Refresh, null)
+                Spacer(Modifier.width(8.dp))
+                Text("데이터 업데이트")
+            }
+
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Text(
+                    "초기화: 선택한 기간의 데이터를 수집합니다\n업데이트: 최신 데이터를 가져옵니다",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+        }
+    }
+
+    if (showDaysDialog) {
+        DaysSelectionDialog(
+            currentDays = 25,
+            onDismiss = { showDaysDialog = false },
+            onConfirm = { days ->
+                onInitialize(days)
+                showDaysDialog = false
             }
         )
     }
@@ -505,4 +756,351 @@ private fun DatabaseCard(
             }
         )
     }
+}
+
+// 종목 DB 자동 업데이트 카드
+@Composable
+private fun StockUpdateCard(
+    settings: StockUpdateSettings,
+    onTimeChange: (Int, Int) -> Unit,
+    onUpdateNow: () -> Unit
+) {
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Schedule,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("종목 DB 자동 업데이트", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            Text(
+                "매일 지정된 시간에 종목 데이터를 자동으로 업데이트합니다",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "업데이트 시간",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "${String.format("%02d", settings.updateHour)}:${String.format("%02d", settings.updateMinute)}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Button(onClick = { showTimePicker = true }) {
+                    Text("변경")
+                }
+            }
+
+            // 마지막 업데이트 정보
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "저장된 종목 수:",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            "${settings.stockCount}개",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    settings.lastUpdateTime?.let { time ->
+                        val dateStr = java.text.SimpleDateFormat(
+                            "yyyy-MM-dd HH:mm",
+                            java.util.Locale.getDefault()
+                        ).format(java.util.Date(time))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                "마지막 업데이트:",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                dateStr,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 즉시 업데이트 버튼
+            Button(
+                onClick = onUpdateNow,
+                enabled = !settings.isUpdating,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (settings.isUpdating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("업데이트 중...")
+                } else {
+                    Icon(Icons.Default.Refresh, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("지금 업데이트")
+                }
+            }
+        }
+    }
+
+    if (showTimePicker) {
+        TimePickerDialog(
+            currentHour = settings.updateHour,
+            currentMinute = settings.updateMinute,
+            onDismiss = { showTimePicker = false },
+            onConfirm = { hour, minute ->
+                onTimeChange(hour, minute)
+                showTimePicker = false
+            }
+        )
+    }
+}
+
+// 증시 자금 DB 자동 업데이트 카드
+@Composable
+private fun MarketDepositUpdateCard(
+    settings: MarketDepositUpdateSettings,
+    onTimeChange: (Int, Int) -> Unit,
+    onUpdateNow: () -> Unit
+) {
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.TrendingUp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("증시 자금 DB 자동 업데이트", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            Text(
+                "매일 지정된 시간에 증시 자금 데이터를 자동으로 업데이트합니다",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "업데이트 시간",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "${String.format("%02d", settings.updateHour)}:${String.format("%02d", settings.updateMinute)}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Button(onClick = { showTimePicker = true }) {
+                    Text("변경")
+                }
+            }
+
+            // 마지막 업데이트 정보
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "저장된 데이터 수:",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            "${settings.depositCount}개",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    settings.lastUpdateTime?.let { time ->
+                        val dateStr = java.text.SimpleDateFormat(
+                            "yyyy-MM-dd HH:mm",
+                            java.util.Locale.getDefault()
+                        ).format(java.util.Date(time))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                "마지막 업데이트:",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                dateStr,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 즉시 업데이트 버튼
+            Button(
+                onClick = onUpdateNow,
+                enabled = !settings.isUpdating,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (settings.isUpdating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("업데이트 중...")
+                } else {
+                    Icon(Icons.Default.Refresh, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("지금 업데이트")
+                }
+            }
+        }
+    }
+
+    if (showTimePicker) {
+        TimePickerDialog(
+            currentHour = settings.updateHour,
+            currentMinute = settings.updateMinute,
+            onDismiss = { showTimePicker = false },
+            onConfirm = { hour, minute ->
+                onTimeChange(hour, minute)
+                showTimePicker = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun TimePickerDialog(
+    currentHour: Int,
+    currentMinute: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Int, Int) -> Unit
+) {
+    var selectedHour by remember { mutableStateOf(currentHour) }
+    var selectedMinute by remember { mutableStateOf(currentMinute) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("업데이트 시간 설정") },
+        text = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Hour picker
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("시간", style = MaterialTheme.typography.labelSmall)
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { selectedHour = (selectedHour - 1 + 24) % 24 }) {
+                            Icon(Icons.Default.KeyboardArrowUp, "증가")
+                        }
+                    }
+                    Text(
+                        String.format("%02d", selectedHour),
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { selectedHour = (selectedHour + 1) % 24 }) {
+                            Icon(Icons.Default.KeyboardArrowDown, "감소")
+                        }
+                    }
+                }
+
+                Spacer(Modifier.width(16.dp))
+                Text(":", style = MaterialTheme.typography.headlineLarge)
+                Spacer(Modifier.width(16.dp))
+
+                // Minute picker
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("분", style = MaterialTheme.typography.labelSmall)
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { selectedMinute = (selectedMinute - 15 + 60) % 60 }) {
+                            Icon(Icons.Default.KeyboardArrowUp, "증가")
+                        }
+                    }
+                    Text(
+                        String.format("%02d", selectedMinute),
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { selectedMinute = (selectedMinute + 15) % 60 }) {
+                            Icon(Icons.Default.KeyboardArrowDown, "감소")
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(selectedHour, selectedMinute) }) {
+                Text("확인")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소")
+            }
+        }
+    )
 }

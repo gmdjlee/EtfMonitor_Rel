@@ -1,10 +1,15 @@
 package com.etfmonitor.ui.screens.oscillator
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,7 +19,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.etfmonitor.oscillator.model.TradeSignal
+import com.etfmonitor.ui.components.MarketCapOscillatorChart
+import com.etfmonitor.ui.components.MacdChart
+import com.etfmonitor.ui.components.LoadingCard
+import com.etfmonitor.ui.components.ErrorCard
+import com.etfmonitor.ui.components.IdleCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,11 +33,13 @@ fun OscillatorScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val suggestions by viewModel.suggestions.collectAsState()
+    val searchHistory by viewModel.searchHistory.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("수급 오실레이터") },
+                title = { Text("차트 분석") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로")
@@ -41,6 +52,9 @@ fun OscillatorScreen(
             )
         }
     ) { padding ->
+        var textFieldValue by remember { mutableStateOf("") }
+        var showHistoryDialog by remember { mutableStateOf(false) }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -49,32 +63,100 @@ fun OscillatorScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Search Card
+            // Search Card with Autocomplete
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        "종목 검색",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-
-                    var textFieldValue by remember { mutableStateOf("") }
-
-                    OutlinedTextField(
-                        value = textFieldValue,
-                        onValueChange = { textFieldValue = it },
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("종목명 또는 코드") },
-                        placeholder = { Text("예: 삼성전자") },
-                        singleLine = true
-                    )
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "종목 검색",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+
+                        // History 버튼
+                        if (searchHistory.isNotEmpty()) {
+                            TextButton(onClick = { showHistoryDialog = true }) {
+                                Icon(
+                                    Icons.Default.History,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text("History")
+                            }
+                        }
+                    }
+
+                    // TextField with autocomplete
+                    Column {
+                        OutlinedTextField(
+                            value = textFieldValue,
+                            onValueChange = {
+                                textFieldValue = it
+                                viewModel.updateSearchQuery(it)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("종목명 또는 코드") },
+                            placeholder = { Text("예: 삼성전자") },
+                            singleLine = true,
+                            trailingIcon = {
+                                if (textFieldValue.isNotBlank()) {
+                                    IconButton(onClick = {
+                                        textFieldValue = ""
+                                        viewModel.clearSuggestions()
+                                    }) {
+                                        Icon(Icons.Default.Clear, "지우기")
+                                    }
+                                }
+                            }
+                        )
+
+                        // Autocomplete Dropdown
+                        if (suggestions.isNotEmpty() && textFieldValue.isNotBlank()) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    suggestions.forEach { stock ->
+                                        ListItem(
+                                            headlineContent = { Text(stock.name) },
+                                            supportingContent = {
+                                                Text(
+                                                    "${stock.ticker} • ${stock.market}",
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                            },
+                                            modifier = Modifier.clickable {
+                                                textFieldValue = stock.name
+                                                viewModel.clearSuggestions()
+                                                viewModel.analyzeStock(stock.ticker)
+                                            }
+                                        )
+                                        if (stock != suggestions.last()) {
+                                            HorizontalDivider()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     Button(
                         onClick = {
                             if (textFieldValue.isNotBlank()) {
                                 viewModel.searchAndAnalyze(textFieldValue)
+                                viewModel.clearSuggestions()
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -90,22 +172,7 @@ fun OscillatorScreen(
             // State Content
             when (val currentState = state) {
                 is OscillatorState.Loading -> {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                CircularProgressIndicator()
-                                Text("데이터 분석 중...")
-                            }
-                        }
-                    }
+                    LoadingCard(message = "데이터 분석 중...")
                 }
 
                 is OscillatorState.Success -> {
@@ -128,141 +195,118 @@ fun OscillatorScreen(
                         }
                     }
 
-                    // Signal Analysis Card
-                    SignalCard(currentState.signalAnalysis)
+                    // 시가총액 & 수급 오실레이터 차트
+                    MarketCapOscillatorChart(
+                        result = currentState.oscillatorResult,
+                        marketCap = currentState.stockData.marketCap,
+                        latestDate = currentState.stockData.dates.lastOrNull()
+                    )
+
+                    // MACD 차트
+                    MacdChart(
+                        result = currentState.oscillatorResult,
+                        latestDate = currentState.stockData.dates.lastOrNull()
+                    )
 
                     // Oscillator Data Card
                     DataCard(currentState.oscillatorResult)
                 }
 
                 is OscillatorState.Error -> {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        )
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        ) {
-                            Text(
-                                currentState.message,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        }
-                    }
+                    ErrorCard(message = currentState.message)
                 }
 
                 is OscillatorState.Idle -> {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "종목을 검색하여 수급 오실레이터를 분석하세요",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    IdleCard(message = "종목을 검색하여 수급 오실레이터를 분석하세요")
+                }
+            }
+        }
+
+        // Search History Dialog
+        if (showHistoryDialog) {
+            SearchHistoryDialog(
+                searchHistory = searchHistory,
+                onDismiss = { showHistoryDialog = false },
+                onSelectStock = { ticker ->
+                    showHistoryDialog = false
+                    viewModel.analyzeStock(ticker)
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SearchHistoryDialog(
+    searchHistory: List<com.etfmonitor.database.entities.SearchHistory>,
+    onDismiss: () -> Unit,
+    onSelectStock: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.History,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("최근 검색")
+            }
+        },
+        text = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 400.dp)
+            ) {
+                if (searchHistory.isEmpty()) {
+                    Text(
+                        "검색 히스토리가 없습니다",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(searchHistory) { history ->
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                ListItem(
+                                    headlineContent = { Text(history.name) },
+                                    supportingContent = {
+                                        Text(
+                                            "${history.ticker} • ${history.market}",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    },
+                                    modifier = Modifier.clickable {
+                                        onSelectStock(history.ticker)
+                                    }
+                                )
+                                if (history != searchHistory.last()) {
+                                    HorizontalDivider()
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun SignalCard(analysis: com.example.etfmonitor.oscillator.model.SignalAnalysis) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = when (analysis.signal) {
-                TradeSignal.STRONG_BUY -> Color(0xFF1B5E20)
-                TradeSignal.BUY -> Color(0xFF388E3C)
-                TradeSignal.NEUTRAL -> MaterialTheme.colorScheme.surfaceVariant
-                TradeSignal.SELL -> Color(0xFFD32F2F)
-                TradeSignal.STRONG_SELL -> Color(0xFFB71C1C)
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("닫기")
             }
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                "매매 신호",
-                style = MaterialTheme.typography.titleMedium,
-                color = if (analysis.signal == TradeSignal.NEUTRAL)
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                else
-                    Color.White
-            )
-
-            Text(
-                when (analysis.signal) {
-                    TradeSignal.STRONG_BUY -> "강력 매수"
-                    TradeSignal.BUY -> "매수"
-                    TradeSignal.NEUTRAL -> "중립"
-                    TradeSignal.SELL -> "매도"
-                    TradeSignal.STRONG_SELL -> "강력 매도"
-                },
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = if (analysis.signal == TradeSignal.NEUTRAL)
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                else
-                    Color.White
-            )
-
-            HorizontalDivider()
-
-            InfoRow("점수", "${analysis.score.toInt()}/100")
-            InfoRow("추세", analysis.trend)
-            InfoRow("외국인", analysis.foreignTrend)
-            InfoRow("기관", analysis.institutionTrend)
-
-            HorizontalDivider()
-
-            Text(
-                analysis.recommendation,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = if (analysis.signal == TradeSignal.NEUTRAL)
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                else
-                    Color.White
-            )
         }
-    }
+    )
 }
 
 @Composable
-private fun InfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.7f)
-        )
-        Text(
-            value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = Color.White
-        )
-    }
-}
-
-@Composable
-private fun DataCard(result: com.example.etfmonitor.oscillator.model.OscillatorResult) {
+private fun DataCard(result: com.etfmonitor.oscillator.model.OscillatorResult) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
