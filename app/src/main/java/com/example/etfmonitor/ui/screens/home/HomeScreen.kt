@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -83,23 +84,23 @@ private fun getAdaptiveLayoutConfig(screenSizeClass: ScreenSizeClass): AdaptiveL
     return when (screenSizeClass) {
         ScreenSizeClass.COMPACT -> {
             if (isLandscape) {
-                // Landscape phone - smaller items, more per row
+                // Landscape phone - smaller items for triangle layout
                 AdaptiveLayoutConfig(
-                    itemSize = 110.dp,
+                    itemSize = 90.dp,
+                    itemSpacing = 6.dp,
+                    verticalSpacing = (-25).dp,
+                    iconSize = 28.dp,
+                    fontSize = 10,
+                    itemsPerRow = 3
+                )
+            } else {
+                // Portrait phone - optimized for 3-column triangle layout
+                AdaptiveLayoutConfig(
+                    itemSize = min(screenWidth / 3.8f, 110f).dp,
                     itemSpacing = 6.dp,
                     verticalSpacing = (-30).dp,
                     iconSize = 32.dp,
                     fontSize = 11,
-                    itemsPerRow = 3
-                )
-            } else {
-                // Portrait phone - medium items
-                AdaptiveLayoutConfig(
-                    itemSize = min(screenWidth / 2.5f, 160f).dp,
-                    itemSpacing = 8.dp,
-                    verticalSpacing = (-40).dp,
-                    iconSize = 38.dp,
-                    fontSize = 13,
                     itemsPerRow = 2
                 )
             }
@@ -107,22 +108,22 @@ private fun getAdaptiveLayoutConfig(screenSizeClass: ScreenSizeClass): AdaptiveL
         ScreenSizeClass.MEDIUM -> {
             // Large phones, small tablets
             AdaptiveLayoutConfig(
-                itemSize = 180.dp,
-                itemSpacing = 12.dp,
-                verticalSpacing = (-45).dp,
-                iconSize = 48.dp,
-                fontSize = 14,
+                itemSize = 140.dp,
+                itemSpacing = 10.dp,
+                verticalSpacing = (-35).dp,
+                iconSize = 42.dp,
+                fontSize = 13,
                 itemsPerRow = 3
             )
         }
         ScreenSizeClass.EXPANDED -> {
             // Tablets, desktops - larger items
             AdaptiveLayoutConfig(
-                itemSize = 200.dp,
-                itemSpacing = 16.dp,
-                verticalSpacing = (-50).dp,
-                iconSize = 56.dp,
-                fontSize = 16,
+                itemSize = 180.dp,
+                itemSpacing = 14.dp,
+                verticalSpacing = (-45).dp,
+                iconSize = 52.dp,
+                fontSize = 15,
                 itemsPerRow = if (isLandscape) 5 else 3
             )
         }
@@ -406,18 +407,57 @@ private fun HomeContent(
             .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Adaptive honeycomb hexagon layout
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(layoutConfig.verticalSpacing)
+        // Right-pointing triangle layout (3 columns: 3-2-1)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(layoutConfig.itemSpacing),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .wrapContentSize()
+                .horizontalScroll(rememberScrollState())
         ) {
-            // Split items into rows based on itemsPerRow
-            menuItems.chunked(layoutConfig.itemsPerRow).forEach { rowItems ->
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(layoutConfig.itemSpacing),
-                    modifier = Modifier.wrapContentWidth()
+            // Left column: 3 items
+            if (menuItems.isNotEmpty()) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(layoutConfig.verticalSpacing),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    rowItems.forEach { item ->
+                    menuItems.take(3).forEach { item ->
+                        HexagonMenuItem(
+                            icon = item.icon,
+                            title = item.title,
+                            color = item.color,
+                            onClick = item.onClick,
+                            config = layoutConfig
+                        )
+                    }
+                }
+            }
+
+            // Middle column: 2 items
+            if (menuItems.size > 3) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(layoutConfig.verticalSpacing),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    menuItems.drop(3).take(2).forEach { item ->
+                        HexagonMenuItem(
+                            icon = item.icon,
+                            title = item.title,
+                            color = item.color,
+                            onClick = item.onClick,
+                            config = layoutConfig
+                        )
+                    }
+                }
+            }
+
+            // Right column: 1 item
+            if (menuItems.size > 5) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(layoutConfig.verticalSpacing),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    menuItems.drop(5).take(1).forEach { item ->
                         HexagonMenuItem(
                             icon = item.icon,
                             title = item.title,

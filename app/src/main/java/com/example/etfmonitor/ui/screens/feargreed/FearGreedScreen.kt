@@ -226,14 +226,14 @@ fun FearGreedScreen(
                     }
                 }
 
-                // Fear & Greed Index Chart with Index
+                // Fear & Greed Oscillator Chart with Index
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            "Fear & Greed Index & ${selectedMarket} 지수",
+                            "Fear & Greed Oscillator & ${selectedMarket} 지수",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -300,7 +300,7 @@ fun FearGreedChart(
                     }
                 }
 
-                // 왼쪽 Y축 (Fear & Greed Index: 0.0 ~ 1.0)
+                // 왼쪽 Y축 (Oscillator)
                 axisLeft.apply {
                     setDrawGridLines(true)
                     gridLineWidth = 1f
@@ -308,11 +308,10 @@ fun FearGreedChart(
                     enableGridDashedLine(10f, 5f, 0f)
                     setTextColor(fearGreedColor)
                     setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
-                    axisMinimum = 0f
-                    axisMaximum = 1f
+                    // Oscillator는 범위가 자동으로 설정됨
                     valueFormatter = object : ValueFormatter() {
                         override fun getFormattedValue(value: Float): String {
-                            return String.format("%.1f", value)
+                            return String.format("%.3f", value)
                         }
                     }
                 }
@@ -340,11 +339,11 @@ fun FearGreedChart(
         update = { chart ->
             val reversedData = data.reversed()
 
-            // Fear & Greed Index 라인
-            val fearGreedEntries = reversedData.mapIndexed { index, item ->
-                Entry(index.toFloat(), item.fearGreedValue.toFloat())
+            // Oscillator 라인
+            val oscillatorEntries = reversedData.mapIndexed { index, item ->
+                Entry(index.toFloat(), item.oscillator.toFloat())
             }
-            val fearGreedDataSet = LineDataSet(fearGreedEntries, "Fear & Greed Index").apply {
+            val oscillatorDataSet = LineDataSet(oscillatorEntries, "Oscillator").apply {
                 axisDependency = YAxis.AxisDependency.LEFT
                 color = fearGreedColor
                 lineWidth = 2.5f
@@ -372,7 +371,7 @@ fun FearGreedChart(
                 highLightColor = indexColor
             }
 
-            val lineData = LineData(fearGreedDataSet, indexDataSet)
+            val lineData = LineData(oscillatorDataSet, indexDataSet)
             val combinedData = CombinedData().apply {
                 setData(lineData)
             }
