@@ -132,44 +132,89 @@ class FearGreedRepository(
     private suspend fun calculateFearGreed(startDate: String, endDate: String): List<FearGreedIndex> =
         withContext(Dispatchers.IO) {
             try {
+                Log.d(TAG, "Calculating Fear & Greed for period: $startDate ~ $endDate")
                 val module = python.getModule("feargreed")
 
                 // combine 함수 호출하여 데이터 수집
                 val combineFunc = module["combine"]
-                val dfObject = combineFunc?.call(startDate, endDate) as? PyObject
-
-                if (dfObject == null) {
-                    Log.e(TAG, "Failed to get combined data from Python")
+                if (combineFunc == null) {
+                    Log.e(TAG, "combine function not found in Python module")
                     return@withContext emptyList()
                 }
+
+                val dfObject = combineFunc.call(startDate, endDate)
+                if (dfObject == null || dfObject.toString() == "None") {
+                    Log.e(TAG, "Failed to get combined data from Python (returned None)")
+                    return@withContext emptyList()
+                }
+
+                Log.d(TAG, "Combined data retrieved successfully")
 
                 // analyze 함수 호출하여 분석
                 val analyzeFunc = module["analyze"]
-                val result = analyzeFunc?.call(dfObject) as? PyObject
-
-                if (result == null) {
-                    Log.e(TAG, "Failed to analyze data from Python")
+                if (analyzeFunc == null) {
+                    Log.e(TAG, "analyze function not found in Python module")
                     return@withContext emptyList()
                 }
 
-                // 결과 파싱 (KOSPI, KOSDAQ)
-                val indices = mutableListOf<FearGreedIndex>()
-
-                // KOSPI 데이터
-                val kospiDf = result.asList()?.get(0) as? PyObject
-                if (kospiDf != null && kospiDf.toString() != "None") {
-                    indices.addAll(parseFearGreedData(kospiDf, "KOSPI"))
+                val result = analyzeFunc.call(dfObject)
+                if (result == null) {
+                    Log.e(TAG, "analyze function returned null")
+                    return@withContext emptyList()
                 }
 
-                // KOSDAQ 데이터
-                val kosdaqDf = result.asList()?.get(1) as? PyObject
-                if (kosdaqDf != null && kosdaqDf.toString() != "None") {
-                    indices.addAll(parseFearGreedData(kosdaqDf, "KOSDAQ"))
+                Log.d(TAG, "Analyze function completed")
+
+                // 결과 파싱 (KOSPI, KOSDAQ) - Python에서 튜플 (kp_df, kq_df) 반환
+                val indices = mutableListOf<FearGreedIndex>()
+
+                // 튜플을 리스트로 변환
+                val resultList = result.asList()
+                if (resultList == null || resultList.size < 2) {
+                    Log.e(TAG, "Invalid result tuple from analyze function")
+                    return@withContext emptyList()
+                }
+
+                try {
+                    // 튜플의 첫 번째 요소: KOSPI 데이터
+                    val kospiDf = resultList.getOrNull(0)
+                    if (kospiDf != null && kospiDf.toString() != "None") {
+                        Log.d(TAG, "Parsing KOSPI data...")
+                        val kospiIndices = parseFearGreedData(kospiDf, "KOSPI")
+                        Log.d(TAG, "KOSPI parsed: ${kospiIndices.size} records")
+                        indices.addAll(kospiIndices)
+                    } else {
+                        Log.w(TAG, "KOSPI data is None")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing KOSPI data", e)
+                }
+
+                try {
+                    // 튜플의 두 번째 요소: KOSDAQ 데이터
+                    val kosdaqDf = resultList.getOrNull(1)
+                    if (kosdaqDf != null && kosdaqDf.toString() != "None") {
+                        Log.d(TAG, "Parsing KOSDAQ data...")
+                        val kosdaqIndices = parseFearGreedData(kosdaqDf, "KOSDAQ")
+                        Log.d(TAG, "KOSDAQ parsed: ${kosdaqIndices.size} records")
+                        indices.addAll(kosdaqIndices)
+                    } else {
+                        Log.w(TAG, "KOSDAQ data is None")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing KOSDAQ data", e)
+                }
+
+                if (indices.isEmpty()) {
+                    Log.e(TAG, "No Fear & Greed data calculated")
+                } else {
+                    Log.d(TAG, "Total Fear & Greed records: ${indices.size}")
                 }
 
                 indices
             } catch (e: Exception) {
                 Log.e(TAG, "Error calculating Fear & Greed", e)
+                e.printStackTrace()
                 emptyList()
             }
         }
@@ -183,28 +228,94 @@ class FearGreedRepository(
 
             // DataFrame을 딕셔너리 리스트로 변환
             val recordsFunc = df["to_dict"]
-            val records = recordsFunc?.call("records") as? PyObject
+            if (recordsFunc == null) {
+                Log.e(TAG, "to_dict method not found on DataFrame")
+                return emptyList()
+            }
 
+            val records = recordsFunc.call("records")
             if (records == null) {
-                Log.e(TAG, "Failed to convert DataFrame to records")
+                Log.e(TAG, "Failed to convert DataFrame to records (returned null)")
                 return emptyList()
             }
 
             val recordsList = records.asList()
+            if (recordsList == null) {
+                Log.e(TAG, "Failed to convert records to list")
+                return emptyList()
+            }
 
-            for (record in recordsList) {
+            Log.d(TAG, "Processing ${recordsList.size} records for $market")
+
+            for ((index, record) in recordsList.withIndex()) {
                 try {
-                    val recordMap = record.asMap()
+                    // 첫 번째 레코드에서 디버깅 정보 출력
+                    if (index == 0) {
+                        Log.d(TAG, "First record type: ${record.javaClass.name}")
+                        Log.d(TAG, "First record toString: ${record.toString()}")
+                        try {
+                            val keys = record.asMap()?.keys
+                            Log.d(TAG, "Record keys: $keys")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Cannot get keys as map: ${e.message}")
+                        }
+                    }
 
-                    val date = recordMap["거래일"]?.toString() ?: continue
-                    val indexValue = recordMap[market]?.toDouble() ?: continue
-                    val fg = recordMap["FG"]?.toDouble() ?: continue
-                    val osc = recordMap["Osc"]?.toDouble() ?: continue
-                    val rsi = recordMap["RSI"]?.toDouble() ?: 0.0
-                    val mom = recordMap["Mom"]?.toDouble() ?: 0.0
-                    val pcr = recordMap["PCR"]?.toDouble() ?: 0.0
-                    val vol = recordMap["Vol"]?.toDouble() ?: 0.0
-                    val spread = recordMap["Spread"]?.toDouble() ?: 0.0
+                    // Python dict의 get 메서드 사용
+                    val getFunc = record["get"]
+                    if (getFunc == null) {
+                        Log.e(TAG, "Record $index: get method not found")
+                        continue
+                    }
+
+                    val dateObj = getFunc.call("거래일")
+                    val date = dateObj?.toString()
+                    if (date == null || date == "None") {
+                        if (index < 3) Log.w(TAG, "Record $index: missing date (dateObj=$dateObj)")
+                        continue
+                    }
+
+                    val indexValueObj = getFunc.call(market)
+                    val indexValue = try {
+                        indexValueObj?.toDouble()
+                    } catch (e: Exception) {
+                        if (index < 3) Log.w(TAG, "Record $index ($date): cannot convert $market to double: $indexValueObj")
+                        null
+                    }
+                    if (indexValue == null) {
+                        if (index < 3) Log.w(TAG, "Record $index ($date): missing $market value")
+                        continue
+                    }
+
+                    val fgObj = getFunc.call("FG")
+                    val fg = try {
+                        fgObj?.toDouble()
+                    } catch (e: Exception) {
+                        if (index < 3) Log.w(TAG, "Record $index ($date): cannot convert FG to double: $fgObj")
+                        null
+                    }
+                    if (fg == null) {
+                        if (index < 3) Log.w(TAG, "Record $index ($date): missing FG value")
+                        continue
+                    }
+
+                    val oscObj = getFunc.call("Osc")
+                    val osc = try {
+                        oscObj?.toDouble()
+                    } catch (e: Exception) {
+                        if (index < 3) Log.w(TAG, "Record $index ($date): cannot convert Osc to double: $oscObj")
+                        null
+                    }
+                    if (osc == null) {
+                        if (index < 3) Log.w(TAG, "Record $index ($date): missing Osc value")
+                        continue
+                    }
+
+                    val rsi = try { getFunc.call("RSI")?.toDouble() } catch (e: Exception) { null } ?: 0.0
+                    val mom = try { getFunc.call("Mom")?.toDouble() } catch (e: Exception) { null } ?: 0.0
+                    val pcr = try { getFunc.call("PCR")?.toDouble() } catch (e: Exception) { null } ?: 0.0
+                    val vol = try { getFunc.call("Vol")?.toDouble() } catch (e: Exception) { null } ?: 0.0
+                    val spread = try { getFunc.call("Spread")?.toDouble() } catch (e: Exception) { null } ?: 0.0
 
                     // 날짜 형식 변환 (Timestamp -> YYYY-MM-DD)
                     val formattedDate = formatDate(date)
@@ -226,14 +337,16 @@ class FearGreedRepository(
                         )
                     )
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed to parse record: $e")
+                    if (index < 3) Log.w(TAG, "Failed to parse record $index: ${e.message}", e)
                     continue
                 }
             }
 
+            Log.d(TAG, "Successfully parsed ${indices.size} out of ${recordsList.size} records for $market")
             return indices
         } catch (e: Exception) {
-            Log.e(TAG, "Error parsing Fear & Greed data", e)
+            Log.e(TAG, "Error parsing Fear & Greed data for $market", e)
+            e.printStackTrace()
             return emptyList()
         }
     }

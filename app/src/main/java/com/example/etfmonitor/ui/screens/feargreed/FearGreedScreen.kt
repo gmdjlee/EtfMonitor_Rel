@@ -158,11 +158,22 @@ fun FearGreedScreen(
                 is FearGreedState.Error -> ErrorCard(currentState.message)
                 is FearGreedState.Idle -> {
                     if (!currentState.hasData) {
-                        IdleCard(
-                            message = "Fear & Greed Index 데이터가 없습니다.",
-                            actionText = "데이터 수집",
-                            onAction = { viewModel.initialize(365) }
-                        )
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    "Fear & Greed Index 데이터가 없습니다.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Button(onClick = { viewModel.initialize(365) }) {
+                                    Text("데이터 수집")
+                                }
+                            }
+                        }
                     }
                 }
             }
