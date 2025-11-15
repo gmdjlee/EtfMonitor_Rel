@@ -121,33 +121,10 @@ class DataCollectionService : Service() {
                             updateNotification(progress.message, progress.progress)
                         }
                         is DataProgress.Success -> {
-                            // ETF 초기화 성공 후 Fear & Greed Index 초기화 (1년 데이터 고정)
-                            Log.d(TAG, "ETF initialization completed. Starting Fear & Greed Index initialization (365 days)...")
-                            CollectionState.updateProgress("Fear & Greed Index 초기화 중 (1년 데이터)...", 90)
-                            updateNotification("Fear & Greed Index 초기화 중...", 90)
-
-                            try {
-                                // Fear & Greed Index는 항상 1년(365일) 데이터로 초기화
-                                val fgResult = fearGreedRepository.initializeFearGreed(365)
-                                if (fgResult.isSuccess) {
-                                    val count = fgResult.getOrNull() ?: 0
-                                    Log.d(TAG, "Fear & Greed Index initialization completed: $count records")
-                                    val completionMsg = "초기화 완료 (ETF: ${progress.message.substringAfter("완료 (").substringBefore(")")}, Fear & Greed: ${count}개)"
-                                    CollectionState.complete(completionMsg)
-                                    updateNotification("초기화 완료", 100, isComplete = true)
-                                } else {
-                                    Log.w(TAG, "Fear & Greed Index initialization failed: ${fgResult.exceptionOrNull()?.message}")
-                                    // Fear & Greed 실패해도 ETF는 성공했으므로 완료로 처리
-                                    CollectionState.complete(progress.message)
-                                    updateNotification(progress.message, 100, isComplete = true)
-                                }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Error initializing Fear & Greed Index", e)
-                                // Fear & Greed 실패해도 ETF는 성공했으므로 완료로 처리
-                                CollectionState.complete(progress.message)
-                                updateNotification(progress.message, 100, isComplete = true)
-                            }
-
+                            // ETF 초기화 완료
+                            Log.d(TAG, "ETF initialization completed: ${progress.message}")
+                            CollectionState.complete(progress.message)
+                            updateNotification(progress.message, 100, isComplete = true)
                             stopSelf()
                         }
                         is DataProgress.Error -> {

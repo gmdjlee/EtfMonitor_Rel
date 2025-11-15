@@ -19,10 +19,15 @@ import com.etfmonitor.ui.components.IdleCard
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
+import com.github.mikephil.charting.data.CombinedData
 import androidx.compose.ui.viewinterop.AndroidView
-import com.github.mikephil.charting.charts.LineChart
+import com.github.mikephil.charting.charts.CombinedChart
 import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.components.YAxis
 import com.github.mikephil.charting.formatter.ValueFormatter
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.graphics.toArgb
+import com.etfmonitor.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -36,25 +41,26 @@ fun FearGreedScreen(
     val selectedMarket by viewModel.selectedMarket.collectAsState()
     val fearGreedData by viewModel.fearGreedData.collectAsState()
     val showFirstRunDialog by viewModel.showFirstRunDialog.collectAsState()
+    var showManualPeriodDialog by remember { mutableStateOf(false) }
 
     // 첫 실행 다이얼로그
     if (showFirstRunDialog) {
-        AlertDialog(
-            onDismissRequest = { },
-            title = { Text("Fear & Greed Index 초기화") },
-            text = { Text("Fear & Greed Index 데이터가 없습니다.\n1년치 데이터를 수집하시겠습니까? (약 1-2분 소요)") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.onFirstRunDialogShown()
-                    viewModel.initialize(365)
-                }) {
-                    Text("수집 시작")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.onFirstRunDialogShown() }) {
-                    Text("나중에")
-                }
+        FearGreedInitializeDialog(
+            onDismiss = { viewModel.onFirstRunDialogShown() },
+            onConfirm = { days ->
+                viewModel.onFirstRunDialogConfirmed()
+                viewModel.initialize(days)
+            }
+        )
+    }
+
+    // 수동 데이터 수집 다이얼로그
+    if (showManualPeriodDialog) {
+        FearGreedInitializeDialog(
+            onDismiss = { showManualPeriodDialog = false },
+            onConfirm = { days ->
+                showManualPeriodDialog = false
+                viewModel.initialize(days)
             }
         )
     }
@@ -164,7 +170,7 @@ fun FearGreedScreen(
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Button(onClick = { viewModel.initialize(365) }) {
+                                Button(onClick = { showManualPeriodDialog = true }) {
                                     Text("데이터 수집")
                                 }
                             }
@@ -220,14 +226,14 @@ fun FearGreedScreen(
                     }
                 }
 
-                // Fear & Greed Index Chart
+                // Fear & Greed Index Chart with Index
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            "Fear & Greed Index",
+                            "Fear & Greed Index & ${selectedMarket} 지수",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -236,28 +242,7 @@ fun FearGreedScreen(
                             data = fearGreedData,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(250.dp)
-                        )
-                    }
-                }
-
-                // Oscillator Chart
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            "MACD Oscillator",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        OscillatorChart(
-                            data = fearGreedData,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp)
+                                .height(350.dp)
                         )
                     }
                 }
@@ -271,49 +256,128 @@ fun FearGreedChart(
     data: List<com.etfmonitor.database.entities.FearGreedIndex>,
     modifier: Modifier = Modifier
 ) {
-    val colorScheme = MaterialTheme.colorScheme
+    val isDark = isSystemInDarkTheme()
+    val fearGreedColor = ChartOrange.toArgb()  // Fear & Greed Index - 오렌지
+    val indexColor = ChartYellow.toArgb()      // KOSPI/KOSDAQ 지수 - 노란색
+    val textColor = if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
     AndroidView(
         factory = { context ->
-            LineChart(context).apply {
+            CombinedChart(context).apply {
                 description.isEnabled = false
-                legend.isEnabled = false
                 setTouchEnabled(true)
                 isDragEnabled = true
                 setScaleEnabled(true)
                 setPinchZoom(true)
                 setDrawGridBackground(false)
+                setDrawOrder(arrayOf(
+                    CombinedChart.DrawOrder.LINE,
+                    CombinedChart.DrawOrder.LINE
+                ))
 
+                // X축 설정 (날짜)
                 xAxis.apply {
                     position = XAxis.XAxisPosition.BOTTOM
                     setDrawGridLines(true)
-                    textColor = colorScheme.onSurface.hashCode()
+                    gridLineWidth = 1f
+                    setGridColor(gridColor)
+                    enableGridDashedLine(10f, 5f, 0f)
+                    setTextColor(textColor)
+                    granularity = 1f
+                    labelRotationAngle = -45f
+                    setLabelCount(10, false)
+                    valueFormatter = object : ValueFormatter() {
+                        override fun getFormattedValue(value: Float): String {
+                            val index = value.toInt()
+                            val reversedData = data.reversed()
+                            return if (index >= 0 && index < reversedData.size) {
+                                reversedData[index].date
+                            } else {
+                                ""
+                            }
+                        }
+                    }
                 }
 
+                // 왼쪽 Y축 (Fear & Greed Index: 0.0 ~ 1.0)
                 axisLeft.apply {
                     setDrawGridLines(true)
-                    textColor = colorScheme.onSurface.hashCode()
+                    gridLineWidth = 1f
+                    setGridColor(gridColor)
+                    enableGridDashedLine(10f, 5f, 0f)
+                    setTextColor(fearGreedColor)
+                    setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
                     axisMinimum = 0f
                     axisMaximum = 1f
+                    valueFormatter = object : ValueFormatter() {
+                        override fun getFormattedValue(value: Float): String {
+                            return String.format("%.1f", value)
+                        }
+                    }
                 }
 
-                axisRight.isEnabled = false
+                // 오른쪽 Y축 (KOSPI/KOSDAQ 지수)
+                axisRight.apply {
+                    isEnabled = true
+                    setDrawGridLines(false)
+                    setTextColor(indexColor)
+                    setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
+                    valueFormatter = object : ValueFormatter() {
+                        override fun getFormattedValue(value: Float): String {
+                            return String.format("%.0f", value)
+                        }
+                    }
+                }
+
+                legend.apply {
+                    isEnabled = true
+                    textSize = 12f
+                    setTextColor(textColor)
+                }
             }
         },
         update = { chart ->
-            val entries = data.reversed().mapIndexed { index, item ->
+            val reversedData = data.reversed()
+
+            // Fear & Greed Index 라인
+            val fearGreedEntries = reversedData.mapIndexed { index, item ->
                 Entry(index.toFloat(), item.fearGreedValue.toFloat())
             }
-
-            val dataSet = LineDataSet(entries, "Fear & Greed").apply {
-                color = colorScheme.primary.hashCode()
-                lineWidth = 2f
-                setDrawCircles(false)
+            val fearGreedDataSet = LineDataSet(fearGreedEntries, "Fear & Greed Index").apply {
+                axisDependency = YAxis.AxisDependency.LEFT
+                color = fearGreedColor
+                lineWidth = 2.5f
+                setCircleColor(fearGreedColor)
+                circleRadius = 2f
+                setDrawCircleHole(false)
                 setDrawValues(false)
                 mode = LineDataSet.Mode.CUBIC_BEZIER
+                highLightColor = fearGreedColor
             }
 
-            chart.data = LineData(dataSet)
+            // KOSPI/KOSDAQ 지수 라인
+            val indexEntries = reversedData.mapIndexed { index, item ->
+                Entry(index.toFloat(), item.indexValue.toFloat())
+            }
+            val indexDataSet = LineDataSet(indexEntries, "${reversedData.firstOrNull()?.market ?: ""} 지수").apply {
+                axisDependency = YAxis.AxisDependency.RIGHT
+                color = indexColor
+                lineWidth = 2.5f
+                setCircleColor(indexColor)
+                circleRadius = 2f
+                setDrawCircleHole(false)
+                setDrawValues(false)
+                mode = LineDataSet.Mode.CUBIC_BEZIER
+                highLightColor = indexColor
+            }
+
+            val lineData = LineData(fearGreedDataSet, indexDataSet)
+            val combinedData = CombinedData().apply {
+                setData(lineData)
+            }
+
+            chart.data = combinedData
             chart.invalidate()
         },
         modifier = modifier
@@ -321,53 +385,89 @@ fun FearGreedChart(
 }
 
 @Composable
-fun OscillatorChart(
-    data: List<com.etfmonitor.database.entities.FearGreedIndex>,
-    modifier: Modifier = Modifier
+private fun FearGreedInitializeDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
 ) {
-    val colorScheme = MaterialTheme.colorScheme
+    val periodOptions = listOf(
+        FearGreedPeriodOption(180, "6개월", "약 180일"),
+        FearGreedPeriodOption(365, "12개월 (권장)", "약 365일"),
+        FearGreedPeriodOption(540, "18개월", "약 540일"),
+        FearGreedPeriodOption(730, "24개월", "약 730일")
+    )
 
-    AndroidView(
-        factory = { context ->
-            LineChart(context).apply {
-                description.isEnabled = false
-                legend.isEnabled = false
-                setTouchEnabled(true)
-                isDragEnabled = true
-                setScaleEnabled(true)
-                setPinchZoom(true)
-                setDrawGridBackground(false)
+    var selectedDays by remember { mutableStateOf(365) } // 기본값: 12개월
 
-                xAxis.apply {
-                    position = XAxis.XAxisPosition.BOTTOM
-                    setDrawGridLines(true)
-                    textColor = colorScheme.onSurface.hashCode()
+    AlertDialog(
+        onDismissRequest = { },
+        title = { Text("Fear & Greed Index 초기화") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "Fear & Greed Index 데이터가 없습니다.\n수집 기간을 선택하세요.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                periodOptions.forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (selectedDays == option.days),
+                            onClick = { selectedDays = option.days }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                option.label,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                option.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
 
-                axisLeft.apply {
-                    setDrawGridLines(true)
-                    textColor = colorScheme.onSurface.hashCode()
+                Spacer(Modifier.height(8.dp))
+
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Text(
+                        "데이터 수집에는 선택한 기간에 따라 1-3분 정도 소요됩니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(8.dp)
+                    )
                 }
-
-                axisRight.isEnabled = false
             }
         },
-        update = { chart ->
-            val entries = data.reversed().mapIndexed { index, item ->
-                Entry(index.toFloat(), item.oscillator.toFloat())
+        confirmButton = {
+            Button(onClick = { onConfirm(selectedDays) }) {
+                Text("수집 시작")
             }
-
-            val dataSet = LineDataSet(entries, "Oscillator").apply {
-                color = colorScheme.secondary.hashCode()
-                lineWidth = 2f
-                setDrawCircles(false)
-                setDrawValues(false)
-                mode = LineDataSet.Mode.CUBIC_BEZIER
-            }
-
-            chart.data = LineData(dataSet)
-            chart.invalidate()
         },
-        modifier = modifier
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("나중에")
+            }
+        }
     )
 }
+
+private data class FearGreedPeriodOption(
+    val days: Int,
+    val label: String,
+    val description: String
+)

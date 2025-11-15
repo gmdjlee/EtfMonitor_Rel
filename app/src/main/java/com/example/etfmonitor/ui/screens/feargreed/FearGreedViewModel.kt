@@ -48,22 +48,28 @@ class FearGreedViewModel(
     private fun checkFirstRun() {
         viewModelScope.launch {
             val app = EtfMonitorApp.instance
-            val isFirstRun = app.database.dao().getSetting("is_first_run_feargreed")
+            val dialogDismissed = app.database.dao().getSetting("fear_greed_dialog_dismissed")
             val hasData = repository.getCountByMarket("KOSPI") > 0 ||
                          repository.getCountByMarket("KOSDAQ") > 0
 
-            // 첫 실행이고 데이터가 없으면 다이얼로그 표시
-            if ((isFirstRun == null || isFirstRun == "true") && !hasData) {
+            // 데이터가 없고 다이얼로그를 본 적이 없으면 표시
+            if (!hasData && dialogDismissed != "true") {
                 _showFirstRunDialog.value = true
             }
         }
     }
 
     fun onFirstRunDialogShown() {
+        // "나중에"를 클릭한 경우: 다이얼로그만 닫기
+        _showFirstRunDialog.value = false
+    }
+
+    fun onFirstRunDialogConfirmed() {
+        // "수집 시작"을 클릭한 경우: 다이얼로그 닫고 더 이상 표시하지 않음
         viewModelScope.launch {
             val app = EtfMonitorApp.instance
             app.database.dao().saveSetting(
-                com.etfmonitor.database.entities.Setting("is_first_run_feargreed", "false")
+                com.etfmonitor.database.entities.Setting("fear_greed_dialog_dismissed", "true")
             )
             _showFirstRunDialog.value = false
         }

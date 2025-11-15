@@ -167,15 +167,24 @@ fun HomeScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val showFirstRunDialog by viewModel.showFirstRunDialog.collectAsState()
+    val showFearGreedDialog by viewModel.showFearGreedDialog.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val lastDate = (state as? HomeState.Idle)?.lastDate
 
     var showDaysDialog by remember { mutableStateOf(false) }
+    var showFearGreedPeriodDialog by remember { mutableStateOf(false) }
 
-    // 첫 실행 다이얼로그 표시
+    // 첫 실행 다이얼로그 표시 (ETF 데이터)
     LaunchedEffect(showFirstRunDialog) {
         if (showFirstRunDialog) {
             showDaysDialog = true
+        }
+    }
+
+    // Fear & Greed 다이얼로그 표시
+    LaunchedEffect(showFearGreedDialog) {
+        if (showFearGreedDialog) {
+            showFearGreedPeriodDialog = true
         }
     }
 
@@ -260,6 +269,21 @@ fun HomeScreen(
                 if (showFirstRunDialog) {
                     viewModel.onFirstRunDialogShown()
                 }
+            }
+        )
+    }
+
+    if (showFearGreedPeriodDialog) {
+        FearGreedPeriodSelectionDialog(
+            onDismiss = {
+                showFearGreedPeriodDialog = false
+                if (showFearGreedDialog) {
+                    viewModel.onFearGreedDialogShown()
+                }
+            },
+            onConfirm = { days ->
+                viewModel.initializeFearGreed(days)
+                showFearGreedPeriodDialog = false
             }
         )
     }
@@ -636,6 +660,94 @@ private fun DaysSelectionDialog(
         }
     )
 }
+
+@Composable
+private fun FearGreedPeriodSelectionDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    val periodOptions = listOf(
+        FearGreedPeriodOption(180, "6개월", "약 180일"),
+        FearGreedPeriodOption(365, "12개월 (권장)", "약 365일"),
+        FearGreedPeriodOption(540, "18개월", "약 540일"),
+        FearGreedPeriodOption(730, "24개월", "약 730일")
+    )
+
+    var selectedDays by remember { mutableStateOf(365) } // 기본값: 12개월
+
+    AlertDialog(
+        onDismissRequest = { },
+        title = { Text("Fear & Greed Index 초기화") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "Fear & Greed Index 데이터 수집 기간을 선택하세요.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                periodOptions.forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (selectedDays == option.days),
+                            onClick = { selectedDays = option.days }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                option.label,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                option.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Text(
+                        "데이터 수집에는 선택한 기간에 따라 1-3분 정도 소요됩니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(selectedDays) }) {
+                Text("수집 시작")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("나중에")
+            }
+        }
+    )
+}
+
+private data class FearGreedPeriodOption(
+    val days: Int,
+    val label: String,
+    val description: String
+)
 
 private data class DaysOption(
     val days: Int,
