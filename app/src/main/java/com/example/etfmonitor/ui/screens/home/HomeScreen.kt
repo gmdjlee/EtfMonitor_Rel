@@ -406,18 +406,54 @@ private fun HomeContent(
             .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Adaptive honeycomb hexagon layout
+        // Inverted triangle layout (3-2-1)
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(layoutConfig.verticalSpacing)
         ) {
-            // Split items into rows based on itemsPerRow
-            menuItems.chunked(layoutConfig.itemsPerRow).forEach { rowItems ->
+            // First row: 3 items
+            if (menuItems.isNotEmpty()) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(layoutConfig.itemSpacing),
                     modifier = Modifier.wrapContentWidth()
                 ) {
-                    rowItems.forEach { item ->
+                    menuItems.take(3).forEach { item ->
+                        HexagonMenuItem(
+                            icon = item.icon,
+                            title = item.title,
+                            color = item.color,
+                            onClick = item.onClick,
+                            config = layoutConfig
+                        )
+                    }
+                }
+            }
+
+            // Second row: 2 items
+            if (menuItems.size > 3) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(layoutConfig.itemSpacing),
+                    modifier = Modifier.wrapContentWidth()
+                ) {
+                    menuItems.drop(3).take(2).forEach { item ->
+                        HexagonMenuItem(
+                            icon = item.icon,
+                            title = item.title,
+                            color = item.color,
+                            onClick = item.onClick,
+                            config = layoutConfig
+                        )
+                    }
+                }
+            }
+
+            // Third row: 1 item
+            if (menuItems.size > 5) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(layoutConfig.itemSpacing),
+                    modifier = Modifier.wrapContentWidth()
+                ) {
+                    menuItems.drop(5).take(1).forEach { item ->
                         HexagonMenuItem(
                             icon = item.icon,
                             title = item.title,
