@@ -74,6 +74,7 @@ chaquopy {
             install("wheel")
             install("requests")
             install("beautifulsoup4")
+            install("scikit-learn")
         }
     }
 }

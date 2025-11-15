@@ -15,6 +15,7 @@ import com.etfmonitor.ui.screens.statistics.StatisticsScreen
 import com.etfmonitor.ui.screens.trend.StockTrendScreen
 import com.etfmonitor.ui.screens.oscillator.OscillatorScreen
 import com.etfmonitor.ui.screens.oscillator.MarketDepositScreen
+import com.etfmonitor.ui.screens.feargreed.FearGreedScreen
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -36,6 +37,8 @@ sealed class Screen(val route: String) {
     object Oscillator : Screen("oscillator")
     // ✅ 증시 자금 동향
     object MarketDeposit : Screen("market_deposit")
+    // ✅ Fear & Greed Index
+    object FearGreed : Screen("fear_greed")
 }
 
 @Composable
@@ -52,7 +55,8 @@ fun Navigation() {
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                 onNavigateToStatistics = { navController.navigate(Screen.Statistics.route) },
                 onNavigateToOscillator = { navController.navigate(Screen.Oscillator.route) },
-                onNavigateToMarketDeposit = { navController.navigate(Screen.MarketDeposit.route) }
+                onNavigateToMarketDeposit = { navController.navigate(Screen.MarketDeposit.route) },
+                onNavigateToFearGreed = { navController.navigate(Screen.FearGreed.route) }
             )
         }
 
@@ -134,6 +138,13 @@ fun Navigation() {
         // ✅ 증시 자금 동향 화면
         composable(Screen.MarketDeposit.route) {
             MarketDepositScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // ✅ Fear & Greed Index 화면
+        composable(Screen.FearGreed.route) {
+            FearGreedScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

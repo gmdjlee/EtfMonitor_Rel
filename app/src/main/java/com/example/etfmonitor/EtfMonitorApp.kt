@@ -7,6 +7,7 @@ import com.chaquo.python.android.AndroidPlatform
 import com.etfmonitor.database.AppDatabase
 import com.etfmonitor.python.PyKrxClient
 import com.etfmonitor.repository.DataRepository
+import com.etfmonitor.repository.FearGreedRepository
 import com.etfmonitor.repository.StockRepository
 import com.etfmonitor.repository.StockAnalysisRepository
 import com.etfmonitor.repository.MarketDepositRepository
@@ -28,7 +29,8 @@ class EtfMonitorApp : Application() {
                 com.etfmonitor.database.MIGRATION_1_2,
                 com.etfmonitor.database.MIGRATION_2_3,
                 com.etfmonitor.database.MIGRATION_3_4,
-                com.etfmonitor.database.MIGRATION_4_5
+                com.etfmonitor.database.MIGRATION_4_5,
+                com.etfmonitor.database.MIGRATION_5_6
             )
             .build()
     }
@@ -68,6 +70,13 @@ class EtfMonitorApp : Application() {
     val marketDepositRepository: MarketDepositRepository by lazy {
         MarketDepositRepository(
             marketDepositDao = database.marketDepositDao(),
+            python = python
+        )
+    }
+
+    val fearGreedRepository: FearGreedRepository by lazy {
+        FearGreedRepository(
+            fearGreedDao = database.fearGreedDao(),
             python = python
         )
     }

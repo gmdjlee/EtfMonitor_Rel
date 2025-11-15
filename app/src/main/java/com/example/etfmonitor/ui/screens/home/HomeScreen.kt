@@ -162,6 +162,7 @@ fun HomeScreen(
     onNavigateToStatistics: () -> Unit,
     onNavigateToOscillator: () -> Unit,
     onNavigateToMarketDeposit: () -> Unit,
+    onNavigateToFearGreed: () -> Unit,
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
 ) {
     val state by viewModel.state.collectAsState()
@@ -238,7 +239,8 @@ fun HomeScreen(
                     onNavigateToSettings = onNavigateToSettings,
                     onNavigateToStatistics = onNavigateToStatistics,
                     onNavigateToOscillator = onNavigateToOscillator,
-                    onNavigateToMarketDeposit = onNavigateToMarketDeposit
+                    onNavigateToMarketDeposit = onNavigateToMarketDeposit,
+                    onNavigateToFearGreed = onNavigateToFearGreed
                 )
             }
         }
@@ -312,7 +314,8 @@ private fun HomeContent(
     onNavigateToSettings: () -> Unit,
     onNavigateToStatistics: () -> Unit,
     onNavigateToOscillator: () -> Unit,
-    onNavigateToMarketDeposit: () -> Unit
+    onNavigateToMarketDeposit: () -> Unit,
+    onNavigateToFearGreed: () -> Unit
 ) {
     val hasData = (state as? HomeState.Idle)?.hasData ?: false
     val screenSizeClass = getScreenSizeClass()
@@ -352,6 +355,14 @@ private fun HomeContent(
                 title = "증시 자금 동향",
                 color = MaterialTheme.colorScheme.primary,
                 onClick = onNavigateToMarketDeposit
+            )
+        )
+        add(
+            MenuItem(
+                icon = Icons.Default.BarChart,
+                title = "Fear & Greed Index",
+                color = MaterialTheme.colorScheme.tertiary,
+                onClick = onNavigateToFearGreed
             )
         )
         add(

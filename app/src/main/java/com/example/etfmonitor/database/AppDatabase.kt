@@ -6,6 +6,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.etfmonitor.database.entities.Etf
+import com.etfmonitor.database.entities.FearGreedIndex
 import com.etfmonitor.database.entities.Holding
 import com.etfmonitor.database.entities.MarketDeposit
 import com.etfmonitor.database.entities.SearchHistory
@@ -14,8 +15,8 @@ import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.StockAnalysisData
 
 @Database(
-    entities = [Etf::class, Holding::class, Setting::class, Stock::class, MarketDeposit::class, StockAnalysisData::class, SearchHistory::class],
-    version = 5,
+    entities = [Etf::class, Holding::class, Setting::class, Stock::class, MarketDeposit::class, StockAnalysisData::class, SearchHistory::class, FearGreedIndex::class],
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -25,6 +26,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun marketDepositDao(): MarketDepositDao
     abstract fun stockAnalysisDao(): StockAnalysisDao
     abstract fun searchHistoryDao(): SearchHistoryDao
+    abstract fun fearGreedDao(): FearGreedDao
 }
 
 /**
@@ -101,6 +103,32 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
                 name TEXT NOT NULL,
                 market TEXT NOT NULL,
                 searchedAt INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+    }
+}
+
+/**
+ * Migration from version 5 to 6: Add FearGreedIndex table
+ */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS fear_greed_index (
+                id TEXT PRIMARY KEY NOT NULL,
+                market TEXT NOT NULL,
+                date TEXT NOT NULL,
+                indexValue REAL NOT NULL,
+                fearGreedValue REAL NOT NULL,
+                oscillator REAL NOT NULL,
+                rsi REAL NOT NULL,
+                momentum REAL NOT NULL,
+                putCallRatio REAL NOT NULL,
+                volatility REAL NOT NULL,
+                spread REAL NOT NULL,
+                lastUpdated INTEGER NOT NULL
             )
             """.trimIndent()
         )

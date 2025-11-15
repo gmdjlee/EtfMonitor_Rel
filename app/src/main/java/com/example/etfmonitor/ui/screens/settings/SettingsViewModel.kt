@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.etfmonitor.EtfMonitorApp
 import com.etfmonitor.database.entities.Setting
 import com.etfmonitor.repository.DataRepository
+import com.etfmonitor.repository.FearGreedRepository
 import com.etfmonitor.repository.MarketDepositRepository
 import com.etfmonitor.repository.StockRepository
 import com.etfmonitor.worker.WorkManagerHelper
@@ -32,11 +33,21 @@ data class MarketDepositUpdateSettings(
     val isUpdating: Boolean = false
 )
 
+data class FearGreedUpdateSettings(
+    val updateHour: Int = 1, // 기본값: 새벽 1시
+    val updateMinute: Int = 0,
+    val lastUpdateTime: Long? = null,
+    val kospiCount: Int = 0,
+    val kosdaqCount: Int = 0,
+    val isUpdating: Boolean = false
+)
+
 class SettingsViewModel(
     private val application: Application,
     private val repository: DataRepository,
     private val stockRepository: StockRepository,
-    private val marketDepositRepository: MarketDepositRepository
+    private val marketDepositRepository: MarketDepositRepository,
+    private val fearGreedRepository: FearGreedRepository
 ) : AndroidViewModel(application) {
 
     private val _themes = MutableStateFlow<List<String>>(emptyList())
@@ -54,6 +65,9 @@ class SettingsViewModel(
     private val _marketDepositUpdateSettings = MutableStateFlow(MarketDepositUpdateSettings())
     val marketDepositUpdateSettings: StateFlow<MarketDepositUpdateSettings> = _marketDepositUpdateSettings.asStateFlow()
 
+    private val _fearGreedUpdateSettings = MutableStateFlow(FearGreedUpdateSettings())
+    val fearGreedUpdateSettings: StateFlow<FearGreedUpdateSettings> = _fearGreedUpdateSettings.asStateFlow()
+
     private val _searchHistoryLimit = MutableStateFlow(15)
     val searchHistoryLimit: StateFlow<Int> = _searchHistoryLimit.asStateFlow()
 
@@ -66,6 +80,7 @@ class SettingsViewModel(
         loadSettings()
         loadStockInfo()
         loadMarketDepositInfo()
+        loadFearGreedInfo()
     }
 
     private fun loadSettings() {
@@ -107,6 +122,21 @@ class SettingsViewModel(
 
             // 스케줄 재설정
             WorkManagerHelper.scheduleMarketDepositUpdate(application, depositHour, depositMinute)
+
+            // Fear & Greed 업데이트 시간 로드
+            val fearGreedHourStr = dao.getSetting("fear_greed_update_hour")
+            val fearGreedMinuteStr = dao.getSetting("fear_greed_update_minute")
+
+            val fearGreedHour = fearGreedHourStr?.toIntOrNull() ?: 1 // 기본값: 새벽 1시
+            val fearGreedMinute = fearGreedMinuteStr?.toIntOrNull() ?: 0
+
+            _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(
+                updateHour = fearGreedHour,
+                updateMinute = fearGreedMinute
+            )
+
+            // 스케줄 재설정
+            WorkManagerHelper.scheduleFearGreedUpdate(application, fearGreedHour, fearGreedMinute)
         }
     }
 
@@ -138,6 +168,26 @@ class SettingsViewModel(
                 )
             } catch (e: Exception) {
                 android.util.Log.e("SettingsViewModel", "Error loading market deposit info", e)
+            }
+        }
+    }
+
+    private fun loadFearGreedInfo() {
+        viewModelScope.launch {
+            try {
+                val kospiCount = fearGreedRepository.getCountByMarket("KOSPI")
+                val kosdaqCount = fearGreedRepository.getCountByMarket("KOSDAQ")
+                val kospiLastUpdate = fearGreedRepository.getLastUpdateTime("KOSPI")
+                val kosdaqLastUpdate = fearGreedRepository.getLastUpdateTime("KOSDAQ")
+                val lastUpdate = maxOf(kospiLastUpdate ?: 0L, kosdaqLastUpdate ?: 0L).takeIf { it > 0L }
+
+                _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(
+                    kospiCount = kospiCount,
+                    kosdaqCount = kosdaqCount,
+                    lastUpdateTime = lastUpdate
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsViewModel", "Error loading fear greed info", e)
             }
         }
     }
@@ -282,6 +332,48 @@ class SettingsViewModel(
         }
     }
 
+    fun setFearGreedUpdateTime(hour: Int, minute: Int) {
+        viewModelScope.launch {
+            try {
+                dao.saveSetting(Setting("fear_greed_update_hour", hour.toString()))
+                dao.saveSetting(Setting("fear_greed_update_minute", minute.toString()))
+
+                _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(
+                    updateHour = hour,
+                    updateMinute = minute
+                )
+
+                WorkManagerHelper.scheduleFearGreedUpdate(application, hour, minute)
+                _message.value = "Fear & Greed Index 업데이트 시간이 ${hour}:${String.format("%02d", minute)}로 설정되었습니다"
+            } catch (e: Exception) {
+                _message.value = "시간 설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun updateFearGreedNow() {
+        viewModelScope.launch {
+            try {
+                _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(isUpdating = true)
+                _message.value = "Fear & Greed Index 업데이트 중..."
+
+                val result = fearGreedRepository.updateFearGreed()
+
+                if (result.isSuccess) {
+                    val count = result.getOrNull() ?: 0
+                    loadFearGreedInfo()
+                    _message.value = "업데이트 완료: ${count}개 데이터"
+                } else {
+                    _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
+                }
+            } catch (e: Exception) {
+                _message.value = "오류 발생: ${e.message}"
+            } finally {
+                _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(isUpdating = false)
+            }
+        }
+    }
+
     fun setSearchHistoryLimit(limit: Int) {
         viewModelScope.launch {
             try {
@@ -330,7 +422,8 @@ class SettingsViewModel(
                     application = app,
                     repository = app.repository,
                     stockRepository = app.stockRepository,
-                    marketDepositRepository = app.marketDepositRepository
+                    marketDepositRepository = app.marketDepositRepository,
+                    fearGreedRepository = app.fearGreedRepository
                 ) as T
             }
         }
