@@ -249,35 +249,73 @@ class FearGreedRepository(
 
             for ((index, record) in recordsList.withIndex()) {
                 try {
-                    val date = record["거래일"]?.toString()
-                    if (date == null) {
-                        Log.w(TAG, "Record $index: missing date")
+                    // 첫 번째 레코드에서 디버깅 정보 출력
+                    if (index == 0) {
+                        Log.d(TAG, "First record type: ${record.javaClass.name}")
+                        Log.d(TAG, "First record toString: ${record.toString()}")
+                        try {
+                            val keys = record.asMap()?.keys
+                            Log.d(TAG, "Record keys: $keys")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Cannot get keys as map: ${e.message}")
+                        }
+                    }
+
+                    // Python dict의 get 메서드 사용
+                    val getFunc = record["get"]
+                    if (getFunc == null) {
+                        Log.e(TAG, "Record $index: get method not found")
                         continue
                     }
 
-                    val indexValue = record[market]?.toDouble()
+                    val dateObj = getFunc.call("거래일")
+                    val date = dateObj?.toString()
+                    if (date == null || date == "None") {
+                        if (index < 3) Log.w(TAG, "Record $index: missing date (dateObj=$dateObj)")
+                        continue
+                    }
+
+                    val indexValueObj = getFunc.call(market)
+                    val indexValue = try {
+                        indexValueObj?.toDouble()
+                    } catch (e: Exception) {
+                        if (index < 3) Log.w(TAG, "Record $index ($date): cannot convert $market to double: $indexValueObj")
+                        null
+                    }
                     if (indexValue == null) {
-                        Log.w(TAG, "Record $index ($date): missing $market value")
+                        if (index < 3) Log.w(TAG, "Record $index ($date): missing $market value")
                         continue
                     }
 
-                    val fg = record["FG"]?.toDouble()
+                    val fgObj = getFunc.call("FG")
+                    val fg = try {
+                        fgObj?.toDouble()
+                    } catch (e: Exception) {
+                        if (index < 3) Log.w(TAG, "Record $index ($date): cannot convert FG to double: $fgObj")
+                        null
+                    }
                     if (fg == null) {
-                        Log.w(TAG, "Record $index ($date): missing FG value")
+                        if (index < 3) Log.w(TAG, "Record $index ($date): missing FG value")
                         continue
                     }
 
-                    val osc = record["Osc"]?.toDouble()
+                    val oscObj = getFunc.call("Osc")
+                    val osc = try {
+                        oscObj?.toDouble()
+                    } catch (e: Exception) {
+                        if (index < 3) Log.w(TAG, "Record $index ($date): cannot convert Osc to double: $oscObj")
+                        null
+                    }
                     if (osc == null) {
-                        Log.w(TAG, "Record $index ($date): missing Osc value")
+                        if (index < 3) Log.w(TAG, "Record $index ($date): missing Osc value")
                         continue
                     }
 
-                    val rsi = record["RSI"]?.toDouble() ?: 0.0
-                    val mom = record["Mom"]?.toDouble() ?: 0.0
-                    val pcr = record["PCR"]?.toDouble() ?: 0.0
-                    val vol = record["Vol"]?.toDouble() ?: 0.0
-                    val spread = record["Spread"]?.toDouble() ?: 0.0
+                    val rsi = try { getFunc.call("RSI")?.toDouble() } catch (e: Exception) { null } ?: 0.0
+                    val mom = try { getFunc.call("Mom")?.toDouble() } catch (e: Exception) { null } ?: 0.0
+                    val pcr = try { getFunc.call("PCR")?.toDouble() } catch (e: Exception) { null } ?: 0.0
+                    val vol = try { getFunc.call("Vol")?.toDouble() } catch (e: Exception) { null } ?: 0.0
+                    val spread = try { getFunc.call("Spread")?.toDouble() } catch (e: Exception) { null } ?: 0.0
 
                     // 날짜 형식 변환 (Timestamp -> YYYY-MM-DD)
                     val formattedDate = formatDate(date)
@@ -299,7 +337,7 @@ class FearGreedRepository(
                         )
                     )
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed to parse record $index: ${e.message}")
+                    if (index < 3) Log.w(TAG, "Failed to parse record $index: ${e.message}", e)
                     continue
                 }
             }
