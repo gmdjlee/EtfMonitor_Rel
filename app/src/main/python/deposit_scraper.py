@@ -7,11 +7,23 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
+from typing import Optional, List, Dict, Any
 import time
-import sys
+
+from logger import setup_logger
+
+logger = setup_logger(__name__)
+
+# Constants
+DEFAULT_NUM_PAGES = 5
+EXTENDED_NUM_PAGES = 10
+REQUEST_TIMEOUT = 15
+REQUEST_DELAY = 0.5
+MAX_RETRIES = 3
+RETRY_DELAY = 2
 
 
-def scrape_deposit_data(num_pages=5):
+def scrape_deposit_data(num_pages: int = DEFAULT_NUM_PAGES) -> Optional[Dict[str, List[Any]]]:
     """
     네이버 증권에서 증시자금동향 데이터를 수집합니다.
 
@@ -26,35 +38,40 @@ def scrape_deposit_data(num_pages=5):
             'credit_amounts': [...],
             'credit_changes': [...]
         }
+        수집 실패 시 None
     """
-    print(f"[deposit_scraper] 데이터 수집 시작: {num_pages}페이지", file=sys.stderr)
+    if num_pages <= 0:
+        logger.warning("페이지 수가 0 이하입니다: %d", num_pages)
+        return None
 
-    all_data = []
+    logger.info("데이터 수집 시작: %d페이지", num_pages)
+
+    all_data: List[Dict[str, Any]] = []
 
     for page_num in range(1, num_pages + 1):
         try:
-            print(f"[deposit_scraper] 페이지 {page_num} 수집 중...", file=sys.stderr)
+            logger.info("페이지 %d 수집 중...", page_num)
             page_data = scrape_page(page_num)
 
             if page_data:
                 all_data.extend(page_data)
-                print(f"[deposit_scraper] 페이지 {page_num}: {len(page_data)}개 수집", file=sys.stderr)
+                logger.info("페이지 %d: %d개 수집", page_num, len(page_data))
             else:
-                print(f"[deposit_scraper] 페이지 {page_num}: 데이터 없음", file=sys.stderr)
+                logger.warning("페이지 %d: 데이터 없음", page_num)
 
             # 요청 간 딜레이 (서버 부하 방지)
             if page_num < num_pages:
-                time.sleep(0.5)
+                time.sleep(REQUEST_DELAY)
 
         except Exception as e:
-            print(f"[deposit_scraper] 페이지 {page_num} 수집 실패: {e}", file=sys.stderr)
+            logger.error("페이지 %d 수집 실패: %s", page_num, str(e))
             continue
 
     if not all_data:
-        print("[deposit_scraper] 수집된 데이터가 없습니다", file=sys.stderr)
+        logger.warning("수집된 데이터가 없습니다")
         return None
 
-    print(f"[deposit_scraper] 총 {len(all_data)}개 데이터 수집", file=sys.stderr)
+    logger.info("총 %d개 데이터 수집", len(all_data))
 
     # 데이터프레임 생성
     try:
@@ -64,7 +81,7 @@ def scrape_deposit_data(num_pages=5):
         df = df.drop_duplicates(subset=['date'], keep='first')
         df = df.sort_values('date', ascending=True)
 
-        print(f"[deposit_scraper] 중복 제거 후: {len(df)}개", file=sys.stderr)
+        logger.info("중복 제거 후: %d개", len(df))
 
         # 딕셔너리로 변환
         result = {
@@ -75,25 +92,24 @@ def scrape_deposit_data(num_pages=5):
             'credit_changes': df['credit_change'].tolist()
         }
 
-        print(f"[deposit_scraper] 데이터 변환 완료", file=sys.stderr)
+        logger.info("데이터 변환 완료")
         return result
 
     except Exception as e:
-        print(f"[deposit_scraper] 데이터 변환 실패: {e}", file=sys.stderr)
+        logger.error("데이터 변환 실패: %s", str(e))
         return None
 
 
-def scrape_page(page_num):
+def scrape_page(page_num: int) -> Optional[List[Dict[str, Any]]]:
     """
-    특정 페이지의 데이터를 수집합니다.
+    특정 페이지의 데이터를 수집합니다 (재시도 로직 포함).
 
     Args:
         page_num: 페이지 번호
 
     Returns:
-        list: 데이터 리스트
+        list: 데이터 리스트 (실패 시 None)
     """
-
     url = f"https://finance.naver.com/sise/sise_deposit.naver?page={page_num}"
 
     headers = {
@@ -103,69 +119,94 @@ def scrape_page(page_num):
         'Referer': 'https://finance.naver.com/'
     }
 
-    try:
-        print(f"[deposit_scraper] URL 요청: {url}", file=sys.stderr)
+    # Retry logic
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            logger.debug("URL 요청 (시도 %d/%d): %s", attempt, MAX_RETRIES, url)
 
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
-        response.encoding = 'euc-kr'
+            response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
+            response.raise_for_status()
+            response.encoding = 'euc-kr'
 
-        soup = BeautifulSoup(response.text, 'html.parser')
+            soup = BeautifulSoup(response.text, 'html.parser')
 
-        # 테이블 찾기
-        table = soup.find('table', {'class': 'type_1'})
+            # 테이블 찾기
+            table = soup.find('table', {'class': 'type_1'})
 
-        if not table:
-            print(f"[deposit_scraper] 페이지 {page_num}: 테이블을 찾을 수 없습니다", file=sys.stderr)
+            if not table:
+                logger.warning("페이지 %d: 테이블을 찾을 수 없습니다", page_num)
+                return None
+
+            data_list: List[Dict[str, Any]] = []
+            rows = table.find_all('tr')
+
+            logger.debug("페이지 %d: %d개 행 발견", page_num, len(rows))
+
+            for idx, row in enumerate(rows[2:], start=2):  # 헤더 2행 제외
+                try:
+                    cols = row.find_all('td')
+
+                    if len(cols) < 5:
+                        continue
+
+                    date = cols[0].get_text(strip=True)
+
+                    if not date:
+                        continue
+
+                    # 데이터 추출
+                    deposit_amount = parse_number(cols[1].get_text(strip=True))
+                    deposit_change = parse_number(cols[2].get_text(strip=True))
+                    credit_amount = parse_number(cols[3].get_text(strip=True))
+                    credit_change = parse_number(cols[4].get_text(strip=True))
+
+                    data_list.append({
+                        'date': date,
+                        'deposit_amount': deposit_amount,
+                        'deposit_change': deposit_change,
+                        'credit_amount': credit_amount,
+                        'credit_change': credit_change
+                    })
+
+                except Exception as e:
+                    logger.debug("행 %d 파싱 실패: %s", idx, str(e))
+                    continue
+
+            logger.info("페이지 %d: %d개 데이터 추출", page_num, len(data_list))
+            return data_list
+
+        except requests.exceptions.Timeout as e:
+            logger.warning(
+                "페이지 %d 타임아웃 (시도 %d/%d): %s",
+                page_num, attempt, MAX_RETRIES, str(e)
+            )
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY * attempt)
+                continue
+            else:
+                logger.error("페이지 %d 최대 재시도 횟수 초과 (타임아웃)", page_num)
+                return None
+
+        except requests.exceptions.RequestException as e:
+            logger.warning(
+                "페이지 %d 요청 실패 (시도 %d/%d): %s",
+                page_num, attempt, MAX_RETRIES, str(e)
+            )
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY * attempt)
+                continue
+            else:
+                logger.error("페이지 %d 최대 재시도 횟수 초과", page_num)
+                return None
+
+        except Exception as e:
+            logger.error("페이지 %d 스크래핑 실패: %s", page_num, str(e))
             return None
 
-        data_list = []
-        rows = table.find_all('tr')
-
-        print(f"[deposit_scraper] 페이지 {page_num}: {len(rows)}개 행 발견", file=sys.stderr)
-
-        for idx, row in enumerate(rows[2:], start=2):  # 헤더 2행 제외
-            try:
-                cols = row.find_all('td')
-
-                if len(cols) < 5:
-                    continue
-
-                date = cols[0].get_text(strip=True)
-
-                if not date or date == '':
-                    continue
-
-                # 데이터 추출
-                deposit_amount = parse_number(cols[1].get_text(strip=True))
-                deposit_change = parse_number(cols[2].get_text(strip=True))
-                credit_amount = parse_number(cols[3].get_text(strip=True))
-                credit_change = parse_number(cols[4].get_text(strip=True))
-
-                data_list.append({
-                    'date': date,
-                    'deposit_amount': deposit_amount,
-                    'deposit_change': deposit_change,
-                    'credit_amount': credit_amount,
-                    'credit_change': credit_change
-                })
-
-            except Exception as e:
-                print(f"[deposit_scraper] 행 {idx} 파싱 실패: {e}", file=sys.stderr)
-                continue
-
-        print(f"[deposit_scraper] 페이지 {page_num}: {len(data_list)}개 데이터 추출", file=sys.stderr)
-        return data_list
-
-    except requests.exceptions.RequestException as e:
-        print(f"[deposit_scraper] 페이지 {page_num} 요청 실패: {e}", file=sys.stderr)
-        return None
-    except Exception as e:
-        print(f"[deposit_scraper] 페이지 {page_num} 스크래핑 실패: {e}", file=sys.stderr)
-        return None
+    return None
 
 
-def parse_number(text):
+def parse_number(text: str) -> float:
     """
     텍스트에서 숫자를 추출합니다.
 
@@ -173,56 +214,43 @@ def parse_number(text):
         text: 숫자가 포함된 텍스트
 
     Returns:
-        float: 추출된 숫자
+        float: 추출된 숫자 (실패 시 0.0)
     """
     try:
         # 쉼표와 "억원" 제거
         cleaned = text.replace(',', '').replace('억원', '').replace('억', '').strip()
 
         # 빈 문자열이나 "-" 처리
-        if not cleaned or cleaned == '-' or cleaned == '':
+        if not cleaned or cleaned == '-':
             return 0.0
 
         return float(cleaned)
+
     except ValueError as e:
-        print(f"[deposit_scraper] 숫자 변환 실패: '{text}' -> {e}", file=sys.stderr)
+        logger.debug("숫자 변환 실패: '%s' -> %s", text, str(e))
         return 0.0
     except Exception as e:
-        print(f"[deposit_scraper] 파싱 오류: '{text}' -> {e}", file=sys.stderr)
+        logger.error("파싱 오류: '%s' -> %s", text, str(e))
         return 0.0
 
 
-def get_latest_data():
+def get_latest_data() -> Optional[Dict[str, List[Any]]]:
     """
     최신 데이터(1페이지)만 수집합니다.
 
     Returns:
-        dict: 최신 데이터
+        dict: 최신 데이터 (실패 시 None)
     """
-    print("[deposit_scraper] 최신 데이터 수집 시작", file=sys.stderr)
+    logger.info("최신 데이터 수집 시작")
     return scrape_deposit_data(num_pages=1)
 
 
-def get_extended_data():
+def get_extended_data() -> Optional[Dict[str, List[Any]]]:
     """
     확장 데이터(10페이지)를 수집합니다.
 
     Returns:
-        dict: 확장 데이터
+        dict: 확장 데이터 (실패 시 None)
     """
-    print("[deposit_scraper] 확장 데이터 수집 시작", file=sys.stderr)
-    return scrape_deposit_data(num_pages=10)
-
-
-# 테스트용
-if __name__ == '__main__':
-    print("증시자금동향 데이터 수집 테스트")
-    data = scrape_deposit_data(num_pages=2)
-
-    if data:
-        print(f"수집된 데이터: {len(data['dates'])}개")
-        print(f"날짜 범위: {data['dates'][0]} ~ {data['dates'][-1]}")
-        print(f"최신 고객예탁금: {data['deposit_amounts'][-1]:,.0f}억원")
-        print(f"최신 신용잔고: {data['credit_amounts'][-1]:,.0f}억원")
-    else:
-        print("데이터 수집 실패")
+    logger.info("확장 데이터 수집 시작")
+    return scrape_deposit_data(num_pages=EXTENDED_NUM_PAGES)
