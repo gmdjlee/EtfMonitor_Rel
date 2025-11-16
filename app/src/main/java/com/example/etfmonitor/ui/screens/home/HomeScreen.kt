@@ -96,9 +96,9 @@ private fun getAdaptiveLayoutConfig(screenSizeClass: ScreenSizeClass): AdaptiveL
             } else {
                 // Portrait phone - optimized for 3-column triangle layout
                 AdaptiveLayoutConfig(
-                    itemSize = min(screenWidth / 3.8f, 110f).dp,
-                    itemSpacing = 6.dp,
-                    verticalSpacing = (-30).dp,
+                    itemSize = min(screenWidth / 3.0f, 130f).dp,
+                    itemSpacing = (-25).dp,
+                    verticalSpacing = (-10).dp,
                     iconSize = 32.dp,
                     fontSize = 11,
                     itemsPerRow = 2
@@ -120,8 +120,8 @@ private fun getAdaptiveLayoutConfig(screenSizeClass: ScreenSizeClass): AdaptiveL
             // Tablets, desktops - larger items
             AdaptiveLayoutConfig(
                 itemSize = 180.dp,
-                itemSpacing = 14.dp,
-                verticalSpacing = (-45).dp,
+                itemSpacing = (-35).dp,
+                verticalSpacing = (-15).dp,
                 iconSize = 52.dp,
                 fontSize = 15,
                 itemsPerRow = if (isLandscape) 5 else 3
@@ -385,7 +385,7 @@ private fun HomeContent(
         add(
             MenuItem(
                 icon = Icons.Default.BarChart,
-                title = "Fear & Greed Index",
+                title = "Fear & Greed",
                 color = MaterialTheme.colorScheme.tertiary,
                 onClick = onNavigateToFearGreed
             )

@@ -273,7 +273,7 @@ def combine(start, end):
             df.sort_values("거래일", inplace=True)
             df.reset_index(drop=True, inplace=True)
             df[col] = df["전체"].rolling(5).mean()
-
+            # df[col] = df["전체"]
         # 병합
         dfs = [
             b5y[["거래일", "종가"]].rename(columns={"종가": "5년국채"}),
