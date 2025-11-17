@@ -9,14 +9,15 @@ import com.etfmonitor.database.entities.Etf
 import com.etfmonitor.database.entities.FearGreedIndex
 import com.etfmonitor.database.entities.Holding
 import com.etfmonitor.database.entities.MarketDeposit
+import com.etfmonitor.database.entities.MarketOscillatorData
 import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.database.entities.Setting
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.StockAnalysisData
 
 @Database(
-    entities = [Etf::class, Holding::class, Setting::class, Stock::class, MarketDeposit::class, StockAnalysisData::class, SearchHistory::class, FearGreedIndex::class],
-    version = 6,
+    entities = [Etf::class, Holding::class, Setting::class, Stock::class, MarketDeposit::class, StockAnalysisData::class, SearchHistory::class, FearGreedIndex::class, MarketOscillatorData::class],
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -27,6 +28,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun stockAnalysisDao(): StockAnalysisDao
     abstract fun searchHistoryDao(): SearchHistoryDao
     abstract fun fearGreedDao(): FearGreedDao
+    abstract fun marketOscillatorDao(): MarketOscillatorDao
 }
 
 /**
@@ -128,6 +130,26 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
                 putCallRatio REAL NOT NULL,
                 volatility REAL NOT NULL,
                 spread REAL NOT NULL,
+                lastUpdated INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+    }
+}
+
+/**
+ * Migration from version 6 to 7: Add MarketOscillator table
+ */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS market_oscillator (
+                id TEXT PRIMARY KEY NOT NULL,
+                market TEXT NOT NULL,
+                date TEXT NOT NULL,
+                indexValue REAL NOT NULL,
+                oscillator REAL NOT NULL,
                 lastUpdated INTEGER NOT NULL
             )
             """.trimIndent()

@@ -164,6 +164,7 @@ fun HomeScreen(
     onNavigateToOscillator: () -> Unit,
     onNavigateToMarketDeposit: () -> Unit,
     onNavigateToFearGreed: () -> Unit,
+    onNavigateToMarketOscillator: () -> Unit,
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
 ) {
     val state by viewModel.state.collectAsState()
@@ -250,7 +251,8 @@ fun HomeScreen(
                     onNavigateToStatistics = onNavigateToStatistics,
                     onNavigateToOscillator = onNavigateToOscillator,
                     onNavigateToMarketDeposit = onNavigateToMarketDeposit,
-                    onNavigateToFearGreed = onNavigateToFearGreed
+                    onNavigateToFearGreed = onNavigateToFearGreed,
+                    onNavigateToMarketOscillator = onNavigateToMarketOscillator
                 )
             }
         }
@@ -340,7 +342,8 @@ private fun HomeContent(
     onNavigateToStatistics: () -> Unit,
     onNavigateToOscillator: () -> Unit,
     onNavigateToMarketDeposit: () -> Unit,
-    onNavigateToFearGreed: () -> Unit
+    onNavigateToFearGreed: () -> Unit,
+    onNavigateToMarketOscillator: () -> Unit
 ) {
     val hasData = (state as? HomeState.Idle)?.hasData ?: false
     val screenSizeClass = getScreenSizeClass()
@@ -388,6 +391,14 @@ private fun HomeContent(
                 title = "Fear & Greed",
                 color = MaterialTheme.colorScheme.tertiary,
                 onClick = onNavigateToFearGreed
+            )
+        )
+        add(
+            MenuItem(
+                icon = Icons.Default.Speed,
+                title = "시장 과매수/과매도",
+                color = MaterialTheme.colorScheme.primary,
+                onClick = onNavigateToMarketOscillator
             )
         )
         add(
