@@ -11,6 +11,8 @@ import com.etfmonitor.repository.FearGreedRepository
 import com.etfmonitor.repository.StockRepository
 import com.etfmonitor.repository.StockAnalysisRepository
 import com.etfmonitor.repository.MarketDepositRepository
+import com.etfmonitor.repository.MarketOscillatorRepository
+import com.etfmonitor.oscillator.python.OscillatorPyClient
 
 class EtfMonitorApp : Application() {
 
@@ -30,7 +32,8 @@ class EtfMonitorApp : Application() {
                 com.etfmonitor.database.MIGRATION_2_3,
                 com.etfmonitor.database.MIGRATION_3_4,
                 com.etfmonitor.database.MIGRATION_4_5,
-                com.etfmonitor.database.MIGRATION_5_6
+                com.etfmonitor.database.MIGRATION_5_6,
+                com.etfmonitor.database.MIGRATION_6_7
             )
             .build()
     }
@@ -81,8 +84,22 @@ class EtfMonitorApp : Application() {
         )
     }
 
+    val marketOscillatorRepository: MarketOscillatorRepository by lazy {
+        MarketOscillatorRepository(
+            dao = database.marketOscillatorDao(),
+            pyClient = OscillatorPyClient(python)
+        )
+    }
+
     override fun onCreate() {
         super.onCreate()
         instance = this
+
+        // Schedule Market Oscillator update at 8:00 PM every day
+        com.etfmonitor.worker.WorkManagerHelper.scheduleMarketOscillatorUpdate(
+            context = this,
+            hour = 20,
+            minute = 0
+        )
     }
 }

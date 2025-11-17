@@ -19,6 +19,11 @@ class OscillatorPyClient(private val python: Python) {
         python.getModule("stock_analyzer")
     }
 
+    private val marketOscillatorModule by lazy {
+        Log.d(TAG, "Loading market_oscillator module")
+        python.getModule("market_oscillator")
+    }
+
     /**
      * 종목 검색
      */
@@ -211,6 +216,36 @@ class OscillatorPyClient(private val python: Python) {
         } catch (e: Exception) {
             Log.e(TAG, "getAllStocksList error", e)
             emptyList()
+        }
+    }
+
+    /**
+     * 시장 과매수/과매도 지표 조회
+     *
+     * @param market "KOSPI" 또는 "KOSDAQ"
+     * @param startDate YYYYMMDD 형식
+     * @param endDate YYYYMMDD 형식
+     * @return JSON 문자열
+     */
+    suspend fun getMarketOscillator(
+        market: String,
+        startDate: String,
+        endDate: String
+    ): String = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "getMarketOscillator: $market, $startDate ~ $endDate")
+            val jsonStr = marketOscillatorModule.callAttr(
+                "get_market_oscillator",
+                market,
+                startDate,
+                endDate
+            ).toString()
+
+            Log.d(TAG, "Market oscillator data retrieved for $market")
+            jsonStr
+        } catch (e: Exception) {
+            Log.e(TAG, "getMarketOscillator error", e)
+            """{"error": "${e.message}"}"""
         }
     }
 }

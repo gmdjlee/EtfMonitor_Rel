@@ -192,4 +192,35 @@ object WorkManagerHelper {
     fun runFearGreedUpdateNow(context: Context) {
         runUpdateNow<FearGreedUpdateWorker>(context, "fear greed index")
     }
+
+    /**
+     * 매일 지정된 시간에 시장 과매수/과매도 DB 업데이트 작업 스케줄링
+     *
+     * @param context Context
+     * @param hour 업데이트할 시간 (0-23)
+     * @param minute 업데이트할 분 (0-59)
+     */
+    fun scheduleMarketOscillatorUpdate(context: Context, hour: Int, minute: Int) {
+        scheduleDailyUpdate<MarketOscillatorUpdateWorker>(
+            context = context,
+            hour = hour,
+            minute = minute,
+            workName = MarketOscillatorUpdateWorker.WORK_NAME,
+            taskName = "market oscillator"
+        )
+    }
+
+    /**
+     * 시장 과매수/과매도 스케줄링 취소
+     */
+    fun cancelMarketOscillatorUpdate(context: Context) {
+        cancelUpdate(context, MarketOscillatorUpdateWorker.WORK_NAME, "market oscillator")
+    }
+
+    /**
+     * 즉시 시장 과매수/과매도 수동 업데이트 실행
+     */
+    fun runMarketOscillatorUpdateNow(context: Context) {
+        runUpdateNow<MarketOscillatorUpdateWorker>(context, "market oscillator")
+    }
 }
