@@ -418,7 +418,7 @@ private fun HomeContent(
             .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Right-pointing triangle layout (3 columns: 3-2-1)
+        // Hexagon layout (3 columns: 3-2-3)
         Row(
             horizontalArrangement = Arrangement.spacedBy(layoutConfig.itemSpacing),
             verticalAlignment = Alignment.CenterVertically,
@@ -462,13 +462,14 @@ private fun HomeContent(
                 }
             }
 
-            // Right column: 1 item
+            // Right column: 3 items (with empty placeholders if needed)
             if (menuItems.size > 5) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(layoutConfig.verticalSpacing),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    menuItems.drop(5).take(1).forEach { item ->
+                    val rightColumnItems = menuItems.drop(5).take(3)
+                    rightColumnItems.forEach { item ->
                         HexagonMenuItem(
                             icon = item.icon,
                             title = item.title,
@@ -476,6 +477,11 @@ private fun HomeContent(
                             onClick = item.onClick,
                             config = layoutConfig
                         )
+                    }
+
+                    // Add empty placeholders to fill up to 3 items
+                    repeat(3 - rightColumnItems.size) {
+                        Spacer(modifier = Modifier.size(layoutConfig.itemSize))
                     }
                 }
             }
