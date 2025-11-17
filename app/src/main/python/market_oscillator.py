@@ -160,9 +160,11 @@ class MarketOscillator:
             close_df = pd.DataFrame(close_dict, index=dates)
             volume_df = pd.DataFrame(volume_dict, index=dates)
 
-            # 날짜 컬럼 추가
-            close_df.reset_index(names="날짜", inplace=True)
-            volume_df.reset_index(names="날짜", inplace=True)
+            # 날짜 컬럼 추가 (구버전 pandas 호환)
+            close_df.index.name = '날짜'
+            close_df.reset_index(inplace=True)
+            volume_df.index.name = '날짜'
+            volume_df.reset_index(inplace=True)
 
             logger.info("%s: %d개 종목 수집 완료", market, len(close_dict))
 
