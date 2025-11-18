@@ -106,29 +106,28 @@ class DataCollectionService : Service() {
             val repository = EtfMonitorApp.instance.repository
             val fearGreedRepository = EtfMonitorApp.instance.fearGreedRepository
 
+            // Step 1: ETF 데이터 초기화
             repository.initializeData(days)
                 .catch { e ->
-                    Log.e(TAG, "Error in initialization", e)
-                    val errorMsg = "초기화 실패: ${e.message}"
-                    CollectionState.error(errorMsg)  // ✅ 전역 상태 업데이트
+                    Log.e(TAG, "Error in ETF initialization", e)
+                    val errorMsg = "ETF 초기화 실패: ${e.message}"
+                    CollectionState.error(errorMsg)
                     updateNotification(errorMsg, 0, isError = true)
                     stopSelf()
                 }
                 .collect { progress ->
                     when (progress) {
                         is DataProgress.Loading -> {
-                            CollectionState.updateProgress(progress.message, progress.progress)  // ✅ 전역 상태 업데이트
+                            CollectionState.updateProgress(progress.message, progress.progress)
                             updateNotification(progress.message, progress.progress)
                         }
                         is DataProgress.Success -> {
-                            // ETF 초기화 완료
+                            // ETF 초기화 완료, Fear & Greed 초기화 시작
                             Log.d(TAG, "ETF initialization completed: ${progress.message}")
-                            CollectionState.complete(progress.message)
-                            updateNotification(progress.message, 100, isComplete = true)
-                            stopSelf()
+                            initializeFearGreed(days, fearGreedRepository)
                         }
                         is DataProgress.Error -> {
-                            CollectionState.error(progress.message)  // ✅ 전역 상태 업데이트
+                            CollectionState.error(progress.message)
                             updateNotification(progress.message, 0, isError = true)
                             stopSelf()
                         }
@@ -137,37 +136,101 @@ class DataCollectionService : Service() {
         }
     }
 
+    private fun initializeFearGreed(days: Int, fearGreedRepository: com.etfmonitor.repository.FearGreedRepository) {
+        serviceScope.launch {
+            try {
+                Log.d(TAG, "Starting Fear & Greed initialization with $days days")
+                updateNotification("Fear & Greed 데이터 수집 중...", 0)
+
+                val result = fearGreedRepository.initializeFearGreed(days)
+
+                if (result.isSuccess) {
+                    val count = result.getOrNull() ?: 0
+                    val successMsg = "초기화 완료! Fear & Greed ${count}개 데이터 수집"
+                    Log.d(TAG, successMsg)
+                    CollectionState.complete(successMsg)
+                    updateNotification(successMsg, 100, isComplete = true)
+                } else {
+                    val errorMsg = "Fear & Greed 초기화 실패: ${result.exceptionOrNull()?.message}"
+                    Log.e(TAG, errorMsg)
+                    CollectionState.error(errorMsg)
+                    updateNotification(errorMsg, 0, isError = true)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in Fear & Greed initialization", e)
+                val errorMsg = "Fear & Greed 초기화 실패: ${e.message}"
+                CollectionState.error(errorMsg)
+                updateNotification(errorMsg, 0, isError = true)
+            } finally {
+                stopSelf()
+            }
+        }
+    }
+
     private fun startUpdate() {
         serviceScope.launch {
             Log.d(TAG, "Starting update")
             val repository = EtfMonitorApp.instance.repository
+            val fearGreedRepository = EtfMonitorApp.instance.fearGreedRepository
 
+            // Step 1: ETF 데이터 업데이트
             repository.updateData()
                 .catch { e ->
-                    Log.e(TAG, "Error in update", e)
-                    val errorMsg = "업데이트 실패: ${e.message}"
-                    CollectionState.error(errorMsg)  // ✅ 전역 상태 업데이트
+                    Log.e(TAG, "Error in ETF update", e)
+                    val errorMsg = "ETF 업데이트 실패: ${e.message}"
+                    CollectionState.error(errorMsg)
                     updateNotification(errorMsg, 0, isError = true)
                     stopSelf()
                 }
                 .collect { progress ->
                     when (progress) {
                         is DataProgress.Loading -> {
-                            CollectionState.updateProgress(progress.message, progress.progress)  // ✅ 전역 상태 업데이트
+                            CollectionState.updateProgress(progress.message, progress.progress)
                             updateNotification(progress.message, progress.progress)
                         }
                         is DataProgress.Success -> {
-                            CollectionState.complete(progress.message)  // ✅ 전역 상태 업데이트
-                            updateNotification(progress.message, 100, isComplete = true)
-                            stopSelf()
+                            // ETF 업데이트 완료, Fear & Greed 업데이트 시작
+                            Log.d(TAG, "ETF update completed: ${progress.message}")
+                            updateFearGreed(fearGreedRepository)
                         }
                         is DataProgress.Error -> {
-                            CollectionState.error(progress.message)  // ✅ 전역 상태 업데이트
+                            CollectionState.error(progress.message)
                             updateNotification(progress.message, 0, isError = true)
                             stopSelf()
                         }
                     }
                 }
+        }
+    }
+
+    private fun updateFearGreed(fearGreedRepository: com.etfmonitor.repository.FearGreedRepository) {
+        serviceScope.launch {
+            try {
+                Log.d(TAG, "Starting Fear & Greed update")
+                updateNotification("Fear & Greed 데이터 업데이트 중...", 0)
+
+                val result = fearGreedRepository.updateFearGreed()
+
+                if (result.isSuccess) {
+                    val count = result.getOrNull() ?: 0
+                    val successMsg = "업데이트 완료! Fear & Greed ${count}개 데이터"
+                    Log.d(TAG, successMsg)
+                    CollectionState.complete(successMsg)
+                    updateNotification(successMsg, 100, isComplete = true)
+                } else {
+                    val errorMsg = "Fear & Greed 업데이트 실패: ${result.exceptionOrNull()?.message}"
+                    Log.e(TAG, errorMsg)
+                    CollectionState.error(errorMsg)
+                    updateNotification(errorMsg, 0, isError = true)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in Fear & Greed update", e)
+                val errorMsg = "Fear & Greed 업데이트 실패: ${e.message}"
+                CollectionState.error(errorMsg)
+                updateNotification(errorMsg, 0, isError = true)
+            } finally {
+                stopSelf()
+            }
         }
     }
 
