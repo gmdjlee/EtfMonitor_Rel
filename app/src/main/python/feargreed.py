@@ -398,16 +398,31 @@ def calc_fg(
 ) -> pd.DataFrame:
     """Fear & Greed 지수 계산"""
     try:
-        df['MA125'] = df[idx_col].rolling(125).mean()
+        # 데이터 길이에 맞춰 MA 기간 동적 조정
+        data_len = len(df)
+        ma_period = min(125, max(10, int(data_len * 0.9)))  # 데이터의 90%, 최소 10일, 최대 125일
+
+        if data_len < ma_period:
+            logger.warning("%s: 데이터 %d일, MA 기간 %d일로 조정", idx_col, data_len, ma_period)
+
+        df['MA125'] = df[idx_col].rolling(ma_period).mean()
         df['Mom'] = (df[idx_col] - df['MA125']) / df['MA125'].replace(0, float('nan')) * 100
         df['PCR'] = df[put_col] / df[call_col].replace(0, float('nan'))
         df['Vol'] = df[vix_col]
         df['Spread'] = df[b10_col] - df[b5_col]
 
+        # NaN 값 확인 및 처리
+        features = ['Mom', 'PCR', 'Vol', 'Spread', 'RSI']
+        valid_data = df[features].notna().all(axis=1)
+
+        if not valid_data.any():
+            logger.warning("%s: 유효한 특성 데이터 없음", idx_col)
+            df['FG'] = float('nan')
+            return df
+
+        # 유효한 데이터만 스케일링
         scaler = MinMaxScaler()
-        df[['Mom', 'PCR', 'Vol', 'Spread', 'RSI']] = scaler.fit_transform(
-            df[['Mom', 'PCR', 'Vol', 'Spread', 'RSI']]
-        )
+        df.loc[valid_data, features] = scaler.fit_transform(df.loc[valid_data, features])
 
         df['FG'] = (df['Mom'] * 0.2 + (1 - df['PCR']) * 0.2 +
                     (1 - df['Vol']) * 0.2 + df['Spread'] * 0.2 + df['RSI'] * 0.2)
@@ -459,8 +474,14 @@ def analyze(df: pd.DataFrame) -> Tuple[Optional[pd.DataFrame], Optional[pd.DataF
             logger.error("분석 가능한 데이터 없음")
             return None, None
 
+        # 최소 데이터 요구사항 확인 (RSI 계산을 위한 최소 기간)
+        min_required = 15  # RSI window(10) + 여유
+        if len(df) < min_required:
+            logger.error("데이터 부족: %d일 (최소: %d일 필요)", len(df), min_required)
+            return None, None
+
         if len(df) < 125:
-            logger.warning("데이터 %d일 (권장: 125일 이상)", len(df))
+            logger.warning("데이터 %d일 (권장: 125일 이상, 현재 데이터로 조정하여 계산)", len(df))
 
         kp_df, kq_df = None, None
 
