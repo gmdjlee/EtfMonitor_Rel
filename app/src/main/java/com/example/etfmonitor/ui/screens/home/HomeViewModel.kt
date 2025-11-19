@@ -29,7 +29,6 @@ class HomeViewModel(
     val showMarketOscillatorDialog: StateFlow<Boolean> = _showMarketOscillatorDialog.asStateFlow()
 
     private val _etfInitializationCompleted = MutableStateFlow(false)
-    private val _fearGreedInitializationCompleted = MutableStateFlow(false)
 
     init {
         checkData()
@@ -108,7 +107,6 @@ class HomeViewModel(
                 com.etfmonitor.database.entities.Setting("fear_greed_dialog_dismissed", "true")
             )
             _showFearGreedDialog.value = false
-            _fearGreedInitializationCompleted.value = true  // Fear & Greed 초기화 시작 표시
 
             // Fear & Greed 데이터 수집
             _state.value = HomeState.Initializing("Fear & Greed Index 데이터 수집 중...", 0)
@@ -116,6 +114,8 @@ class HomeViewModel(
 
             if (result.isSuccess) {
                 _state.value = HomeState.Success("Fear & Greed Index 데이터 수집 완료")
+                // 완료 후 과매수/과매도 다이얼로그 표시
+                checkMarketOscillatorFirstRun()
             } else {
                 _state.value = HomeState.Error("Fear & Greed Index 데이터 수집 실패: ${result.exceptionOrNull()?.message}")
             }
@@ -152,7 +152,7 @@ class HomeViewModel(
         }
     }
 
-    // ✅ 전역 수집 상태 관찰
+    // ✅ 전역 수집 상태 관찰 (DataCollectionService - ETF 데이터만 처리)
     private fun observeCollectionState() {
         viewModelScope.launch {
             combine(
@@ -177,15 +177,10 @@ class HomeViewModel(
                     if (wasInitializing || wasUpdating) {
                         checkData()
 
-                        // ETF 초기화가 완료되었고 첫 실행인 경우 Fear & Greed 다이얼로그 표시
-                        if (wasInitializing && _etfInitializationCompleted.value && !_fearGreedInitializationCompleted.value) {
+                        // ETF 초기화가 완료된 경우 Fear & Greed 다이얼로그 표시
+                        if (wasInitializing && _etfInitializationCompleted.value) {
                             _etfInitializationCompleted.value = false  // 리셋
                             checkFearGreedFirstRun()
-                        }
-                        // Fear & Greed 초기화가 완료된 경우 과매수/과매도 다이얼로그 표시
-                        else if (wasInitializing && _fearGreedInitializationCompleted.value) {
-                            _fearGreedInitializationCompleted.value = false  // 리셋
-                            checkMarketOscillatorFirstRun()
                         }
                     }
                 }
