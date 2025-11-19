@@ -114,13 +114,14 @@ class HomeViewModel(
 
             if (result.isSuccess) {
                 _state.value = HomeState.Success("Fear & Greed Index 데이터 수집 완료")
-                // 완료 후 과매수/과매도 다이얼로그 표시
-                checkMarketOscillatorFirstRun()
             } else {
                 _state.value = HomeState.Error("Fear & Greed Index 데이터 수집 실패: ${result.exceptionOrNull()?.message}")
             }
 
             checkData()
+
+            // 성공 여부와 관계없이 과매수/과매도 다이얼로그 표시
+            checkMarketOscillatorFirstRun()
         }
     }
 

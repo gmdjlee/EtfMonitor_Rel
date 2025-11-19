@@ -51,12 +51,13 @@ class FearGreedRepository(
      * - MA 계산(125일 rolling): 125일 손실
      * - MACD 계산(26일 EMA): 26일 손실
      * 따라서 실제로는 약 3배의 데이터를 수집하여 원하는 기간만큼 남도록 합니다.
+     * KRX API 제한으로 최대 730일(약 2년)까지만 수집합니다.
      */
     suspend fun initializeFearGreed(days: Int = 365): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            // 분석 과정의 데이터 손실을 고려하여 3배 수집
-            val collectionDays = days * 3
-            Log.d(TAG, "Initializing Fear & Greed Index data: requested=$days days, collecting=$collectionDays days")
+            // 분석 과정의 데이터 손실을 고려하여 3배 수집, 최대 730일로 제한
+            val collectionDays = minOf(days * 3, 730)
+            Log.d(TAG, "Initializing Fear & Greed Index data: requested=$days days, collecting=$collectionDays days (max 730)")
 
             // 날짜 범위 계산
             val endDate = LocalDate.now()
