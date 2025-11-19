@@ -146,19 +146,54 @@ class DataCollectionService : Service() {
 
                 if (result.isSuccess) {
                     val count = result.getOrNull() ?: 0
-                    val successMsg = "초기화 완료! Fear & Greed ${count}개 데이터 수집"
-                    Log.d(TAG, successMsg)
-                    CollectionState.complete(successMsg)
-                    updateNotification(successMsg, 100, isComplete = true)
+                    Log.d(TAG, "Fear & Greed initialization completed: $count records")
+                    // Fear & Greed 완료 후 MarketOscillator 초기화 시작
+                    initializeMarketOscillator(days)
                 } else {
                     val errorMsg = "Fear & Greed 초기화 실패: ${result.exceptionOrNull()?.message}"
                     Log.e(TAG, errorMsg)
                     CollectionState.error(errorMsg)
                     updateNotification(errorMsg, 0, isError = true)
+                    stopSelf()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error in Fear & Greed initialization", e)
                 val errorMsg = "Fear & Greed 초기화 실패: ${e.message}"
+                CollectionState.error(errorMsg)
+                updateNotification(errorMsg, 0, isError = true)
+                stopSelf()
+            }
+        }
+    }
+
+    private fun initializeMarketOscillator(days: Int) {
+        serviceScope.launch {
+            try {
+                Log.d(TAG, "Starting Market Oscillator initialization with $days days")
+                updateNotification("과매수/과매도 데이터 수집 중...", 0)
+
+                val marketOscillatorRepository = EtfMonitorApp.instance.marketOscillatorRepository
+
+                // KOSPI와 KOSDAQ 데이터 수집
+                val kospiResult = marketOscillatorRepository.initializeMarketData("KOSPI", days)
+                val kosdaqResult = marketOscillatorRepository.initializeMarketData("KOSDAQ", days)
+
+                if (kospiResult.isSuccess && kosdaqResult.isSuccess) {
+                    val kospiCount = kospiResult.getOrNull() ?: 0
+                    val kosdaqCount = kosdaqResult.getOrNull() ?: 0
+                    val successMsg = "초기화 완료! 과매수/과매도 ${kospiCount + kosdaqCount}개 데이터 수집"
+                    Log.d(TAG, successMsg)
+                    CollectionState.complete(successMsg)
+                    updateNotification(successMsg, 100, isComplete = true)
+                } else {
+                    val errorMsg = "과매수/과매도 초기화 실패"
+                    Log.e(TAG, errorMsg)
+                    CollectionState.error(errorMsg)
+                    updateNotification(errorMsg, 0, isError = true)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in Market Oscillator initialization", e)
+                val errorMsg = "과매수/과매도 초기화 실패: ${e.message}"
                 CollectionState.error(errorMsg)
                 updateNotification(errorMsg, 0, isError = true)
             } finally {
@@ -213,19 +248,54 @@ class DataCollectionService : Service() {
 
                 if (result.isSuccess) {
                     val count = result.getOrNull() ?: 0
-                    val successMsg = "업데이트 완료! Fear & Greed ${count}개 데이터"
-                    Log.d(TAG, successMsg)
-                    CollectionState.complete(successMsg)
-                    updateNotification(successMsg, 100, isComplete = true)
+                    Log.d(TAG, "Fear & Greed update completed: $count records")
+                    // Fear & Greed 완료 후 MarketOscillator 업데이트 시작
+                    updateMarketOscillator()
                 } else {
                     val errorMsg = "Fear & Greed 업데이트 실패: ${result.exceptionOrNull()?.message}"
                     Log.e(TAG, errorMsg)
                     CollectionState.error(errorMsg)
                     updateNotification(errorMsg, 0, isError = true)
+                    stopSelf()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error in Fear & Greed update", e)
                 val errorMsg = "Fear & Greed 업데이트 실패: ${e.message}"
+                CollectionState.error(errorMsg)
+                updateNotification(errorMsg, 0, isError = true)
+                stopSelf()
+            }
+        }
+    }
+
+    private fun updateMarketOscillator() {
+        serviceScope.launch {
+            try {
+                Log.d(TAG, "Starting Market Oscillator update")
+                updateNotification("과매수/과매도 데이터 업데이트 중...", 0)
+
+                val marketOscillatorRepository = EtfMonitorApp.instance.marketOscillatorRepository
+
+                // KOSPI와 KOSDAQ 데이터 업데이트
+                val kospiResult = marketOscillatorRepository.updateMarketData("KOSPI")
+                val kosdaqResult = marketOscillatorRepository.updateMarketData("KOSDAQ")
+
+                if (kospiResult.isSuccess && kosdaqResult.isSuccess) {
+                    val kospiCount = kospiResult.getOrNull() ?: 0
+                    val kosdaqCount = kosdaqResult.getOrNull() ?: 0
+                    val successMsg = "업데이트 완료! 과매수/과매도 ${kospiCount + kosdaqCount}개 데이터"
+                    Log.d(TAG, successMsg)
+                    CollectionState.complete(successMsg)
+                    updateNotification(successMsg, 100, isComplete = true)
+                } else {
+                    val errorMsg = "과매수/과매도 업데이트 실패"
+                    Log.e(TAG, errorMsg)
+                    CollectionState.error(errorMsg)
+                    updateNotification(errorMsg, 0, isError = true)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in Market Oscillator update", e)
+                val errorMsg = "과매수/과매도 업데이트 실패: ${e.message}"
                 CollectionState.error(errorMsg)
                 updateNotification(errorMsg, 0, isError = true)
             } finally {
