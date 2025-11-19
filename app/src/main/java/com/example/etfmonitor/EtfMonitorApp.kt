@@ -1,105 +1,82 @@
 package com.etfmonitor
 
 import android.app.Application
-import androidx.room.Room
-import com.chaquo.python.Python
-import com.chaquo.python.android.AndroidPlatform
-import com.etfmonitor.database.AppDatabase
-import com.etfmonitor.python.PyKrxClient
-import com.etfmonitor.repository.DataRepository
-import com.etfmonitor.repository.FearGreedRepository
-import com.etfmonitor.repository.StockRepository
-import com.etfmonitor.repository.StockAnalysisRepository
-import com.etfmonitor.repository.MarketDepositRepository
-import com.etfmonitor.repository.MarketOscillatorRepository
-import com.etfmonitor.oscillator.python.OscillatorPyClient
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
+import com.etfmonitor.worker.WorkManagerHelper
+import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
 
-class EtfMonitorApp : Application() {
-
-    companion object {
-        lateinit var instance: EtfMonitorApp
-            private set
-    }
-
-    val database: AppDatabase by lazy {
-        Room.databaseBuilder(
-            applicationContext,
-            AppDatabase::class.java,
-            "etf_monitor.db"
-        )
-            .addMigrations(
-                com.etfmonitor.database.MIGRATION_1_2,
-                com.etfmonitor.database.MIGRATION_2_3,
-                com.etfmonitor.database.MIGRATION_3_4,
-                com.etfmonitor.database.MIGRATION_4_5,
-                com.etfmonitor.database.MIGRATION_5_6,
-                com.etfmonitor.database.MIGRATION_6_7
-            )
-            .build()
-    }
-
-    val python: Python by lazy {
-        if (!Python.isStarted()) {
-            Python.start(AndroidPlatform(this))
-        }
-        Python.getInstance()
-    }
-
-    val pyKrxClient: PyKrxClient by lazy {
-        PyKrxClient(python)
-    }
-
-    val repository: DataRepository by lazy {
-        DataRepository(database.dao(), pyKrxClient)
-    }
+/**
+ * Production Level Application 클래스
+ *
+ * 최적화 포인트:
+ * 1. @HiltAndroidApp: Hilt DI 컨테이너 초기화
+ * 2. 수동 싱글톤 패턴 제거: Hilt가 모든 의존성 생명주기 관리
+ * 3. HiltWorkerFactory 주입: Worker에 자동으로 의존성 주입
+ * 4. Thread-safe 보장: Hilt가 동시성 문제 자동 처리
+ *
+ * 기존 문제점 해결:
+ * - lateinit instance: 메모리 누수 위험 제거
+ * - lazy 초기화: Hilt Singleton으로 대체하여 초기화 시점 최적화
+ * - 직접 의존성 관리: 모듈 기반 의존성 주입으로 테스트 용이성 향상
+ */
+@HiltAndroidApp
+class EtfMonitorApp : Application(), Configuration.Provider {
 
     /**
-     * Singleton repositories for optimized memory usage
+     * HiltWorkerFactory 주입
+     * WorkManager가 Worker 생성 시 Hilt를 통해 의존성 주입
      */
-    val stockRepository: StockRepository by lazy {
-        StockRepository(
-            stockDao = database.stockDao(),
-            python = python
-        )
-    }
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
 
-    val stockAnalysisRepository: StockAnalysisRepository by lazy {
-        StockAnalysisRepository(
-            stockAnalysisDao = database.stockAnalysisDao(),
-            python = python
-        )
-    }
-
-    val marketDepositRepository: MarketDepositRepository by lazy {
-        MarketDepositRepository(
-            marketDepositDao = database.marketDepositDao(),
-            python = python
-        )
-    }
-
-    val fearGreedRepository: FearGreedRepository by lazy {
-        FearGreedRepository(
-            fearGreedDao = database.fearGreedDao(),
-            python = python
-        )
-    }
-
-    val marketOscillatorRepository: MarketOscillatorRepository by lazy {
-        MarketOscillatorRepository(
-            dao = database.marketOscillatorDao(),
-            pyClient = OscillatorPyClient(python)
-        )
-    }
+    /**
+     * WorkManager Configuration 제공
+     *
+     * Production 최적화:
+     * - HiltWorkerFactory 사용으로 Worker에 자동 의존성 주입
+     * - Worker 생성 시 Repository 등이 자동으로 주입됨
+     */
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
 
     override fun onCreate() {
         super.onCreate()
-        instance = this
 
         // Schedule Market Oscillator update at 8:00 PM every day
-        com.etfmonitor.worker.WorkManagerHelper.scheduleMarketOscillatorUpdate(
+        // WorkManager는 이제 Hilt를 통해 Worker에 의존성을 주입합니다
+        WorkManagerHelper.scheduleMarketOscillatorUpdate(
             context = this,
             hour = 20,
             minute = 0
         )
     }
 }
+
+/**
+ * 마이그레이션 가이드:
+ *
+ * 기존 코드:
+ *   val app = application as EtfMonitorApp
+ *   val repository = app.repository
+ *
+ * 변경 후:
+ *   @Inject lateinit var repository: DataRepository
+ *
+ * ViewModel에서:
+ *   @HiltViewModel
+ *   class MyViewModel @Inject constructor(
+ *       private val repository: DataRepository
+ *   ) : ViewModel()
+ *
+ * Worker에서:
+ *   @HiltWorker
+ *   class MyWorker @AssistedInject constructor(
+ *       @Assisted context: Context,
+ *       @Assisted params: WorkerParameters,
+ *       private val repository: DataRepository
+ *   ) : CoroutineWorker(context, params)
+ */

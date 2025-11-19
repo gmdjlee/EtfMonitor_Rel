@@ -2,18 +2,39 @@ package com.etfmonitor.ui.screens.home
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.EtfMonitorApp
+import com.etfmonitor.database.EtfDao
 import com.etfmonitor.repository.DataRepository
+import com.etfmonitor.repository.FearGreedRepository
+import com.etfmonitor.repository.MarketOscillatorRepository
 import com.etfmonitor.service.CollectionState
 import com.etfmonitor.service.DataCollectionService
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class HomeViewModel(
+/**
+ * Production Level HomeViewModel
+ *
+ * 최적화 포인트:
+ * 1. @HiltViewModel: Hilt가 ViewModel 생명주기 자동 관리
+ * 2. @Inject: 생성자 주입으로 의존성 명확화
+ * 3. @ApplicationContext: Application Context 직접 주입
+ * 4. Factory 패턴 제거: Hilt가 자동으로 ViewModel 생성
+ *
+ * 기존 문제점 해결:
+ * - EtfMonitorApp.instance 제거: 메모리 누수 위험 제거
+ * - 수동 Factory 제거: Hilt가 자동으로 관리하여 코드 간결화
+ */
+@HiltViewModel
+class HomeViewModel @Inject constructor(
     private val repository: DataRepository,
-    private val context: Context
+    private val fearGreedRepository: FearGreedRepository,
+    private val marketOscillatorRepository: MarketOscillatorRepository,
+    private val etfDao: EtfDao,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<HomeState>(HomeState.Loading)
@@ -38,8 +59,7 @@ class HomeViewModel(
 
     private fun checkFirstRun() {
         viewModelScope.launch {
-            val app = EtfMonitorApp.instance
-            val isFirstRun = app.database.dao().getSetting("is_first_run")
+            val isFirstRun = etfDao.getSetting("is_first_run")
             val hasData = repository.hasData()
 
             // 첫 실행이고 데이터가 없으면 다이얼로그 표시
@@ -51,8 +71,7 @@ class HomeViewModel(
 
     fun onFirstRunDialogShown() {
         viewModelScope.launch {
-            val app = EtfMonitorApp.instance
-            app.database.dao().saveSetting(
+            etfDao.saveSetting(
                 com.etfmonitor.database.entities.Setting("is_first_run", "false")
             )
             _showFirstRunDialog.value = false
@@ -61,9 +80,7 @@ class HomeViewModel(
 
     private fun checkFearGreedFirstRun() {
         viewModelScope.launch {
-            val app = EtfMonitorApp.instance
-            val fearGreedRepository = app.fearGreedRepository
-            val dialogDismissed = app.database.dao().getSetting("fear_greed_dialog_dismissed")
+            val dialogDismissed = etfDao.getSetting("fear_greed_dialog_dismissed")
             val hasData = fearGreedRepository.getCountByMarket("KOSPI") > 0 ||
                          fearGreedRepository.getCountByMarket("KOSDAQ") > 0
 
@@ -76,9 +93,7 @@ class HomeViewModel(
 
     private fun checkMarketOscillatorFirstRun() {
         viewModelScope.launch {
-            val app = EtfMonitorApp.instance
-            val marketOscillatorRepository = app.marketOscillatorRepository
-            val dialogDismissed = app.database.dao().getSetting("market_oscillator_dialog_dismissed")
+            val dialogDismissed = etfDao.getSetting("market_oscillator_dialog_dismissed")
             val hasData = marketOscillatorRepository.getDataCount("KOSPI") > 0 ||
                          marketOscillatorRepository.getDataCount("KOSDAQ") > 0
 
@@ -99,11 +114,8 @@ class HomeViewModel(
 
     fun initializeFearGreed(days: Int) {
         viewModelScope.launch {
-            val app = EtfMonitorApp.instance
-            val fearGreedRepository = app.fearGreedRepository
-
             // 다이얼로그를 더 이상 표시하지 않음
-            app.database.dao().saveSetting(
+            etfDao.saveSetting(
                 com.etfmonitor.database.entities.Setting("fear_greed_dialog_dismissed", "true")
             )
             _showFearGreedDialog.value = false
@@ -127,11 +139,8 @@ class HomeViewModel(
 
     fun initializeMarketOscillator(days: Int) {
         viewModelScope.launch {
-            val app = EtfMonitorApp.instance
-            val marketOscillatorRepository = app.marketOscillatorRepository
-
             // 다이얼로그를 더 이상 표시하지 않음
-            app.database.dao().saveSetting(
+            etfDao.saveSetting(
                 com.etfmonitor.database.entities.Setting("market_oscillator_dialog_dismissed", "true")
             )
             _showMarketOscillatorDialog.value = false
@@ -212,18 +221,6 @@ class HomeViewModel(
     fun clearMessage() {
         if (_state.value is HomeState.Success || _state.value is HomeState.Error) {
             checkData()
-        }
-    }
-
-    companion object {
-        val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return HomeViewModel(
-                    EtfMonitorApp.instance.repository,
-                    EtfMonitorApp.instance.applicationContext
-                ) as T
-            }
         }
     }
 }

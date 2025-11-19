@@ -14,14 +14,39 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.etfmonitor.database.EtfDao
 import com.etfmonitor.repository.MarketDepositRepository
 import com.etfmonitor.repository.StockRepository
 import com.etfmonitor.ui.Navigation
 import com.etfmonitor.ui.theme.EtfMonitorTheme
 import com.etfmonitor.worker.WorkManagerHelper
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
+/**
+ * Production Level MainActivity
+ *
+ * 최적화 포인트:
+ * 1. @AndroidEntryPoint: Hilt가 Activity에 의존성 자동 주입
+ * 2. @Inject: 필요한 Repository와 DAO를 생성자 주입
+ * 3. EtfMonitorApp 캐스팅 제거: 타입 안정성 향상
+ *
+ * 기존 문제점 해결:
+ * - 직접 Application 캐스팅 제거
+ * - Hilt가 자동으로 의존성 주입하여 코드 간결화
+ */
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var stockRepository: StockRepository
+
+    @Inject
+    lateinit var marketDepositRepository: MarketDepositRepository
+
+    @Inject
+    lateinit var etfDao: EtfDao
 
     // ✅ 알림 권한 요청 (Android 13+)
     private val requestPermissionLauncher = registerForActivityResult(
@@ -69,10 +94,6 @@ class MainActivity : ComponentActivity() {
     private fun initializeStockDatabase() {
         lifecycleScope.launch {
             try {
-                val app = application as EtfMonitorApp
-                val stockDao = app.database.stockDao()
-                val stockRepository = StockRepository(stockDao, app.python)
-
                 // Stock DB가 비어있으면 초기화
                 val stockCount = stockRepository.getStockCount()
                 if (stockCount == 0) {
@@ -89,19 +110,18 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // WorkManager 스케줄 설정 (설정된 시간 로드)
-                val dao = app.database.dao()
-                val hourStr = dao.getSetting("stock_update_hour")
-                val minuteStr = dao.getSetting("stock_update_minute")
+                val hourStr = etfDao.getSetting("stock_update_hour")
+                val minuteStr = etfDao.getSetting("stock_update_minute")
 
                 val hour = hourStr?.toIntOrNull() ?: 1 // 기본값: 새벽 1시
                 val minute = minuteStr?.toIntOrNull() ?: 0
 
                 // 기본값 저장 (설정이 없는 경우)
                 if (hourStr == null) {
-                    dao.saveSetting(com.etfmonitor.database.entities.Setting("stock_update_hour", hour.toString()))
+                    etfDao.saveSetting(com.etfmonitor.database.entities.Setting("stock_update_hour", hour.toString()))
                 }
                 if (minuteStr == null) {
-                    dao.saveSetting(com.etfmonitor.database.entities.Setting("stock_update_minute", minute.toString()))
+                    etfDao.saveSetting(com.etfmonitor.database.entities.Setting("stock_update_minute", minute.toString()))
                 }
 
                 // WorkManager 스케줄 설정
@@ -116,10 +136,6 @@ class MainActivity : ComponentActivity() {
     private fun initializeMarketDepositDatabase() {
         lifecycleScope.launch {
             try {
-                val app = application as EtfMonitorApp
-                val marketDepositDao = app.database.marketDepositDao()
-                val marketDepositRepository = MarketDepositRepository(marketDepositDao, app.python)
-
                 // Market Deposit DB가 비어있으면 초기화
                 val depositCount = marketDepositRepository.getDepositCount()
                 if (depositCount == 0) {
@@ -136,19 +152,18 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // WorkManager 스케줄 설정 (설정된 시간 로드)
-                val dao = app.database.dao()
-                val hourStr = dao.getSetting("market_deposit_update_hour")
-                val minuteStr = dao.getSetting("market_deposit_update_minute")
+                val hourStr = etfDao.getSetting("market_deposit_update_hour")
+                val minuteStr = etfDao.getSetting("market_deposit_update_minute")
 
                 val hour = hourStr?.toIntOrNull() ?: 2 // 기본값: 새벽 2시
                 val minute = minuteStr?.toIntOrNull() ?: 0
 
                 // 기본값 저장 (설정이 없는 경우)
                 if (hourStr == null) {
-                    dao.saveSetting(com.etfmonitor.database.entities.Setting("market_deposit_update_hour", hour.toString()))
+                    etfDao.saveSetting(com.etfmonitor.database.entities.Setting("market_deposit_update_hour", hour.toString()))
                 }
                 if (minuteStr == null) {
-                    dao.saveSetting(com.etfmonitor.database.entities.Setting("market_deposit_update_minute", minute.toString()))
+                    etfDao.saveSetting(com.etfmonitor.database.entities.Setting("market_deposit_update_minute", minute.toString()))
                 }
 
                 // WorkManager 스케줄 설정

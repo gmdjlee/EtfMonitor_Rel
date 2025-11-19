@@ -4,14 +4,33 @@ import android.util.Log
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.entities.*
 import com.etfmonitor.python.PyKrxClient
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class DataRepository(
+/**
+ * Production Level DataRepository
+ *
+ * 최적화 포인트:
+ * 1. @Singleton: Hilt가 단일 인스턴스 관리
+ * 2. @Inject: 생성자 주입으로 의존성 명확화
+ * 3. flowOn(Dispatchers.IO): 모든 Flow가 IO 스레드에서 실행되어 UI 차단 방지
+ * 4. withContext(Dispatchers.IO): suspend 함수도 IO 스레드 격리
+ *
+ * ANR 방지:
+ * - 모든 DB 쿼리와 네트워크 호출이 IO 디스패처에서 실행
+ * - UI 스레드를 절대 차단하지 않음
+ */
+@Singleton
+class DataRepository @Inject constructor(
     private val dao: EtfDao,
     private val pyKrx: PyKrxClient
 ) {
@@ -23,32 +42,57 @@ class DataRepository(
 
     // ========== ETF List ==========
 
+    /**
+     * 모든 ETF 목록 조회
+     * flowOn(Dispatchers.IO)로 UI 스레드 차단 방지
+     */
     fun getAllEtfs(): Flow<List<Etf>> = dao.getAllEtfs()
+        .flowOn(Dispatchers.IO)
 
+    /**
+     * ETF 검색
+     * flowOn(Dispatchers.IO)로 UI 스레드 차단 방지
+     */
     fun searchEtfs(query: String): Flow<List<Etf>> = dao.searchEtfs(query)
+        .flowOn(Dispatchers.IO)
 
-    suspend fun hasData(): Boolean {
+    /**
+     * 데이터 존재 여부 확인
+     * withContext로 IO 스레드 격리
+     */
+    suspend fun hasData(): Boolean = withContext(Dispatchers.IO) {
         val count = dao.getEtfCount()
         Log.d(TAG, "hasData: count = $count")
-        return count > 0
+        count > 0
     }
 
-    suspend fun getLatestDate(): String? {
+    /**
+     * 최신 데이터 날짜 조회
+     * withContext로 IO 스레드 격리
+     */
+    suspend fun getLatestDate(): String? = withContext(Dispatchers.IO) {
         val date = dao.getLatestDate()
         Log.d(TAG, "getLatestDate: $date")
-        return date
+        date
     }
 
     // ========== ETF Info ==========
 
-    // ✅ ETF 정보 가져오기 메서드 추가
-    suspend fun getEtf(ticker: String): Etf? {
-        return dao.getEtf(ticker)
+    /**
+     * ETF 정보 조회
+     * withContext로 IO 스레드 격리
+     */
+    suspend fun getEtf(ticker: String): Etf? = withContext(Dispatchers.IO) {
+        dao.getEtf(ticker)
     }
 
     // ========== ETF Detail ==========
 
-    suspend fun getComparison(etfTicker: String): ComparisonResult? {
+    /**
+     * ETF 보유 종목 비교
+     * withContext로 IO 스레드 격리 - 복잡한 쿼리와 계산 작업
+     */
+    suspend fun getComparison(etfTicker: String): ComparisonResult? = withContext(Dispatchers.IO) {
         val dates = dao.getDates(etfTicker)
 
         Log.d(TAG, "getComparison for $etfTicker: ${dates.size} dates available")
@@ -172,7 +216,7 @@ class DataRepository(
         val statusCount = items.groupBy { it.status }.mapValues { it.value.size }
         Log.d(TAG, "Status counts: $statusCount")
 
-        return ComparisonResult(
+        ComparisonResult(
             etfTicker = etfTicker,
             currentDate = currentDate,
             previousDate = previousDate,
@@ -182,9 +226,12 @@ class DataRepository(
 
     // ========== Stats ==========
 
-    suspend fun getOverlapStocks(limit: Int = 50): List<OverlapStockDisplay> {
-        val latestDate = dao.getLatestDate() ?: return emptyList()
-        return dao.getOverlapStocks(latestDate, limit).map {
+    /**
+     * 통계 함수들 - withContext로 IO 스레드 격리
+     */
+    suspend fun getOverlapStocks(limit: Int = 50): List<OverlapStockDisplay> = withContext(Dispatchers.IO) {
+        val latestDate = dao.getLatestDate() ?: return@withContext emptyList()
+        dao.getOverlapStocks(latestDate, limit).map {
             OverlapStockDisplay(
                 stockName = it.stockName,
                 etfCount = it.etfCount,
@@ -193,55 +240,55 @@ class DataRepository(
         }
     }
 
-    suspend fun getAmountRanking(limit: Int = 50): List<AmountRank> {
-        val latestDate = dao.getLatestDate() ?: return emptyList()
-        return dao.getAmountRanking(latestDate, limit)
+    suspend fun getAmountRanking(limit: Int = 50): List<AmountRank> = withContext(Dispatchers.IO) {
+        val latestDate = dao.getLatestDate() ?: return@withContext emptyList()
+        dao.getAmountRanking(latestDate, limit)
     }
 
-    suspend fun getStockAmountRanking(): List<StockAmountRanking> {
-        val latestDate = dao.getLatestDate() ?: return emptyList()
-        return dao.getStockAmountRanking(latestDate)
+    suspend fun getStockAmountRanking(): List<StockAmountRanking> = withContext(Dispatchers.IO) {
+        val latestDate = dao.getLatestDate() ?: return@withContext emptyList()
+        dao.getStockAmountRanking(latestDate)
     }
 
-    suspend fun getAllNewStocks(): List<StockChangeInfo> {
+    suspend fun getAllNewStocks(): List<StockChangeInfo> = withContext(Dispatchers.IO) {
         val dates = dao.getLatestTwoDates()
-        if (dates.size < 2) return emptyList()
-        return dao.getAllNewStocks(dates[0], dates[1])
+        if (dates.size < 2) return@withContext emptyList()
+        dao.getAllNewStocks(dates[0], dates[1])
     }
 
-    suspend fun getAllRemovedStocks(): List<StockChangeInfo> {
+    suspend fun getAllRemovedStocks(): List<StockChangeInfo> = withContext(Dispatchers.IO) {
         val dates = dao.getLatestTwoDates()
-        if (dates.size < 2) return emptyList()
-        return dao.getAllRemovedStocks(dates[0], dates[1])
+        if (dates.size < 2) return@withContext emptyList()
+        dao.getAllRemovedStocks(dates[0], dates[1])
     }
 
-    suspend fun getAllIncreasedStocks(): List<StockChangeInfo> {
+    suspend fun getAllIncreasedStocks(): List<StockChangeInfo> = withContext(Dispatchers.IO) {
         val dates = dao.getLatestTwoDates()
-        if (dates.size < 2) return emptyList()
-        return dao.getAllIncreasedStocks(dates[0], dates[1])
+        if (dates.size < 2) return@withContext emptyList()
+        dao.getAllIncreasedStocks(dates[0], dates[1])
     }
 
-    suspend fun getStatisticsDates(): Pair<String, String>? {
+    suspend fun getStatisticsDates(): Pair<String, String>? = withContext(Dispatchers.IO) {
         val dates = dao.getLatestTwoDates()
-        return if (dates.size >= 2) Pair(dates[1], dates[0]) else null
+        if (dates.size >= 2) Pair(dates[1], dates[0]) else null
     }
 
-    suspend fun getAllDecreasedStocks(): List<StockChangeInfo> {
+    suspend fun getAllDecreasedStocks(): List<StockChangeInfo> = withContext(Dispatchers.IO) {
         val dates = dao.getLatestTwoDates()
-        if (dates.size < 2) return emptyList()
-        return dao.getAllDecreasedStocks(dates[0], dates[1])
+        if (dates.size < 2) return@withContext emptyList()
+        dao.getAllDecreasedStocks(dates[0], dates[1])
     }
 
-    suspend fun getCashDepositTrend(): List<CashDepositTrend> {
-        return dao.getCashDepositTrend()
+    suspend fun getCashDepositTrend(): List<CashDepositTrend> = withContext(Dispatchers.IO) {
+        dao.getCashDepositTrend()
     }
 
-    suspend fun getStockAggregatedTrend(stockTicker: String): StockAggregatedTrend? {
+    suspend fun getStockAggregatedTrend(stockTicker: String): StockAggregatedTrend? = withContext(Dispatchers.IO) {
         val timeSeries = dao.getStockAggregatedTrend(stockTicker)
-        if (timeSeries.isEmpty()) return null
+        if (timeSeries.isEmpty()) return@withContext null
 
         val stockName = dao.getStockName(stockTicker) ?: stockTicker
-        return StockAggregatedTrend(
+        StockAggregatedTrend(
             stockTicker = stockTicker,
             stockName = stockName,
             timeSeries = timeSeries
@@ -250,17 +297,17 @@ class DataRepository(
 
     // ========== Stock Trend ==========
 
-    suspend fun getStockTrend(etfTicker: String, stockTicker: String): StockTrend? {
+    suspend fun getStockTrend(etfTicker: String, stockTicker: String): StockTrend? = withContext(Dispatchers.IO) {
         val timeSeries = dao.getHoldingTimeSeries(etfTicker, stockTicker)
 
-        if (timeSeries.isEmpty()) return null
+        if (timeSeries.isEmpty()) return@withContext null
 
         val firstDate = timeSeries.first().date
         val stockName = dao.getHoldings(etfTicker, firstDate)
             .find { it.stockTicker == stockTicker }
             ?.stockName ?: stockTicker
 
-        return StockTrend(
+        StockTrend(
             etfTicker = etfTicker,
             stockTicker = stockTicker,
             stockName = stockName,
@@ -270,6 +317,14 @@ class DataRepository(
 
     // ========== Data Collection (최적화) ==========
 
+    /**
+     * 초기 데이터 수집
+     *
+     * Production 최적화:
+     * - flowOn(Dispatchers.IO)로 UI 스레드 차단 방지
+     * - 병렬 처리로 성능 향상 (PARALLEL_LIMIT = 5)
+     * - Progress emit으로 UI 업데이트
+     */
     fun initializeData(days: Int = 25) = flow {
         try {
             Log.d(TAG, "initializeData: START")
@@ -357,8 +412,15 @@ class DataRepository(
             Log.e(TAG, "initializeData: ERROR", e)
             emit(DataProgress.Error("초기화 실패: ${e.message}"))
         }
-    }
+    }.flowOn(Dispatchers.IO)  // IO 스레드에서 실행하여 UI 차단 방지
 
+    /**
+     * 데이터 업데이트
+     *
+     * Production 최적화:
+     * - flowOn(Dispatchers.IO)로 UI 스레드 차단 방지
+     * - 마지막 수집일 이후의 데이터만 수집하여 효율성 향상
+     */
     fun updateData() = flow {
         try {
             Log.d(TAG, "updateData: START")
@@ -426,10 +488,14 @@ class DataRepository(
             Log.e(TAG, "updateData: ERROR", e)
             emit(DataProgress.Error("업데이트 실패: ${e.message}"))
         }
-    }
+    }.flowOn(Dispatchers.IO)  // IO 스레드에서 실행하여 UI 차단 방지
 
     /**
      * ETF들을 병렬로 처리
+     *
+     * Production 최적화:
+     * - chunked()로 PARALLEL_LIMIT 만큼씩 병렬 처리
+     * - async/await으로 비동기 처리하여 성능 향상
      */
     private suspend fun processEtfsInParallel(
         etfs: List<Etf>,
@@ -469,18 +535,20 @@ class DataRepository(
 
     // ========== Settings ==========
 
-    suspend fun getDefaultDays(): Int {
+    /**
+     * Settings 관련 함수들 - withContext로 IO 스레드 격리
+     */
+    suspend fun getDefaultDays(): Int = withContext(Dispatchers.IO) {
         val saved = dao.getSetting("default_days")
-        return saved?.toIntOrNull() ?: 25  // 기본값: 25일
+        saved?.toIntOrNull() ?: 25  // 기본값: 25일
     }
 
-    suspend fun setDefaultDays(days: Int) {
+    suspend fun setDefaultDays(days: Int) = withContext(Dispatchers.IO) {
         dao.saveSetting(Setting("default_days", days.toString()))
         Log.d(TAG, "Default days set to: $days")
     }
 
-    // getThemes와 getExclusions에도 로깅 추가
-    suspend fun getThemes(): List<String> {
+    suspend fun getThemes(): List<String> = withContext(Dispatchers.IO) {
         Log.d(TAG, "  getThemes() called")
         val saved = dao.getSetting("themes")
         Log.d(TAG, "    DB returned: '$saved'")
@@ -493,10 +561,10 @@ class DataRepository(
         }
 
         Log.d(TAG, "    Returning (${themes.size}): ${themes.take(5)}...")
-        return themes
+        themes
     }
 
-    suspend fun addTheme(theme: String) {
+    suspend fun addTheme(theme: String) = withContext(Dispatchers.IO) {
         val current = getThemes().toMutableList()
         if (!current.contains(theme)) {
             current.add(theme)
@@ -504,13 +572,13 @@ class DataRepository(
         }
     }
 
-    suspend fun removeTheme(theme: String) {
+    suspend fun removeTheme(theme: String) = withContext(Dispatchers.IO) {
         val current = getThemes().toMutableList()
         current.remove(theme)
         dao.saveSetting(Setting("themes", current.joinToString(",")))
     }
 
-    suspend fun getExclusions(): List<String> {
+    suspend fun getExclusions(): List<String> = withContext(Dispatchers.IO) {
         Log.d(TAG, "  getExclusions() called")
         val saved = dao.getSetting("exclusions")
         Log.d(TAG, "    DB returned: '$saved'")
@@ -523,10 +591,10 @@ class DataRepository(
         }
 
         Log.d(TAG, "    Returning (${exclusions.size}): ${exclusions.take(5)}...")
-        return exclusions
+        exclusions
     }
 
-    suspend fun addExclusion(keyword: String) {
+    suspend fun addExclusion(keyword: String) = withContext(Dispatchers.IO) {
         val current = getExclusions().toMutableList()
         if (!current.contains(keyword)) {
             current.add(keyword)
@@ -534,18 +602,18 @@ class DataRepository(
         }
     }
 
-    suspend fun removeExclusion(keyword: String) {
+    suspend fun removeExclusion(keyword: String) = withContext(Dispatchers.IO) {
         val current = getExclusions().toMutableList()
         current.remove(keyword)
         dao.saveSetting(Setting("exclusions", current.joinToString(",")))
     }
 
-    suspend fun resetDatabase() {
+    suspend fun resetDatabase() = withContext(Dispatchers.IO) {
         dao.clearAllEtfs()
         dao.clearAllHoldings()
     }
 
-    private suspend fun initializeDefaultSettings() {
+    private suspend fun initializeDefaultSettings() = withContext(Dispatchers.IO) {
         Log.d(TAG, "  initializeDefaultSettings() called")
 
         val existingThemes = dao.getSetting("themes")
