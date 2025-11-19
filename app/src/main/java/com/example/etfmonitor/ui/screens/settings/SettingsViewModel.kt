@@ -42,12 +42,22 @@ data class FearGreedUpdateSettings(
     val isUpdating: Boolean = false
 )
 
+data class MarketOscillatorUpdateSettings(
+    val updateHour: Int = 4, // 기본값: 새벽 4시
+    val updateMinute: Int = 0,
+    val lastUpdateTime: Long? = null,
+    val kospiCount: Int = 0,
+    val kosdaqCount: Int = 0,
+    val isUpdating: Boolean = false
+)
+
 class SettingsViewModel(
     private val application: Application,
     private val repository: DataRepository,
     private val stockRepository: StockRepository,
     private val marketDepositRepository: MarketDepositRepository,
-    private val fearGreedRepository: FearGreedRepository
+    private val fearGreedRepository: FearGreedRepository,
+    private val marketOscillatorRepository: com.etfmonitor.repository.MarketOscillatorRepository
 ) : AndroidViewModel(application) {
 
     private val _themes = MutableStateFlow<List<String>>(emptyList())
@@ -68,11 +78,17 @@ class SettingsViewModel(
     private val _fearGreedUpdateSettings = MutableStateFlow(FearGreedUpdateSettings())
     val fearGreedUpdateSettings: StateFlow<FearGreedUpdateSettings> = _fearGreedUpdateSettings.asStateFlow()
 
+    private val _marketOscillatorUpdateSettings = MutableStateFlow(MarketOscillatorUpdateSettings())
+    val marketOscillatorUpdateSettings: StateFlow<MarketOscillatorUpdateSettings> = _marketOscillatorUpdateSettings.asStateFlow()
+
     private val _searchHistoryLimit = MutableStateFlow(15)
     val searchHistoryLimit: StateFlow<Int> = _searchHistoryLimit.asStateFlow()
 
     private val _fearGreedPeriodDays = MutableStateFlow(365) // 기본값: 12개월
     val fearGreedPeriodDays: StateFlow<Int> = _fearGreedPeriodDays.asStateFlow()
+
+    private val _marketOscillatorPeriodDays = MutableStateFlow(365) // 기본값: 12개월
+    val marketOscillatorPeriodDays: StateFlow<Int> = _marketOscillatorPeriodDays.asStateFlow()
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
@@ -84,6 +100,7 @@ class SettingsViewModel(
         loadStockInfo()
         loadMarketDepositInfo()
         loadFearGreedInfo()
+        loadMarketOscillatorInfo()
     }
 
     private fun loadSettings() {
@@ -99,6 +116,10 @@ class SettingsViewModel(
             // Fear & Greed 데이터 수집 기간 로드
             val fearGreedPeriodStr = dao.getSetting("fear_greed_period_days")
             _fearGreedPeriodDays.value = fearGreedPeriodStr?.toIntOrNull() ?: 365 // 기본값: 12개월
+
+            // 과매수/과매도 데이터 수집 기간 로드
+            val marketOscillatorPeriodStr = dao.getSetting("market_oscillator_period_days")
+            _marketOscillatorPeriodDays.value = marketOscillatorPeriodStr?.toIntOrNull() ?: 365 // 기본값: 12개월
 
             // Stock 업데이트 시간 로드
             val stockHourStr = dao.getSetting("stock_update_hour")
@@ -144,6 +165,21 @@ class SettingsViewModel(
 
             // 스케줄 재설정
             WorkManagerHelper.scheduleFearGreedUpdate(application, fearGreedHour, fearGreedMinute)
+
+            // 과매수/과매도 업데이트 시간 로드
+            val marketOscillatorHourStr = dao.getSetting("market_oscillator_update_hour")
+            val marketOscillatorMinuteStr = dao.getSetting("market_oscillator_update_minute")
+
+            val marketOscillatorHour = marketOscillatorHourStr?.toIntOrNull() ?: 4 // 기본값: 새벽 4시
+            val marketOscillatorMinute = marketOscillatorMinuteStr?.toIntOrNull() ?: 0
+
+            _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(
+                updateHour = marketOscillatorHour,
+                updateMinute = marketOscillatorMinute
+            )
+
+            // 스케줄 재설정
+            WorkManagerHelper.scheduleMarketOscillatorUpdate(application, marketOscillatorHour, marketOscillatorMinute)
         }
     }
 
@@ -195,6 +231,28 @@ class SettingsViewModel(
                 )
             } catch (e: Exception) {
                 android.util.Log.e("SettingsViewModel", "Error loading fear greed info", e)
+            }
+        }
+    }
+
+    private fun loadMarketOscillatorInfo() {
+        viewModelScope.launch {
+            try {
+                val kospiCount = marketOscillatorRepository.getDataCount("KOSPI")
+                val kosdaqCount = marketOscillatorRepository.getDataCount("KOSDAQ")
+                val kospiLatest = marketOscillatorRepository.getLatestData("KOSPI")
+                val kosdaqLatest = marketOscillatorRepository.getLatestData("KOSDAQ")
+                val kospiLastUpdate = kospiLatest?.lastUpdated
+                val kosdaqLastUpdate = kosdaqLatest?.lastUpdated
+                val lastUpdate = maxOf(kospiLastUpdate ?: 0L, kosdaqLastUpdate ?: 0L).takeIf { it > 0L }
+
+                _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(
+                    kospiCount = kospiCount,
+                    kosdaqCount = kosdaqCount,
+                    lastUpdateTime = lastUpdate
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsViewModel", "Error loading market oscillator info", e)
             }
         }
     }
@@ -412,6 +470,72 @@ class SettingsViewModel(
         }
     }
 
+    fun setMarketOscillatorUpdateTime(hour: Int, minute: Int) {
+        viewModelScope.launch {
+            try {
+                dao.saveSetting(Setting("market_oscillator_update_hour", hour.toString()))
+                dao.saveSetting(Setting("market_oscillator_update_minute", minute.toString()))
+
+                _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(
+                    updateHour = hour,
+                    updateMinute = minute
+                )
+
+                WorkManagerHelper.scheduleMarketOscillatorUpdate(application, hour, minute)
+                _message.value = "과매수/과매도 업데이트 시간이 ${hour}:${String.format("%02d", minute)}로 설정되었습니다"
+            } catch (e: Exception) {
+                _message.value = "시간 설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun updateMarketOscillatorsNow() {
+        viewModelScope.launch {
+            try {
+                _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(isUpdating = true)
+                _message.value = "과매수/과매도 데이터 업데이트 중..."
+
+                val kospiResult = marketOscillatorRepository.updateMarketData("KOSPI")
+                val kosdaqResult = marketOscillatorRepository.updateMarketData("KOSDAQ")
+
+                if (kospiResult.isSuccess && kosdaqResult.isSuccess) {
+                    val kospiCount = kospiResult.getOrNull() ?: 0
+                    val kosdaqCount = kosdaqResult.getOrNull() ?: 0
+                    loadMarketOscillatorInfo()
+                    _message.value = "업데이트 완료: KOSPI ${kospiCount}개, KOSDAQ ${kosdaqCount}개"
+                } else {
+                    val errors = mutableListOf<String>()
+                    if (kospiResult.isFailure) errors.add("KOSPI: ${kospiResult.exceptionOrNull()?.message}")
+                    if (kosdaqResult.isFailure) errors.add("KOSDAQ: ${kosdaqResult.exceptionOrNull()?.message}")
+                    _message.value = "업데이트 실패: ${errors.joinToString(", ")}"
+                }
+            } catch (e: Exception) {
+                _message.value = "오류 발생: ${e.message}"
+            } finally {
+                _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(isUpdating = false)
+            }
+        }
+    }
+
+    fun setMarketOscillatorPeriodDays(days: Int) {
+        viewModelScope.launch {
+            try {
+                dao.saveSetting(Setting("market_oscillator_period_days", days.toString()))
+                _marketOscillatorPeriodDays.value = days
+                val monthText = when (days) {
+                    180 -> "6개월"
+                    365 -> "12개월"
+                    540 -> "18개월"
+                    730 -> "24개월"
+                    else -> "${days}일"
+                }
+                _message.value = "과매수/과매도 데이터 수집 기간이 ${monthText}로 설정되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
     fun initializeData(days: Int) {
         viewModelScope.launch {
             try {
@@ -449,7 +573,8 @@ class SettingsViewModel(
                     repository = app.repository,
                     stockRepository = app.stockRepository,
                     marketDepositRepository = app.marketDepositRepository,
-                    fearGreedRepository = app.fearGreedRepository
+                    fearGreedRepository = app.fearGreedRepository,
+                    marketOscillatorRepository = app.marketOscillatorRepository
                 ) as T
             }
         }

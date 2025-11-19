@@ -43,14 +43,25 @@ class FearGreedRepository(
     /**
      * Fear & Greed Index 데이터 초기화 (지정된 기간 동안의 데이터 수집)
      * @param days 데이터 수집 기간 (기본 365일)
+     *
+     * 주의: Python 분석 과정에서 대량의 데이터 손실이 발생합니다:
+     * - Call/Put 옵션 5일 이동평균: 5일 손실
+     * - 필수 데이터(Call/Put/VIX/국채) 없는 날짜 제거: 대량 손실
+     * - RSI 계산(10일 rolling): 10일 손실
+     * - MA 계산(125일 rolling): 125일 손실
+     * - MACD 계산(26일 EMA): 26일 손실
+     * 따라서 실제로는 약 3배의 데이터를 수집하여 원하는 기간만큼 남도록 합니다.
+     * KRX API 제한으로 최대 730일(약 2년)까지만 수집합니다.
      */
     suspend fun initializeFearGreed(days: Int = 365): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Initializing Fear & Greed Index data for $days days...")
+            // 분석 과정의 데이터 손실을 고려하여 3배 수집, 최대 730일로 제한
+            val collectionDays = minOf(days * 3, 730)
+            Log.d(TAG, "Initializing Fear & Greed Index data: requested=$days days, collecting=$collectionDays days (max 730)")
 
             // 날짜 범위 계산
             val endDate = LocalDate.now()
-            val startDate = endDate.minusDays(days.toLong())
+            val startDate = endDate.minusDays(collectionDays.toLong())
 
             val formatter = DateTimeFormatter.ofPattern("yyyyMMdd")
             val startStr = startDate.format(formatter)
@@ -86,14 +97,16 @@ class FearGreedRepository(
 
     /**
      * Fear & Greed Index 데이터 업데이트 (최근 데이터만 갱신)
+     *
+     * 분석 과정의 데이터 손실을 고려하여 충분한 기간의 데이터를 수집합니다.
      */
     suspend fun updateFearGreed(): Result<Int> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Updating Fear & Greed Index data...")
 
-            // 최근 30일 데이터 갱신
+            // 최근 데이터 갱신 (데이터 손실 고려하여 150일 수집)
             val endDate = LocalDate.now()
-            val startDate = endDate.minusDays(30)
+            val startDate = endDate.minusDays(150)
 
             val formatter = DateTimeFormatter.ofPattern("yyyyMMdd")
             val startStr = startDate.format(formatter)

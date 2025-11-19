@@ -25,9 +25,11 @@ fun SettingsScreen(
     val defaultDays by viewModel.defaultDays.collectAsState()
     val searchHistoryLimit by viewModel.searchHistoryLimit.collectAsState()
     val fearGreedPeriodDays by viewModel.fearGreedPeriodDays.collectAsState()
+    val marketOscillatorPeriodDays by viewModel.marketOscillatorPeriodDays.collectAsState()
     val stockUpdateSettings by viewModel.stockUpdateSettings.collectAsState()
     val marketDepositUpdateSettings by viewModel.marketDepositUpdateSettings.collectAsState()
     val fearGreedUpdateSettings by viewModel.fearGreedUpdateSettings.collectAsState()
+    val marketOscillatorUpdateSettings by viewModel.marketOscillatorUpdateSettings.collectAsState()
     val message by viewModel.message.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -102,6 +104,23 @@ fun SettingsScreen(
                 FearGreedPeriodCard(
                     currentDays = fearGreedPeriodDays,
                     onDaysChange = { viewModel.setFearGreedPeriodDays(it) }
+                )
+            }
+
+            // ✅ 과매수/과매도 DB 자동 업데이트 설정
+            item {
+                MarketOscillatorUpdateCard(
+                    settings = marketOscillatorUpdateSettings,
+                    onTimeChange = { hour, minute -> viewModel.setMarketOscillatorUpdateTime(hour, minute) },
+                    onUpdateNow = { viewModel.updateMarketOscillatorsNow() }
+                )
+            }
+
+            // ✅ 과매수/과매도 데이터 수집 기간 설정
+            item {
+                MarketOscillatorPeriodCard(
+                    currentDays = marketOscillatorPeriodDays,
+                    onDaysChange = { viewModel.setMarketOscillatorPeriodDays(it) }
                 )
             }
 
@@ -1356,6 +1375,322 @@ private fun FearGreedPeriodSelectionDialog(
 }
 
 private data class FearGreedPeriodOption(
+    val days: Int,
+    val label: String,
+    val description: String
+)
+
+// 과매수/과매도 DB 자동 업데이트 카드
+@Composable
+private fun MarketOscillatorUpdateCard(
+    settings: MarketOscillatorUpdateSettings,
+    onTimeChange: (Int, Int) -> Unit,
+    onUpdateNow: () -> Unit
+) {
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Leaderboard,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("과매수/과매도 자동 업데이트", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            Text(
+                "매일 지정된 시간에 과매수/과매도 데이터를 자동으로 업데이트합니다",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "업데이트 시간",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "${String.format("%02d", settings.updateHour)}:${String.format("%02d", settings.updateMinute)}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Button(onClick = { showTimePicker = true }) {
+                    Text("변경")
+                }
+            }
+
+            // 마지막 업데이트 정보
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "KOSPI:",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            "${settings.kospiCount}개",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "KOSDAQ:",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            "${settings.kosdaqCount}개",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    settings.lastUpdateTime?.let { time ->
+                        val dateStr = java.text.SimpleDateFormat(
+                            "yyyy-MM-dd HH:mm",
+                            java.util.Locale.getDefault()
+                        ).format(java.util.Date(time))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                "마지막 업데이트:",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                dateStr,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 즉시 업데이트 버튼
+            Button(
+                onClick = onUpdateNow,
+                enabled = !settings.isUpdating,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (settings.isUpdating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("업데이트 중...")
+                } else {
+                    Icon(Icons.Default.Refresh, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("지금 업데이트")
+                }
+            }
+        }
+    }
+
+    if (showTimePicker) {
+        TimePickerDialog(
+            currentHour = settings.updateHour,
+            currentMinute = settings.updateMinute,
+            onDismiss = { showTimePicker = false },
+            onConfirm = { hour, minute ->
+                onTimeChange(hour, minute)
+                showTimePicker = false
+            }
+        )
+    }
+}
+
+// 과매수/과매도 데이터 수집 기간 카드
+@Composable
+private fun MarketOscillatorPeriodCard(
+    currentDays: Int,
+    onDaysChange: (Int) -> Unit
+) {
+    var showDialog by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(animationSpec = tween(200)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = MaterialTheme.shapes.medium
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Leaderboard,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("과매수/과매도 수집 기간", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            Text(
+                "과매수/과매도 데이터 초기화 시 수집할 기간",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "현재 설정",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        when (currentDays) {
+                            180 -> "6개월"
+                            365 -> "12개월"
+                            540 -> "18개월"
+                            730 -> "24개월"
+                            else -> "${currentDays}일"
+                        },
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Button(onClick = { showDialog = true }) {
+                    Text("변경")
+                }
+            }
+
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Text(
+                    "권장: 12개월 (약 365일, 약 1-2분 소요)",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+        }
+    }
+
+    if (showDialog) {
+        MarketOscillatorPeriodSelectionDialog(
+            currentDays = currentDays,
+            onDismiss = { showDialog = false },
+            onConfirm = { days ->
+                onDaysChange(days)
+                showDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun MarketOscillatorPeriodSelectionDialog(
+    currentDays: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    val periodOptions = listOf(
+        MarketOscillatorPeriodOption(180, "6개월", "약 180일"),
+        MarketOscillatorPeriodOption(365, "12개월 (권장)", "약 365일"),
+        MarketOscillatorPeriodOption(540, "18개월", "약 540일"),
+        MarketOscillatorPeriodOption(730, "24개월", "약 730일")
+    )
+
+    var selectedDays by remember { mutableStateOf(currentDays) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("데이터 수집 기간 설정") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    "과매수/과매도 데이터 수집 기간을 선택하세요",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                periodOptions.forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (selectedDays == option.days),
+                            onClick = { selectedDays = option.days }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                option.label,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                option.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(selectedDays) }) {
+                Text("확인")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소")
+            }
+        }
+    )
+}
+
+private data class MarketOscillatorPeriodOption(
     val days: Int,
     val label: String,
     val description: String
