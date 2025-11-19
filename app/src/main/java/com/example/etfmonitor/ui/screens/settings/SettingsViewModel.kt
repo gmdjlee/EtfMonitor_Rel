@@ -240,8 +240,10 @@ class SettingsViewModel(
             try {
                 val kospiCount = marketOscillatorRepository.getDataCount("KOSPI")
                 val kosdaqCount = marketOscillatorRepository.getDataCount("KOSDAQ")
-                val kospiLastUpdate = marketOscillatorRepository.getLastUpdateTime("KOSPI")
-                val kosdaqLastUpdate = marketOscillatorRepository.getLastUpdateTime("KOSDAQ")
+                val kospiLatest = marketOscillatorRepository.getLatestData("KOSPI")
+                val kosdaqLatest = marketOscillatorRepository.getLatestData("KOSDAQ")
+                val kospiLastUpdate = kospiLatest?.lastUpdated
+                val kosdaqLastUpdate = kosdaqLatest?.lastUpdated
                 val lastUpdate = maxOf(kospiLastUpdate ?: 0L, kosdaqLastUpdate ?: 0L).takeIf { it > 0L }
 
                 _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(
