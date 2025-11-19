@@ -146,21 +146,22 @@ class DataCollectionService : Service() {
 
                 if (result.isSuccess) {
                     val count = result.getOrNull() ?: 0
-                    Log.d(TAG, "Fear & Greed initialization completed: $count records")
-                    // Fear & Greed 완료 후 MarketOscillator 초기화 시작
-                    initializeMarketOscillator(days)
+                    val successMsg = "Fear & Greed 초기화 완료! ${count}개 데이터 수집"
+                    Log.d(TAG, successMsg)
+                    CollectionState.complete(successMsg)
+                    updateNotification(successMsg, 100, isComplete = true)
                 } else {
                     val errorMsg = "Fear & Greed 초기화 실패: ${result.exceptionOrNull()?.message}"
                     Log.e(TAG, errorMsg)
                     CollectionState.error(errorMsg)
                     updateNotification(errorMsg, 0, isError = true)
-                    stopSelf()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error in Fear & Greed initialization", e)
                 val errorMsg = "Fear & Greed 초기화 실패: ${e.message}"
                 CollectionState.error(errorMsg)
                 updateNotification(errorMsg, 0, isError = true)
+            } finally {
                 stopSelf()
             }
         }
@@ -242,7 +243,7 @@ class DataCollectionService : Service() {
         serviceScope.launch {
             try {
                 Log.d(TAG, "Starting Fear & Greed update")
-                updateNotification("Fear & Greed 데이터 업데이트 중...", 0)
+                updateNotification("Fear & Greed 데이터 업데이트 중...", 50)
 
                 val result = fearGreedRepository.updateFearGreed()
 

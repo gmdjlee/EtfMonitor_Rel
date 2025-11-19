@@ -25,7 +25,11 @@ class HomeViewModel(
     private val _showFearGreedDialog = MutableStateFlow(false)
     val showFearGreedDialog: StateFlow<Boolean> = _showFearGreedDialog.asStateFlow()
 
+    private val _showMarketOscillatorDialog = MutableStateFlow(false)
+    val showMarketOscillatorDialog: StateFlow<Boolean> = _showMarketOscillatorDialog.asStateFlow()
+
     private val _etfInitializationCompleted = MutableStateFlow(false)
+    private val _fearGreedInitializationCompleted = MutableStateFlow(false)
 
     init {
         checkData()
@@ -71,8 +75,27 @@ class HomeViewModel(
         }
     }
 
+    private fun checkMarketOscillatorFirstRun() {
+        viewModelScope.launch {
+            val app = EtfMonitorApp.instance
+            val marketOscillatorRepository = app.marketOscillatorRepository
+            val dialogDismissed = app.database.dao().getSetting("market_oscillator_dialog_dismissed")
+            val hasData = marketOscillatorRepository.getDataCount("KOSPI") > 0 ||
+                         marketOscillatorRepository.getDataCount("KOSDAQ") > 0
+
+            // 과매수/과매도 데이터가 없고 다이얼로그를 본 적이 없으면 표시
+            if (!hasData && dialogDismissed != "true") {
+                _showMarketOscillatorDialog.value = true
+            }
+        }
+    }
+
     fun onFearGreedDialogShown() {
         _showFearGreedDialog.value = false
+    }
+
+    fun onMarketOscillatorDialogShown() {
+        _showMarketOscillatorDialog.value = false
     }
 
     fun initializeFearGreed(days: Int) {
@@ -85,6 +108,7 @@ class HomeViewModel(
                 com.etfmonitor.database.entities.Setting("fear_greed_dialog_dismissed", "true")
             )
             _showFearGreedDialog.value = false
+            _fearGreedInitializationCompleted.value = true  // Fear & Greed 초기화 시작 표시
 
             // Fear & Greed 데이터 수집
             _state.value = HomeState.Initializing("Fear & Greed Index 데이터 수집 중...", 0)
@@ -94,6 +118,34 @@ class HomeViewModel(
                 _state.value = HomeState.Success("Fear & Greed Index 데이터 수집 완료")
             } else {
                 _state.value = HomeState.Error("Fear & Greed Index 데이터 수집 실패: ${result.exceptionOrNull()?.message}")
+            }
+
+            checkData()
+        }
+    }
+
+    fun initializeMarketOscillator(days: Int) {
+        viewModelScope.launch {
+            val app = EtfMonitorApp.instance
+            val marketOscillatorRepository = app.marketOscillatorRepository
+
+            // 다이얼로그를 더 이상 표시하지 않음
+            app.database.dao().saveSetting(
+                com.etfmonitor.database.entities.Setting("market_oscillator_dialog_dismissed", "true")
+            )
+            _showMarketOscillatorDialog.value = false
+
+            // 과매수/과매도 데이터 수집
+            _state.value = HomeState.Initializing("과매수/과매도 데이터 수집 중...", 0)
+
+            val kospiResult = marketOscillatorRepository.initializeMarketData("KOSPI", days)
+            val kosdaqResult = marketOscillatorRepository.initializeMarketData("KOSDAQ", days)
+
+            if (kospiResult.isSuccess && kosdaqResult.isSuccess) {
+                val totalCount = (kospiResult.getOrNull() ?: 0) + (kosdaqResult.getOrNull() ?: 0)
+                _state.value = HomeState.Success("과매수/과매도 데이터 수집 완료 ($totalCount 개)")
+            } else {
+                _state.value = HomeState.Error("과매수/과매도 데이터 수집 실패")
             }
 
             checkData()
@@ -126,8 +178,14 @@ class HomeViewModel(
                         checkData()
 
                         // ETF 초기화가 완료되었고 첫 실행인 경우 Fear & Greed 다이얼로그 표시
-                        if (wasInitializing && _etfInitializationCompleted.value) {
+                        if (wasInitializing && _etfInitializationCompleted.value && !_fearGreedInitializationCompleted.value) {
+                            _etfInitializationCompleted.value = false  // 리셋
                             checkFearGreedFirstRun()
+                        }
+                        // Fear & Greed 초기화가 완료된 경우 과매수/과매도 다이얼로그 표시
+                        else if (wasInitializing && _fearGreedInitializationCompleted.value) {
+                            _fearGreedInitializationCompleted.value = false  // 리셋
+                            checkMarketOscillatorFirstRun()
                         }
                     }
                 }
