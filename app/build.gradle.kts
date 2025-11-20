@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.chaquopy)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.google.devtools.ksp)
+    alias(libs.plugins.hilt.android)
     id("org.jetbrains.kotlin.plugin.serialization") version "2.1.0"
 }
 
@@ -124,4 +125,10 @@ dependencies {
 
     // Graphics shapes for hexagon menu with morph animation
     implementation("androidx.graphics:graphics-shapes:1.1.0")
+
+    // Hilt Dependency Injection
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.android.compiler)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.compiler)
 }

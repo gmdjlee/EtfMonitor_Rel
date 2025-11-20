@@ -10,18 +10,38 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.etfmonitor.EtfMonitorApp
 import com.etfmonitor.MainActivity
 import com.etfmonitor.R
 import com.etfmonitor.repository.DataProgress
+import com.etfmonitor.repository.DataRepository
+import com.etfmonitor.repository.FearGreedRepository
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
+/**
+ * Production Level DataCollectionService
+ *
+ * 최적화 포인트:
+ * - @AndroidEntryPoint: Hilt가 Service에 의존성 자동 주입
+ * - @Inject: Repository 자동 주입
+ */
+@AndroidEntryPoint
 class DataCollectionService : Service() {
+
+    @Inject
+    lateinit var repository: DataRepository
+
+    @Inject
+    lateinit var fearGreedRepository: FearGreedRepository
+
+    @Inject
+    lateinit var marketOscillatorRepository: com.etfmonitor.repository.MarketOscillatorRepository
 
     private val serviceScope = CoroutineScope(Dispatchers.Default + Job())
     private val notificationManager by lazy {
@@ -103,7 +123,6 @@ class DataCollectionService : Service() {
     private fun startInitialization(days: Int) {
         serviceScope.launch {
             Log.d(TAG, "Starting initialization with $days days")
-            val repository = EtfMonitorApp.instance.repository
 
             // ETF 데이터 초기화 (단독으로 실행, 완료 후 HomeViewModel이 다음 단계 처리)
             repository.initializeData(days)
@@ -140,8 +159,6 @@ class DataCollectionService : Service() {
     private fun startUpdate() {
         serviceScope.launch {
             Log.d(TAG, "Starting update")
-            val repository = EtfMonitorApp.instance.repository
-            val fearGreedRepository = EtfMonitorApp.instance.fearGreedRepository
 
             // Step 1: ETF 데이터 업데이트
             repository.updateData()
@@ -208,8 +225,6 @@ class DataCollectionService : Service() {
             try {
                 Log.d(TAG, "Starting Market Oscillator update")
                 updateNotification("과매수/과매도 데이터 업데이트 중...", 0)
-
-                val marketOscillatorRepository = EtfMonitorApp.instance.marketOscillatorRepository
 
                 // KOSPI와 KOSDAQ 데이터 업데이트
                 val kospiResult = marketOscillatorRepository.updateMarketData("KOSPI")

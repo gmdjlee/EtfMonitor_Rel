@@ -2,16 +2,28 @@ package com.etfmonitor.worker
 
 import android.content.Context
 import android.util.Log
+import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.etfmonitor.EtfMonitorApp
+import com.etfmonitor.repository.MarketOscillatorRepository
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
- * 매일 지정된 시간에 시장 과매수/과매도 데이터를 업데이트하는 Worker
+ * Production Level MarketOscillatorUpdateWorker
+ *
+ * 최적화 포인트:
+ * - @HiltWorker: Hilt가 Worker에 의존성 자동 주입
+ * - @AssistedInject: WorkManager Context/Params와 Repository를 함께 주입
+ * - withContext(Dispatchers.IO): IO 작업 명시적 격리
  */
-class MarketOscillatorUpdateWorker(
-    context: Context,
-    params: WorkerParameters
+@HiltWorker
+class MarketOscillatorUpdateWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val marketOscillatorRepository: MarketOscillatorRepository
 ) : CoroutineWorker(context, params) {
 
     companion object {
@@ -19,18 +31,9 @@ class MarketOscillatorUpdateWorker(
         const val WORK_NAME = "market_oscillator_update_work"
     }
 
-    override suspend fun doWork(): Result {
-        return try {
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        try {
             Log.d(TAG, "Starting market oscillator database update...")
-
-            val app = applicationContext as? EtfMonitorApp
-            if (app == null) {
-                Log.e(TAG, "Application context is not EtfMonitorApp")
-                return Result.failure()
-            }
-
-            // Use singleton repository from EtfMonitorApp for optimized memory usage
-            val marketOscillatorRepository = app.marketOscillatorRepository
 
             // Update both KOSPI and KOSDAQ
             val kospiResult = marketOscillatorRepository.updateMarketData("KOSPI")
