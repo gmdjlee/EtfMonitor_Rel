@@ -99,13 +99,13 @@ class DataRepository @Inject constructor(
 
         if (dates.isEmpty()) {
             Log.d(TAG, "No dates found for $etfTicker")
-            return null
+            return@withContext null
         }
 
         if (dates.size == 1) {
             Log.d(TAG, "Only one date available: ${dates[0]}")
             val current = dao.getHoldings(etfTicker, dates[0])
-            return ComparisonResult(
+            return@withContext ComparisonResult(
                 etfTicker = etfTicker,
                 currentDate = dates[0],
                 previousDate = "N/A",

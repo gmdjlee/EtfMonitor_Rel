@@ -43,7 +43,7 @@ import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.star
 import androidx.graphics.shapes.toPath
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 
 // Screen size class for adaptive layout
 enum class ScreenSizeClass {
@@ -165,7 +165,7 @@ fun HomeScreen(
     onNavigateToMarketDeposit: () -> Unit,
     onNavigateToFearGreed: () -> Unit,
     onNavigateToMarketOscillator: () -> Unit,
-    viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val showFirstRunDialog by viewModel.showFirstRunDialog.collectAsState()
