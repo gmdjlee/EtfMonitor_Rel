@@ -1117,20 +1117,29 @@ private fun ThemeCard(
                 style = MaterialTheme.typography.bodySmall
             )
 
-            themes.chunked(6).forEach { rowThemes ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    rowThemes.forEach { theme ->
-                        FilterChip(
-                            selected = true,
-                            onClick = { onRemoveTheme(theme) },
-                            label = { Text(theme) },
-                            trailingIcon = {
-                                Icon(Icons.Default.Close, null, Modifier.size(16.dp))
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val itemsPerRow = when {
+                    maxWidth < 600.dp -> 4  // 일반 스마트폰
+                    maxWidth < 840.dp -> 8  // 폴더블 폰
+                    else -> 10              // 태블릿 등
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    themes.chunked(itemsPerRow).forEach { rowThemes ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            rowThemes.forEach { theme ->
+                                FilterChip(
+                                    selected = true,
+                                    onClick = { onRemoveTheme(theme) },
+                                    label = { Text(theme) },
+                                    trailingIcon = {
+                                        Icon(Icons.Default.Close, null, Modifier.size(16.dp))
+                                    }
+                                )
                             }
-                        )
+                        }
                     }
                 }
             }
@@ -1211,23 +1220,32 @@ private fun ExclusionCard(
                 style = MaterialTheme.typography.bodySmall
             )
 
-            exclusions.chunked(6).forEach { rowExclusions ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    rowExclusions.forEach { exclusion ->
-                        FilterChip(
-                            selected = true,
-                            onClick = { onRemoveExclusion(exclusion) },
-                            label = { Text(exclusion) },
-                            trailingIcon = {
-                                Icon(Icons.Default.Close, null, Modifier.size(16.dp))
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.errorContainer
-                            )
-                        )
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val itemsPerRow = when {
+                    maxWidth < 600.dp -> 4  // 일반 스마트폰
+                    maxWidth < 840.dp -> 8  // 폴더블 폰
+                    else -> 10              // 태블릿 등
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    exclusions.chunked(itemsPerRow).forEach { rowExclusions ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            rowExclusions.forEach { exclusion ->
+                                FilterChip(
+                                    selected = true,
+                                    onClick = { onRemoveExclusion(exclusion) },
+                                    label = { Text(exclusion) },
+                                    trailingIcon = {
+                                        Icon(Icons.Default.Close, null, Modifier.size(16.dp))
+                                    },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.errorContainer
+                                    )
+                                )
+                            }
+                        }
                     }
                 }
             }
