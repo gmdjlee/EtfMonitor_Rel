@@ -41,10 +41,10 @@ fun MarketCapOscillatorChart(
         return
     }
 
-    // Jetcaster 테마 색상 가져오기
+    // Modern theme colors
     val isDark = isSystemInDarkTheme()
-    val primaryColor = ChartOrange.toArgb()  // 시가총액 - 오렌지
-    val tertiaryColor = ChartYellow.toArgb()  // 오실레이터 - 노란색
+    val primaryColor = ChartPrimary.toArgb()  // 시가총액 - Vibrant indigo
+    val tertiaryColor = ChartSecondary.toArgb()  // 오실레이터 - Teal
     val textColor = if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
@@ -203,12 +203,12 @@ fun MacdChart(
     latestDate: String? = null,
     modifier: Modifier = Modifier
 ) {
-    // Jetcaster 테마 색상 가져오기
+    // Modern theme colors
     val isDark = isSystemInDarkTheme()
-    val macdColor = ChartOrange.toArgb()      // MACD 라인 - 오렌지
-    val signalColor = ChartYellow.toArgb()    // Signal 라인 - 노란색
-    val positiveColor = ChartGreen.toArgb()   // Histogram 양수 - 녹색
-    val negativeColor = ChartRed.toArgb()     // Histogram 음수 - 빨간색
+    val macdColor = ChartPrimary.toArgb()      // MACD 라인 - Vibrant indigo
+    val signalColor = ChartOrange.toArgb()    // Signal 라인 - Amber
+    val positiveColor = ChartGreen.toArgb()   // Histogram 양수 - Emerald green
+    val negativeColor = ChartRed.toArgb()     // Histogram 음수 - Modern red
     val textColor = if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
@@ -354,10 +354,10 @@ fun MarketDepositChart(
     latestDate: String? = null,
     modifier: Modifier = Modifier
 ) {
-    // Jetcaster 테마 색상 가져오기
+    // Modern theme colors
     val isDark = isSystemInDarkTheme()
-    val depositColor = ChartOrange.toArgb()   // 고객예탁금 - 오렌지
-    val creditColor = ChartPink.toArgb()      // 신용잔고 - 분홍색
+    val depositColor = ChartPrimary.toArgb()   // 고객예탁금 - Vibrant indigo
+    val creditColor = ChartTertiary.toArgb()      // 신용잔고 - Sophisticated pink
     val textColor = if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
@@ -493,7 +493,7 @@ fun MarketDepositChart(
 }
 
 /**
- * 차트 카드 컨테이너 - Jetcaster style
+ * Modern chart card container with enhanced styling
  */
 @Composable
 private fun ChartCard(
@@ -505,29 +505,35 @@ private fun ChartCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .animateContentSize(animationSpec = tween(200)),
+            .animateContentSize(animationSpec = tween(300)),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = MaterialTheme.shapes.medium
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 3.dp,
+            pressedElevation = 1.dp,
+            hoveredElevation = 5.dp
+        ),
+        shape = MaterialTheme.shapes.large
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            subtitle?.let {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+
+                subtitle?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             content()

@@ -529,11 +529,11 @@ private fun HexagonMenuItem(
     onClick: () -> Unit,
     config: AdaptiveLayoutConfig
 ) {
-    // Create rounded hexagon shape
+    // Create rounded hexagon shape with smoother corners
     val shapeA = remember {
         RoundedPolygon(
             6,
-            rounding = CornerRounding(0.2f)
+            rounding = CornerRounding(0.25f)  // Slightly more rounded for modern look
         )
     }
 
@@ -541,7 +541,7 @@ private fun HexagonMenuItem(
     val shapeB = remember {
         RoundedPolygon.star(
             6,
-            rounding = CornerRounding(0.1f)
+            rounding = CornerRounding(0.15f)
         )
     }
 
@@ -562,12 +562,28 @@ private fun HexagonMenuItem(
         animationSpec = spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMedium)
     )
 
+    // Animate scale for press feedback
+    val animatedScale = animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1f,
+        label = "scale",
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium)
+    )
+
     Box(
         modifier = Modifier
             .size(config.itemSize)
             .padding(8.dp)
             .clip(MorphPolygonShape(morph, animatedProgress.value))
-            .background(color)
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                    colors = listOf(
+                        color.copy(alpha = 0.95f),
+                        color.copy(alpha = 0.85f)
+                    ),
+                    startY = 0f,
+                    endY = Float.POSITIVE_INFINITY
+                )
+            )
             .clickable(interactionSource = interactionSource, indication = null) {
                 onClick()
             },
@@ -575,18 +591,24 @@ private fun HexagonMenuItem(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .animateContentSize()
+                .then(
+                    if (isPressed) Modifier
+                    else Modifier
+                )
         ) {
             Icon(
                 icon,
                 contentDescription = null,
                 modifier = Modifier.size(config.iconSize),
-                tint = MaterialTheme.colorScheme.onPrimary
+                tint = MaterialTheme.colorScheme.surface
             )
             Text(
                 title,
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onPrimary,
+                color = MaterialTheme.colorScheme.surface,
                 textAlign = TextAlign.Center,
                 fontSize = config.fontSize.sp,
                 lineHeight = (config.fontSize + 2).sp
