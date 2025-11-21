@@ -1,8 +1,8 @@
 [versions]
-agp = "8.13.1"
+agp = "8.7.3"
 kotlin = "2.1.0"
-ksp = "2.1.0-1.0.29"
-hilt = "2.52"
+ksp = "2.1.0-1.0.28"
+hilt = "2.54"
 
 coreKtx = "1.15.0"
 lifecycle = "2.8.7"
@@ -16,6 +16,7 @@ kotlinxSerialization = "1.7.1"
 vico = "2.0.0-alpha.28"
 work = "2.9.1"
 hiltWork = "1.2.0"
+hiltNavigationCompose = "1.2.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -51,6 +52,7 @@ hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref
 hilt-android-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
 hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hiltWork" }
 hilt-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "hiltWork" }
+hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
