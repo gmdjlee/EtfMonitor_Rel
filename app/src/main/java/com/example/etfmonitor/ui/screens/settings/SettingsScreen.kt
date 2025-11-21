@@ -468,9 +468,12 @@ private fun FontScaleCard(
             // Body
             FontScaleSlider(
                 label = "Body",
-                description = "본문 텍스트 (16sp, 14sp, 12sp)",
+                description = "본문/테이블 텍스트 (12sp ~ 20sp)",
                 currentScale = fontScaleSettings.bodyScale,
-                onScaleChange = onBodyScaleChange
+                onScaleChange = onBodyScaleChange,
+                minScale = 1.1f,
+                maxScale = 1.8f,
+                steps = 6
             )
 
             // Label
@@ -489,7 +492,10 @@ private fun FontScaleSlider(
     label: String,
     description: String,
     currentScale: Float,
-    onScaleChange: (Float) -> Unit
+    onScaleChange: (Float) -> Unit,
+    minScale: Float = 0.8f,
+    maxScale: Float = 1.4f,
+    steps: Int = 5
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
@@ -522,8 +528,8 @@ private fun FontScaleSlider(
                 val rounded = (it * 10).toInt() / 10f
                 onScaleChange(rounded)
             },
-            valueRange = 0.8f..1.4f,
-            steps = 5,
+            valueRange = minScale..maxScale,
+            steps = steps,
             modifier = Modifier.fillMaxWidth()
         )
     }
