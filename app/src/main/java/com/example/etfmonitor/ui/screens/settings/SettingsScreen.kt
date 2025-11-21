@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
@@ -43,14 +43,12 @@ fun SettingsScreen(
     val message by viewModel.message.collectAsState()
 
     // General settings
-    val fontSize by viewModel.fontSize.collectAsState()
-    val fontColor by viewModel.fontColor.collectAsState()
-    val chartLineColor by viewModel.chartLineColor.collectAsState()
-    val chartFontColor by viewModel.chartFontColor.collectAsState()
+    val isDarkTheme by viewModel.isDarkTheme.collectAsState()
+    val fontScaleSettings by viewModel.fontScaleSettings.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("데이터 업데이트", "일반")
+    val tabs = listOf("데이터 업데이트", "키워드", "일반")
 
     LaunchedEffect(message) {
         message?.let {
@@ -90,7 +88,8 @@ fun SettingsScreen(
                         icon = {
                             when (index) {
                                 0 -> Icon(Icons.Default.CloudDownload, contentDescription = null)
-                                1 -> Icon(Icons.Default.Settings, contentDescription = null)
+                                1 -> Icon(Icons.Default.Label, contentDescription = null)
+                                2 -> Icon(Icons.Default.Settings, contentDescription = null)
                             }
                         }
                     )
@@ -108,15 +107,16 @@ fun SettingsScreen(
                     marketDepositUpdateSettings = marketDepositUpdateSettings,
                     fearGreedUpdateSettings = fearGreedUpdateSettings,
                     marketOscillatorUpdateSettings = marketOscillatorUpdateSettings,
+                    viewModel = viewModel
+                )
+                1 -> KeywordTab(
                     themes = themes,
                     exclusions = exclusions,
                     viewModel = viewModel
                 )
-                1 -> GeneralTab(
-                    fontSize = fontSize,
-                    fontColor = fontColor,
-                    chartLineColor = chartLineColor,
-                    chartFontColor = chartFontColor,
+                2 -> GeneralTab(
+                    isDarkTheme = isDarkTheme,
+                    fontScaleSettings = fontScaleSettings,
                     viewModel = viewModel
                 )
             }
@@ -135,8 +135,6 @@ private fun DataUpdateTab(
     marketDepositUpdateSettings: MarketDepositUpdateSettings,
     fearGreedUpdateSettings: FearGreedUpdateSettings,
     marketOscillatorUpdateSettings: MarketOscillatorUpdateSettings,
-    themes: List<String>,
-    exclusions: List<String>,
     viewModel: SettingsViewModel
 ) {
     LazyColumn(
@@ -220,7 +218,28 @@ private fun DataUpdateTab(
             )
         }
 
-        // 테마 설정
+        // 데이터베이스 초기화
+        item {
+            DatabaseCard(
+                onReset = { viewModel.resetDatabase() }
+            )
+        }
+    }
+}
+
+// ==================== Keyword Tab ====================
+@Composable
+private fun KeywordTab(
+    themes: List<String>,
+    exclusions: List<String>,
+    viewModel: SettingsViewModel
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // 포함 테마 설정
         item {
             ThemeCard(
                 themes = themes,
@@ -237,23 +256,14 @@ private fun DataUpdateTab(
                 onRemoveExclusion = { viewModel.removeExclusion(it) }
             )
         }
-
-        // 데이터베이스 초기화
-        item {
-            DatabaseCard(
-                onReset = { viewModel.resetDatabase() }
-            )
-        }
     }
 }
 
 // ==================== General Tab ====================
 @Composable
 private fun GeneralTab(
-    fontSize: Int,
-    fontColor: Long,
-    chartLineColor: Long,
-    chartFontColor: Long,
+    isDarkTheme: Boolean?,
+    fontScaleSettings: com.etfmonitor.ui.theme.FontScaleSettings,
     viewModel: SettingsViewModel
 ) {
     LazyColumn(
@@ -261,35 +271,23 @@ private fun GeneralTab(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 폰트 사이즈 설정
+        // 테마 설정
         item {
-            FontSizeCard(
-                currentSize = fontSize,
-                onSizeChange = { viewModel.setFontSize(it) }
+            ThemeSettingCard(
+                isDarkTheme = isDarkTheme,
+                onThemeChange = { viewModel.setDarkTheme(it) }
             )
         }
 
-        // 폰트 색깔 설정
+        // 폰트 크기 설정
         item {
-            FontColorCard(
-                currentColor = fontColor,
-                onColorChange = { viewModel.setFontColor(it) }
-            )
-        }
-
-        // 차트 라인 색깔 설정
-        item {
-            ChartLineColorCard(
-                currentColor = chartLineColor,
-                onColorChange = { viewModel.setChartLineColor(it) }
-            )
-        }
-
-        // 차트 폰트 색깔 설정
-        item {
-            ChartFontColorCard(
-                currentColor = chartFontColor,
-                onColorChange = { viewModel.setChartFontColor(it) }
+            FontScaleCard(
+                fontScaleSettings = fontScaleSettings,
+                onDisplayScaleChange = { viewModel.setDisplayScale(it) },
+                onHeadlineScaleChange = { viewModel.setHeadlineScale(it) },
+                onTitleScaleChange = { viewModel.setTitleScale(it) },
+                onBodyScaleChange = { viewModel.setBodyScale(it) },
+                onLabelScaleChange = { viewModel.setLabelScale(it) }
             )
         }
     }
@@ -298,14 +296,131 @@ private fun GeneralTab(
 // ==================== General Tab Cards ====================
 
 @Composable
-private fun FontSizeCard(
-    currentSize: Int,
-    onSizeChange: (Int) -> Unit
+private fun ThemeSettingCard(
+    isDarkTheme: Boolean?,
+    onThemeChange: (Boolean?) -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    when (isDarkTheme) {
+                        true -> Icons.Default.DarkMode
+                        false -> Icons.Default.LightMode
+                        null -> Icons.Default.BrightnessAuto
+                    },
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("테마 설정", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            Text(
+                "앱의 테마를 변경합니다",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // 시스템 설정
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onThemeChange(null) }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = isDarkTheme == null,
+                        onClick = { onThemeChange(null) }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.Default.BrightnessAuto, null, Modifier.size(24.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text("시스템 설정", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "기기의 테마 설정을 따릅니다",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // 라이트 모드
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onThemeChange(false) }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = isDarkTheme == false,
+                        onClick = { onThemeChange(false) }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.Default.LightMode, null, Modifier.size(24.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text("라이트 모드", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "밝은 테마를 사용합니다",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // 다크 모드
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onThemeChange(true) }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = isDarkTheme == true,
+                        onClick = { onThemeChange(true) }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.Default.DarkMode, null, Modifier.size(24.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text("다크 모드", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "어두운 테마를 사용합니다",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FontScaleCard(
+    fontScaleSettings: com.etfmonitor.ui.theme.FontScaleSettings,
+    onDisplayScaleChange: (Float) -> Unit,
+    onHeadlineScaleChange: (Float) -> Unit,
+    onTitleScaleChange: (Float) -> Unit,
+    onBodyScaleChange: (Float) -> Unit,
+    onLabelScaleChange: (Float) -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -316,384 +431,102 @@ private fun FontSizeCard(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Text("폰트 사이즈", style = MaterialTheme.typography.titleMedium)
+                Text("폰트 크기", style = MaterialTheme.typography.titleMedium)
             }
 
             HorizontalDivider()
 
             Text(
-                "앱 전체 폰트 크기를 조절합니다 (1~10단계)",
+                "각 스타일별 폰트 크기를 조절합니다",
                 style = MaterialTheme.typography.bodyMedium
             )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        "현재 설정",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        "레벨 $currentSize",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+            // Display
+            FontScaleSlider(
+                label = "Display",
+                description = "대형 헤더 (57sp, 45sp, 36sp)",
+                currentScale = fontScaleSettings.displayScale,
+                onScaleChange = onDisplayScaleChange
+            )
 
-                // Preview text
+            // Headline
+            FontScaleSlider(
+                label = "Headline",
+                description = "섹션 헤더 (32sp, 28sp, 24sp)",
+                currentScale = fontScaleSettings.headlineScale,
+                onScaleChange = onHeadlineScaleChange
+            )
+
+            // Title
+            FontScaleSlider(
+                label = "Title",
+                description = "카드/컴포넌트 제목 (22sp, 16sp, 14sp)",
+                currentScale = fontScaleSettings.titleScale,
+                onScaleChange = onTitleScaleChange
+            )
+
+            // Body
+            FontScaleSlider(
+                label = "Body",
+                description = "본문 텍스트 (16sp, 14sp, 12sp)",
+                currentScale = fontScaleSettings.bodyScale,
+                onScaleChange = onBodyScaleChange
+            )
+
+            // Label
+            FontScaleSlider(
+                label = "Label",
+                description = "버튼, 태그, 캡션 (14sp, 12sp, 11sp)",
+                currentScale = fontScaleSettings.labelScale,
+                onScaleChange = onLabelScaleChange
+            )
+        }
+    }
+}
+
+@Composable
+private fun FontScaleSlider(
+    label: String,
+    description: String,
+    currentScale: Float,
+    onScaleChange: (Float) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
                 Text(
-                    "미리보기",
-                    fontSize = (10 + currentSize * 2).sp,
-                    color = MaterialTheme.colorScheme.onSurface
+                    label,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
                 )
-            }
-
-            // Slider for font size (1-10)
-            Slider(
-                value = currentSize.toFloat(),
-                onValueChange = { onSizeChange(it.toInt()) },
-                valueRange = 1f..10f,
-                steps = 8
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("작게 (1)", style = MaterialTheme.typography.bodySmall)
-                Text("크게 (10)", style = MaterialTheme.typography.bodySmall)
-            }
-        }
-    }
-}
-
-@Composable
-private fun FontColorCard(
-    currentColor: Long,
-    onColorChange: (Long) -> Unit
-) {
-    var showColorPicker by remember { mutableStateOf(false) }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    Icons.Default.Palette,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Text("폰트 색깔", style = MaterialTheme.typography.titleMedium)
-            }
-
-            HorizontalDivider()
-
-            Text(
-                "앱 전체 폰트 색깔을 변경합니다",
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Color(currentColor.toInt()))
-                            .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                    )
-                    Text(
-                        "현재 색상",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-
-                Button(onClick = { showColorPicker = true }) {
-                    Text("변경")
-                }
-            }
-        }
-    }
-
-    if (showColorPicker) {
-        ColorPickerDialog(
-            title = "폰트 색깔 선택",
-            currentColor = currentColor,
-            onDismiss = { showColorPicker = false },
-            onConfirm = { color ->
-                onColorChange(color)
-                showColorPicker = false
-            }
-        )
-    }
-}
-
-@Composable
-private fun ChartLineColorCard(
-    currentColor: Long,
-    onColorChange: (Long) -> Unit
-) {
-    var showColorPicker by remember { mutableStateOf(false) }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    Icons.Default.ShowChart,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Text("차트 라인 색깔", style = MaterialTheme.typography.titleMedium)
-            }
-
-            HorizontalDivider()
-
-            Text(
-                "차트의 라인 색깔을 변경합니다",
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Color(currentColor.toInt()))
-                            .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                    )
-                    Text(
-                        "현재 색상",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-
-                Button(onClick = { showColorPicker = true }) {
-                    Text("변경")
-                }
-            }
-        }
-    }
-
-    if (showColorPicker) {
-        ColorPickerDialog(
-            title = "차트 라인 색깔 선택",
-            currentColor = currentColor,
-            onDismiss = { showColorPicker = false },
-            onConfirm = { color ->
-                onColorChange(color)
-                showColorPicker = false
-            }
-        )
-    }
-}
-
-@Composable
-private fun ChartFontColorCard(
-    currentColor: Long,
-    onColorChange: (Long) -> Unit
-) {
-    var showColorPicker by remember { mutableStateOf(false) }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    Icons.Default.TextFields,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Text("차트 폰트 색깔", style = MaterialTheme.typography.titleMedium)
-            }
-
-            HorizontalDivider()
-
-            Text(
-                "차트의 레이블, 축 등의 폰트 색깔을 변경합니다",
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Color(currentColor.toInt()))
-                            .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                    )
-                    Text(
-                        "현재 색상",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-
-                Button(onClick = { showColorPicker = true }) {
-                    Text("변경")
-                }
-            }
-        }
-    }
-
-    if (showColorPicker) {
-        ColorPickerDialog(
-            title = "차트 폰트 색깔 선택",
-            currentColor = currentColor,
-            onDismiss = { showColorPicker = false },
-            onConfirm = { color ->
-                onColorChange(color)
-                showColorPicker = false
-            }
-        )
-    }
-}
-
-@Composable
-private fun ColorPickerDialog(
-    title: String,
-    currentColor: Long,
-    onDismiss: () -> Unit,
-    onConfirm: (Long) -> Unit
-) {
-    var selectedColor by remember { mutableStateOf(currentColor) }
-
-    val predefinedColors = listOf(
-        0xFF000000, // Black
-        0xFF424242, // Dark Gray
-        0xFF757575, // Gray
-        0xFFBDBDBD, // Light Gray
-        0xFFFFFFFF, // White
-        0xFFF44336, // Red
-        0xFFE91E63, // Pink
-        0xFF9C27B0, // Purple
-        0xFF673AB7, // Deep Purple
-        0xFF3F51B5, // Indigo
-        0xFF2196F3, // Blue
-        0xFF03A9F4, // Light Blue
-        0xFF00BCD4, // Cyan
-        0xFF009688, // Teal
-        0xFF4CAF50, // Green
-        0xFF8BC34A, // Light Green
-        0xFFCDDC39, // Lime
-        0xFFFFEB3B, // Yellow
-        0xFFFFC107, // Amber
-        0xFFFF9800, // Orange
-        0xFFFF5722, // Deep Orange
-        0xFF795548, // Brown
-        0xFF607D8B  // Blue Gray
-    )
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
                 Text(
-                    "색상을 선택하세요",
-                    style = MaterialTheme.typography.bodyMedium
+                    description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
-                // Color grid
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(predefinedColors.chunked(6)) { colorRow ->
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            colorRow.forEach { color ->
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(color.toInt()))
-                                        .border(
-                                            width = if (selectedColor == color) 3.dp else 1.dp,
-                                            color = if (selectedColor == color)
-                                                MaterialTheme.colorScheme.primary
-                                            else
-                                                MaterialTheme.colorScheme.outline,
-                                            shape = CircleShape
-                                        )
-                                        .clickable { selectedColor = color }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Preview
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("미리보기: ", style = MaterialTheme.typography.bodyMedium)
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(Color(selectedColor.toInt()))
-                            .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                    )
-                }
             }
-        },
-        confirmButton = {
-            Button(onClick = { onConfirm(selectedColor) }) {
-                Text("확인")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("취소")
-            }
+            Text(
+                "${(currentScale * 100).toInt()}%",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
-    )
+
+        Slider(
+            value = currentScale,
+            onValueChange = {
+                val rounded = (it * 10).toInt() / 10f
+                onScaleChange(rounded)
+            },
+            valueRange = 0.8f..1.4f,
+            steps = 5,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
 }
 
 // ==================== Data Update Tab Cards (기존 코드 유지) ====================
@@ -1059,6 +892,7 @@ private data class DaysOption(
     val description: String
 )
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ThemeCard(
     themes: List<String>,
@@ -1101,21 +935,20 @@ private fun ThemeCard(
                 style = MaterialTheme.typography.bodySmall
             )
 
-            themes.chunked(3).forEach { rowThemes ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    rowThemes.forEach { theme ->
-                        FilterChip(
-                            selected = true,
-                            onClick = { onRemoveTheme(theme) },
-                            label = { Text(theme) },
-                            trailingIcon = {
-                                Icon(Icons.Default.Close, null, Modifier.size(16.dp))
-                            }
-                        )
-                    }
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                themes.forEach { theme ->
+                    FilterChip(
+                        selected = true,
+                        onClick = { onRemoveTheme(theme) },
+                        label = { Text(theme, maxLines = 1) },
+                        trailingIcon = {
+                            Icon(Icons.Default.Close, null, Modifier.size(16.dp))
+                        }
+                    )
                 }
             }
         }
@@ -1153,6 +986,7 @@ private fun ThemeCard(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ExclusionCard(
     exclusions: List<String>,
@@ -1195,24 +1029,23 @@ private fun ExclusionCard(
                 style = MaterialTheme.typography.bodySmall
             )
 
-            exclusions.chunked(3).forEach { rowExclusions ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    rowExclusions.forEach { exclusion ->
-                        FilterChip(
-                            selected = true,
-                            onClick = { onRemoveExclusion(exclusion) },
-                            label = { Text(exclusion) },
-                            trailingIcon = {
-                                Icon(Icons.Default.Close, null, Modifier.size(16.dp))
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.errorContainer
-                            )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                exclusions.forEach { exclusion ->
+                    FilterChip(
+                        selected = true,
+                        onClick = { onRemoveExclusion(exclusion) },
+                        label = { Text(exclusion, maxLines = 1) },
+                        trailingIcon = {
+                            Icon(Icons.Default.Close, null, Modifier.size(16.dp))
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.errorContainer
                         )
-                    }
+                    )
                 }
             }
         }

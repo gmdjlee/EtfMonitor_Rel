@@ -9,6 +9,8 @@ import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.repository.FearGreedRepository
 import com.etfmonitor.repository.MarketDepositRepository
 import com.etfmonitor.repository.StockRepository
+import com.etfmonitor.ui.theme.FontScaleSettings
+import com.etfmonitor.ui.theme.ThemeManager
 import com.etfmonitor.worker.WorkManagerHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -74,6 +76,7 @@ class SettingsViewModel @Inject constructor(
     private val fearGreedRepository: FearGreedRepository,
     private val marketOscillatorRepository: com.etfmonitor.repository.MarketOscillatorRepository,
     private val etfDao: EtfDao,
+    private val themeManager: ThemeManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -108,17 +111,11 @@ class SettingsViewModel @Inject constructor(
     val marketOscillatorPeriodDays: StateFlow<Int> = _marketOscillatorPeriodDays.asStateFlow()
 
     // General settings
-    private val _fontSize = MutableStateFlow(5) // 기본값: 중간 (1-10)
-    val fontSize: StateFlow<Int> = _fontSize.asStateFlow()
+    private val _isDarkTheme = MutableStateFlow<Boolean?>(null) // null = 시스템 설정 따름
+    val isDarkTheme: StateFlow<Boolean?> = _isDarkTheme.asStateFlow()
 
-    private val _fontColor = MutableStateFlow(0xFF000000L) // 기본값: 검정색
-    val fontColor: StateFlow<Long> = _fontColor.asStateFlow()
-
-    private val _chartLineColor = MutableStateFlow(0xFF2196F3L) // 기본값: 파란색
-    val chartLineColor: StateFlow<Long> = _chartLineColor.asStateFlow()
-
-    private val _chartFontColor = MutableStateFlow(0xFF424242L) // 기본값: 회색
-    val chartFontColor: StateFlow<Long> = _chartFontColor.asStateFlow()
+    private val _fontScaleSettings = MutableStateFlow(FontScaleSettings())
+    val fontScaleSettings: StateFlow<FontScaleSettings> = _fontScaleSettings.asStateFlow()
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
@@ -210,17 +207,27 @@ class SettingsViewModel @Inject constructor(
             WorkManagerHelper.scheduleMarketOscillatorUpdate(context, marketOscillatorHour, marketOscillatorMinute)
 
             // General settings 로드
-            val fontSizeStr = etfDao.getSetting("font_size")
-            _fontSize.value = fontSizeStr?.toIntOrNull() ?: 5
+            val darkThemeStr = etfDao.getSetting("dark_theme")
+            _isDarkTheme.value = when (darkThemeStr) {
+                "true" -> true
+                "false" -> false
+                else -> null // 시스템 설정 따름
+            }
 
-            val fontColorStr = etfDao.getSetting("font_color")
-            _fontColor.value = fontColorStr?.toLongOrNull() ?: 0xFF000000L
+            // 폰트 스케일 설정 로드
+            val displayScale = etfDao.getSetting("font_scale_display")?.toFloatOrNull() ?: 1.0f
+            val headlineScale = etfDao.getSetting("font_scale_headline")?.toFloatOrNull() ?: 1.0f
+            val titleScale = etfDao.getSetting("font_scale_title")?.toFloatOrNull() ?: 1.0f
+            val bodyScale = etfDao.getSetting("font_scale_body")?.toFloatOrNull() ?: 1.0f
+            val labelScale = etfDao.getSetting("font_scale_label")?.toFloatOrNull() ?: 1.0f
 
-            val chartLineColorStr = etfDao.getSetting("chart_line_color")
-            _chartLineColor.value = chartLineColorStr?.toLongOrNull() ?: 0xFF2196F3L
-
-            val chartFontColorStr = etfDao.getSetting("chart_font_color")
-            _chartFontColor.value = chartFontColorStr?.toLongOrNull() ?: 0xFF424242L
+            _fontScaleSettings.value = FontScaleSettings(
+                displayScale = displayScale,
+                headlineScale = headlineScale,
+                titleScale = titleScale,
+                bodyScale = bodyScale,
+                labelScale = labelScale
+            )
         }
     }
 
@@ -604,48 +611,89 @@ class SettingsViewModel @Inject constructor(
     }
 
     // General settings methods
-    fun setFontSize(size: Int) {
+    fun setDarkTheme(isDark: Boolean?) {
         viewModelScope.launch {
             try {
-                etfDao.saveSetting(Setting("font_size", size.toString()))
-                _fontSize.value = size
-                _message.value = "폰트 사이즈가 레벨 ${size}로 설정되었습니다"
+                val value = when (isDark) {
+                    true -> "true"
+                    false -> "false"
+                    null -> "system"
+                }
+                etfDao.saveSetting(Setting("dark_theme", value))
+                _isDarkTheme.value = isDark
+                // ThemeManager 업데이트하여 즉시 테마 적용
+                themeManager.setDarkTheme(isDark)
+                val themeText = when (isDark) {
+                    true -> "다크 모드"
+                    false -> "라이트 모드"
+                    null -> "시스템 설정"
+                }
+                _message.value = "테마가 ${themeText}로 변경되었습니다"
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
             }
         }
     }
 
-    fun setFontColor(color: Long) {
+    fun setDisplayScale(scale: Float) {
         viewModelScope.launch {
             try {
-                etfDao.saveSetting(Setting("font_color", color.toString()))
-                _fontColor.value = color
-                _message.value = "폰트 색깔이 변경되었습니다"
+                etfDao.saveSetting(Setting("font_scale_display", scale.toString()))
+                _fontScaleSettings.value = _fontScaleSettings.value.copy(displayScale = scale)
+                themeManager.setDisplayScale(scale)
+                _message.value = "Display 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다"
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
             }
         }
     }
 
-    fun setChartLineColor(color: Long) {
+    fun setHeadlineScale(scale: Float) {
         viewModelScope.launch {
             try {
-                etfDao.saveSetting(Setting("chart_line_color", color.toString()))
-                _chartLineColor.value = color
-                _message.value = "차트 라인 색깔이 변경되었습니다"
+                etfDao.saveSetting(Setting("font_scale_headline", scale.toString()))
+                _fontScaleSettings.value = _fontScaleSettings.value.copy(headlineScale = scale)
+                themeManager.setHeadlineScale(scale)
+                _message.value = "Headline 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다"
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
             }
         }
     }
 
-    fun setChartFontColor(color: Long) {
+    fun setTitleScale(scale: Float) {
         viewModelScope.launch {
             try {
-                etfDao.saveSetting(Setting("chart_font_color", color.toString()))
-                _chartFontColor.value = color
-                _message.value = "차트 폰트 색깔이 변경되었습니다"
+                etfDao.saveSetting(Setting("font_scale_title", scale.toString()))
+                _fontScaleSettings.value = _fontScaleSettings.value.copy(titleScale = scale)
+                themeManager.setTitleScale(scale)
+                _message.value = "Title 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setBodyScale(scale: Float) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("font_scale_body", scale.toString()))
+                _fontScaleSettings.value = _fontScaleSettings.value.copy(bodyScale = scale)
+                themeManager.setBodyScale(scale)
+                _message.value = "Body 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setLabelScale(scale: Float) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("font_scale_label", scale.toString()))
+                _fontScaleSettings.value = _fontScaleSettings.value.copy(labelScale = scale)
+                themeManager.setLabelScale(scale)
+                _message.value = "Label 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다"
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
             }
