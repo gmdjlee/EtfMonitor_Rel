@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.entities.MarketOscillatorData
 import com.etfmonitor.repository.MarketOscillatorRepository
+import com.etfmonitor.ui.theme.ThemeManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -41,8 +42,14 @@ sealed class MarketOscillatorState {
 class MarketOscillatorViewModel @Inject constructor(
     private val repository: MarketOscillatorRepository,
     private val etfDao: EtfDao,
+    private val themeManager: ThemeManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    // Body 폰트 스케일
+    val bodyScale: StateFlow<Float> = themeManager.fontScaleSettings
+        .map { it.bodyScale }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1.0f)
 
     private val _state = MutableStateFlow<MarketOscillatorState>(MarketOscillatorState.Loading)
     val state: StateFlow<MarketOscillatorState> = _state.asStateFlow()
