@@ -107,6 +107,19 @@ class SettingsViewModel @Inject constructor(
     private val _marketOscillatorPeriodDays = MutableStateFlow(365) // 기본값: 12개월
     val marketOscillatorPeriodDays: StateFlow<Int> = _marketOscillatorPeriodDays.asStateFlow()
 
+    // General settings
+    private val _fontSize = MutableStateFlow(5) // 기본값: 중간 (1-10)
+    val fontSize: StateFlow<Int> = _fontSize.asStateFlow()
+
+    private val _fontColor = MutableStateFlow(0xFF000000L) // 기본값: 검정색
+    val fontColor: StateFlow<Long> = _fontColor.asStateFlow()
+
+    private val _chartLineColor = MutableStateFlow(0xFF2196F3L) // 기본값: 파란색
+    val chartLineColor: StateFlow<Long> = _chartLineColor.asStateFlow()
+
+    private val _chartFontColor = MutableStateFlow(0xFF424242L) // 기본값: 회색
+    val chartFontColor: StateFlow<Long> = _chartFontColor.asStateFlow()
+
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
@@ -195,6 +208,19 @@ class SettingsViewModel @Inject constructor(
 
             // 스케줄 재설정
             WorkManagerHelper.scheduleMarketOscillatorUpdate(context, marketOscillatorHour, marketOscillatorMinute)
+
+            // General settings 로드
+            val fontSizeStr = etfDao.getSetting("font_size")
+            _fontSize.value = fontSizeStr?.toIntOrNull() ?: 5
+
+            val fontColorStr = etfDao.getSetting("font_color")
+            _fontColor.value = fontColorStr?.toLongOrNull() ?: 0xFF000000L
+
+            val chartLineColorStr = etfDao.getSetting("chart_line_color")
+            _chartLineColor.value = chartLineColorStr?.toLongOrNull() ?: 0xFF2196F3L
+
+            val chartFontColorStr = etfDao.getSetting("chart_font_color")
+            _chartFontColor.value = chartFontColorStr?.toLongOrNull() ?: 0xFF424242L
         }
     }
 
@@ -575,5 +601,54 @@ class SettingsViewModel @Inject constructor(
 
     fun clearMessage() {
         _message.value = null
+    }
+
+    // General settings methods
+    fun setFontSize(size: Int) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("font_size", size.toString()))
+                _fontSize.value = size
+                _message.value = "폰트 사이즈가 레벨 ${size}로 설정되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setFontColor(color: Long) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("font_color", color.toString()))
+                _fontColor.value = color
+                _message.value = "폰트 색깔이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setChartLineColor(color: Long) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("chart_line_color", color.toString()))
+                _chartLineColor.value = color
+                _message.value = "차트 라인 색깔이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setChartFontColor(color: Long) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("chart_font_color", color.toString()))
+                _chartFontColor.value = color
+                _message.value = "차트 폰트 색깔이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
     }
 }
