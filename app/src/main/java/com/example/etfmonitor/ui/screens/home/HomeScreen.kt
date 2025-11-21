@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -23,11 +24,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import android.graphics.Path as AndroidPath
 import androidx.compose.ui.platform.LocalConfiguration
@@ -372,6 +380,14 @@ private fun HomeContent(
     val hasData = (state as? HomeState.Idle)?.hasData ?: false
     val screenSizeClass = getScreenSizeClass()
     val layoutConfig = getAdaptiveLayoutConfig(screenSizeClass)
+    val isDark = isSystemInDarkTheme()
+
+    // 뉴모피즘 배경색
+    val neumorphicBackground = if (isDark) {
+        Color(0xFF2D3142)
+    } else {
+        Color(0xFFF0F0F5)
+    }
 
     // All menu items
     val menuItems = buildList {
@@ -438,6 +454,7 @@ private fun HomeContent(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .background(neumorphicBackground)
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         contentAlignment = Alignment.Center
@@ -521,19 +538,99 @@ private data class MenuItem(
     val onClick: () -> Unit
 )
 
+// 뉴모피즘 그림자를 그리는 Modifier 확장 함수
+private fun Modifier.neumorphicShadow(
+    lightShadowColor: Color,
+    darkShadowColor: Color,
+    shadowRadius: Dp,
+    offsetX: Dp,
+    offsetY: Dp,
+    shape: Shape,
+    isPressed: Boolean = false
+): Modifier = this.drawBehind {
+    val shadowRadiusPx = shadowRadius.toPx()
+    val offsetXPx = if (isPressed) -offsetX.toPx() * 0.5f else offsetX.toPx()
+    val offsetYPx = if (isPressed) -offsetY.toPx() * 0.5f else offsetY.toPx()
+
+    // 어두운 그림자 (오른쪽 하단)
+    drawIntoCanvas { canvas ->
+        val darkPaint = Paint().apply {
+            asFrameworkPaint().apply {
+                isAntiAlias = true
+                color = android.graphics.Color.TRANSPARENT
+                setShadowLayer(
+                    shadowRadiusPx,
+                    offsetXPx,
+                    offsetYPx,
+                    darkShadowColor.toArgb()
+                )
+            }
+        }
+        canvas.drawRoundRect(
+            0f, 0f, size.width, size.height,
+            size.minDimension / 4f,
+            size.minDimension / 4f,
+            darkPaint
+        )
+    }
+
+    // 밝은 그림자 (왼쪽 상단)
+    drawIntoCanvas { canvas ->
+        val lightPaint = Paint().apply {
+            asFrameworkPaint().apply {
+                isAntiAlias = true
+                color = android.graphics.Color.TRANSPARENT
+                setShadowLayer(
+                    shadowRadiusPx,
+                    -offsetXPx,
+                    -offsetYPx,
+                    lightShadowColor.toArgb()
+                )
+            }
+        }
+        canvas.drawRoundRect(
+            0f, 0f, size.width, size.height,
+            size.minDimension / 4f,
+            size.minDimension / 4f,
+            lightPaint
+        )
+    }
+}
+
 @Composable
 private fun HexagonMenuItem(
     icon: ImageVector,
     title: String,
-    color: androidx.compose.ui.graphics.Color,
+    color: Color,
     onClick: () -> Unit,
     config: AdaptiveLayoutConfig
 ) {
+    val isDark = isSystemInDarkTheme()
+
+    // 뉴모피즘 색상 설정
+    val backgroundColor = if (isDark) {
+        Color(0xFF2D3142)  // 다크 모드 배경
+    } else {
+        Color(0xFFF0F0F5)  // 라이트 모드 배경
+    }
+
+    val lightShadowColor = if (isDark) {
+        Color(0xFF3D4156)  // 다크 모드 밝은 그림자
+    } else {
+        Color(0xFFFFFFFF)  // 라이트 모드 밝은 그림자
+    }
+
+    val darkShadowColor = if (isDark) {
+        Color(0xFF1D2132)  // 다크 모드 어두운 그림자
+    } else {
+        Color(0xFFD1D1D9)  // 라이트 모드 어두운 그림자
+    }
+
     // Create rounded hexagon shape with smoother corners
     val shapeA = remember {
         RoundedPolygon(
             6,
-            rounding = CornerRounding(0.25f)  // Slightly more rounded for modern look
+            rounding = CornerRounding(0.25f)
         )
     }
 
@@ -562,26 +659,52 @@ private fun HexagonMenuItem(
         animationSpec = spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMedium)
     )
 
-    // Animate scale for press feedback
-    val animatedScale = animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1f,
-        label = "scale",
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium)
+    // 뉴모피즘 그림자 애니메이션
+    val shadowOffset = animateFloatAsState(
+        targetValue = if (isPressed) 2f else 6f,
+        label = "shadowOffset",
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium)
+    )
+
+    val shadowRadius = animateFloatAsState(
+        targetValue = if (isPressed) 4f else 10f,
+        label = "shadowRadius",
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium)
     )
 
     Box(
         modifier = Modifier
             .size(config.itemSize)
-            .padding(8.dp)
+            .padding(10.dp)
+            // 뉴모피즘 외부 그림자
+            .neumorphicShadow(
+                lightShadowColor = lightShadowColor,
+                darkShadowColor = darkShadowColor,
+                shadowRadius = shadowRadius.value.dp,
+                offsetX = shadowOffset.value.dp,
+                offsetY = shadowOffset.value.dp,
+                shape = MorphPolygonShape(morph, animatedProgress.value),
+                isPressed = isPressed
+            )
             .clip(MorphPolygonShape(morph, animatedProgress.value))
             .background(
-                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                    colors = listOf(
-                        color.copy(alpha = 0.95f),
-                        color.copy(alpha = 0.85f)
-                    ),
-                    startY = 0f,
-                    endY = Float.POSITIVE_INFINITY
+                brush = Brush.linearGradient(
+                    colors = if (isPressed) {
+                        // 눌렸을 때 - 오목한 느낌
+                        listOf(
+                            backgroundColor.copy(alpha = 0.9f),
+                            backgroundColor
+                        )
+                    } else {
+                        // 기본 상태 - 볼록한 느낌
+                        listOf(
+                            if (isDark) backgroundColor.copy(red = backgroundColor.red + 0.05f)
+                            else Color.White.copy(alpha = 0.7f),
+                            backgroundColor
+                        )
+                    },
+                    start = Offset(0f, 0f),
+                    end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
                 )
             )
             .clickable(interactionSource = interactionSource, indication = null) {
@@ -589,30 +712,67 @@ private fun HexagonMenuItem(
             },
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+        // 내부 그라데이션 오버레이 (입체감 강화)
+        Box(
             modifier = Modifier
-                .animateContentSize()
-                .then(
-                    if (isPressed) Modifier
-                    else Modifier
-                )
+                .fillMaxSize()
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            color.copy(alpha = if (isPressed) 0.15f else 0.1f),
+                            color.copy(alpha = if (isPressed) 0.25f else 0.2f)
+                        ),
+                        center = Offset(0.3f, 0.3f),
+                        radius = 500f
+                    )
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(config.iconSize),
-                tint = MaterialTheme.colorScheme.surface
-            )
-            Text(
-                title,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.surface,
-                textAlign = TextAlign.Center,
-                fontSize = config.fontSize.sp,
-                lineHeight = (config.fontSize + 2).sp
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.animateContentSize()
+            ) {
+                // 아이콘 배경 (뉴모피즘 내부 원)
+                Box(
+                    modifier = Modifier
+                        .size(config.iconSize + 16.dp)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = if (isPressed) {
+                                    listOf(
+                                        darkShadowColor.copy(alpha = 0.3f),
+                                        lightShadowColor.copy(alpha = 0.3f)
+                                    )
+                                } else {
+                                    listOf(
+                                        lightShadowColor.copy(alpha = 0.5f),
+                                        darkShadowColor.copy(alpha = 0.3f)
+                                    )
+                                },
+                                start = Offset(0f, 0f),
+                                end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                            ),
+                            shape = MaterialTheme.shapes.medium
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(config.iconSize),
+                        tint = color
+                    )
+                }
+                Text(
+                    title,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (isDark) Color.White.copy(alpha = 0.9f) else Color(0xFF2D3142),
+                    textAlign = TextAlign.Center,
+                    fontSize = config.fontSize.sp,
+                    lineHeight = (config.fontSize + 2).sp
+                )
+            }
         }
     }
 }
