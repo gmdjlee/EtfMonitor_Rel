@@ -8,9 +8,12 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -19,6 +22,7 @@ import com.etfmonitor.repository.MarketDepositRepository
 import com.etfmonitor.repository.StockRepository
 import com.etfmonitor.ui.Navigation
 import com.etfmonitor.ui.theme.EtfMonitorTheme
+import com.etfmonitor.ui.theme.ThemeManager
 import com.etfmonitor.worker.WorkManagerHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -47,6 +51,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var etfDao: EtfDao
+
+    @Inject
+    lateinit var themeManager: ThemeManager
 
     // ✅ 알림 권한 요청 (Android 13+)
     private val requestPermissionLauncher = registerForActivityResult(
@@ -79,14 +86,39 @@ class MainActivity : ComponentActivity() {
         // Market Deposit DB 초기화 및 WorkManager 설정
         initializeMarketDepositDatabase()
 
+        // 테마 설정 로드
+        loadThemeSetting()
+
         setContent {
-            EtfMonitorTheme {
+            val darkThemeSetting by themeManager.isDarkTheme.collectAsState()
+            val systemDarkTheme = isSystemInDarkTheme()
+
+            // 테마 결정: null이면 시스템 설정, 아니면 사용자 설정
+            val useDarkTheme = darkThemeSetting ?: systemDarkTheme
+
+            EtfMonitorTheme(darkTheme = useDarkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
                     Navigation()
                 }
+            }
+        }
+    }
+
+    private fun loadThemeSetting() {
+        lifecycleScope.launch {
+            try {
+                val darkThemeStr = etfDao.getSetting("dark_theme")
+                val isDark = when (darkThemeStr) {
+                    "true" -> true
+                    "false" -> false
+                    else -> null // 시스템 설정 따름
+                }
+                themeManager.setDarkTheme(isDark)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error loading theme setting", e)
             }
         }
     }

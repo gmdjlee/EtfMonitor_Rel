@@ -9,6 +9,7 @@ import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.repository.FearGreedRepository
 import com.etfmonitor.repository.MarketDepositRepository
 import com.etfmonitor.repository.StockRepository
+import com.etfmonitor.ui.theme.ThemeManager
 import com.etfmonitor.worker.WorkManagerHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -74,6 +75,7 @@ class SettingsViewModel @Inject constructor(
     private val fearGreedRepository: FearGreedRepository,
     private val marketOscillatorRepository: com.etfmonitor.repository.MarketOscillatorRepository,
     private val etfDao: EtfDao,
+    private val themeManager: ThemeManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -606,6 +608,8 @@ class SettingsViewModel @Inject constructor(
                 }
                 etfDao.saveSetting(Setting("dark_theme", value))
                 _isDarkTheme.value = isDark
+                // ThemeManager 업데이트하여 즉시 테마 적용
+                themeManager.setDarkTheme(isDark)
                 val themeText = when (isDark) {
                     true -> "다크 모드"
                     false -> "라이트 모드"
