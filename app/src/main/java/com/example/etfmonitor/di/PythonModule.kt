@@ -3,6 +3,7 @@ package com.etfmonitor.di
 import android.content.Context
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
+import com.etfmonitor.oscillator.python.OscillatorPyClient
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -11,12 +12,13 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 /**
- * Hilt 모듈: Python 엔진 제공
+ * Hilt 모듈: Python 엔진 및 관련 클라이언트 제공
  *
  * 최적화 포인트:
  * - Python 인스턴스를 Singleton으로 관리
  * - Thread-safe 초기화 보장
  * - Chaquopy 플랫폼 초기화를 Hilt가 관리
+ * - OscillatorPyClient를 Singleton으로 제공
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -39,5 +41,20 @@ object PythonModule {
             Python.start(AndroidPlatform(context))
         }
         return Python.getInstance()
+    }
+
+    /**
+     * OscillatorPyClient 제공 (Singleton)
+     *
+     * Production 최적화:
+     * - Python 인스턴스를 의존성 주입받아 재사용
+     * - Singleton으로 단일 인스턴스 보장하여 메모리 최적화
+     */
+    @Provides
+    @Singleton
+    fun provideOscillatorPyClient(
+        python: Python
+    ): OscillatorPyClient {
+        return OscillatorPyClient(python)
     }
 }

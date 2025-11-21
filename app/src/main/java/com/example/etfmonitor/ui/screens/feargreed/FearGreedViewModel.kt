@@ -2,13 +2,15 @@ package com.etfmonitor.ui.screens.feargreed
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.EtfMonitorApp
+import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.entities.FearGreedIndex
 import com.etfmonitor.repository.FearGreedRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * Fear & Greed Index 화면 상태
@@ -22,9 +24,24 @@ sealed class FearGreedState {
     data class Error(val message: String) : FearGreedState()
 }
 
-class FearGreedViewModel(
+/**
+ * Production Level FearGreedViewModel with Hilt
+ *
+ * 최적화 포인트:
+ * 1. @HiltViewModel: Hilt가 ViewModel 생명주기 자동 관리
+ * 2. @Inject: 생성자 주입으로 의존성 명확화
+ * 3. @ApplicationContext: Application Context 직접 주입
+ * 4. Factory 패턴 제거: Hilt가 자동으로 ViewModel 생성
+ *
+ * 기존 문제점 해결:
+ * - EtfMonitorApp.instance 제거: 메모리 누수 위험 제거
+ * - 수동 Factory 제거: Hilt가 자동으로 관리하여 코드 간결화
+ */
+@HiltViewModel
+class FearGreedViewModel @Inject constructor(
     private val repository: FearGreedRepository,
-    private val context: Context
+    private val etfDao: EtfDao,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<FearGreedState>(FearGreedState.Loading)
@@ -47,8 +64,7 @@ class FearGreedViewModel(
 
     private fun checkFirstRun() {
         viewModelScope.launch {
-            val app = EtfMonitorApp.instance
-            val dialogDismissed = app.database.dao().getSetting("fear_greed_dialog_dismissed")
+            val dialogDismissed = etfDao.getSetting("fear_greed_dialog_dismissed")
             val hasData = repository.getCountByMarket("KOSPI") > 0 ||
                          repository.getCountByMarket("KOSDAQ") > 0
 
@@ -67,8 +83,7 @@ class FearGreedViewModel(
     fun onFirstRunDialogConfirmed() {
         // "수집 시작"을 클릭한 경우: 다이얼로그 닫고 더 이상 표시하지 않음
         viewModelScope.launch {
-            val app = EtfMonitorApp.instance
-            app.database.dao().saveSetting(
+            etfDao.saveSetting(
                 com.etfmonitor.database.entities.Setting("fear_greed_dialog_dismissed", "true")
             )
             _showFirstRunDialog.value = false
@@ -140,16 +155,6 @@ class FearGreedViewModel(
     fun clearMessage() {
         if (_state.value is FearGreedState.Success || _state.value is FearGreedState.Error) {
             checkData()
-        }
-    }
-
-    companion object {
-        fun factory(context: Context): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val app = context.applicationContext as EtfMonitorApp
-                return FearGreedViewModel(app.fearGreedRepository, context) as T
-            }
         }
     }
 }

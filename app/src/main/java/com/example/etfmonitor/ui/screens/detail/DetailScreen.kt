@@ -11,7 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.database.entities.HoldingStatus
 import com.etfmonitor.database.entities.HoldingWithComparison
 import com.etfmonitor.ui.utils.AmountFormatter  // ✅ 추가
@@ -22,7 +22,7 @@ fun DetailScreen(
     etfTicker: String,
     onNavigateBack: () -> Unit,
     onStockClick: (String) -> Unit,
-    viewModel: DetailViewModel = viewModel(factory = DetailViewModel.factory(etfTicker))
+    viewModel: DetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val etfName by viewModel.etfName.collectAsState()

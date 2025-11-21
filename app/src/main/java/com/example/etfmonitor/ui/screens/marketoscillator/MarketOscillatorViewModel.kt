@@ -2,13 +2,15 @@ package com.etfmonitor.ui.screens.marketoscillator
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.EtfMonitorApp
+import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.entities.MarketOscillatorData
 import com.etfmonitor.repository.MarketOscillatorRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * 시장 과매수/과매도 화면 상태
@@ -22,9 +24,24 @@ sealed class MarketOscillatorState {
     data class Error(val message: String) : MarketOscillatorState()
 }
 
-class MarketOscillatorViewModel(
+/**
+ * Production Level MarketOscillatorViewModel with Hilt
+ *
+ * 최적화 포인트:
+ * 1. @HiltViewModel: Hilt가 ViewModel 생명주기 자동 관리
+ * 2. @Inject: 생성자 주입으로 의존성 명확화
+ * 3. @ApplicationContext: Application Context 직접 주입
+ * 4. Factory 패턴 제거: Hilt가 자동으로 ViewModel 생성
+ *
+ * 기존 문제점 해결:
+ * - EtfMonitorApp.instance 제거: 메모리 누수 위험 제거
+ * - 수동 Factory 제거: Hilt가 자동으로 관리하여 코드 간결화
+ */
+@HiltViewModel
+class MarketOscillatorViewModel @Inject constructor(
     private val repository: MarketOscillatorRepository,
-    private val context: Context
+    private val etfDao: EtfDao,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<MarketOscillatorState>(MarketOscillatorState.Loading)
@@ -62,8 +79,7 @@ class MarketOscillatorViewModel(
 
     private fun checkFirstRun() {
         viewModelScope.launch {
-            val app = EtfMonitorApp.instance
-            val dialogDismissed = app.database.dao().getSetting("market_oscillator_dialog_dismissed")
+            val dialogDismissed = etfDao.getSetting("market_oscillator_dialog_dismissed")
             val hasData = repository.getDataCount("KOSPI") > 0 ||
                          repository.getDataCount("KOSDAQ") > 0
 
@@ -82,8 +98,7 @@ class MarketOscillatorViewModel(
     fun onFirstRunDialogConfirmed() {
         // "수집 시작"을 클릭한 경우: 다이얼로그 닫고 더 이상 표시하지 않음
         viewModelScope.launch {
-            val app = EtfMonitorApp.instance
-            app.database.dao().saveSetting(
+            etfDao.saveSetting(
                 com.etfmonitor.database.entities.Setting("market_oscillator_dialog_dismissed", "true")
             )
             _showFirstRunDialog.value = false
@@ -187,16 +202,6 @@ class MarketOscillatorViewModel(
     fun clearMessage() {
         if (_state.value is MarketOscillatorState.Success || _state.value is MarketOscillatorState.Error) {
             checkData()
-        }
-    }
-
-    companion object {
-        fun factory(context: Context): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val app = context.applicationContext as EtfMonitorApp
-                return MarketOscillatorViewModel(app.marketOscillatorRepository, context) as T
-            }
         }
     }
 }

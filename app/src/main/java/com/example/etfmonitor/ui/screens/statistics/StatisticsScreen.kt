@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.database.entities.CashDepositTrend
 import com.etfmonitor.database.entities.StockAmountRanking
 import com.etfmonitor.database.entities.StockChangeInfo
@@ -38,7 +38,7 @@ import kotlinx.coroutines.launch
 fun StatisticsScreen(
     onNavigateBack: () -> Unit,
     onStockClick: (String) -> Unit,  // ✅ 추가
-    viewModel: StatisticsViewModel = viewModel(factory = StatisticsViewModel.Factory)
+    viewModel: StatisticsViewModel = hiltViewModel()
 ) {
     val dates by viewModel.dates.collectAsState()
     val amountRanking by viewModel.amountRanking.collectAsState()

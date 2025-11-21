@@ -34,16 +34,6 @@ object RepositoryModule {
     }
 
     /**
-     * OscillatorPyClient 제공 (Singleton)
-     * Oscillator 계산을 위한 Python 클라이언트
-     */
-    @Provides
-    @Singleton
-    fun provideOscillatorPyClient(python: Python): OscillatorPyClient {
-        return OscillatorPyClient(python)
-    }
-
-    /**
      * DataRepository 제공 (Singleton)
      * ETF 데이터 수집 및 관리를 담당
      *

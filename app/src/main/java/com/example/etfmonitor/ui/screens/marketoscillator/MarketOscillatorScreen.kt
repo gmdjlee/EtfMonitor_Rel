@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.database.entities.MarketOscillatorData
 import com.etfmonitor.ui.components.LoadingCard
 import com.etfmonitor.ui.components.ErrorCard
@@ -30,9 +30,7 @@ import java.util.*
 @Composable
 fun MarketOscillatorScreen(
     onNavigateBack: () -> Unit,
-    viewModel: MarketOscillatorViewModel = viewModel(
-        factory = MarketOscillatorViewModel.factory(androidx.compose.ui.platform.LocalContext.current)
-    )
+    viewModel: MarketOscillatorViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val selectedMarket by viewModel.selectedMarket.collectAsState()

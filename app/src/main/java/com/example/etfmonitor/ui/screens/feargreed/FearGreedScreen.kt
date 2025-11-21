@@ -12,7 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.ui.components.LoadingCard
 import com.etfmonitor.ui.components.ErrorCard
 import com.etfmonitor.ui.components.IdleCard
@@ -35,7 +35,7 @@ import java.util.*
 @Composable
 fun FearGreedScreen(
     onNavigateBack: () -> Unit,
-    viewModel: FearGreedViewModel = viewModel(factory = FearGreedViewModel.factory(androidx.compose.ui.platform.LocalContext.current))
+    viewModel: FearGreedViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val selectedMarket by viewModel.selectedMarket.collectAsState()

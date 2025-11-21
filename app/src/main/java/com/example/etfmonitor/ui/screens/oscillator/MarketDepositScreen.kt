@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.ui.components.MarketDepositChart
 import com.etfmonitor.ui.components.LoadingCard
 import com.etfmonitor.ui.components.ErrorCard
@@ -22,7 +22,7 @@ import com.etfmonitor.ui.components.ErrorCard
 @Composable
 fun MarketDepositScreen(
     onNavigateBack: () -> Unit,
-    viewModel: MarketDepositViewModel = viewModel(factory = MarketDepositViewModel.Factory)
+    viewModel: MarketDepositViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
 

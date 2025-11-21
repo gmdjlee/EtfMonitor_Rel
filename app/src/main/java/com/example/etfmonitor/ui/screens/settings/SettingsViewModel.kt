@@ -1,21 +1,22 @@
 package com.etfmonitor.ui.screens.settings
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import android.content.Context
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.EtfMonitorApp
+import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.entities.Setting
 import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.repository.FearGreedRepository
 import com.etfmonitor.repository.MarketDepositRepository
 import com.etfmonitor.repository.StockRepository
 import com.etfmonitor.worker.WorkManagerHelper
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 data class StockUpdateSettings(
     val updateHour: Int = 1,
@@ -51,14 +52,30 @@ data class MarketOscillatorUpdateSettings(
     val isUpdating: Boolean = false
 )
 
-class SettingsViewModel(
-    private val application: Application,
+/**
+ * Production Level SettingsViewModel with Hilt
+ *
+ * 최적화 포인트:
+ * 1. @HiltViewModel: Hilt가 ViewModel 생명주기 자동 관리
+ * 2. @Inject: 생성자 주입으로 의존성 명확화
+ * 3. @ApplicationContext: Application Context 직접 주입
+ * 4. Factory 패턴 제거: Hilt가 자동으로 ViewModel 생성
+ * 5. AndroidViewModel → ViewModel: Application 직접 주입 제거
+ *
+ * 기존 문제점 해결:
+ * - EtfMonitorApp.instance 제거: 메모리 누수 위험 제거
+ * - 수동 Factory 제거: Hilt가 자동으로 관리하여 코드 간결화
+ */
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
     private val repository: DataRepository,
     private val stockRepository: StockRepository,
     private val marketDepositRepository: MarketDepositRepository,
     private val fearGreedRepository: FearGreedRepository,
-    private val marketOscillatorRepository: com.etfmonitor.repository.MarketOscillatorRepository
-) : AndroidViewModel(application) {
+    private val marketOscillatorRepository: com.etfmonitor.repository.MarketOscillatorRepository,
+    private val etfDao: EtfDao,
+    @ApplicationContext private val context: Context
+) : ViewModel() {
 
     private val _themes = MutableStateFlow<List<String>>(emptyList())
     val themes: StateFlow<List<String>> = _themes.asStateFlow()
@@ -93,8 +110,6 @@ class SettingsViewModel(
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
-    private val dao = (application as EtfMonitorApp).database.dao()
-
     init {
         loadSettings()
         loadStockInfo()
@@ -110,20 +125,20 @@ class SettingsViewModel(
             _defaultDays.value = repository.getDefaultDays()
 
             // 검색 히스토리 개수 로드
-            val historyLimitStr = dao.getSetting("search_history_limit")
+            val historyLimitStr = etfDao.getSetting("search_history_limit")
             _searchHistoryLimit.value = historyLimitStr?.toIntOrNull() ?: 15
 
             // Fear & Greed 데이터 수집 기간 로드
-            val fearGreedPeriodStr = dao.getSetting("fear_greed_period_days")
+            val fearGreedPeriodStr = etfDao.getSetting("fear_greed_period_days")
             _fearGreedPeriodDays.value = fearGreedPeriodStr?.toIntOrNull() ?: 365 // 기본값: 12개월
 
             // 과매수/과매도 데이터 수집 기간 로드
-            val marketOscillatorPeriodStr = dao.getSetting("market_oscillator_period_days")
+            val marketOscillatorPeriodStr = etfDao.getSetting("market_oscillator_period_days")
             _marketOscillatorPeriodDays.value = marketOscillatorPeriodStr?.toIntOrNull() ?: 365 // 기본값: 12개월
 
             // Stock 업데이트 시간 로드
-            val stockHourStr = dao.getSetting("stock_update_hour")
-            val stockMinuteStr = dao.getSetting("stock_update_minute")
+            val stockHourStr = etfDao.getSetting("stock_update_hour")
+            val stockMinuteStr = etfDao.getSetting("stock_update_minute")
 
             val stockHour = stockHourStr?.toIntOrNull() ?: 1 // 기본값: 새벽 1시
             val stockMinute = stockMinuteStr?.toIntOrNull() ?: 0
@@ -134,11 +149,11 @@ class SettingsViewModel(
             )
 
             // 스케줄 재설정
-            WorkManagerHelper.scheduleStockUpdate(application, stockHour, stockMinute)
+            WorkManagerHelper.scheduleStockUpdate(context, stockHour, stockMinute)
 
             // Market Deposit 업데이트 시간 로드
-            val depositHourStr = dao.getSetting("market_deposit_update_hour")
-            val depositMinuteStr = dao.getSetting("market_deposit_update_minute")
+            val depositHourStr = etfDao.getSetting("market_deposit_update_hour")
+            val depositMinuteStr = etfDao.getSetting("market_deposit_update_minute")
 
             val depositHour = depositHourStr?.toIntOrNull() ?: 2 // 기본값: 새벽 2시
             val depositMinute = depositMinuteStr?.toIntOrNull() ?: 0
@@ -149,11 +164,11 @@ class SettingsViewModel(
             )
 
             // 스케줄 재설정
-            WorkManagerHelper.scheduleMarketDepositUpdate(application, depositHour, depositMinute)
+            WorkManagerHelper.scheduleMarketDepositUpdate(context, depositHour, depositMinute)
 
             // Fear & Greed 업데이트 시간 로드
-            val fearGreedHourStr = dao.getSetting("fear_greed_update_hour")
-            val fearGreedMinuteStr = dao.getSetting("fear_greed_update_minute")
+            val fearGreedHourStr = etfDao.getSetting("fear_greed_update_hour")
+            val fearGreedMinuteStr = etfDao.getSetting("fear_greed_update_minute")
 
             val fearGreedHour = fearGreedHourStr?.toIntOrNull() ?: 3 // 기본값: 새벽 3시
             val fearGreedMinute = fearGreedMinuteStr?.toIntOrNull() ?: 0
@@ -164,11 +179,11 @@ class SettingsViewModel(
             )
 
             // 스케줄 재설정
-            WorkManagerHelper.scheduleFearGreedUpdate(application, fearGreedHour, fearGreedMinute)
+            WorkManagerHelper.scheduleFearGreedUpdate(context, fearGreedHour, fearGreedMinute)
 
             // 과매수/과매도 업데이트 시간 로드
-            val marketOscillatorHourStr = dao.getSetting("market_oscillator_update_hour")
-            val marketOscillatorMinuteStr = dao.getSetting("market_oscillator_update_minute")
+            val marketOscillatorHourStr = etfDao.getSetting("market_oscillator_update_hour")
+            val marketOscillatorMinuteStr = etfDao.getSetting("market_oscillator_update_minute")
 
             val marketOscillatorHour = marketOscillatorHourStr?.toIntOrNull() ?: 4 // 기본값: 새벽 4시
             val marketOscillatorMinute = marketOscillatorMinuteStr?.toIntOrNull() ?: 0
@@ -179,7 +194,7 @@ class SettingsViewModel(
             )
 
             // 스케줄 재설정
-            WorkManagerHelper.scheduleMarketOscillatorUpdate(application, marketOscillatorHour, marketOscillatorMinute)
+            WorkManagerHelper.scheduleMarketOscillatorUpdate(context, marketOscillatorHour, marketOscillatorMinute)
         }
     }
 
@@ -316,15 +331,15 @@ class SettingsViewModel(
     fun setUpdateTime(hour: Int, minute: Int) {
         viewModelScope.launch {
             try {
-                dao.saveSetting(Setting("stock_update_hour", hour.toString()))
-                dao.saveSetting(Setting("stock_update_minute", minute.toString()))
+                etfDao.saveSetting(Setting("stock_update_hour", hour.toString()))
+                etfDao.saveSetting(Setting("stock_update_minute", minute.toString()))
 
                 _stockUpdateSettings.value = _stockUpdateSettings.value.copy(
                     updateHour = hour,
                     updateMinute = minute
                 )
 
-                WorkManagerHelper.scheduleStockUpdate(application, hour, minute)
+                WorkManagerHelper.scheduleStockUpdate(context, hour, minute)
                 _message.value = "업데이트 시간이 ${hour}:${String.format("%02d", minute)}로 설정되었습니다"
             } catch (e: Exception) {
                 _message.value = "시간 설정 실패: ${e.message}"
@@ -358,15 +373,15 @@ class SettingsViewModel(
     fun setMarketDepositUpdateTime(hour: Int, minute: Int) {
         viewModelScope.launch {
             try {
-                dao.saveSetting(Setting("market_deposit_update_hour", hour.toString()))
-                dao.saveSetting(Setting("market_deposit_update_minute", minute.toString()))
+                etfDao.saveSetting(Setting("market_deposit_update_hour", hour.toString()))
+                etfDao.saveSetting(Setting("market_deposit_update_minute", minute.toString()))
 
                 _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(
                     updateHour = hour,
                     updateMinute = minute
                 )
 
-                WorkManagerHelper.scheduleMarketDepositUpdate(application, hour, minute)
+                WorkManagerHelper.scheduleMarketDepositUpdate(context, hour, minute)
                 _message.value = "증시 자금 업데이트 시간이 ${hour}:${String.format("%02d", minute)}로 설정되었습니다"
             } catch (e: Exception) {
                 _message.value = "시간 설정 실패: ${e.message}"
@@ -400,15 +415,15 @@ class SettingsViewModel(
     fun setFearGreedUpdateTime(hour: Int, minute: Int) {
         viewModelScope.launch {
             try {
-                dao.saveSetting(Setting("fear_greed_update_hour", hour.toString()))
-                dao.saveSetting(Setting("fear_greed_update_minute", minute.toString()))
+                etfDao.saveSetting(Setting("fear_greed_update_hour", hour.toString()))
+                etfDao.saveSetting(Setting("fear_greed_update_minute", minute.toString()))
 
                 _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(
                     updateHour = hour,
                     updateMinute = minute
                 )
 
-                WorkManagerHelper.scheduleFearGreedUpdate(application, hour, minute)
+                WorkManagerHelper.scheduleFearGreedUpdate(context, hour, minute)
                 _message.value = "Fear & Greed Index 업데이트 시간이 ${hour}:${String.format("%02d", minute)}로 설정되었습니다"
             } catch (e: Exception) {
                 _message.value = "시간 설정 실패: ${e.message}"
@@ -442,7 +457,7 @@ class SettingsViewModel(
     fun setSearchHistoryLimit(limit: Int) {
         viewModelScope.launch {
             try {
-                dao.saveSetting(Setting("search_history_limit", limit.toString()))
+                etfDao.saveSetting(Setting("search_history_limit", limit.toString()))
                 _searchHistoryLimit.value = limit
                 _message.value = "검색 히스토리가 최대 ${limit}개로 설정되었습니다"
             } catch (e: Exception) {
@@ -454,7 +469,7 @@ class SettingsViewModel(
     fun setFearGreedPeriodDays(days: Int) {
         viewModelScope.launch {
             try {
-                dao.saveSetting(Setting("fear_greed_period_days", days.toString()))
+                etfDao.saveSetting(Setting("fear_greed_period_days", days.toString()))
                 _fearGreedPeriodDays.value = days
                 val monthText = when (days) {
                     180 -> "6개월"
@@ -473,15 +488,15 @@ class SettingsViewModel(
     fun setMarketOscillatorUpdateTime(hour: Int, minute: Int) {
         viewModelScope.launch {
             try {
-                dao.saveSetting(Setting("market_oscillator_update_hour", hour.toString()))
-                dao.saveSetting(Setting("market_oscillator_update_minute", minute.toString()))
+                etfDao.saveSetting(Setting("market_oscillator_update_hour", hour.toString()))
+                etfDao.saveSetting(Setting("market_oscillator_update_minute", minute.toString()))
 
                 _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(
                     updateHour = hour,
                     updateMinute = minute
                 )
 
-                WorkManagerHelper.scheduleMarketOscillatorUpdate(application, hour, minute)
+                WorkManagerHelper.scheduleMarketOscillatorUpdate(context, hour, minute)
                 _message.value = "과매수/과매도 업데이트 시간이 ${hour}:${String.format("%02d", minute)}로 설정되었습니다"
             } catch (e: Exception) {
                 _message.value = "시간 설정 실패: ${e.message}"
@@ -520,7 +535,7 @@ class SettingsViewModel(
     fun setMarketOscillatorPeriodDays(days: Int) {
         viewModelScope.launch {
             try {
-                dao.saveSetting(Setting("market_oscillator_period_days", days.toString()))
+                etfDao.saveSetting(Setting("market_oscillator_period_days", days.toString()))
                 _marketOscillatorPeriodDays.value = days
                 val monthText = when (days) {
                     180 -> "6개월"
@@ -539,7 +554,7 @@ class SettingsViewModel(
     fun initializeData(days: Int) {
         viewModelScope.launch {
             try {
-                com.etfmonitor.service.DataCollectionService.startInitialize(application, days)
+                com.etfmonitor.service.DataCollectionService.startInitialize(context, days)
                 _message.value = "데이터 초기화를 시작합니다"
             } catch (e: Exception) {
                 _message.value = "초기화 실패: ${e.message}"
@@ -550,7 +565,7 @@ class SettingsViewModel(
     fun updateData() {
         viewModelScope.launch {
             try {
-                com.etfmonitor.service.DataCollectionService.startUpdate(application)
+                com.etfmonitor.service.DataCollectionService.startUpdate(context)
                 _message.value = "데이터 업데이트를 시작합니다"
             } catch (e: Exception) {
                 _message.value = "업데이트 실패: ${e.message}"
@@ -560,23 +575,5 @@ class SettingsViewModel(
 
     fun clearMessage() {
         _message.value = null
-    }
-
-    companion object {
-        val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val app = EtfMonitorApp.instance
-                // Use singleton repositories from EtfMonitorApp for optimized memory usage
-                return SettingsViewModel(
-                    application = app,
-                    repository = app.repository,
-                    stockRepository = app.stockRepository,
-                    marketDepositRepository = app.marketDepositRepository,
-                    fearGreedRepository = app.fearGreedRepository,
-                    marketOscillatorRepository = app.marketOscillatorRepository
-                ) as T
-            }
-        }
     }
 }
