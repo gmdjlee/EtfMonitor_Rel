@@ -534,6 +534,15 @@ private fun HexagonMenuItem(
     onClick: () -> Unit,
     config: AdaptiveLayoutConfig
 ) {
+    val isDarkTheme = isSystemInDarkTheme()
+
+    // Shadow colors for elevation effect (visible in both light and dark mode)
+    val shadowColor = if (isDarkTheme) {
+        Color.Black.copy(alpha = 0.6f)
+    } else {
+        Color.Black.copy(alpha = 0.25f)
+    }
+
     // Create rounded hexagon shape with smoother corners
     val shapeA = remember {
         RoundedPolygon(
@@ -581,7 +590,9 @@ private fun HexagonMenuItem(
             .shadow(
                 elevation = elevation.value.dp,
                 shape = MorphPolygonShape(morph, animatedProgress.value),
-                clip = false
+                clip = false,
+                ambientColor = shadowColor,
+                spotColor = shadowColor
             )
             .clip(MorphPolygonShape(morph, animatedProgress.value))
             .background(

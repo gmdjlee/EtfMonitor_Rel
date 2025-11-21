@@ -15,6 +15,7 @@ hilt {
 android {
     namespace = "com.etfmonitor"
     compileSdk = 36
+    ndkVersion = "29.0.13113456"
 
     defaultConfig {
         applicationId = "com.etfmonitor"
