@@ -43,10 +43,8 @@ fun SettingsScreen(
     val message by viewModel.message.collectAsState()
 
     // General settings
-    val fontSize by viewModel.fontSize.collectAsState()
-    val fontColor by viewModel.fontColor.collectAsState()
-    val chartLineColor by viewModel.chartLineColor.collectAsState()
-    val chartFontColor by viewModel.chartFontColor.collectAsState()
+    val isDarkTheme by viewModel.isDarkTheme.collectAsState()
+    val fontScale by viewModel.fontScale.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -117,10 +115,8 @@ fun SettingsScreen(
                     viewModel = viewModel
                 )
                 2 -> GeneralTab(
-                    fontSize = fontSize,
-                    fontColor = fontColor,
-                    chartLineColor = chartLineColor,
-                    chartFontColor = chartFontColor,
+                    isDarkTheme = isDarkTheme,
+                    fontScale = fontScale,
                     viewModel = viewModel
                 )
             }
@@ -266,10 +262,8 @@ private fun KeywordTab(
 // ==================== General Tab ====================
 @Composable
 private fun GeneralTab(
-    fontSize: Int,
-    fontColor: Long,
-    chartLineColor: Long,
-    chartFontColor: Long,
+    isDarkTheme: Boolean?,
+    fontScale: Float,
     viewModel: SettingsViewModel
 ) {
     LazyColumn(
@@ -277,35 +271,19 @@ private fun GeneralTab(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 폰트 사이즈 설정
+        // 테마 설정
         item {
-            FontSizeCard(
-                currentSize = fontSize,
-                onSizeChange = { viewModel.setFontSize(it) }
+            ThemeSettingCard(
+                isDarkTheme = isDarkTheme,
+                onThemeChange = { viewModel.setDarkTheme(it) }
             )
         }
 
-        // 폰트 색깔 설정
+        // 폰트 크기 설정
         item {
-            FontColorCard(
-                currentColor = fontColor,
-                onColorChange = { viewModel.setFontColor(it) }
-            )
-        }
-
-        // 차트 라인 색깔 설정
-        item {
-            ChartLineColorCard(
-                currentColor = chartLineColor,
-                onColorChange = { viewModel.setChartLineColor(it) }
-            )
-        }
-
-        // 차트 폰트 색깔 설정
-        item {
-            ChartFontColorCard(
-                currentColor = chartFontColor,
-                onColorChange = { viewModel.setChartFontColor(it) }
+            FontScaleCard(
+                currentScale = fontScale,
+                onScaleChange = { viewModel.setFontScale(it) }
             )
         }
     }
@@ -314,9 +292,122 @@ private fun GeneralTab(
 // ==================== General Tab Cards ====================
 
 @Composable
-private fun FontSizeCard(
-    currentSize: Int,
-    onSizeChange: (Int) -> Unit
+private fun ThemeSettingCard(
+    isDarkTheme: Boolean?,
+    onThemeChange: (Boolean?) -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    when (isDarkTheme) {
+                        true -> Icons.Default.DarkMode
+                        false -> Icons.Default.LightMode
+                        null -> Icons.Default.BrightnessAuto
+                    },
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("테마 설정", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            Text(
+                "앱의 테마를 변경합니다",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // 시스템 설정
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onThemeChange(null) }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = isDarkTheme == null,
+                        onClick = { onThemeChange(null) }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.Default.BrightnessAuto, null, Modifier.size(24.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text("시스템 설정", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "기기의 테마 설정을 따릅니다",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // 라이트 모드
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onThemeChange(false) }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = isDarkTheme == false,
+                        onClick = { onThemeChange(false) }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.Default.LightMode, null, Modifier.size(24.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text("라이트 모드", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "밝은 테마를 사용합니다",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // 다크 모드
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onThemeChange(true) }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = isDarkTheme == true,
+                        onClick = { onThemeChange(true) }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.Default.DarkMode, null, Modifier.size(24.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text("다크 모드", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "어두운 테마를 사용합니다",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FontScaleCard(
+    currentScale: Float,
+    onScaleChange: (Float) -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -332,13 +423,13 @@ private fun FontSizeCard(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Text("폰트 사이즈", style = MaterialTheme.typography.titleMedium)
+                Text("폰트 크기", style = MaterialTheme.typography.titleMedium)
             }
 
             HorizontalDivider()
 
             Text(
-                "앱 전체 폰트 크기를 조절합니다 (1~10단계)",
+                "앱 전체 폰트 크기를 조절합니다",
                 style = MaterialTheme.typography.bodyMedium
             )
 
@@ -354,7 +445,7 @@ private fun FontSizeCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        "레벨 $currentSize",
+                        "${(currentScale * 100).toInt()}%",
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -362,354 +453,44 @@ private fun FontSizeCard(
 
                 // Preview text
                 Text(
-                    "미리보기",
-                    fontSize = (10 + currentSize * 2).sp,
+                    "미리보기 Aa",
+                    fontSize = (14 * currentScale).sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
-            // Slider for font size (1-10)
+            // Slider for font scale (0.8 ~ 1.4, step 0.1)
             Slider(
-                value = currentSize.toFloat(),
-                onValueChange = { onSizeChange(it.toInt()) },
-                valueRange = 1f..10f,
-                steps = 8
+                value = currentScale,
+                onValueChange = {
+                    // Round to nearest 0.1
+                    val rounded = (it * 10).toInt() / 10f
+                    onScaleChange(rounded)
+                },
+                valueRange = 0.8f..1.4f,
+                steps = 5
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("작게 (1)", style = MaterialTheme.typography.bodySmall)
-                Text("크게 (10)", style = MaterialTheme.typography.bodySmall)
-            }
-        }
-    }
-}
-
-@Composable
-private fun FontColorCard(
-    currentColor: Long,
-    onColorChange: (Long) -> Unit
-) {
-    var showColorPicker by remember { mutableStateOf(false) }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    Icons.Default.Palette,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Text("폰트 색깔", style = MaterialTheme.typography.titleMedium)
+                Text("작게 (80%)", style = MaterialTheme.typography.bodySmall)
+                Text("크게 (140%)", style = MaterialTheme.typography.bodySmall)
             }
 
-            HorizontalDivider()
-
-            Text(
-                "앱 전체 폰트 색깔을 변경합니다",
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Color(currentColor.toInt()))
-                            .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                    )
-                    Text(
-                        "현재 색상",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-
-                Button(onClick = { showColorPicker = true }) {
-                    Text("변경")
-                }
-            }
-        }
-    }
-
-    if (showColorPicker) {
-        ColorPickerDialog(
-            title = "폰트 색깔 선택",
-            currentColor = currentColor,
-            onDismiss = { showColorPicker = false },
-            onConfirm = { color ->
-                onColorChange(color)
-                showColorPicker = false
-            }
-        )
-    }
-}
-
-@Composable
-private fun ChartLineColorCard(
-    currentColor: Long,
-    onColorChange: (Long) -> Unit
-) {
-    var showColorPicker by remember { mutableStateOf(false) }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    Icons.Default.ShowChart,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Text("차트 라인 색깔", style = MaterialTheme.typography.titleMedium)
-            }
-
-            HorizontalDivider()
-
-            Text(
-                "차트의 라인 색깔을 변경합니다",
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Color(currentColor.toInt()))
-                            .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                    )
-                    Text(
-                        "현재 색상",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-
-                Button(onClick = { showColorPicker = true }) {
-                    Text("변경")
-                }
-            }
-        }
-    }
-
-    if (showColorPicker) {
-        ColorPickerDialog(
-            title = "차트 라인 색깔 선택",
-            currentColor = currentColor,
-            onDismiss = { showColorPicker = false },
-            onConfirm = { color ->
-                onColorChange(color)
-                showColorPicker = false
-            }
-        )
-    }
-}
-
-@Composable
-private fun ChartFontColorCard(
-    currentColor: Long,
-    onColorChange: (Long) -> Unit
-) {
-    var showColorPicker by remember { mutableStateOf(false) }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    Icons.Default.TextFields,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Text("차트 폰트 색깔", style = MaterialTheme.typography.titleMedium)
-            }
-
-            HorizontalDivider()
-
-            Text(
-                "차트의 레이블, 축 등의 폰트 색깔을 변경합니다",
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Color(currentColor.toInt()))
-                            .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                    )
-                    Text(
-                        "현재 색상",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-
-                Button(onClick = { showColorPicker = true }) {
-                    Text("변경")
-                }
-            }
-        }
-    }
-
-    if (showColorPicker) {
-        ColorPickerDialog(
-            title = "차트 폰트 색깔 선택",
-            currentColor = currentColor,
-            onDismiss = { showColorPicker = false },
-            onConfirm = { color ->
-                onColorChange(color)
-                showColorPicker = false
-            }
-        )
-    }
-}
-
-@Composable
-private fun ColorPickerDialog(
-    title: String,
-    currentColor: Long,
-    onDismiss: () -> Unit,
-    onConfirm: (Long) -> Unit
-) {
-    var selectedColor by remember { mutableStateOf(currentColor) }
-
-    val predefinedColors = listOf(
-        0xFF000000, // Black
-        0xFF424242, // Dark Gray
-        0xFF757575, // Gray
-        0xFFBDBDBD, // Light Gray
-        0xFFFFFFFF, // White
-        0xFFF44336, // Red
-        0xFFE91E63, // Pink
-        0xFF9C27B0, // Purple
-        0xFF673AB7, // Deep Purple
-        0xFF3F51B5, // Indigo
-        0xFF2196F3, // Blue
-        0xFF03A9F4, // Light Blue
-        0xFF00BCD4, // Cyan
-        0xFF009688, // Teal
-        0xFF4CAF50, // Green
-        0xFF8BC34A, // Light Green
-        0xFFCDDC39, // Lime
-        0xFFFFEB3B, // Yellow
-        0xFFFFC107, // Amber
-        0xFFFF9800, // Orange
-        0xFFFF5722, // Deep Orange
-        0xFF795548, // Brown
-        0xFF607D8B  // Blue Gray
-    )
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
             ) {
                 Text(
-                    "색상을 선택하세요",
-                    style = MaterialTheme.typography.bodyMedium
+                    "변경사항은 앱 재시작 후 적용됩니다",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(8.dp)
                 )
-
-                // Color grid
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(predefinedColors.chunked(6)) { colorRow ->
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            colorRow.forEach { color ->
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(color.toInt()))
-                                        .border(
-                                            width = if (selectedColor == color) 3.dp else 1.dp,
-                                            color = if (selectedColor == color)
-                                                MaterialTheme.colorScheme.primary
-                                            else
-                                                MaterialTheme.colorScheme.outline,
-                                            shape = CircleShape
-                                        )
-                                        .clickable { selectedColor = color }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Preview
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("미리보기: ", style = MaterialTheme.typography.bodyMedium)
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(Color(selectedColor.toInt()))
-                            .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = { onConfirm(selectedColor) }) {
-                Text("확인")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("취소")
             }
         }
-    )
+    }
 }
 
 // ==================== Data Update Tab Cards (기존 코드 유지) ====================
