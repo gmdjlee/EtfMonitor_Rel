@@ -54,7 +54,7 @@ fun SettingsScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("데이터 업데이트", "키워드", "일반", "차트")
+    val tabs = listOf("일반", "키워드", "데이터 업데이트", "수집 기간", "차트")
 
     LaunchedEffect(message) {
         message?.let {
@@ -93,10 +93,11 @@ fun SettingsScreen(
                         text = { Text(title) },
                         icon = {
                             when (index) {
-                                0 -> Icon(Icons.Default.CloudDownload, contentDescription = null)
+                                0 -> Icon(Icons.Default.Settings, contentDescription = null)
                                 1 -> Icon(Icons.Default.Label, contentDescription = null)
-                                2 -> Icon(Icons.Default.Settings, contentDescription = null)
-                                3 -> Icon(Icons.Default.Palette, contentDescription = null)
+                                2 -> Icon(Icons.Default.CloudDownload, contentDescription = null)
+                                3 -> Icon(Icons.Default.DateRange, contentDescription = null)
+                                4 -> Icon(Icons.Default.Palette, contentDescription = null)
                             }
                         }
                     )
@@ -105,15 +106,9 @@ fun SettingsScreen(
 
             // Tab Content
             when (selectedTabIndex) {
-                0 -> DataUpdateTab(
-                    defaultDays = defaultDays,
-                    searchHistoryLimit = searchHistoryLimit,
-                    fearGreedPeriodDays = fearGreedPeriodDays,
-                    marketOscillatorPeriodDays = marketOscillatorPeriodDays,
-                    stockUpdateSettings = stockUpdateSettings,
-                    marketDepositUpdateSettings = marketDepositUpdateSettings,
-                    fearGreedUpdateSettings = fearGreedUpdateSettings,
-                    marketOscillatorUpdateSettings = marketOscillatorUpdateSettings,
+                0 -> GeneralTab(
+                    isDarkTheme = isDarkTheme,
+                    fontScaleSettings = fontScaleSettings,
                     viewModel = viewModel
                 )
                 1 -> KeywordTab(
@@ -121,12 +116,21 @@ fun SettingsScreen(
                     exclusions = exclusions,
                     viewModel = viewModel
                 )
-                2 -> GeneralTab(
-                    isDarkTheme = isDarkTheme,
-                    fontScaleSettings = fontScaleSettings,
+                2 -> DataUpdateTab(
+                    stockUpdateSettings = stockUpdateSettings,
+                    marketDepositUpdateSettings = marketDepositUpdateSettings,
+                    fearGreedUpdateSettings = fearGreedUpdateSettings,
+                    marketOscillatorUpdateSettings = marketOscillatorUpdateSettings,
                     viewModel = viewModel
                 )
-                3 -> ChartTab(
+                3 -> DataPeriodTab(
+                    defaultDays = defaultDays,
+                    searchHistoryLimit = searchHistoryLimit,
+                    fearGreedPeriodDays = fearGreedPeriodDays,
+                    marketOscillatorPeriodDays = marketOscillatorPeriodDays,
+                    viewModel = viewModel
+                )
+                4 -> ChartTab(
                     chartColorSettings = chartColorSettings,
                     viewModel = viewModel
                 )
@@ -138,10 +142,6 @@ fun SettingsScreen(
 // ==================== Data Update Tab ====================
 @Composable
 private fun DataUpdateTab(
-    defaultDays: Int,
-    searchHistoryLimit: Int,
-    fearGreedPeriodDays: Int,
-    marketOscillatorPeriodDays: Int,
     stockUpdateSettings: StockUpdateSettings,
     marketDepositUpdateSettings: MarketDepositUpdateSettings,
     fearGreedUpdateSettings: FearGreedUpdateSettings,
@@ -188,20 +188,51 @@ private fun DataUpdateTab(
             )
         }
 
-        // Fear & Greed Index 데이터 수집 기간 설정
-        item {
-            FearGreedPeriodCard(
-                currentDays = fearGreedPeriodDays,
-                onDaysChange = { viewModel.setFearGreedPeriodDays(it) }
-            )
-        }
-
         // 과매수/과매도 DB 자동 업데이트 설정
         item {
             MarketOscillatorUpdateCard(
                 settings = marketOscillatorUpdateSettings,
                 onTimeChange = { hour, minute -> viewModel.setMarketOscillatorUpdateTime(hour, minute) },
                 onUpdateNow = { viewModel.updateMarketOscillatorsNow() }
+            )
+        }
+
+        // 데이터베이스 초기화
+        item {
+            DatabaseCard(
+                onReset = { viewModel.resetDatabase() }
+            )
+        }
+    }
+}
+
+// ==================== Data Period Tab ====================
+@Composable
+private fun DataPeriodTab(
+    defaultDays: Int,
+    searchHistoryLimit: Int,
+    fearGreedPeriodDays: Int,
+    marketOscillatorPeriodDays: Int,
+    viewModel: SettingsViewModel
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // ETF 수집 기간 설정
+        item {
+            DefaultDaysCard(
+                currentDays = defaultDays,
+                onDaysChange = { viewModel.setDefaultDays(it) }
+            )
+        }
+
+        // Fear & Greed Index 데이터 수집 기간 설정
+        item {
+            FearGreedPeriodCard(
+                currentDays = fearGreedPeriodDays,
+                onDaysChange = { viewModel.setFearGreedPeriodDays(it) }
             )
         }
 
@@ -213,26 +244,11 @@ private fun DataUpdateTab(
             )
         }
 
-        // 기본 수집 기간 설정
-        item {
-            DefaultDaysCard(
-                currentDays = defaultDays,
-                onDaysChange = { viewModel.setDefaultDays(it) }
-            )
-        }
-
         // 검색 히스토리 개수 설정
         item {
             SearchHistoryLimitCard(
                 currentLimit = searchHistoryLimit,
                 onLimitChange = { viewModel.setSearchHistoryLimit(it) }
-            )
-        }
-
-        // 데이터베이스 초기화
-        item {
-            DatabaseCard(
-                onReset = { viewModel.resetDatabase() }
             )
         }
     }
@@ -1147,7 +1163,7 @@ private fun DefaultDaysCard(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Text("기본 수집 기간", style = MaterialTheme.typography.titleMedium)
+                Text("ETF 수집 기간", style = MaterialTheme.typography.titleMedium)
             }
 
             HorizontalDivider()
