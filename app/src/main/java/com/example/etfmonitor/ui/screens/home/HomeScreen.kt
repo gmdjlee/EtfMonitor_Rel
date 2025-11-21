@@ -539,7 +539,7 @@ private fun HexagonMenuItem(
 
     // Shadow colors for elevation effect (visible in both light and dark mode)
     val shadowColor = if (isDarkTheme) {
-        Color.Black.copy(alpha = 0.6f)
+        Color.White.copy(alpha = 0.6f)
     } else {
         Color.Black.copy(alpha = 0.25f)
     }
