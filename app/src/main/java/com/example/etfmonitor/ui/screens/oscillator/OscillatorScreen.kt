@@ -63,38 +63,38 @@ fun OscillatorScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Search Card with Autocomplete
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+            // Search Card with Autocomplete - Wrapped in Box for overlay
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(
-                            "종목 검색",
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "종목 검색",
+                                style = MaterialTheme.typography.titleMedium
+                            )
 
-                        // History 버튼
-                        if (searchHistory.isNotEmpty()) {
-                            TextButton(onClick = { showHistoryDialog = true }) {
-                                Icon(
-                                    Icons.Default.History,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Text("History")
+                            // History 버튼
+                            if (searchHistory.isNotEmpty()) {
+                                TextButton(onClick = { showHistoryDialog = true }) {
+                                    Icon(
+                                        Icons.Default.History,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("History")
+                                }
                             }
                         }
-                    }
 
-                    // TextField with autocomplete
-                    Box(modifier = Modifier.fillMaxWidth()) {
+                        // TextField
                         OutlinedTextField(
                             value = textFieldValue,
                             onValueChange = {
@@ -117,60 +117,60 @@ fun OscillatorScreen(
                             }
                         )
 
-                        // Autocomplete Dropdown - Overlay
-                        if (suggestions.isNotEmpty() && textFieldValue.isNotBlank()) {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 64.dp) // Position below TextField
-                                    .heightIn(max = 300.dp), // Limit max height
-                                elevation = CardDefaults.cardElevation(
-                                    defaultElevation = 8.dp
-                                ),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surface
-                                )
-                            ) {
-                                LazyColumn(
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    items(suggestions) { stock ->
-                                        ListItem(
-                                            headlineContent = { Text(stock.name) },
-                                            supportingContent = {
-                                                Text(
-                                                    "${stock.ticker} • ${stock.market}",
-                                                    style = MaterialTheme.typography.bodySmall
-                                                )
-                                            },
-                                            modifier = Modifier.clickable {
-                                                textFieldValue = stock.name
-                                                viewModel.clearSuggestions()
-                                                viewModel.analyzeStock(stock.ticker)
-                                            }
+                        Button(
+                            onClick = {
+                                if (textFieldValue.isNotBlank()) {
+                                    viewModel.searchAndAnalyze(textFieldValue)
+                                    viewModel.clearSuggestions()
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = textFieldValue.isNotBlank() && state !is OscillatorState.Loading
+                        ) {
+                            Icon(Icons.Default.Search, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("분석")
+                        }
+                    }
+                }
+
+                // Autocomplete Dropdown - Overlay outside Card
+                if (suggestions.isNotEmpty() && textFieldValue.isNotBlank()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 16.dp, top = 120.dp) // Position below TextField
+                            .heightIn(max = 300.dp), // Limit max height
+                        elevation = CardDefaults.cardElevation(
+                            defaultElevation = 8.dp
+                        ),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(suggestions) { stock ->
+                                ListItem(
+                                    headlineContent = { Text(stock.name) },
+                                    supportingContent = {
+                                        Text(
+                                            "${stock.ticker} • ${stock.market}",
+                                            style = MaterialTheme.typography.bodySmall
                                         )
-                                        if (stock != suggestions.last()) {
-                                            HorizontalDivider()
-                                        }
+                                    },
+                                    modifier = Modifier.clickable {
+                                        textFieldValue = stock.name
+                                        viewModel.clearSuggestions()
+                                        viewModel.analyzeStock(stock.ticker)
                                     }
+                                )
+                                if (stock != suggestions.last()) {
+                                    HorizontalDivider()
                                 }
                             }
                         }
-                    }
-
-                    Button(
-                        onClick = {
-                            if (textFieldValue.isNotBlank()) {
-                                viewModel.searchAndAnalyze(textFieldValue)
-                                viewModel.clearSuggestions()
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = textFieldValue.isNotBlank() && state !is OscillatorState.Loading
-                    ) {
-                        Icon(Icons.Default.Search, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("분석")
                     }
                 }
             }
