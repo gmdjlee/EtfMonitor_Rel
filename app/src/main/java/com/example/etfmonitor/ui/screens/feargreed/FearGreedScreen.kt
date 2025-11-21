@@ -257,8 +257,8 @@ fun FearGreedChart(
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
-    val fearGreedColor = ChartOrange.toArgb()  // Fear & Greed Index - 오렌지
-    val indexColor = ChartYellow.toArgb()      // KOSPI/KOSDAQ 지수 - 노란색
+    val fearGreedColor = ChartOrange.toArgb()  // Fear & Greed Index - Amber
+    val indexColor = ChartSecondary.toArgb()   // KOSPI/KOSDAQ 지수 - Teal
     val textColor = if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 

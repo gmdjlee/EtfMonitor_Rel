@@ -4,11 +4,18 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 
 /**
- * Jetcaster theme implementation
- * Based on official Jetcaster design system color palette
+ * Modern ETF Monitor Theme
+ * Professional financial app design with Material Design 3
+ * Features:
+ * - Material You dynamic color support (Android 12+)
+ * - Custom professional color palette fallback
+ * - Enhanced surface elevation system
+ * - Montserrat typography
  */
 
 private val LightColorScheme = lightColorScheme(
@@ -65,11 +72,50 @@ private val DarkColorScheme = darkColorScheme(
     outlineVariant = outlineVariantDark
 )
 
+/**
+ * Extended theme colors for financial data visualization
+ */
+data class ExtendedColors(
+    val statusNew: androidx.compose.ui.graphics.Color,
+    val statusIncrease: androidx.compose.ui.graphics.Color,
+    val statusDecrease: androidx.compose.ui.graphics.Color,
+    val statusRemoved: androidx.compose.ui.graphics.Color,
+    val statusMaintain: androidx.compose.ui.graphics.Color,
+    val chartPrimary: androidx.compose.ui.graphics.Color,
+    val chartSecondary: androidx.compose.ui.graphics.Color,
+    val chartTertiary: androidx.compose.ui.graphics.Color,
+    val chartGreen: androidx.compose.ui.graphics.Color,
+    val chartRed: androidx.compose.ui.graphics.Color,
+    val chartBlue: androidx.compose.ui.graphics.Color,
+    val surfaceElevation1: androidx.compose.ui.graphics.Color,
+    val surfaceElevation2: androidx.compose.ui.graphics.Color,
+    val surfaceElevation3: androidx.compose.ui.graphics.Color
+)
+
+val LocalExtendedColors = staticCompositionLocalOf {
+    ExtendedColors(
+        statusNew = StatusNew,
+        statusIncrease = StatusIncrease,
+        statusDecrease = StatusDecrease,
+        statusRemoved = StatusRemoved,
+        statusMaintain = StatusMaintain,
+        chartPrimary = ChartPrimary,
+        chartSecondary = ChartSecondary,
+        chartTertiary = ChartTertiary,
+        chartGreen = ChartGreen,
+        chartRed = ChartRed,
+        chartBlue = ChartBlue,
+        surfaceElevation1 = SurfaceElevation1Light,
+        surfaceElevation2 = SurfaceElevation2Light,
+        surfaceElevation3 = SurfaceElevation3Light
+    )
+}
+
 @Composable
 fun EtfMonitorTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Disable dynamic color to enforce Jetcaster-style theme
-    dynamicColor: Boolean = false,
+    // Enable dynamic color by default for Material You theming on Android 12+
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -81,10 +127,38 @@ fun EtfMonitorTheme(
         else -> LightColorScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        shapes = Shapes,
-        content = content
+    // Extended colors for financial data (not affected by dynamic color)
+    val extendedColors = ExtendedColors(
+        statusNew = StatusNew,
+        statusIncrease = StatusIncrease,
+        statusDecrease = StatusDecrease,
+        statusRemoved = StatusRemoved,
+        statusMaintain = StatusMaintain,
+        chartPrimary = ChartPrimary,
+        chartSecondary = ChartSecondary,
+        chartTertiary = ChartTertiary,
+        chartGreen = ChartGreen,
+        chartRed = ChartRed,
+        chartBlue = ChartBlue,
+        surfaceElevation1 = if (darkTheme) SurfaceElevation1Dark else SurfaceElevation1Light,
+        surfaceElevation2 = if (darkTheme) SurfaceElevation2Dark else SurfaceElevation2Light,
+        surfaceElevation3 = if (darkTheme) SurfaceElevation3Dark else SurfaceElevation3Light
     )
+
+    CompositionLocalProvider(LocalExtendedColors provides extendedColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            shapes = Shapes,
+            content = content
+        )
+    }
 }
+
+/**
+ * Access extended theme colors
+ * Usage: MaterialTheme.extendedColors.statusNew
+ */
+val MaterialTheme.extendedColors: ExtendedColors
+    @Composable
+    get() = LocalExtendedColors.current
