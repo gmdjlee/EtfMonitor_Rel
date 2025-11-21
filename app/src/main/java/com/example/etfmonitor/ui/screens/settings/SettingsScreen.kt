@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
@@ -1117,30 +1117,20 @@ private fun ThemeCard(
                 style = MaterialTheme.typography.bodySmall
             )
 
-            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val itemsPerRow = when {
-                    maxWidth < 600.dp -> 4  // 일반 스마트폰
-                    maxWidth < 840.dp -> 8  // 폴더블 폰
-                    else -> 10              // 태블릿 등
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    themes.chunked(itemsPerRow).forEach { rowThemes ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            rowThemes.forEach { theme ->
-                                FilterChip(
-                                    selected = true,
-                                    onClick = { onRemoveTheme(theme) },
-                                    label = { Text(theme) },
-                                    trailingIcon = {
-                                        Icon(Icons.Default.Close, null, Modifier.size(16.dp))
-                                    }
-                                )
-                            }
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                themes.forEach { theme ->
+                    FilterChip(
+                        selected = true,
+                        onClick = { onRemoveTheme(theme) },
+                        label = { Text(theme, maxLines = 1) },
+                        trailingIcon = {
+                            Icon(Icons.Default.Close, null, Modifier.size(16.dp))
                         }
-                    }
+                    )
                 }
             }
         }
@@ -1220,33 +1210,23 @@ private fun ExclusionCard(
                 style = MaterialTheme.typography.bodySmall
             )
 
-            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val itemsPerRow = when {
-                    maxWidth < 600.dp -> 4  // 일반 스마트폰
-                    maxWidth < 840.dp -> 8  // 폴더블 폰
-                    else -> 10              // 태블릿 등
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    exclusions.chunked(itemsPerRow).forEach { rowExclusions ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            rowExclusions.forEach { exclusion ->
-                                FilterChip(
-                                    selected = true,
-                                    onClick = { onRemoveExclusion(exclusion) },
-                                    label = { Text(exclusion) },
-                                    trailingIcon = {
-                                        Icon(Icons.Default.Close, null, Modifier.size(16.dp))
-                                    },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = MaterialTheme.colorScheme.errorContainer
-                                    )
-                                )
-                            }
-                        }
-                    }
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                exclusions.forEach { exclusion ->
+                    FilterChip(
+                        selected = true,
+                        onClick = { onRemoveExclusion(exclusion) },
+                        label = { Text(exclusion, maxLines = 1) },
+                        trailingIcon = {
+                            Icon(Icons.Default.Close, null, Modifier.size(16.dp))
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    )
                 }
             }
         }
