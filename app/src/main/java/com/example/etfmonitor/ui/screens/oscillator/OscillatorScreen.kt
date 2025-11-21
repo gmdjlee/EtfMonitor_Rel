@@ -94,7 +94,7 @@ fun OscillatorScreen(
                     }
 
                     // TextField with autocomplete
-                    Column {
+                    Box(modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(
                             value = textFieldValue,
                             onValueChange = {
@@ -117,18 +117,24 @@ fun OscillatorScreen(
                             }
                         )
 
-                        // Autocomplete Dropdown
+                        // Autocomplete Dropdown - Overlay
                         if (suggestions.isNotEmpty() && textFieldValue.isNotBlank()) {
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 4.dp),
+                                    .padding(top = 64.dp) // Position below TextField
+                                    .heightIn(max = 300.dp), // Limit max height
+                                elevation = CardDefaults.cardElevation(
+                                    defaultElevation = 8.dp
+                                ),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                    containerColor = MaterialTheme.colorScheme.surface
                                 )
                             ) {
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    suggestions.forEach { stock ->
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    items(suggestions) { stock ->
                                         ListItem(
                                             headlineContent = { Text(stock.name) },
                                             supportingContent = {
