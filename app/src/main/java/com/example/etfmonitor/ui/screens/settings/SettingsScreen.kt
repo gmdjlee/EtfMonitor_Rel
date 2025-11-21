@@ -50,7 +50,7 @@ fun SettingsScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("데이터 업데이트", "일반")
+    val tabs = listOf("데이터 업데이트", "키워드", "일반")
 
     LaunchedEffect(message) {
         message?.let {
@@ -90,7 +90,8 @@ fun SettingsScreen(
                         icon = {
                             when (index) {
                                 0 -> Icon(Icons.Default.CloudDownload, contentDescription = null)
-                                1 -> Icon(Icons.Default.Settings, contentDescription = null)
+                                1 -> Icon(Icons.Default.Label, contentDescription = null)
+                                2 -> Icon(Icons.Default.Settings, contentDescription = null)
                             }
                         }
                     )
@@ -108,11 +109,14 @@ fun SettingsScreen(
                     marketDepositUpdateSettings = marketDepositUpdateSettings,
                     fearGreedUpdateSettings = fearGreedUpdateSettings,
                     marketOscillatorUpdateSettings = marketOscillatorUpdateSettings,
+                    viewModel = viewModel
+                )
+                1 -> KeywordTab(
                     themes = themes,
                     exclusions = exclusions,
                     viewModel = viewModel
                 )
-                1 -> GeneralTab(
+                2 -> GeneralTab(
                     fontSize = fontSize,
                     fontColor = fontColor,
                     chartLineColor = chartLineColor,
@@ -135,8 +139,6 @@ private fun DataUpdateTab(
     marketDepositUpdateSettings: MarketDepositUpdateSettings,
     fearGreedUpdateSettings: FearGreedUpdateSettings,
     marketOscillatorUpdateSettings: MarketOscillatorUpdateSettings,
-    themes: List<String>,
-    exclusions: List<String>,
     viewModel: SettingsViewModel
 ) {
     LazyColumn(
@@ -220,7 +222,28 @@ private fun DataUpdateTab(
             )
         }
 
-        // 테마 설정
+        // 데이터베이스 초기화
+        item {
+            DatabaseCard(
+                onReset = { viewModel.resetDatabase() }
+            )
+        }
+    }
+}
+
+// ==================== Keyword Tab ====================
+@Composable
+private fun KeywordTab(
+    themes: List<String>,
+    exclusions: List<String>,
+    viewModel: SettingsViewModel
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // 포함 테마 설정
         item {
             ThemeCard(
                 themes = themes,
@@ -235,13 +258,6 @@ private fun DataUpdateTab(
                 exclusions = exclusions,
                 onAddExclusion = { viewModel.addExclusion(it) },
                 onRemoveExclusion = { viewModel.removeExclusion(it) }
-            )
-        }
-
-        // 데이터베이스 초기화
-        item {
-            DatabaseCard(
-                onReset = { viewModel.resetDatabase() }
             )
         }
     }
