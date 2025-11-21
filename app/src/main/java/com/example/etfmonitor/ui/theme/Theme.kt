@@ -116,6 +116,7 @@ fun EtfMonitorTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Enable dynamic color by default for Material You theming on Android 12+
     dynamicColor: Boolean = true,
+    typography: androidx.compose.material3.Typography = Typography,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -148,7 +149,7 @@ fun EtfMonitorTheme(
     CompositionLocalProvider(LocalExtendedColors provides extendedColors) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = Typography,
+            typography = typography,
             shapes = Shapes,
             content = content
         )

@@ -44,7 +44,7 @@ fun SettingsScreen(
 
     // General settings
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
-    val fontScale by viewModel.fontScale.collectAsState()
+    val fontScaleSettings by viewModel.fontScaleSettings.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -116,7 +116,7 @@ fun SettingsScreen(
                 )
                 2 -> GeneralTab(
                     isDarkTheme = isDarkTheme,
-                    fontScale = fontScale,
+                    fontScaleSettings = fontScaleSettings,
                     viewModel = viewModel
                 )
             }
@@ -263,7 +263,7 @@ private fun KeywordTab(
 @Composable
 private fun GeneralTab(
     isDarkTheme: Boolean?,
-    fontScale: Float,
+    fontScaleSettings: com.etfmonitor.ui.theme.FontScaleSettings,
     viewModel: SettingsViewModel
 ) {
     LazyColumn(
@@ -282,8 +282,12 @@ private fun GeneralTab(
         // 폰트 크기 설정
         item {
             FontScaleCard(
-                currentScale = fontScale,
-                onScaleChange = { viewModel.setFontScale(it) }
+                fontScaleSettings = fontScaleSettings,
+                onDisplayScaleChange = { viewModel.setDisplayScale(it) },
+                onHeadlineScaleChange = { viewModel.setHeadlineScale(it) },
+                onTitleScaleChange = { viewModel.setTitleScale(it) },
+                onBodyScaleChange = { viewModel.setBodyScale(it) },
+                onLabelScaleChange = { viewModel.setLabelScale(it) }
             )
         }
     }
@@ -406,13 +410,17 @@ private fun ThemeSettingCard(
 
 @Composable
 private fun FontScaleCard(
-    currentScale: Float,
-    onScaleChange: (Float) -> Unit
+    fontScaleSettings: com.etfmonitor.ui.theme.FontScaleSettings,
+    onDisplayScaleChange: (Float) -> Unit,
+    onHeadlineScaleChange: (Float) -> Unit,
+    onTitleScaleChange: (Float) -> Unit,
+    onBodyScaleChange: (Float) -> Unit,
+    onLabelScaleChange: (Float) -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -429,67 +437,95 @@ private fun FontScaleCard(
             HorizontalDivider()
 
             Text(
-                "앱 전체 폰트 크기를 조절합니다",
+                "각 스타일별 폰트 크기를 조절합니다",
                 style = MaterialTheme.typography.bodyMedium
             )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        "현재 설정",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        "${(currentScale * 100).toInt()}%",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                // Preview text
-                Text(
-                    "미리보기 Aa",
-                    fontSize = (14 * currentScale).sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
-            // Slider for font scale (0.8 ~ 1.4, step 0.1)
-            Slider(
-                value = currentScale,
-                onValueChange = {
-                    // Round to nearest 0.1
-                    val rounded = (it * 10).toInt() / 10f
-                    onScaleChange(rounded)
-                },
-                valueRange = 0.8f..1.4f,
-                steps = 5
+            // Display
+            FontScaleSlider(
+                label = "Display",
+                description = "대형 헤더 (57sp, 45sp, 36sp)",
+                currentScale = fontScaleSettings.displayScale,
+                onScaleChange = onDisplayScaleChange
             )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("작게 (80%)", style = MaterialTheme.typography.bodySmall)
-                Text("크게 (140%)", style = MaterialTheme.typography.bodySmall)
-            }
+            // Headline
+            FontScaleSlider(
+                label = "Headline",
+                description = "섹션 헤더 (32sp, 28sp, 24sp)",
+                currentScale = fontScaleSettings.headlineScale,
+                onScaleChange = onHeadlineScaleChange
+            )
 
-            Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                shape = MaterialTheme.shapes.small
-            ) {
+            // Title
+            FontScaleSlider(
+                label = "Title",
+                description = "카드/컴포넌트 제목 (22sp, 16sp, 14sp)",
+                currentScale = fontScaleSettings.titleScale,
+                onScaleChange = onTitleScaleChange
+            )
+
+            // Body
+            FontScaleSlider(
+                label = "Body",
+                description = "본문 텍스트 (16sp, 14sp, 12sp)",
+                currentScale = fontScaleSettings.bodyScale,
+                onScaleChange = onBodyScaleChange
+            )
+
+            // Label
+            FontScaleSlider(
+                label = "Label",
+                description = "버튼, 태그, 캡션 (14sp, 12sp, 11sp)",
+                currentScale = fontScaleSettings.labelScale,
+                onScaleChange = onLabelScaleChange
+            )
+        }
+    }
+}
+
+@Composable
+private fun FontScaleSlider(
+    label: String,
+    description: String,
+    currentScale: Float,
+    onScaleChange: (Float) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
                 Text(
-                    "변경사항은 앱 재시작 후 적용됩니다",
+                    label,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    description,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(8.dp)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            Text(
+                "${(currentScale * 100).toInt()}%",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
+
+        Slider(
+            value = currentScale,
+            onValueChange = {
+                val rounded = (it * 10).toInt() / 10f
+                onScaleChange(rounded)
+            },
+            valueRange = 0.8f..1.4f,
+            steps = 5,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

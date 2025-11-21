@@ -9,6 +9,7 @@ import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.repository.FearGreedRepository
 import com.etfmonitor.repository.MarketDepositRepository
 import com.etfmonitor.repository.StockRepository
+import com.etfmonitor.ui.theme.FontScaleSettings
 import com.etfmonitor.ui.theme.ThemeManager
 import com.etfmonitor.worker.WorkManagerHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -113,8 +114,8 @@ class SettingsViewModel @Inject constructor(
     private val _isDarkTheme = MutableStateFlow<Boolean?>(null) // null = 시스템 설정 따름
     val isDarkTheme: StateFlow<Boolean?> = _isDarkTheme.asStateFlow()
 
-    private val _fontScale = MutableStateFlow(1.0f) // 기본값: 1.0 (100%)
-    val fontScale: StateFlow<Float> = _fontScale.asStateFlow()
+    private val _fontScaleSettings = MutableStateFlow(FontScaleSettings())
+    val fontScaleSettings: StateFlow<FontScaleSettings> = _fontScaleSettings.asStateFlow()
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
@@ -213,8 +214,20 @@ class SettingsViewModel @Inject constructor(
                 else -> null // 시스템 설정 따름
             }
 
-            val fontScaleStr = etfDao.getSetting("font_scale")
-            _fontScale.value = fontScaleStr?.toFloatOrNull() ?: 1.0f
+            // 폰트 스케일 설정 로드
+            val displayScale = etfDao.getSetting("font_scale_display")?.toFloatOrNull() ?: 1.0f
+            val headlineScale = etfDao.getSetting("font_scale_headline")?.toFloatOrNull() ?: 1.0f
+            val titleScale = etfDao.getSetting("font_scale_title")?.toFloatOrNull() ?: 1.0f
+            val bodyScale = etfDao.getSetting("font_scale_body")?.toFloatOrNull() ?: 1.0f
+            val labelScale = etfDao.getSetting("font_scale_label")?.toFloatOrNull() ?: 1.0f
+
+            _fontScaleSettings.value = FontScaleSettings(
+                displayScale = displayScale,
+                headlineScale = headlineScale,
+                titleScale = titleScale,
+                bodyScale = bodyScale,
+                labelScale = labelScale
+            )
         }
     }
 
@@ -622,13 +635,65 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setFontScale(scale: Float) {
+    fun setDisplayScale(scale: Float) {
         viewModelScope.launch {
             try {
-                etfDao.saveSetting(Setting("font_scale", scale.toString()))
-                _fontScale.value = scale
-                val percentage = (scale * 100).toInt()
-                _message.value = "폰트 크기가 ${percentage}%로 설정되었습니다"
+                etfDao.saveSetting(Setting("font_scale_display", scale.toString()))
+                _fontScaleSettings.value = _fontScaleSettings.value.copy(displayScale = scale)
+                themeManager.setDisplayScale(scale)
+                _message.value = "Display 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setHeadlineScale(scale: Float) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("font_scale_headline", scale.toString()))
+                _fontScaleSettings.value = _fontScaleSettings.value.copy(headlineScale = scale)
+                themeManager.setHeadlineScale(scale)
+                _message.value = "Headline 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setTitleScale(scale: Float) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("font_scale_title", scale.toString()))
+                _fontScaleSettings.value = _fontScaleSettings.value.copy(titleScale = scale)
+                themeManager.setTitleScale(scale)
+                _message.value = "Title 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setBodyScale(scale: Float) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("font_scale_body", scale.toString()))
+                _fontScaleSettings.value = _fontScaleSettings.value.copy(bodyScale = scale)
+                themeManager.setBodyScale(scale)
+                _message.value = "Body 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setLabelScale(scale: Float) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("font_scale_label", scale.toString()))
+                _fontScaleSettings.value = _fontScaleSettings.value.copy(labelScale = scale)
+                themeManager.setLabelScale(scale)
+                _message.value = "Label 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다"
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
             }

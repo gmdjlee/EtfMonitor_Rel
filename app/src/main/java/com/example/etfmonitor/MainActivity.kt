@@ -22,7 +22,9 @@ import com.etfmonitor.repository.MarketDepositRepository
 import com.etfmonitor.repository.StockRepository
 import com.etfmonitor.ui.Navigation
 import com.etfmonitor.ui.theme.EtfMonitorTheme
+import com.etfmonitor.ui.theme.FontScaleSettings
 import com.etfmonitor.ui.theme.ThemeManager
+import com.etfmonitor.ui.theme.createScaledTypography
 import com.etfmonitor.worker.WorkManagerHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -91,12 +93,25 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val darkThemeSetting by themeManager.isDarkTheme.collectAsState()
+            val fontScaleSettings by themeManager.fontScaleSettings.collectAsState()
             val systemDarkTheme = isSystemInDarkTheme()
 
             // 테마 결정: null이면 시스템 설정, 아니면 사용자 설정
             val useDarkTheme = darkThemeSetting ?: systemDarkTheme
 
-            EtfMonitorTheme(darkTheme = useDarkTheme) {
+            // 동적 Typography 생성
+            val scaledTypography = createScaledTypography(
+                displayScale = fontScaleSettings.displayScale,
+                headlineScale = fontScaleSettings.headlineScale,
+                titleScale = fontScaleSettings.titleScale,
+                bodyScale = fontScaleSettings.bodyScale,
+                labelScale = fontScaleSettings.labelScale
+            )
+
+            EtfMonitorTheme(
+                darkTheme = useDarkTheme,
+                typography = scaledTypography
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -110,6 +125,7 @@ class MainActivity : ComponentActivity() {
     private fun loadThemeSetting() {
         lifecycleScope.launch {
             try {
+                // 다크 테마 설정 로드
                 val darkThemeStr = etfDao.getSetting("dark_theme")
                 val isDark = when (darkThemeStr) {
                     "true" -> true
@@ -117,6 +133,23 @@ class MainActivity : ComponentActivity() {
                     else -> null // 시스템 설정 따름
                 }
                 themeManager.setDarkTheme(isDark)
+
+                // 폰트 스케일 설정 로드
+                val displayScale = etfDao.getSetting("font_scale_display")?.toFloatOrNull() ?: 1.0f
+                val headlineScale = etfDao.getSetting("font_scale_headline")?.toFloatOrNull() ?: 1.0f
+                val titleScale = etfDao.getSetting("font_scale_title")?.toFloatOrNull() ?: 1.0f
+                val bodyScale = etfDao.getSetting("font_scale_body")?.toFloatOrNull() ?: 1.0f
+                val labelScale = etfDao.getSetting("font_scale_label")?.toFloatOrNull() ?: 1.0f
+
+                themeManager.setFontScaleSettings(
+                    FontScaleSettings(
+                        displayScale = displayScale,
+                        headlineScale = headlineScale,
+                        titleScale = titleScale,
+                        bodyScale = bodyScale,
+                        labelScale = labelScale
+                    )
+                )
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error loading theme setting", e)
             }
