@@ -395,7 +395,7 @@ private fun HomeContent(
         }
         add(
             MenuItem(
-                icon = Icons.Default.ShowChart,
+                icon = Icons.AutoMirrored.Filled.ShowChart,
                 title = "종목 수급 분석",
                 color = MaterialTheme.colorScheme.tertiary,
                 onClick = onNavigateToOscillator
