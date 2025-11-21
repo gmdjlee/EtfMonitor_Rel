@@ -31,8 +31,8 @@ class DetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val etfTicker: String = savedStateHandle.get<String>("etfTicker")
-        ?: throw IllegalArgumentException("etfTicker is required")
+    private val etfTicker: String = savedStateHandle.get<String>("ticker")
+        ?: throw IllegalArgumentException("ticker is required")
 
     private val _state = MutableStateFlow<DetailState>(DetailState.Loading)
     val state: StateFlow<DetailState> = _state.asStateFlow()
