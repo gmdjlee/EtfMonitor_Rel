@@ -1075,6 +1075,7 @@ private data class DaysOption(
     val description: String
 )
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ThemeCard(
     themes: List<String>,
@@ -1168,6 +1169,7 @@ private fun ThemeCard(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ExclusionCard(
     exclusions: List<String>,
