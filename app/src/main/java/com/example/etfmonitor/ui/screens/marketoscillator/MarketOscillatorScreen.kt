@@ -238,7 +238,15 @@ private fun LatestDataCard(
     overboughtThreshold: Double,
     oversoldThreshold: Double
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    // 라이트 모드 색상 강제 적용
+    val cardBackground = Color(0xFFFFFBFE) // Surface light
+    val textColor = Color(0xFF1C1B1F) // OnSurface light
+    val dividerColor = Color(0xFFCAC4D0) // OutlineVariant light
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = cardBackground)
+    ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -246,20 +254,22 @@ private fun LatestDataCard(
             Text(
                 "최신 데이터 (${latest.date})",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = textColor
             )
 
-            HorizontalDivider()
+            HorizontalDivider(color = dividerColor)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("지수", style = MaterialTheme.typography.bodyMedium)
+                Text("지수", style = MaterialTheme.typography.bodyMedium, color = textColor)
                 Text(
                     String.format("%.2f", latest.indexValue),
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
                 )
             }
 
@@ -267,7 +277,7 @@ private fun LatestDataCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Oscillator", style = MaterialTheme.typography.bodyMedium)
+                Text("Oscillator", style = MaterialTheme.typography.bodyMedium, color = textColor)
                 Text(
                     String.format("%.2f%%", latest.oscillator),
                     style = MaterialTheme.typography.bodyMedium,
@@ -275,7 +285,7 @@ private fun LatestDataCard(
                     color = when {
                         latest.oscillator >= overboughtThreshold -> Color.Red
                         latest.oscillator <= oversoldThreshold -> Color.Blue
-                        else -> MaterialTheme.colorScheme.onSurface
+                        else -> textColor
                     }
                 )
             }
@@ -284,7 +294,7 @@ private fun LatestDataCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("상태", style = MaterialTheme.typography.bodyMedium)
+                Text("상태", style = MaterialTheme.typography.bodyMedium, color = textColor)
                 val status = when {
                     latest.oscillator >= overboughtThreshold -> "과매수"
                     latest.oscillator <= oversoldThreshold -> "과매도"
@@ -293,7 +303,7 @@ private fun LatestDataCard(
                 val statusColor = when {
                     latest.oscillator >= overboughtThreshold -> Color.Red
                     latest.oscillator <= oversoldThreshold -> Color.Blue
-                    else -> MaterialTheme.colorScheme.onSurface
+                    else -> textColor
                 }
                 Text(
                     status,
@@ -313,11 +323,22 @@ private fun DataTable(
     oversoldThreshold: Double,
     bodyScale: Float
 ) {
+    // 라이트 모드 색상 강제 적용
+    val cardBackground = Color(0xFFFFFBFE) // Surface light
+    val textColor = Color(0xFF1C1B1F) // OnSurface light
+    val secondaryTextColor = Color(0xFF49454F) // OnSurfaceVariant light
+    val headerBackground = Color(0xFFE7E0EC) // SurfaceVariant light
+    val dividerColor = Color(0xFFCAC4D0) // OutlineVariant light
+
     // 스케일이 적용된 폰트 크기
     val dateFontSize = (11 * bodyScale).sp
     val valueFontSize = (11 * bodyScale).sp
     val statusFontSize = (10 * bodyScale).sp
-    Card(modifier = Modifier.fillMaxWidth()) {
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = cardBackground)
+    ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -325,22 +346,23 @@ private fun DataTable(
             Text(
                 "과매수/과매도 내역",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = textColor
             )
 
             Text(
                 "표시 기간: 최근 ${data.size}일",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = secondaryTextColor
             )
 
-            HorizontalDivider()
+            HorizontalDivider(color = dividerColor)
 
             // Table Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(headerBackground)
                     .padding(8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -349,28 +371,32 @@ private fun DataTable(
                     modifier = Modifier.weight(0.4f),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    color = textColor
                 )
                 Text(
                     "지수",
                     modifier = Modifier.weight(0.3f),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.End
+                    textAlign = TextAlign.End,
+                    color = textColor
                 )
                 Text(
                     "Oscillator",
                     modifier = Modifier.weight(0.3f),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.End
+                    textAlign = TextAlign.End,
+                    color = textColor
                 )
                 Text(
                     "상태",
                     modifier = Modifier.weight(0.25f),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    color = textColor
                 )
             }
 
@@ -384,7 +410,7 @@ private fun DataTable(
                 val statusColor = when {
                     item.oscillator >= overboughtThreshold -> Color.Red
                     item.oscillator <= oversoldThreshold -> Color.Blue
-                    else -> MaterialTheme.colorScheme.onSurface
+                    else -> textColor
                 }
 
                 Row(
@@ -399,14 +425,16 @@ private fun DataTable(
                         modifier = Modifier.weight(0.4f),
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = dateFontSize,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        color = textColor
                     )
                     Text(
                         String.format("%.0f", item.indexValue),
                         modifier = Modifier.weight(0.3f),
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = valueFontSize,
-                        textAlign = TextAlign.End
+                        textAlign = TextAlign.End,
+                        color = textColor
                     )
                     Text(
                         String.format("%.1f%%", item.oscillator),
@@ -429,7 +457,7 @@ private fun DataTable(
                 }
 
                 if (item != data.last()) {
-                    HorizontalDivider(thickness = 0.5.dp)
+                    HorizontalDivider(thickness = 0.5.dp, color = dividerColor)
                 }
             }
         }
