@@ -1,19 +1,32 @@
 package com.etfmonitor.ui.screens.statistics
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.EtfMonitorApp
 import com.etfmonitor.database.entities.CashDepositTrend
 import com.etfmonitor.database.entities.StockAmountRanking
 import com.etfmonitor.database.entities.StockChangeInfo
 import com.etfmonitor.repository.DataRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class StatisticsViewModel(
+/**
+ * Production Level StatisticsViewModel with Hilt
+ *
+ * 최적화 포인트:
+ * 1. @HiltViewModel: Hilt가 ViewModel 생명주기 자동 관리
+ * 2. @Inject: 생성자 주입으로 의존성 명확화
+ * 3. Factory 패턴 제거: Hilt가 자동으로 ViewModel 생성
+ *
+ * 기존 문제점 해결:
+ * - EtfMonitorApp.instance 제거: 메모리 누수 위험 제거
+ * - 수동 Factory 제거: Hilt가 자동으로 관리하여 코드 간결화
+ */
+@HiltViewModel
+class StatisticsViewModel @Inject constructor(
     private val repository: DataRepository
 ) : ViewModel() {
 
@@ -69,17 +82,6 @@ class StatisticsViewModel(
             _amountRanking.value.sortedBy { it.totalAmount }
         } else {
             _amountRanking.value.sortedByDescending { it.totalAmount }
-        }
-    }
-
-    companion object {
-        val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return StatisticsViewModel(
-                    EtfMonitorApp.instance.repository
-                ) as T
-            }
         }
     }
 }

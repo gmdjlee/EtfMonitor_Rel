@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.ui.components.MarketCapOscillatorChart
 import com.etfmonitor.ui.components.MacdChart
 import com.etfmonitor.ui.components.LoadingCard
@@ -29,7 +29,7 @@ import com.etfmonitor.ui.components.IdleCard
 @Composable
 fun OscillatorScreen(
     onNavigateBack: () -> Unit,
-    viewModel: OscillatorViewModel = viewModel(factory = OscillatorViewModel.Factory)
+    viewModel: OscillatorViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()

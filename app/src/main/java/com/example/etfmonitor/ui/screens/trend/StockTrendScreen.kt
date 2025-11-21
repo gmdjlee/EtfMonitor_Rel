@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
@@ -34,9 +34,7 @@ fun StockTrendScreen(
     etfTicker: String,
     stockTicker: String,
     onNavigateBack: () -> Unit,
-    viewModel: StockTrendViewModel = viewModel(
-        factory = StockTrendViewModel.factory(etfTicker, stockTicker)
-    )
+    viewModel: StockTrendViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
 

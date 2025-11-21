@@ -12,7 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.database.entities.Etf
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -20,7 +20,7 @@ import com.etfmonitor.database.entities.Etf
 fun EtfListScreen(
     onNavigateBack: () -> Unit,
     onEtfClick: (String) -> Unit,
-    viewModel: EtfListViewModel = viewModel(factory = EtfListViewModel.Factory)
+    viewModel: EtfListViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()

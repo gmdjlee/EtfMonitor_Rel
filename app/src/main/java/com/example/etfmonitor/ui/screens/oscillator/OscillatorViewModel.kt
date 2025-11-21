@@ -1,14 +1,8 @@
 package com.etfmonitor.ui.screens.oscillator
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import com.chaquo.python.Python
-import com.etfmonitor.EtfMonitorApp
+import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.SearchHistoryDao
 import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.database.entities.Stock
@@ -17,6 +11,7 @@ import com.etfmonitor.oscillator.model.*
 import com.etfmonitor.oscillator.python.OscillatorPyClient
 import com.etfmonitor.repository.StockAnalysisRepository
 import com.etfmonitor.repository.StockRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 sealed class OscillatorState {
     data object Idle : OscillatorState()
@@ -36,13 +32,27 @@ sealed class OscillatorState {
     data class Error(val message: String) : OscillatorState()
 }
 
-class OscillatorViewModel(
-    application: Application,
+/**
+ * Production Level OscillatorViewModel with Hilt
+ *
+ * 최적화 포인트:
+ * 1. @HiltViewModel: Hilt가 ViewModel 생명주기 자동 관리
+ * 2. @Inject: 생성자 주입으로 의존성 명확화
+ * 3. Factory 패턴 제거: Hilt가 자동으로 ViewModel 생성
+ * 4. AndroidViewModel → ViewModel: Application 직접 주입 제거
+ *
+ * 기존 문제점 해결:
+ * - EtfMonitorApp.instance 제거: 메모리 누수 위험 제거
+ * - 수동 Factory 제거: Hilt가 자동으로 관리하여 코드 간결화
+ */
+@HiltViewModel
+class OscillatorViewModel @Inject constructor(
     private val pyClient: OscillatorPyClient,
     private val stockRepository: StockRepository,
     private val stockAnalysisRepository: StockAnalysisRepository,
-    private val searchHistoryDao: SearchHistoryDao
-) : AndroidViewModel(application) {
+    private val searchHistoryDao: SearchHistoryDao,
+    private val etfDao: EtfDao
+) : ViewModel() {
 
     private val _state = MutableStateFlow<OscillatorState>(OscillatorState.Idle)
     val state: StateFlow<OscillatorState> = _state.asStateFlow()
@@ -69,8 +79,7 @@ class OscillatorViewModel(
         viewModelScope.launch {
             try {
                 // 설정에서 히스토리 개수 가져오기 (기본값: 15)
-                val app = getApplication<EtfMonitorApp>()
-                val limitStr = app.database.dao().getSetting("search_history_limit")
+                val limitStr = etfDao.getSetting("search_history_limit")
                 val limit = limitStr?.toIntOrNull() ?: 15
 
                 searchHistoryDao.getRecentSearches(limit).collect { history ->
@@ -87,8 +96,7 @@ class OscillatorViewModel(
      */
     private suspend fun saveToHistory(ticker: String, name: String, market: String) {
         try {
-            val app = getApplication<EtfMonitorApp>()
-            val limitStr = app.database.dao().getSetting("search_history_limit")
+            val limitStr = etfDao.getSetting("search_history_limit")
             val limit = limitStr?.toIntOrNull() ?: 15
 
             // 기존 동일 종목 삭제 (중복 방지)
@@ -221,23 +229,6 @@ class OscillatorViewModel(
 
             } catch (e: Exception) {
                 _state.value = OscillatorState.Error("오류 발생: ${e.message}")
-            }
-        }
-    }
-
-    companion object {
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as EtfMonitorApp
-                val pyClient = OscillatorPyClient(app.python)
-                // Use singleton repositories from EtfMonitorApp for optimized memory usage
-                OscillatorViewModel(
-                    app,
-                    pyClient,
-                    app.stockRepository,
-                    app.stockAnalysisRepository,
-                    app.database.searchHistoryDao()
-                )
             }
         }
     }
