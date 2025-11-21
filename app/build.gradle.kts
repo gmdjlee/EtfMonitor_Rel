@@ -8,6 +8,10 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization") version "2.1.0"
 }
 
+hilt {
+    enableAggregatingTask = false
+}
+
 android {
     namespace = "com.etfmonitor"
     compileSdk = 36
@@ -66,8 +70,8 @@ android {
 chaquopy {
     defaultConfig {
         pip {
-            options("--no-cache-dir")
-            options("--timeout", "300")
+//            options("--no-cache-dir")
+//            options("--timeout", "300")
 
             install("pandas")
             install("pykrx")
