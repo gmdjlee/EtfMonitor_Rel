@@ -39,6 +39,7 @@ fun MarketOscillatorScreen(
     val overboughtThreshold by viewModel.overboughtThreshold.collectAsState()
     val oversoldThreshold by viewModel.oversoldThreshold.collectAsState()
     val showFirstRunDialog by viewModel.showFirstRunDialog.collectAsState()
+    val bodyScale by viewModel.bodyScale.collectAsState()
 
     var showManualPeriodDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
@@ -223,7 +224,8 @@ fun MarketOscillatorScreen(
                 DataTable(
                     data = marketData,
                     overboughtThreshold = overboughtThreshold,
-                    oversoldThreshold = oversoldThreshold
+                    oversoldThreshold = oversoldThreshold,
+                    bodyScale = bodyScale
                 )
             }
         }
@@ -308,8 +310,13 @@ private fun LatestDataCard(
 private fun DataTable(
     data: List<MarketOscillatorData>,
     overboughtThreshold: Double,
-    oversoldThreshold: Double
+    oversoldThreshold: Double,
+    bodyScale: Float
 ) {
+    // 스케일이 적용된 폰트 크기
+    val dateFontSize = (11 * bodyScale).sp
+    val valueFontSize = (11 * bodyScale).sp
+    val statusFontSize = (10 * bodyScale).sp
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -391,21 +398,21 @@ private fun DataTable(
                         item.date,
                         modifier = Modifier.weight(0.4f),
                         style = MaterialTheme.typography.bodySmall,
-                        fontSize = 11.sp,
+                        fontSize = dateFontSize,
                         textAlign = TextAlign.Center
                     )
                     Text(
                         String.format("%.0f", item.indexValue),
                         modifier = Modifier.weight(0.3f),
                         style = MaterialTheme.typography.bodySmall,
-                        fontSize = 11.sp,
+                        fontSize = valueFontSize,
                         textAlign = TextAlign.End
                     )
                     Text(
                         String.format("%.1f%%", item.oscillator),
                         modifier = Modifier.weight(0.3f),
                         style = MaterialTheme.typography.bodySmall,
-                        fontSize = 11.sp,
+                        fontSize = valueFontSize,
                         fontWeight = if (status != "중립") FontWeight.Bold else FontWeight.Normal,
                         color = statusColor,
                         textAlign = TextAlign.End
@@ -414,7 +421,7 @@ private fun DataTable(
                         status,
                         modifier = Modifier.weight(0.25f),
                         style = MaterialTheme.typography.bodySmall,
-                        fontSize = 10.sp,
+                        fontSize = statusFontSize,
                         fontWeight = FontWeight.Bold,
                         color = statusColor,
                         textAlign = TextAlign.Center
