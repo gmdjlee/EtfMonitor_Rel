@@ -1117,7 +1117,7 @@ private fun ThemeCard(
                 style = MaterialTheme.typography.bodySmall
             )
 
-            themes.chunked(3).forEach { rowThemes ->
+            themes.chunked(6).forEach { rowThemes ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1211,7 +1211,7 @@ private fun ExclusionCard(
                 style = MaterialTheme.typography.bodySmall
             )
 
-            exclusions.chunked(3).forEach { rowExclusions ->
+            exclusions.chunked(6).forEach { rowExclusions ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
