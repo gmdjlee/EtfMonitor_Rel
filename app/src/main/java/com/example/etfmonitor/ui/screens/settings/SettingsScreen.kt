@@ -367,7 +367,8 @@ private val chartColorPalette = listOf(
     Color(0xFF7C2D12), // Deep orange
     Color(0xFF581C87), // Deep purple
     Color(0xFF0F172A), // Near black
-    Color(0xFF64748B)  // Slate gray
+    Color(0xFF64748B), // Slate gray
+    Color(0xFFFFFFFF)  // White
 )
 
 @Composable
