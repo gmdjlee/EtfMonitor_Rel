@@ -103,3 +103,17 @@ val ShimmerColorLight = Color(0xFFE5E7EB)
 val ShimmerHighlightLight = Color(0xFFF9FAFB)
 val ShimmerColorDark = Color(0xFF1F2937)
 val ShimmerHighlightDark = Color(0xFF374151)
+
+// Additional semantic colors for production apps
+val SuccessLight = Color(0xFF10B981)  // Success green
+val SuccessDark = Color(0xFF34D399)
+val WarningLight = Color(0xFFF59E0B)  // Warning amber
+val WarningDark = Color(0xFFFBBF24)
+val InfoLight = Color(0xFF3B82F6)  // Info blue
+val InfoDark = Color(0xFF60A5FA)
+
+// Interactive state colors
+val RippleLight = Color(0xFF000000).copy(alpha = 0.08f)
+val RippleDark = Color(0xFFFFFFFF).copy(alpha = 0.12f)
+val HoverLight = Color(0xFF000000).copy(alpha = 0.04f)
+val HoverDark = Color(0xFFFFFFFF).copy(alpha = 0.08f)

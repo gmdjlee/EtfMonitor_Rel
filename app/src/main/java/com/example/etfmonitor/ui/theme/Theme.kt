@@ -146,7 +146,13 @@ fun EtfMonitorTheme(
         surfaceElevation3 = if (darkTheme) SurfaceElevation3Dark else SurfaceElevation3Light
     )
 
-    CompositionLocalProvider(LocalExtendedColors provides extendedColors) {
+    CompositionLocalProvider(
+        LocalExtendedColors provides extendedColors,
+        LocalElevation provides Elevation(),
+        LocalSpacing provides Spacing(),
+        LocalMotion provides MotionScheme(),
+        LocalExtendedShapes provides ExtendedShapes()
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = typography,
@@ -163,3 +169,35 @@ fun EtfMonitorTheme(
 val MaterialTheme.extendedColors: ExtendedColors
     @Composable
     get() = LocalExtendedColors.current
+
+/**
+ * Access elevation system
+ * Usage: MaterialTheme.elevation.level2
+ */
+val MaterialTheme.elevation: Elevation
+    @Composable
+    get() = LocalElevation.current
+
+/**
+ * Access spacing system
+ * Usage: MaterialTheme.spacing.medium
+ */
+val MaterialTheme.spacing: Spacing
+    @Composable
+    get() = LocalSpacing.current
+
+/**
+ * Access motion system
+ * Usage: MaterialTheme.motion.emphasized
+ */
+val MaterialTheme.motion: MotionScheme
+    @Composable
+    get() = LocalMotion.current
+
+/**
+ * Access extended shapes
+ * Usage: MaterialTheme.extendedShapes.card
+ */
+val MaterialTheme.extendedShapes: ExtendedShapes
+    @Composable
+    get() = LocalExtendedShapes.current
