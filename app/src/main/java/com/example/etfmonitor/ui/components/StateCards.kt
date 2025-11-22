@@ -1,6 +1,7 @@
 package com.etfmonitor.ui.components
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ErrorOutline
@@ -142,9 +143,9 @@ fun IdleCard(
         colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
         ),
-        border = CardDefaults.outlinedCardBorder().copy(
+        border = BorderStroke(
             width = 1.dp,
-            brush = null
+            color = MaterialTheme.colorScheme.outlineVariant
         )
     ) {
         Box(
