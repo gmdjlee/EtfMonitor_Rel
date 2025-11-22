@@ -1,14 +1,20 @@
 package com.etfmonitor.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.etfmonitor.ui.adaptive.AdaptiveNavigationScaffold
+import com.etfmonitor.ui.adaptive.navigateToTopLevelDestination
+import com.etfmonitor.ui.adaptive.topLevelDestinations
 import com.etfmonitor.ui.screens.detail.DetailScreen
 import com.etfmonitor.ui.screens.home.HomeScreen
 import com.etfmonitor.ui.screens.list.EtfListScreen
+import com.etfmonitor.ui.screens.list.EtfListDetailScreen
 import com.etfmonitor.ui.screens.settings.SettingsScreen
 import com.etfmonitor.ui.screens.statistics.AggregatedStockTrendScreen
 import com.etfmonitor.ui.screens.statistics.StatisticsScreen
@@ -47,7 +53,29 @@ sealed class Screen(val route: String) {
 @Composable
 fun Navigation() {
     val navController = rememberNavController()
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = currentBackStackEntry?.destination
 
+    // Determine if we should show navigation for current destination
+    val topLevelRoutes = topLevelDestinations.map { it.route }
+    val showNavigation = currentDestination?.route in topLevelRoutes
+
+    if (showNavigation) {
+        AdaptiveNavigationScaffold(
+            currentDestination = currentDestination,
+            onNavigateToDestination = { destination ->
+                navController.navigateToTopLevelDestination(destination)
+            }
+        ) {
+            NavigationContent(navController = navController)
+        }
+    } else {
+        NavigationContent(navController = navController)
+    }
+}
+
+@Composable
+private fun NavigationContent(navController: androidx.navigation.NavHostController) {
     NavHost(
         navController = navController,
         startDestination = Screen.Home.route
@@ -64,25 +92,11 @@ fun Navigation() {
             )
         }
 
+        // ✅ ETF List-Detail with Adaptive Supporting Pane
         composable(Screen.List.route) {
-            EtfListScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onEtfClick = { ticker ->
-                    navController.navigate(Screen.Detail.createRoute(ticker))
-                }
-            )
-        }
-
-        composable(
-            route = Screen.Detail.route,
-            arguments = listOf(navArgument("ticker") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val ticker = backStackEntry.arguments?.getString("ticker") ?: ""
-            DetailScreen(
-                etfTicker = ticker,
-                onNavigateBack = { navController.popBackStack() },
-                onStockClick = { stockTicker ->
-                    navController.navigate(Screen.StockTrend.createRoute(ticker, stockTicker))
+            EtfListDetailScreen(
+                onNavigateToStockTrend = { etfTicker, stockTicker ->
+                    navController.navigate(Screen.StockTrend.createRoute(etfTicker, stockTicker))
                 }
             )
         }
@@ -112,7 +126,7 @@ fun Navigation() {
         composable(Screen.Statistics.route) {
             StatisticsScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onStockClick = { stockTicker ->  // ✅ 추가
+                onStockClick = { stockTicker ->
                     navController.navigate(Screen.AggregatedStockTrend.createRoute(stockTicker))
                 }
             )
