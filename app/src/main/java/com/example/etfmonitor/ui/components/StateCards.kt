@@ -1,65 +1,82 @@
 package com.etfmonitor.ui.components
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.etfmonitor.ui.theme.elevation
+import com.etfmonitor.ui.theme.extendedShapes
+import com.etfmonitor.ui.theme.spacing
 
 /**
- * Modern state card components with enhanced styling
+ * Material Design 3 State Card Components
+ * Professional, production-ready state indicators with:
+ * - Consistent elevation and shape
+ * - Smooth animations
+ * - Accessible color contrast
+ * - Modern look & feel
  */
 
 /**
- * Loading state card with animated indicator
+ * Loading state card with smooth pulsing animation
+ * Professional loading indicator for data-heavy operations
  */
 @Composable
 fun LoadingCard(
     message: String = "데이터 분석 중...",
     modifier: Modifier = Modifier
 ) {
+    // Smooth breathing animation for text
     val infiniteTransition = rememberInfiniteTransition(label = "loading")
     val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
+        initialValue = 0.5f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing)
+            animation = tween(
+                durationMillis = 1200,
+                easing = FastOutSlowInEasing
+            ),
+            repeatMode = RepeatMode.Reverse
         ),
         label = "alpha"
     )
 
-    Card(
+    ElevatedCard(
         modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+        elevation = CardDefaults.elevatedCardElevation(
+            defaultElevation = MaterialTheme.elevation.level2
+        ),
+        shape = MaterialTheme.extendedShapes.cardLarge,
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(40.dp),
+                .padding(MaterialTheme.spacing.extraLarge),
             contentAlignment = Alignment.Center
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
             ) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(48.dp),
-                    strokeWidth = 4.dp
+                    modifier = Modifier.size(56.dp),
+                    strokeWidth = 5.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
                 Text(
-                    message,
+                    text = message,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.alpha(alpha)
@@ -70,28 +87,39 @@ fun LoadingCard(
 }
 
 /**
- * Error state card with prominent styling
+ * Error state card with prominent, accessible styling
+ * Clear visual hierarchy with icon and message
  */
 @Composable
 fun ErrorCard(
     message: String,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    ElevatedCard(
         modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
+        elevation = CardDefaults.elevatedCardElevation(
+            defaultElevation = MaterialTheme.elevation.level2
+        ),
+        shape = MaterialTheme.extendedShapes.cardLarge,
+        colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.errorContainer
         )
     ) {
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp)
+                .padding(MaterialTheme.spacing.large),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
         ) {
+            Icon(
+                imageVector = Icons.Default.ErrorOutline,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(24.dp)
+            )
             Text(
-                message,
+                text = message,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onErrorContainer
             )
@@ -100,29 +128,33 @@ fun ErrorCard(
 }
 
 /**
- * Idle state card with subtle styling
+ * Idle state card with subtle, inviting styling
+ * Gentle design to indicate available actions
  */
 @Composable
 fun IdleCard(
     message: String,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    OutlinedCard(
         modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        shape = MaterialTheme.extendedShapes.cardLarge,
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
+        ),
+        border = CardDefaults.outlinedCardBorder().copy(
+            width = 1.dp,
+            brush = null
         )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(40.dp),
+                .padding(MaterialTheme.spacing.extraLarge),
             contentAlignment = Alignment.Center
         ) {
             Text(
-                message,
+                text = message,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
