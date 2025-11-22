@@ -1,12 +1,19 @@
 package com.etfmonitor.ui.adaptive
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
-import androidx.compose.material3.adaptive.layout.*
-import androidx.compose.material3.adaptive.navigation.*
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.window.core.layout.WindowWidthSizeClass
 import com.etfmonitor.ui.theme.elevation
 import com.etfmonitor.ui.theme.spacing
 
@@ -16,19 +23,10 @@ import com.etfmonitor.ui.theme.spacing
  */
 
 /**
- * List-Detail Pane State
- */
-enum class ListDetailPaneContent {
-    List,
-    Detail
-}
-
-/**
  * List-Detail Pane Scaffold with adaptive layout
  * Automatically shows list and detail side-by-side on large screens
  * and as separate screens on small screens
  */
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun <T> AdaptiveListDetailLayout(
     selectedItem: T?,
@@ -40,52 +38,62 @@ fun <T> AdaptiveListDetailLayout(
         EmptyDetailPane()
     }
 ) {
-    val navigator = rememberListDetailPaneScaffoldNavigator<T>()
+    val windowAdaptiveInfo = currentWindowAdaptiveInfo()
+    val showDetailInline = windowAdaptiveInfo.windowSizeClass.windowWidthSizeClass != WindowWidthSizeClass.COMPACT
 
-    // Sync external state with internal navigator state
-    LaunchedEffect(selectedItem) {
-        if (selectedItem != null) {
-            navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, selectedItem)
-        } else {
-            navigator.navigateTo(ListDetailPaneScaffoldRole.List)
-        }
-    }
-
-    BackHandler(navigator.canNavigateBack()) {
-        navigator.navigateBack()
-        onItemSelected(null)
-    }
-
-    ListDetailPaneScaffold(
-        directive = navigator.scaffoldDirective,
-        value = navigator.scaffoldValue,
-        listPane = {
-            AnimatedPane(modifier = Modifier.fillMaxSize()) {
+    if (showDetailInline) {
+        // Side-by-side layout for medium/large screens
+        Row(modifier = modifier.fillMaxSize()) {
+            // List pane (1/3 width)
+            Box(
+                modifier = Modifier
+                    .weight(0.4f)
+                    .fillMaxHeight()
+            ) {
                 listContent { item ->
-                    navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, item)
                     onItemSelected(item)
                 }
             }
-        },
-        detailPane = {
-            AnimatedPane(modifier = Modifier.fillMaxSize()) {
-                val currentItem = navigator.currentDestination?.content
-                if (currentItem != null) {
-                    detailContent(currentItem)
+
+            // Divider
+            VerticalDivider()
+
+            // Detail pane (2/3 width)
+            Box(
+                modifier = Modifier
+                    .weight(0.6f)
+                    .fillMaxHeight()
+            ) {
+                if (selectedItem != null) {
+                    detailContent(selectedItem)
                 } else {
                     emptyDetailContent()
                 }
             }
-        },
-        modifier = modifier
-    )
+        }
+    } else {
+        // Single pane layout for compact screens
+        Box(modifier = modifier.fillMaxSize()) {
+            // Show list by default
+            if (selectedItem == null) {
+                listContent { item ->
+                    onItemSelected(item)
+                }
+            } else {
+                // Show detail when item is selected
+                BackHandler {
+                    onItemSelected(null)
+                }
+                detailContent(selectedItem)
+            }
+        }
+    }
 }
 
 /**
  * Supporting Pane Scaffold for main + supporting content
  * Used for screens with primary content and contextual supporting information
  */
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun AdaptiveSupportingPaneLayout(
     showSupportingPane: Boolean,
@@ -94,32 +102,30 @@ fun AdaptiveSupportingPaneLayout(
     supportingContent: @Composable () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val navigator = rememberSupportingPaneScaffoldNavigator()
+    val windowAdaptiveInfo = currentWindowAdaptiveInfo()
+    val showSupportingInline = windowAdaptiveInfo.windowSizeClass.windowWidthSizeClass != WindowWidthSizeClass.COMPACT
 
-    // Sync external state with navigator
-    LaunchedEffect(showSupportingPane) {
-        if (showSupportingPane) {
-            navigator.navigateTo(SupportingPaneScaffoldRole.Supporting)
-        } else {
-            navigator.navigateTo(SupportingPaneScaffoldRole.Main)
-        }
-    }
-
-    BackHandler(navigator.canNavigateBack()) {
-        navigator.navigateBack()
-        onSupportingPaneDismiss()
-    }
-
-    SupportingPaneScaffold(
-        directive = navigator.scaffoldDirective,
-        value = navigator.scaffoldValue,
-        mainPane = {
-            AnimatedPane(modifier = Modifier.fillMaxSize()) {
+    if (showSupportingInline && showSupportingPane) {
+        // Side-by-side layout for medium/large screens
+        Row(modifier = modifier.fillMaxSize()) {
+            // Main content (2/3 width)
+            Box(
+                modifier = Modifier
+                    .weight(0.6f)
+                    .fillMaxHeight()
+            ) {
                 mainContent()
             }
-        },
-        supportingPane = {
-            AnimatedPane(modifier = Modifier.fillMaxSize()) {
+
+            // Divider
+            VerticalDivider()
+
+            // Supporting pane (1/3 width)
+            Box(
+                modifier = Modifier
+                    .weight(0.4f)
+                    .fillMaxHeight()
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -128,9 +134,32 @@ fun AdaptiveSupportingPaneLayout(
                     supportingContent()
                 }
             }
-        },
-        modifier = modifier
-    )
+        }
+    } else {
+        // Single pane layout for compact screens
+        Box(modifier = modifier.fillMaxSize()) {
+            mainContent()
+
+            // Show supporting pane as modal on compact screens
+            if (showSupportingPane) {
+                BackHandler {
+                    onSupportingPaneDismiss()
+                }
+
+                ModalBottomSheet(
+                    onDismissRequest = onSupportingPaneDismiss
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(0.9f)
+                    ) {
+                        supportingContent()
+                    }
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -142,14 +171,14 @@ private fun EmptyDetailPane() {
         modifier = Modifier
             .fillMaxSize()
             .padding(MaterialTheme.spacing.large),
-        contentAlignment = androidx.compose.ui.Alignment.Center
+        contentAlignment = Alignment.Center
     ) {
         Column(
-            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
         ) {
             Icon(
-                imageVector = androidx.compose.material.icons.Icons.Default.TouchApp,
+                imageVector = Icons.Default.Info,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -163,19 +192,8 @@ private fun EmptyDetailPane() {
                 text = "목록에서 항목을 선택하면\n상세 정보가 여기에 표시됩니다",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
         }
     }
-}
-
-/**
- * BackHandler for adaptive navigation
- */
-@Composable
-private fun BackHandler(
-    enabled: Boolean,
-    onBack: () -> Unit
-) {
-    androidx.activity.compose.BackHandler(enabled = enabled, onBack = onBack)
 }

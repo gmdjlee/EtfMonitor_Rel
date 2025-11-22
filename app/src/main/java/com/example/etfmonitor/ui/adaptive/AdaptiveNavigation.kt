@@ -6,18 +6,16 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.adaptive.navigationsuite.*
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination
-import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.window.core.layout.WindowWidthSizeClass
 import com.etfmonitor.ui.Screen
-import com.etfmonitor.ui.theme.elevation
-import com.etfmonitor.ui.theme.extendedShapes
 import com.etfmonitor.ui.theme.spacing
 
 /**
@@ -95,10 +93,18 @@ val topLevelDestinations = listOf(
 )
 
 /**
- * Adaptive Navigation Suite Scaffold
+ * Navigation Type based on window size
+ */
+enum class NavigationType {
+    BOTTOM_NAVIGATION,  // Compact (phones)
+    NAVIGATION_RAIL,    // Medium (tablets)
+    PERMANENT_DRAWER    // Expanded (desktops)
+}
+
+/**
+ * Adaptive Navigation Scaffold
  * Material3 canonical layout with automatic adaptation
  */
-@OptIn(ExperimentalMaterial3AdaptiveNavigationSuiteApi::class)
 @Composable
 fun AdaptiveNavigationScaffold(
     currentDestination: NavDestination?,
@@ -106,6 +112,13 @@ fun AdaptiveNavigationScaffold(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
+    val windowAdaptiveInfo = currentWindowAdaptiveInfo()
+    val navigationType = when (windowAdaptiveInfo.windowSizeClass.windowWidthSizeClass) {
+        WindowWidthSizeClass.COMPACT -> NavigationType.BOTTOM_NAVIGATION
+        WindowWidthSizeClass.MEDIUM -> NavigationType.NAVIGATION_RAIL
+        else -> NavigationType.PERMANENT_DRAWER
+    }
+
     // Determine current selected destination
     val selectedDestination = topLevelDestinations.firstOrNull { destination ->
         currentDestination?.hierarchy?.any {
@@ -113,36 +126,85 @@ fun AdaptiveNavigationScaffold(
         } == true
     }
 
-    NavigationSuiteScaffold(
-        navigationSuiteItems = {
-            topLevelDestinations.forEach { destination ->
-                val selected = selectedDestination == destination
-
-                item(
-                    selected = selected,
-                    onClick = { onNavigateToDestination(destination) },
-                    icon = {
-                        Icon(
-                            imageVector = destination.icon,
-                            contentDescription = destination.label
-                        )
-                    },
-                    label = {
-                        Text(destination.label)
-                    },
-                    colors = NavigationSuiteItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                )
+    when (navigationType) {
+        NavigationType.BOTTOM_NAVIGATION -> {
+            Scaffold(
+                bottomBar = {
+                    NavigationBar {
+                        topLevelDestinations.forEach { destination ->
+                            NavigationBarItem(
+                                selected = selectedDestination == destination,
+                                onClick = { onNavigateToDestination(destination) },
+                                icon = {
+                                    Icon(
+                                        imageVector = destination.icon,
+                                        contentDescription = destination.label
+                                    )
+                                },
+                                label = { Text(destination.label) }
+                            )
+                        }
+                    }
+                },
+                modifier = modifier
+            ) { padding ->
+                Box(modifier = Modifier.padding(padding)) {
+                    content()
+                }
             }
-        },
-        modifier = modifier
-    ) {
-        content()
+        }
+
+        NavigationType.NAVIGATION_RAIL -> {
+            Row(modifier = modifier) {
+                NavigationRail {
+                    Spacer(Modifier.weight(1f))
+                    topLevelDestinations.forEach { destination ->
+                        NavigationRailItem(
+                            selected = selectedDestination == destination,
+                            onClick = { onNavigateToDestination(destination) },
+                            icon = {
+                                Icon(
+                                    imageVector = destination.icon,
+                                    contentDescription = destination.label
+                                )
+                            },
+                            label = { Text(destination.label) }
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
+                }
+                Box(modifier = Modifier.fillMaxSize()) {
+                    content()
+                }
+            }
+        }
+
+        NavigationType.PERMANENT_DRAWER -> {
+            PermanentNavigationDrawer(
+                drawerContent = {
+                    PermanentDrawerSheet {
+                        Spacer(Modifier.height(12.dp))
+                        topLevelDestinations.forEach { destination ->
+                            NavigationDrawerItem(
+                                selected = selectedDestination == destination,
+                                onClick = { onNavigateToDestination(destination) },
+                                icon = {
+                                    Icon(
+                                        imageVector = destination.icon,
+                                        contentDescription = destination.label
+                                    )
+                                },
+                                label = { Text(destination.label) },
+                                modifier = Modifier.padding(horizontal = 12.dp)
+                            )
+                        }
+                    }
+                },
+                modifier = modifier
+            ) {
+                content()
+            }
+        }
     }
 }
 
