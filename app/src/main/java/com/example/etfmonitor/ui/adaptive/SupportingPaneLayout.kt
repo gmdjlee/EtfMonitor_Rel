@@ -94,6 +94,7 @@ fun <T> AdaptiveListDetailLayout(
  * Supporting Pane Scaffold for main + supporting content
  * Used for screens with primary content and contextual supporting information
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdaptiveSupportingPaneLayout(
     showSupportingPane: Boolean,
