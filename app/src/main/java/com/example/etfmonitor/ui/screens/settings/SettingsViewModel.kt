@@ -9,7 +9,9 @@ import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.repository.FearGreedRepository
 import com.etfmonitor.repository.MarketDepositRepository
 import com.etfmonitor.repository.StockRepository
+import com.etfmonitor.ui.theme.ChartColorSettings
 import com.etfmonitor.ui.theme.FontScaleSettings
+import com.etfmonitor.ui.theme.SingleChartColorSettings
 import com.etfmonitor.ui.theme.ThemeManager
 import com.etfmonitor.worker.WorkManagerHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -116,6 +118,10 @@ class SettingsViewModel @Inject constructor(
 
     private val _fontScaleSettings = MutableStateFlow(FontScaleSettings())
     val fontScaleSettings: StateFlow<FontScaleSettings> = _fontScaleSettings.asStateFlow()
+
+    // 차트 색상 설정
+    private val _chartColorSettings = MutableStateFlow(ChartColorSettings())
+    val chartColorSettings: StateFlow<ChartColorSettings> = _chartColorSettings.asStateFlow()
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
@@ -228,7 +234,57 @@ class SettingsViewModel @Inject constructor(
                 bodyScale = bodyScale,
                 labelScale = labelScale
             )
+
+            // 차트 색상 설정 로드
+            loadChartColorSettings()
         }
+    }
+
+    private suspend fun loadChartColorSettings() {
+        val marketCapLine1 = etfDao.getSetting("chart_marketcap_line1")?.toIntOrNull()
+        val marketCapLine2 = etfDao.getSetting("chart_marketcap_line2")?.toIntOrNull()
+        val marketCapText = etfDao.getSetting("chart_marketcap_text")?.toIntOrNull()
+        val marketCapLegend = etfDao.getSetting("chart_marketcap_legend")?.toIntOrNull()
+
+        val macdLine1 = etfDao.getSetting("chart_macd_line1")?.toIntOrNull()
+        val macdLine2 = etfDao.getSetting("chart_macd_line2")?.toIntOrNull()
+        val macdPositive = etfDao.getSetting("chart_macd_positive")?.toIntOrNull()
+        val macdNegative = etfDao.getSetting("chart_macd_negative")?.toIntOrNull()
+        val macdText = etfDao.getSetting("chart_macd_text")?.toIntOrNull()
+        val macdLegend = etfDao.getSetting("chart_macd_legend")?.toIntOrNull()
+
+        val depositLine1 = etfDao.getSetting("chart_deposit_line1")?.toIntOrNull()
+        val depositLine2 = etfDao.getSetting("chart_deposit_line2")?.toIntOrNull()
+        val depositText = etfDao.getSetting("chart_deposit_text")?.toIntOrNull()
+        val depositLegend = etfDao.getSetting("chart_deposit_legend")?.toIntOrNull()
+
+        val defaultSettings = ChartColorSettings()
+
+        val settings = ChartColorSettings(
+            marketCapOscillator = SingleChartColorSettings(
+                lineColor1 = marketCapLine1 ?: defaultSettings.marketCapOscillator.lineColor1,
+                lineColor2 = marketCapLine2 ?: defaultSettings.marketCapOscillator.lineColor2,
+                textColor = marketCapText,
+                legendColor = marketCapLegend
+            ),
+            macd = SingleChartColorSettings(
+                lineColor1 = macdLine1 ?: defaultSettings.macd.lineColor1,
+                lineColor2 = macdLine2 ?: defaultSettings.macd.lineColor2,
+                positiveColor = macdPositive ?: defaultSettings.macd.positiveColor,
+                negativeColor = macdNegative ?: defaultSettings.macd.negativeColor,
+                textColor = macdText,
+                legendColor = macdLegend
+            ),
+            marketDeposit = SingleChartColorSettings(
+                lineColor1 = depositLine1 ?: defaultSettings.marketDeposit.lineColor1,
+                lineColor2 = depositLine2 ?: defaultSettings.marketDeposit.lineColor2,
+                textColor = depositText,
+                legendColor = depositLegend
+            )
+        )
+
+        _chartColorSettings.value = settings
+        themeManager.setChartColorSettings(settings)
     }
 
     private fun loadStockInfo() {
@@ -696,6 +752,256 @@ class SettingsViewModel @Inject constructor(
                 _message.value = "Label 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다"
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    // 차트 색상 설정 메서드들
+    fun setMarketCapOscillatorLineColor1(color: Int) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("chart_marketcap_line1", color.toString()))
+                val updated = _chartColorSettings.value.marketCapOscillator.copy(lineColor1 = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(marketCapOscillator = updated)
+                themeManager.setMarketCapOscillatorColors(updated)
+                _message.value = "시가총액 라인 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setMarketCapOscillatorLineColor2(color: Int) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("chart_marketcap_line2", color.toString()))
+                val updated = _chartColorSettings.value.marketCapOscillator.copy(lineColor2 = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(marketCapOscillator = updated)
+                themeManager.setMarketCapOscillatorColors(updated)
+                _message.value = "오실레이터 라인 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setMarketCapOscillatorTextColor(color: Int?) {
+        viewModelScope.launch {
+            try {
+                if (color != null) {
+                    etfDao.saveSetting(Setting("chart_marketcap_text", color.toString()))
+                } else {
+                    etfDao.deleteSetting("chart_marketcap_text")
+                }
+                val updated = _chartColorSettings.value.marketCapOscillator.copy(textColor = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(marketCapOscillator = updated)
+                themeManager.setMarketCapOscillatorColors(updated)
+                _message.value = "시가총액 차트 텍스트 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setMarketCapOscillatorLegendColor(color: Int?) {
+        viewModelScope.launch {
+            try {
+                if (color != null) {
+                    etfDao.saveSetting(Setting("chart_marketcap_legend", color.toString()))
+                } else {
+                    etfDao.deleteSetting("chart_marketcap_legend")
+                }
+                val updated = _chartColorSettings.value.marketCapOscillator.copy(legendColor = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(marketCapOscillator = updated)
+                themeManager.setMarketCapOscillatorColors(updated)
+                _message.value = "시가총액 차트 범례 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setMacdLineColor1(color: Int) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("chart_macd_line1", color.toString()))
+                val updated = _chartColorSettings.value.macd.copy(lineColor1 = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(macd = updated)
+                themeManager.setMacdColors(updated)
+                _message.value = "MACD 라인 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setMacdLineColor2(color: Int) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("chart_macd_line2", color.toString()))
+                val updated = _chartColorSettings.value.macd.copy(lineColor2 = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(macd = updated)
+                themeManager.setMacdColors(updated)
+                _message.value = "Signal 라인 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setMacdPositiveColor(color: Int) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("chart_macd_positive", color.toString()))
+                val updated = _chartColorSettings.value.macd.copy(positiveColor = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(macd = updated)
+                themeManager.setMacdColors(updated)
+                _message.value = "MACD 양수 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setMacdNegativeColor(color: Int) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("chart_macd_negative", color.toString()))
+                val updated = _chartColorSettings.value.macd.copy(negativeColor = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(macd = updated)
+                themeManager.setMacdColors(updated)
+                _message.value = "MACD 음수 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setMacdTextColor(color: Int?) {
+        viewModelScope.launch {
+            try {
+                if (color != null) {
+                    etfDao.saveSetting(Setting("chart_macd_text", color.toString()))
+                } else {
+                    etfDao.deleteSetting("chart_macd_text")
+                }
+                val updated = _chartColorSettings.value.macd.copy(textColor = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(macd = updated)
+                themeManager.setMacdColors(updated)
+                _message.value = "MACD 텍스트 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setMacdLegendColor(color: Int?) {
+        viewModelScope.launch {
+            try {
+                if (color != null) {
+                    etfDao.saveSetting(Setting("chart_macd_legend", color.toString()))
+                } else {
+                    etfDao.deleteSetting("chart_macd_legend")
+                }
+                val updated = _chartColorSettings.value.macd.copy(legendColor = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(macd = updated)
+                themeManager.setMacdColors(updated)
+                _message.value = "MACD 범례 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setMarketDepositLineColor1(color: Int) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("chart_deposit_line1", color.toString()))
+                val updated = _chartColorSettings.value.marketDeposit.copy(lineColor1 = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(marketDeposit = updated)
+                themeManager.setMarketDepositColors(updated)
+                _message.value = "고객예탁금 라인 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setMarketDepositLineColor2(color: Int) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("chart_deposit_line2", color.toString()))
+                val updated = _chartColorSettings.value.marketDeposit.copy(lineColor2 = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(marketDeposit = updated)
+                themeManager.setMarketDepositColors(updated)
+                _message.value = "신용잔고 라인 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setMarketDepositTextColor(color: Int?) {
+        viewModelScope.launch {
+            try {
+                if (color != null) {
+                    etfDao.saveSetting(Setting("chart_deposit_text", color.toString()))
+                } else {
+                    etfDao.deleteSetting("chart_deposit_text")
+                }
+                val updated = _chartColorSettings.value.marketDeposit.copy(textColor = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(marketDeposit = updated)
+                themeManager.setMarketDepositColors(updated)
+                _message.value = "증시자금 차트 텍스트 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setMarketDepositLegendColor(color: Int?) {
+        viewModelScope.launch {
+            try {
+                if (color != null) {
+                    etfDao.saveSetting(Setting("chart_deposit_legend", color.toString()))
+                } else {
+                    etfDao.deleteSetting("chart_deposit_legend")
+                }
+                val updated = _chartColorSettings.value.marketDeposit.copy(legendColor = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(marketDeposit = updated)
+                themeManager.setMarketDepositColors(updated)
+                _message.value = "증시자금 차트 범례 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun resetChartColors() {
+        viewModelScope.launch {
+            try {
+                // 모든 차트 색상 설정 삭제
+                etfDao.deleteSetting("chart_marketcap_line1")
+                etfDao.deleteSetting("chart_marketcap_line2")
+                etfDao.deleteSetting("chart_marketcap_text")
+                etfDao.deleteSetting("chart_marketcap_legend")
+                etfDao.deleteSetting("chart_macd_line1")
+                etfDao.deleteSetting("chart_macd_line2")
+                etfDao.deleteSetting("chart_macd_positive")
+                etfDao.deleteSetting("chart_macd_negative")
+                etfDao.deleteSetting("chart_macd_text")
+                etfDao.deleteSetting("chart_macd_legend")
+                etfDao.deleteSetting("chart_deposit_line1")
+                etfDao.deleteSetting("chart_deposit_line2")
+                etfDao.deleteSetting("chart_deposit_text")
+                etfDao.deleteSetting("chart_deposit_legend")
+
+                val defaultSettings = ChartColorSettings()
+                _chartColorSettings.value = defaultSettings
+                themeManager.setChartColorSettings(defaultSettings)
+                _message.value = "차트 색상이 기본값으로 초기화되었습니다"
+            } catch (e: Exception) {
+                _message.value = "초기화 실패: ${e.message}"
             }
         }
     }

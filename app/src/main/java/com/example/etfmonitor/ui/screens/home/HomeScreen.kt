@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -23,7 +24,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
@@ -438,6 +443,7 @@ private fun HomeContent(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         contentAlignment = Alignment.Center
@@ -525,15 +531,24 @@ private data class MenuItem(
 private fun HexagonMenuItem(
     icon: ImageVector,
     title: String,
-    color: androidx.compose.ui.graphics.Color,
+    color: Color,
     onClick: () -> Unit,
     config: AdaptiveLayoutConfig
 ) {
+    val isDarkTheme = isSystemInDarkTheme()
+
+    // Shadow colors for elevation effect (visible in both light and dark mode)
+    val shadowColor = if (isDarkTheme) {
+        Color.White.copy(alpha = 0.6f)
+    } else {
+        Color.Black.copy(alpha = 0.25f)
+    }
+
     // Create rounded hexagon shape with smoother corners
     val shapeA = remember {
         RoundedPolygon(
             6,
-            rounding = CornerRounding(0.25f)  // Slightly more rounded for modern look
+            rounding = CornerRounding(0.25f)
         )
     }
 
@@ -562,57 +577,77 @@ private fun HexagonMenuItem(
         animationSpec = spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMedium)
     )
 
-    // Animate scale for press feedback
-    val animatedScale = animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1f,
-        label = "scale",
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium)
+    // Elevation animation
+    val elevation = animateFloatAsState(
+        targetValue = if (isPressed) 2f else 8f,
+        label = "elevation",
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium)
     )
 
     Box(
         modifier = Modifier
             .size(config.itemSize)
-            .padding(8.dp)
+            .padding(6.dp)
+            .shadow(
+                elevation = elevation.value.dp,
+                shape = MorphPolygonShape(morph, animatedProgress.value),
+                clip = false,
+                ambientColor = shadowColor,
+                spotColor = shadowColor
+            )
             .clip(MorphPolygonShape(morph, animatedProgress.value))
             .background(
-                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                brush = Brush.linearGradient(
                     colors = listOf(
-                        color.copy(alpha = 0.95f),
-                        color.copy(alpha = 0.85f)
+                        color.copy(alpha = 0.15f),
+                        color.copy(alpha = 0.25f)
                     ),
-                    startY = 0f,
-                    endY = Float.POSITIVE_INFINITY
+                    start = Offset(0f, 0f),
+                    end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
                 )
             )
+            .background(MaterialTheme.colorScheme.surface)
             .clickable(interactionSource = interactionSource, indication = null) {
                 onClick()
             },
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+        // Inner gradient overlay
+        Box(
             modifier = Modifier
-                .animateContentSize()
-                .then(
-                    if (isPressed) Modifier
-                    else Modifier
-                )
+                .fillMaxSize()
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            color.copy(alpha = 0.1f),
+                            color.copy(alpha = 0.2f)
+                        ),
+                        center = Offset(0.3f, 0.3f),
+                        radius = 500f
+                    )
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(config.iconSize),
-                tint = MaterialTheme.colorScheme.surface
-            )
-            Text(
-                title,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.surface,
-                textAlign = TextAlign.Center,
-                fontSize = config.fontSize.sp,
-                lineHeight = (config.fontSize + 2).sp
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.animateContentSize()
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(config.iconSize),
+                    tint = color
+                )
+                Text(
+                    title,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    fontSize = config.fontSize.sp,
+                    lineHeight = (config.fontSize + 2).sp
+                )
+            }
         }
     }
 }

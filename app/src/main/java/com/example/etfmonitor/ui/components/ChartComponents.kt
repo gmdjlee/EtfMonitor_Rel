@@ -10,6 +10,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
@@ -24,6 +26,20 @@ import com.etfmonitor.oscillator.model.MarketDepositData
 import com.etfmonitor.oscillator.model.OscillatorResult
 import com.etfmonitor.ui.theme.*
 import android.util.Log
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+
+/**
+ * 차트 색상 제공을 위한 ViewModel
+ */
+@HiltViewModel
+class ChartColorViewModel @Inject constructor(
+    private val themeManager: ThemeManager
+) : ViewModel() {
+    val chartColorSettings = themeManager.chartColorSettings
+}
 
 /**
  * 시가총액 + 수급 오실레이터 복합 차트
@@ -33,7 +49,8 @@ fun MarketCapOscillatorChart(
     result: OscillatorResult,
     marketCap: List<Long>,
     latestDate: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    chartColorViewModel: ChartColorViewModel = hiltViewModel()
 ) {
     // 데이터 검증
     if (result.dates.isEmpty() || marketCap.isEmpty()) {
@@ -41,11 +58,16 @@ fun MarketCapOscillatorChart(
         return
     }
 
+    // 차트 색상 설정 가져오기
+    val chartColors by chartColorViewModel.chartColorSettings.collectAsState()
+    val colorSettings = chartColors.marketCapOscillator
+
     // Modern theme colors
     val isDark = isSystemInDarkTheme()
-    val primaryColor = ChartPrimary.toArgb()  // 시가총액 - Vibrant indigo
-    val tertiaryColor = ChartSecondary.toArgb()  // 오실레이터 - Teal
-    val textColor = if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val primaryColor = colorSettings.lineColor1  // 시가총액
+    val tertiaryColor = colorSettings.lineColor2  // 오실레이터
+    val textColor = colorSettings.textColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val legendColor = colorSettings.legendColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
     ChartCard(
@@ -134,7 +156,7 @@ fun MarketCapOscillatorChart(
                         legend.apply {
                             isEnabled = true
                             textSize = 12f
-                            setTextColor(textColor)
+                            setTextColor(legendColor)
                         }
                     }
                 } catch (e: Exception) {
@@ -201,15 +223,21 @@ fun MarketCapOscillatorChart(
 fun MacdChart(
     result: OscillatorResult,
     latestDate: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    chartColorViewModel: ChartColorViewModel = hiltViewModel()
 ) {
+    // 차트 색상 설정 가져오기
+    val chartColors by chartColorViewModel.chartColorSettings.collectAsState()
+    val colorSettings = chartColors.macd
+
     // Modern theme colors
     val isDark = isSystemInDarkTheme()
-    val macdColor = ChartPrimary.toArgb()      // MACD 라인 - Vibrant indigo
-    val signalColor = ChartOrange.toArgb()    // Signal 라인 - Amber
-    val positiveColor = ChartGreen.toArgb()   // Histogram 양수 - Emerald green
-    val negativeColor = ChartRed.toArgb()     // Histogram 음수 - Modern red
-    val textColor = if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val macdColor = colorSettings.lineColor1      // MACD 라인
+    val signalColor = colorSettings.lineColor2    // Signal 라인
+    val positiveColor = colorSettings.positiveColor   // Histogram 양수
+    val negativeColor = colorSettings.negativeColor     // Histogram 음수
+    val textColor = colorSettings.textColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val legendColor = colorSettings.legendColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
     ChartCard(
@@ -278,7 +306,7 @@ fun MacdChart(
                     legend.apply {
                         isEnabled = true
                         textSize = 12f
-                        setTextColor(textColor)
+                        setTextColor(legendColor)
                     }
                 }
             },
@@ -352,13 +380,19 @@ fun MacdChart(
 fun MarketDepositChart(
     data: MarketDepositData,
     latestDate: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    chartColorViewModel: ChartColorViewModel = hiltViewModel()
 ) {
+    // 차트 색상 설정 가져오기
+    val chartColors by chartColorViewModel.chartColorSettings.collectAsState()
+    val colorSettings = chartColors.marketDeposit
+
     // Modern theme colors
     val isDark = isSystemInDarkTheme()
-    val depositColor = ChartPrimary.toArgb()   // 고객예탁금 - Vibrant indigo
-    val creditColor = ChartTertiary.toArgb()      // 신용잔고 - Sophisticated pink
-    val textColor = if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val depositColor = colorSettings.lineColor1   // 고객예탁금
+    val creditColor = colorSettings.lineColor2      // 신용잔고
+    val textColor = colorSettings.textColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val legendColor = colorSettings.legendColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
     ChartCard(
@@ -440,7 +474,7 @@ fun MarketDepositChart(
                     legend.apply {
                         isEnabled = true
                         textSize = 12f
-                        setTextColor(textColor)
+                        setTextColor(legendColor)
                     }
                 }
             },

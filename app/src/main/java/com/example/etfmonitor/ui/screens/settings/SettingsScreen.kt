@@ -23,6 +23,9 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.etfmonitor.ui.theme.ChartColorSettings
+import com.etfmonitor.ui.theme.SingleChartColorSettings
+import com.etfmonitor.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -46,9 +49,12 @@ fun SettingsScreen(
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
     val fontScaleSettings by viewModel.fontScaleSettings.collectAsState()
 
+    // Chart color settings
+    val chartColorSettings by viewModel.chartColorSettings.collectAsState()
+
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("데이터 업데이트", "키워드", "일반")
+    val tabs = listOf("일반", "키워드", "데이터 업데이트", "수집 기간", "차트")
 
     LaunchedEffect(message) {
         message?.let {
@@ -87,9 +93,11 @@ fun SettingsScreen(
                         text = { Text(title) },
                         icon = {
                             when (index) {
-                                0 -> Icon(Icons.Default.CloudDownload, contentDescription = null)
+                                0 -> Icon(Icons.Default.Settings, contentDescription = null)
                                 1 -> Icon(Icons.Default.Label, contentDescription = null)
-                                2 -> Icon(Icons.Default.Settings, contentDescription = null)
+                                2 -> Icon(Icons.Default.CloudDownload, contentDescription = null)
+                                3 -> Icon(Icons.Default.DateRange, contentDescription = null)
+                                4 -> Icon(Icons.Default.Palette, contentDescription = null)
                             }
                         }
                     )
@@ -98,15 +106,9 @@ fun SettingsScreen(
 
             // Tab Content
             when (selectedTabIndex) {
-                0 -> DataUpdateTab(
-                    defaultDays = defaultDays,
-                    searchHistoryLimit = searchHistoryLimit,
-                    fearGreedPeriodDays = fearGreedPeriodDays,
-                    marketOscillatorPeriodDays = marketOscillatorPeriodDays,
-                    stockUpdateSettings = stockUpdateSettings,
-                    marketDepositUpdateSettings = marketDepositUpdateSettings,
-                    fearGreedUpdateSettings = fearGreedUpdateSettings,
-                    marketOscillatorUpdateSettings = marketOscillatorUpdateSettings,
+                0 -> GeneralTab(
+                    isDarkTheme = isDarkTheme,
+                    fontScaleSettings = fontScaleSettings,
                     viewModel = viewModel
                 )
                 1 -> KeywordTab(
@@ -114,9 +116,22 @@ fun SettingsScreen(
                     exclusions = exclusions,
                     viewModel = viewModel
                 )
-                2 -> GeneralTab(
-                    isDarkTheme = isDarkTheme,
-                    fontScaleSettings = fontScaleSettings,
+                2 -> DataUpdateTab(
+                    stockUpdateSettings = stockUpdateSettings,
+                    marketDepositUpdateSettings = marketDepositUpdateSettings,
+                    fearGreedUpdateSettings = fearGreedUpdateSettings,
+                    marketOscillatorUpdateSettings = marketOscillatorUpdateSettings,
+                    viewModel = viewModel
+                )
+                3 -> DataPeriodTab(
+                    defaultDays = defaultDays,
+                    searchHistoryLimit = searchHistoryLimit,
+                    fearGreedPeriodDays = fearGreedPeriodDays,
+                    marketOscillatorPeriodDays = marketOscillatorPeriodDays,
+                    viewModel = viewModel
+                )
+                4 -> ChartTab(
+                    chartColorSettings = chartColorSettings,
                     viewModel = viewModel
                 )
             }
@@ -127,10 +142,6 @@ fun SettingsScreen(
 // ==================== Data Update Tab ====================
 @Composable
 private fun DataUpdateTab(
-    defaultDays: Int,
-    searchHistoryLimit: Int,
-    fearGreedPeriodDays: Int,
-    marketOscillatorPeriodDays: Int,
     stockUpdateSettings: StockUpdateSettings,
     marketDepositUpdateSettings: MarketDepositUpdateSettings,
     fearGreedUpdateSettings: FearGreedUpdateSettings,
@@ -177,20 +188,51 @@ private fun DataUpdateTab(
             )
         }
 
-        // Fear & Greed Index 데이터 수집 기간 설정
-        item {
-            FearGreedPeriodCard(
-                currentDays = fearGreedPeriodDays,
-                onDaysChange = { viewModel.setFearGreedPeriodDays(it) }
-            )
-        }
-
         // 과매수/과매도 DB 자동 업데이트 설정
         item {
             MarketOscillatorUpdateCard(
                 settings = marketOscillatorUpdateSettings,
                 onTimeChange = { hour, minute -> viewModel.setMarketOscillatorUpdateTime(hour, minute) },
                 onUpdateNow = { viewModel.updateMarketOscillatorsNow() }
+            )
+        }
+
+        // 데이터베이스 초기화
+        item {
+            DatabaseCard(
+                onReset = { viewModel.resetDatabase() }
+            )
+        }
+    }
+}
+
+// ==================== Data Period Tab ====================
+@Composable
+private fun DataPeriodTab(
+    defaultDays: Int,
+    searchHistoryLimit: Int,
+    fearGreedPeriodDays: Int,
+    marketOscillatorPeriodDays: Int,
+    viewModel: SettingsViewModel
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // ETF 수집 기간 설정
+        item {
+            DefaultDaysCard(
+                currentDays = defaultDays,
+                onDaysChange = { viewModel.setDefaultDays(it) }
+            )
+        }
+
+        // Fear & Greed Index 데이터 수집 기간 설정
+        item {
+            FearGreedPeriodCard(
+                currentDays = fearGreedPeriodDays,
+                onDaysChange = { viewModel.setFearGreedPeriodDays(it) }
             )
         }
 
@@ -202,26 +244,11 @@ private fun DataUpdateTab(
             )
         }
 
-        // 기본 수집 기간 설정
-        item {
-            DefaultDaysCard(
-                currentDays = defaultDays,
-                onDaysChange = { viewModel.setDefaultDays(it) }
-            )
-        }
-
         // 검색 히스토리 개수 설정
         item {
             SearchHistoryLimitCard(
                 currentLimit = searchHistoryLimit,
                 onLimitChange = { viewModel.setSearchHistoryLimit(it) }
-            )
-        }
-
-        // 데이터베이스 초기화
-        item {
-            DatabaseCard(
-                onReset = { viewModel.resetDatabase() }
             )
         }
     }
@@ -290,6 +317,578 @@ private fun GeneralTab(
                 onLabelScaleChange = { viewModel.setLabelScale(it) }
             )
         }
+    }
+}
+
+// ==================== Chart Tab ====================
+@Composable
+private fun ChartTab(
+    chartColorSettings: ChartColorSettings,
+    viewModel: SettingsViewModel
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // 시가총액 & 오실레이터 차트 색상
+        item {
+            MarketCapOscillatorColorCard(
+                colors = chartColorSettings.marketCapOscillator,
+                viewModel = viewModel
+            )
+        }
+
+        // MACD 차트 색상
+        item {
+            MacdColorCard(
+                colors = chartColorSettings.macd,
+                viewModel = viewModel
+            )
+        }
+
+        // 증시 자금 동향 차트 색상
+        item {
+            MarketDepositColorCard(
+                colors = chartColorSettings.marketDeposit,
+                viewModel = viewModel
+            )
+        }
+
+        // 초기화 버튼
+        item {
+            ResetChartColorsCard(
+                onReset = { viewModel.resetChartColors() }
+            )
+        }
+    }
+}
+
+// ==================== Chart Tab Cards ====================
+
+// 미리 정의된 색상 팔레트
+private val chartColorPalette = listOf(
+    ChartPrimary,    // Vibrant indigo
+    ChartSecondary,  // Modern teal
+    ChartTertiary,   // Sophisticated pink
+    ChartGreen,      // Bullish green
+    ChartRed,        // Bearish red
+    ChartBlue,       // Info blue
+    ChartOrange,     // Warning orange
+    ChartPurple,     // Accent purple
+    ChartCyan,       // Highlight cyan
+    ChartPink,       // Special pink
+    Color(0xFF1E3A8A), // Deep blue
+    Color(0xFF065F46), // Deep green
+    Color(0xFF7C2D12), // Deep orange
+    Color(0xFF581C87), // Deep purple
+    Color(0xFF0F172A), // Near black
+    Color(0xFF64748B), // Slate gray
+    Color(0xFFFFFFFF)  // White
+)
+
+@Composable
+private fun ColorPickerRow(
+    label: String,
+    currentColor: Int,
+    onColorSelected: (Int) -> Unit
+) {
+    var showColorPicker by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium
+        )
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 현재 색상 표시
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color(currentColor))
+                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                    .clickable { showColorPicker = true }
+            )
+
+            IconButton(onClick = { showColorPicker = true }) {
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = "색상 변경",
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+
+    if (showColorPicker) {
+        ColorPickerDialog(
+            currentColor = currentColor,
+            onDismiss = { showColorPicker = false },
+            onColorSelected = { color ->
+                onColorSelected(color)
+                showColorPicker = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun ColorPickerDialog(
+    currentColor: Int,
+    onDismiss: () -> Unit,
+    onColorSelected: (Int) -> Unit
+) {
+    var selectedColor by remember { mutableStateOf(currentColor) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("색상 선택") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 현재 선택된 색상 미리보기
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(Color(selectedColor))
+                            .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                    )
+                }
+
+                Text(
+                    "색상 팔레트",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // 색상 그리드
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(chartColorPalette.size) { index ->
+                        val color = chartColorPalette[index]
+                        val isSelected = color.toArgb() == selectedColor
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .border(
+                                    width = if (isSelected) 3.dp else 1.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.outline,
+                                    shape = CircleShape
+                                )
+                                .clickable { selectedColor = color.toArgb() }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onColorSelected(selectedColor) }) {
+                Text("확인")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소")
+            }
+        }
+    )
+}
+
+@Composable
+private fun MarketCapOscillatorColorCard(
+    colors: SingleChartColorSettings,
+    viewModel: SettingsViewModel
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.ShowChart,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("시가총액 & 오실레이터 차트", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            // 라인 색상
+            Text(
+                "라인 색상",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            ColorPickerRow(
+                label = "시가총액 라인",
+                currentColor = colors.lineColor1,
+                onColorSelected = { viewModel.setMarketCapOscillatorLineColor1(it) }
+            )
+
+            ColorPickerRow(
+                label = "오실레이터 라인",
+                currentColor = colors.lineColor2,
+                onColorSelected = { viewModel.setMarketCapOscillatorLineColor2(it) }
+            )
+
+            HorizontalDivider()
+
+            // 텍스트/범례 색상
+            Text(
+                "텍스트 & 범례 색상 (선택사항)",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            OptionalColorPickerRow(
+                label = "축 라벨/틱 색상",
+                currentColor = colors.textColor,
+                onColorSelected = { viewModel.setMarketCapOscillatorTextColor(it) },
+                onReset = { viewModel.setMarketCapOscillatorTextColor(null) }
+            )
+
+            OptionalColorPickerRow(
+                label = "범례 색상",
+                currentColor = colors.legendColor,
+                onColorSelected = { viewModel.setMarketCapOscillatorLegendColor(it) },
+                onReset = { viewModel.setMarketCapOscillatorLegendColor(null) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun MacdColorCard(
+    colors: SingleChartColorSettings,
+    viewModel: SettingsViewModel
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.BarChart,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("MACD 차트", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            // 라인 색상
+            Text(
+                "라인 색상",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            ColorPickerRow(
+                label = "MACD 라인",
+                currentColor = colors.lineColor1,
+                onColorSelected = { viewModel.setMacdLineColor1(it) }
+            )
+
+            ColorPickerRow(
+                label = "Signal 라인",
+                currentColor = colors.lineColor2,
+                onColorSelected = { viewModel.setMacdLineColor2(it) }
+            )
+
+            HorizontalDivider()
+
+            // Histogram 색상
+            Text(
+                "히스토그램 색상",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            ColorPickerRow(
+                label = "양수 (상승)",
+                currentColor = colors.positiveColor,
+                onColorSelected = { viewModel.setMacdPositiveColor(it) }
+            )
+
+            ColorPickerRow(
+                label = "음수 (하락)",
+                currentColor = colors.negativeColor,
+                onColorSelected = { viewModel.setMacdNegativeColor(it) }
+            )
+
+            HorizontalDivider()
+
+            // 텍스트/범례 색상
+            Text(
+                "텍스트 & 범례 색상 (선택사항)",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            OptionalColorPickerRow(
+                label = "축 라벨/틱 색상",
+                currentColor = colors.textColor,
+                onColorSelected = { viewModel.setMacdTextColor(it) },
+                onReset = { viewModel.setMacdTextColor(null) }
+            )
+
+            OptionalColorPickerRow(
+                label = "범례 색상",
+                currentColor = colors.legendColor,
+                onColorSelected = { viewModel.setMacdLegendColor(it) },
+                onReset = { viewModel.setMacdLegendColor(null) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun MarketDepositColorCard(
+    colors: SingleChartColorSettings,
+    viewModel: SettingsViewModel
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.TrendingUp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("증시 자금 동향 차트", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            // 라인 색상
+            Text(
+                "라인 색상",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            ColorPickerRow(
+                label = "고객예탁금 라인",
+                currentColor = colors.lineColor1,
+                onColorSelected = { viewModel.setMarketDepositLineColor1(it) }
+            )
+
+            ColorPickerRow(
+                label = "신용잔고 라인",
+                currentColor = colors.lineColor2,
+                onColorSelected = { viewModel.setMarketDepositLineColor2(it) }
+            )
+
+            HorizontalDivider()
+
+            // 텍스트/범례 색상
+            Text(
+                "텍스트 & 범례 색상 (선택사항)",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            OptionalColorPickerRow(
+                label = "축 라벨/틱 색상",
+                currentColor = colors.textColor,
+                onColorSelected = { viewModel.setMarketDepositTextColor(it) },
+                onReset = { viewModel.setMarketDepositTextColor(null) }
+            )
+
+            OptionalColorPickerRow(
+                label = "범례 색상",
+                currentColor = colors.legendColor,
+                onColorSelected = { viewModel.setMarketDepositLegendColor(it) },
+                onReset = { viewModel.setMarketDepositLegendColor(null) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun OptionalColorPickerRow(
+    label: String,
+    currentColor: Int?,
+    onColorSelected: (Int) -> Unit,
+    onReset: () -> Unit
+) {
+    var showColorPicker by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium
+        )
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (currentColor != null) {
+                // 현재 색상 표시
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color(currentColor))
+                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                        .clickable { showColorPicker = true }
+                )
+
+                // 초기화 버튼
+                IconButton(onClick = onReset) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "기본값으로",
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            } else {
+                // 기본값 사용 중
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Text(
+                        "테마 기본값",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            IconButton(onClick = { showColorPicker = true }) {
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = "색상 변경",
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+
+    if (showColorPicker) {
+        ColorPickerDialog(
+            currentColor = currentColor ?: ChartTextLight.toArgb(),
+            onDismiss = { showColorPicker = false },
+            onColorSelected = { color ->
+                onColorSelected(color)
+                showColorPicker = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun ResetChartColorsCard(
+    onReset: () -> Unit
+) {
+    var showDialog by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Restore,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+                Text("차트 색상 초기화", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            Text(
+                "모든 차트 색상을 기본값으로 되돌립니다",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Button(
+                onClick = { showDialog = true },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Restore, null)
+                Spacer(Modifier.width(8.dp))
+                Text("모든 색상 초기화")
+            }
+        }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            icon = { Icon(Icons.Default.Warning, null) },
+            title = { Text("차트 색상 초기화") },
+            text = { Text("모든 차트 색상이 기본값으로 되돌아갑니다. 계속하시겠습니까?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onReset()
+                        showDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("초기화")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("취소")
+                }
+            }
+        )
     }
 }
 
@@ -564,7 +1163,7 @@ private fun DefaultDaysCard(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Text("기본 수집 기간", style = MaterialTheme.typography.titleMedium)
+                Text("ETF 수집 기간", style = MaterialTheme.typography.titleMedium)
             }
 
             HorizontalDivider()
