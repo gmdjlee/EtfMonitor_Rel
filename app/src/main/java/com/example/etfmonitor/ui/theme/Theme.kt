@@ -114,8 +114,8 @@ val LocalExtendedColors = staticCompositionLocalOf {
 @Composable
 fun EtfMonitorTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Enable dynamic color by default for Material You theming on Android 12+
-    dynamicColor: Boolean = true,
+    // Disable dynamic color by default to use custom Moss Green Nature theme
+    dynamicColor: Boolean = false,
     typography: androidx.compose.material3.Typography = Typography,
     content: @Composable () -> Unit
 ) {

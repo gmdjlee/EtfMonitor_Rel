@@ -3,117 +3,119 @@ package com.etfmonitor.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Modern ETF Monitor Color Palette
- * Professional financial app design with Material Design 3
- * Inspired by leading fintech apps (Robinhood, Webull, Trading212)
+ * Moss Green Nature Theme - Material Design 3
+ * Nature-inspired color palette with deep moss green as primary color
+ * Theme Name: Moss Green Nature
+ * Base Source Color: Deep Moss Green (#4C6C43)
+ * Version: 1.0
  */
 
-// Light theme colors - Modern Professional Blue/Purple Palette
-val primaryLight = Color(0xFF5B47FB)  // Vibrant indigo - trust & innovation
+// Light theme colors - Moss Green Nature
+val primaryLight = Color(0xFF4C6C43)  // Deep moss green - nature & stability
 val onPrimaryLight = Color(0xFFFFFFFF)
-val primaryContainerLight = Color(0xFFE3DFFF)
-val onPrimaryContainerLight = Color(0xFF170062)
-val secondaryLight = Color(0xFF00C9A7)  // Modern teal - growth & prosperity
+val primaryContainerLight = Color(0xFFCDEDA3)  // Soft lime green
+val onPrimaryContainerLight = Color(0xFF102000)
+val secondaryLight = Color(0xFF586249)  // Greyish green - calm & balance
 val onSecondaryLight = Color(0xFFFFFFFF)
-val secondaryContainerLight = Color(0xFFB3F5E9)
-val onSecondaryContainerLight = Color(0xFF003829)
-val tertiaryLight = Color(0xFFFF6B9D)  // Sophisticated pink - highlights
+val secondaryContainerLight = Color(0xFFDCE7C8)  // Light sage
+val onSecondaryContainerLight = Color(0xFF161E0B)
+val tertiaryLight = Color(0xFF396663)  // Teal - freshness & clarity
 val onTertiaryLight = Color(0xFFFFFFFF)
-val tertiaryContainerLight = Color(0xFFFFD9E3)
-val onTertiaryContainerLight = Color(0xFF3E0021)
-val errorLight = Color(0xFFDC2626)
+val tertiaryContainerLight = Color(0xFFBBEBEB)  // Light cyan
+val onTertiaryContainerLight = Color(0xFF002020)
+val errorLight = Color(0xFFBA1A1A)
 val onErrorLight = Color(0xFFFFFFFF)
-val errorContainerLight = Color(0xFFFFEDEA)
-val onErrorContainerLight = Color(0xFF8B0000)
-val backgroundLight = Color(0xFFFCFCFF)  // Pure white with hint of blue
-val onBackgroundLight = Color(0xFF1A1B21)
-val surfaceLight = Color(0xFFFCFCFF)
-val onSurfaceLight = Color(0xFF1A1B21)
-val surfaceVariantLight = Color(0xFFE4E1EC)
-val onSurfaceVariantLight = Color(0xFF47464F)
-val outlineLight = Color(0xFF777680)
-val outlineVariantLight = Color(0xFFC8C5D0)
+val errorContainerLight = Color(0xFFFFDAD6)
+val onErrorContainerLight = Color(0xFF410002)
+val backgroundLight = Color(0xFFFEFCF4)  // Warm off-white
+val onBackgroundLight = Color(0xFF1B1C18)
+val surfaceLight = Color(0xFFFEFCF4)  // Warm off-white
+val onSurfaceLight = Color(0xFF1B1C18)
+val surfaceVariantLight = Color(0xFFE1E4D5)  // Light olive
+val onSurfaceVariantLight = Color(0xFF44483D)
+val outlineLight = Color(0xFF75796C)
+val outlineVariantLight = Color(0xFFC5C8BA)
 
-// Dark theme colors - Premium OLED Dark
-val primaryDark = Color(0xFF9D8DFF)  // Soft vibrant indigo
-val onPrimaryDark = Color(0xFF2B1599)
-val primaryContainerDark = Color(0xFF432EE0)
-val onPrimaryContainerDark = Color(0xFFE3DFFF)
-val secondaryDark = Color(0xFF5EFFD7)  // Bright teal
-val onSecondaryDark = Color(0xFF003829)
-val secondaryContainerDark = Color(0xFF00856A)
-val onSecondaryContainerDark = Color(0xFFB3F5E9)
-val tertiaryDark = Color(0xFFFFB1CC)  // Soft pink
-val onTertiaryDark = Color(0xFF5E1139)
-val tertiaryContainerDark = Color(0xFF7D2951)
-val onTertiaryContainerDark = Color(0xFFFFD9E3)
+// Dark theme colors - Moss Green Nature Night
+val primaryDark = Color(0xFFB1D18A)  // Bright lime green - high contrast
+val onPrimaryDark = Color(0xFF1F3701)
+val primaryContainerDark = Color(0xFF354E16)  // Deep moss
+val onPrimaryContainerDark = Color(0xFFCDEDA3)
+val secondaryDark = Color(0xFFBFCBAD)  // Light sage
+val onSecondaryDark = Color(0xFF2A331E)
+val secondaryContainerDark = Color(0xFF404A33)  // Dark olive
+val onSecondaryContainerDark = Color(0xFFDCE7C8)
+val tertiaryDark = Color(0xFFA0CFCF)  // Light teal
+val onTertiaryDark = Color(0xFF003738)
+val tertiaryContainerDark = Color(0xFF1F4E4D)  // Deep teal
+val onTertiaryContainerDark = Color(0xFFBBEBEB)
 val errorDark = Color(0xFFFFB4AB)
 val onErrorDark = Color(0xFF690005)
 val errorContainerDark = Color(0xFF93000A)
 val onErrorContainerDark = Color(0xFFFFDAD6)
-val backgroundDark = Color(0xFF0D0E14)  // Deep OLED black with blue tint
-val onBackgroundDark = Color(0xFFE4E1E6)
-val surfaceDark = Color(0xFF0D0E14)
-val onSurfaceDark = Color(0xFFE4E1E6)
-val surfaceVariantDark = Color(0xFF47464F)
-val onSurfaceVariantDark = Color(0xFFC8C5D0)
-val outlineDark = Color(0xFF918F9A)
-val outlineVariantDark = Color(0xFF47464F)
+val backgroundDark = Color(0xFF1A1C18)  // Very dark greenish grey
+val onBackgroundDark = Color(0xFFE3E3DC)
+val surfaceDark = Color(0xFF1A1C18)  // Very dark greenish grey
+val onSurfaceDark = Color(0xFFE3E3DC)
+val surfaceVariantDark = Color(0xFF44483D)  // Dark olive
+val onSurfaceVariantDark = Color(0xFFC5C8BA)
+val outlineDark = Color(0xFF8F9285)
+val outlineVariantDark = Color(0xFF44483D)
 
-// Status colors for financial data - Enhanced for better UX
-val StatusNew = Color(0xFF10B981)  // Emerald green - new holdings
-val StatusIncrease = Color(0xFF3B82F6)  // Sky blue - increased weight
-val StatusDecrease = Color(0xFFFF9F0A)  // Amber - decreased weight
-val StatusRemoved = Color(0xFF9CA3AF)  // Cool gray - removed
-val StatusMaintain = Color(0xFF6366F1)  // Indigo - maintained
+// Status colors for financial data - Nature-inspired palette
+val StatusNew = Color(0xFF4C6C43)  // Moss green - new holdings
+val StatusIncrease = Color(0xFF396663)  // Teal - increased weight
+val StatusDecrease = Color(0xFFD4A574)  // Warm sand - decreased weight
+val StatusRemoved = Color(0xFF8F9285)  // Stone grey - removed
+val StatusMaintain = Color(0xFF586249)  // Sage green - maintained
 
-// Chart colors - Modern, vibrant, accessible
-val ChartPrimary = Color(0xFF5B47FB)  // Main chart line
-val ChartSecondary = Color(0xFF00C9A7)  // Secondary chart line
-val ChartTertiary = Color(0xFFFF6B9D)  // Tertiary chart line
-val ChartGreen = Color(0xFF10B981)  // Bullish/positive
-val ChartRed = Color(0xFFEF4444)  // Bearish/negative
-val ChartBlue = Color(0xFF3B82F6)  // Neutral/info
-val ChartPurple = Color(0xFF8B5CF6)  // Accent
-val ChartOrange = Color(0xFFF59E0B)  // Warning
-val ChartCyan = Color(0xFF06B6D4)  // Highlight
-val ChartPink = Color(0xFFEC4899)  // Special
+// Chart colors - Nature-inspired, harmonious palette
+val ChartPrimary = Color(0xFF4C6C43)  // Main chart line - moss green
+val ChartSecondary = Color(0xFF396663)  // Secondary chart line - teal
+val ChartTertiary = Color(0xFF8B9D77)  // Tertiary chart line - sage
+val ChartGreen = Color(0xFF4C6C43)  // Bullish/positive - moss green
+val ChartRed = Color(0xFFBA1A1A)  // Bearish/negative - error red
+val ChartBlue = Color(0xFF396663)  // Neutral/info - teal
+val ChartPurple = Color(0xFF6B7C5E)  // Accent - olive
+val ChartOrange = Color(0xFFD4A574)  // Warning - warm sand
+val ChartCyan = Color(0xFFA0CFCF)  // Highlight - light teal
+val ChartPink = Color(0xFFB1D18A)  // Special - lime
 
-// Gradient colors for modern UI effects
-val GradientStart = Color(0xFF5B47FB)
-val GradientMiddle = Color(0xFF7C3AED)
-val GradientEnd = Color(0xFF9D8DFF)
+// Gradient colors for modern UI effects - Natural greens
+val GradientStart = Color(0xFF4C6C43)  // Deep moss
+val GradientMiddle = Color(0xFF6B8B62)  // Mid green
+val GradientEnd = Color(0xFFB1D18A)  // Bright lime
 
-// Surface elevation colors for layered UI
-val SurfaceElevation1Light = Color(0xFFF7F7FA)
-val SurfaceElevation2Light = Color(0xFFF0F0F5)
-val SurfaceElevation3Light = Color(0xFFE8E8F0)
-val SurfaceElevation1Dark = Color(0xFF161822)
-val SurfaceElevation2Dark = Color(0xFF1E202E)
-val SurfaceElevation3Dark = Color(0xFF26293A)
+// Surface elevation colors for layered UI - Warm naturals
+val SurfaceElevation1Light = Color(0xFFFAF8F0)  // Very light warm
+val SurfaceElevation2Light = Color(0xFFF5F3E8)  // Light beige
+val SurfaceElevation3Light = Color(0xFFEFECDF)  // Medium beige
+val SurfaceElevation1Dark = Color(0xFF1F211D)  // Slightly lighter dark
+val SurfaceElevation2Dark = Color(0xFF252822)  // Mid dark
+val SurfaceElevation3Dark = Color(0xFF2B2F28)  // Lighter dark
 
-// Chart grid and text colors
-val ChartGridLight = Color(0xFFE5E7EB)
-val ChartGridDark = Color(0xFF2D3142)
-val ChartTextLight = Color(0xFF1F2937)
-val ChartTextDark = Color(0xFFE5E7EB)
+// Chart grid and text colors - Natural tones
+val ChartGridLight = Color(0xFFE1E4D5)  // Light olive
+val ChartGridDark = Color(0xFF2B2F28)  // Dark olive
+val ChartTextLight = Color(0xFF1B1C18)  // Deep brown-black
+val ChartTextDark = Color(0xFFE3E3DC)  // Light grey
 
-// Shimmer effect colors for loading states
-val ShimmerColorLight = Color(0xFFE5E7EB)
-val ShimmerHighlightLight = Color(0xFFF9FAFB)
-val ShimmerColorDark = Color(0xFF1F2937)
-val ShimmerHighlightDark = Color(0xFF374151)
+// Shimmer effect colors for loading states - Subtle naturals
+val ShimmerColorLight = Color(0xFFE1E4D5)  // Light olive
+val ShimmerHighlightLight = Color(0xFFFEFCF4)  // Warm white
+val ShimmerColorDark = Color(0xFF2B2F28)  // Dark olive
+val ShimmerHighlightDark = Color(0xFF353932)  // Lighter dark olive
 
-// Additional semantic colors for production apps
-val SuccessLight = Color(0xFF10B981)  // Success green
-val SuccessDark = Color(0xFF34D399)
-val WarningLight = Color(0xFFF59E0B)  // Warning amber
-val WarningDark = Color(0xFFFBBF24)
-val InfoLight = Color(0xFF3B82F6)  // Info blue
-val InfoDark = Color(0xFF60A5FA)
+// Additional semantic colors for production apps - Nature palette
+val SuccessLight = Color(0xFF4C6C43)  // Success - moss green
+val SuccessDark = Color(0xFFB1D18A)  // Success - bright lime
+val WarningLight = Color(0xFFD4A574)  // Warning - warm sand
+val WarningDark = Color(0xFFE8C9A0)  // Warning - light sand
+val InfoLight = Color(0xFF396663)  // Info - teal
+val InfoDark = Color(0xFFA0CFCF)  // Info - light teal
 
-// Interactive state colors
-val RippleLight = Color(0xFF000000).copy(alpha = 0.08f)
-val RippleDark = Color(0xFFFFFFFF).copy(alpha = 0.12f)
-val HoverLight = Color(0xFF000000).copy(alpha = 0.04f)
-val HoverDark = Color(0xFFFFFFFF).copy(alpha = 0.08f)
+// Interactive state colors - Adjusted for natural theme
+val RippleLight = Color(0xFF4C6C43).copy(alpha = 0.12f)  // Moss green ripple
+val RippleDark = Color(0xFFB1D18A).copy(alpha = 0.16f)  // Lime ripple
+val HoverLight = Color(0xFF4C6C43).copy(alpha = 0.06f)  // Moss green hover
+val HoverDark = Color(0xFFB1D18A).copy(alpha = 0.08f)  // Lime hover
