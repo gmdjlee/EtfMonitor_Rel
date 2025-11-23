@@ -7,6 +7,7 @@ import com.etfmonitor.database.EtfDao
 import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.repository.FearGreedRepository
 import com.etfmonitor.repository.MarketOscillatorRepository
+import com.etfmonitor.repository.MarketDepositRepository
 import com.etfmonitor.service.CollectionState
 import com.etfmonitor.service.DataCollectionService
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,6 +34,7 @@ class HomeViewModel @Inject constructor(
     private val repository: DataRepository,
     private val fearGreedRepository: FearGreedRepository,
     private val marketOscillatorRepository: MarketOscillatorRepository,
+    private val marketDepositRepository: MarketDepositRepository,
     private val etfDao: EtfDao,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -202,7 +204,37 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val hasData = repository.hasData()
             val lastDate = repository.getLatestDate()
-            _state.value = HomeState.Idle(hasData, lastDate)
+            val summary = if (hasData) loadSummaryData() else null
+            _state.value = HomeState.Idle(hasData, lastDate, summary)
+        }
+    }
+
+    private suspend fun loadSummaryData(): HomeSummary? {
+        return try {
+            // 증시 자금 동향 - 최근 데이터
+            val recentDeposits = marketDepositRepository.getRecentDeposits(2).first()
+            val latestDeposit = recentDeposits.firstOrNull()
+
+            // Fear & Greed Index - KOSPI, KOSDAQ 최근 값
+            val kospiFearGreed = fearGreedRepository.getRecentByMarket("KOSPI", 1).first().firstOrNull()
+            val kosdaqFearGreed = fearGreedRepository.getRecentByMarket("KOSDAQ", 1).first().firstOrNull()
+
+            // 시장 과매수/과매도 - KOSPI, KOSDAQ 최근 상태
+            val kospiOscillator = marketOscillatorRepository.getLatestData("KOSPI")
+            val kosdaqOscillator = marketOscillatorRepository.getLatestData("KOSDAQ")
+
+            HomeSummary(
+                depositChange = latestDeposit?.depositChange,
+                creditChange = latestDeposit?.creditChange,
+                kospiFearGreed = kospiFearGreed?.indexValue,
+                kosdaqFearGreed = kosdaqFearGreed?.indexValue,
+                kospiOscillator = kospiOscillator?.oscillatorValue,
+                kospiStatus = kospiOscillator?.status,
+                kosdaqOscillator = kosdaqOscillator?.oscillatorValue,
+                kosdaqStatus = kosdaqOscillator?.status
+            )
+        } catch (e: Exception) {
+            null
         }
     }
 
@@ -227,9 +259,32 @@ class HomeViewModel @Inject constructor(
 
 sealed class HomeState {
     object Loading : HomeState()
-    data class Idle(val hasData: Boolean, val lastDate: String?) : HomeState()
+    data class Idle(
+        val hasData: Boolean,
+        val lastDate: String?,
+        val summary: HomeSummary? = null
+    ) : HomeState()
     data class Initializing(val message: String, val progress: Int) : HomeState()
     data class Updating(val message: String, val progress: Int) : HomeState()
     data class Success(val message: String) : HomeState()
     data class Error(val message: String) : HomeState()
 }
+
+/**
+ * 홈 화면 요약 데이터
+ */
+data class HomeSummary(
+    // 증시 자금 동향
+    val depositChange: Double?,  // 고객예탁금 증감
+    val creditChange: Double?,   // 신용잔고 증감
+
+    // Fear & Greed Index
+    val kospiFearGreed: Double?,     // KOSPI F&G 값
+    val kosdaqFearGreed: Double?,    // KOSDAQ F&G 값
+
+    // 시장 과매수/과매도
+    val kospiOscillator: Double?,    // KOSPI 오실레이터 값
+    val kospiStatus: String?,        // KOSPI 상태 (Overbought/Neutral/Oversold)
+    val kosdaqOscillator: Double?,   // KOSDAQ 오실레이터 값
+    val kosdaqStatus: String?        // KOSDAQ 상태
+)
