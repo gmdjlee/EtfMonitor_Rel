@@ -1,5 +1,6 @@
 package com.etfmonitor.ui.screens.statistics
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -19,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.database.entities.CashDepositTrend
 import com.etfmonitor.database.entities.StockAmountRanking
 import com.etfmonitor.database.entities.StockChangeInfo
+import com.etfmonitor.ui.theme.*
 import com.etfmonitor.ui.utils.AmountFormatter
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
@@ -33,11 +36,16 @@ import com.patrykandpatrick.vico.core.common.data.ExtraStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+/**
+ * Statistics Screen - Moss Green Nature Theme
+ * Shows comprehensive ETF statistics with multiple tabs
+ */
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatisticsScreen(
     onNavigateBack: () -> Unit,
-    onStockClick: (String) -> Unit,  // ✅ 추가
+    onStockClick: (String) -> Unit,
     viewModel: StatisticsViewModel = hiltViewModel()
 ) {
     val dates by viewModel.dates.collectAsState()
@@ -45,19 +53,22 @@ fun StatisticsScreen(
     val newStocks by viewModel.newStocks.collectAsState()
     val removedStocks by viewModel.removedStocks.collectAsState()
     val increasedStocks by viewModel.increasedStocks.collectAsState()
-    val decreasedStocks by viewModel.decreasedStocks.collectAsState()  // ✅ 추가
-    val cashDepositTrend by viewModel.cashDepositTrend.collectAsState()  // ✅ 추가
+    val decreasedStocks by viewModel.decreasedStocks.collectAsState()
+    val cashDepositTrend by viewModel.cashDepositTrend.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("금액 순위", "신규 편입", "제외", "비중 증가", "비중 감소", "원화예금")  // ✅ 탭 추가
+    val tabs = listOf("금액 순위", "신규 편입", "제외", "비중 증가", "비중 감소", "원화예금")
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Column {
-                        Text("전체 통계", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "전체 통계",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
                         dates?.let { (prev, curr) ->
                             Text(
                                 "$prev → $curr",
@@ -68,48 +79,64 @@ fun StatisticsScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "뒤로"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
-            ScrollableTabRow(selectedTabIndex = selectedTab) {  // ✅ TabRow → ScrollableTabRow
+            ScrollableTabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary
+            ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { Text(title) }
+                        text = {
+                            Text(
+                                title,
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
                     )
                 }
             }
 
             if (isLoading) {
                 Box(
-                    Modifier.fillMaxSize(),
-                    Alignment.Center
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 4.dp
+                    )
                 }
             } else {
                 when (selectedTab) {
-                    0 -> AmountRankingTab(amountRanking, viewModel, onStockClick)  // ✅ 클릭 추가
-                    1 -> NewStocksTab(newStocks, onStockClick)  // ✅ 클릭 추가
-                    2 -> RemovedStocksTab(removedStocks, onStockClick)  // ✅ 클릭 추가
-                    3 -> IncreasedStocksTab(increasedStocks, onStockClick)  // ✅ 클릭 추가
-                    4 -> DecreasedStocksTab(decreasedStocks, onStockClick)  // ✅ 새 탭
-                    5 -> CashDepositTrendTab(cashDepositTrend)  // ✅ 새 탭
+                    0 -> AmountRankingTab(amountRanking, viewModel, onStockClick)
+                    1 -> NewStocksTab(newStocks, onStockClick)
+                    2 -> RemovedStocksTab(removedStocks, onStockClick)
+                    3 -> IncreasedStocksTab(increasedStocks, onStockClick)
+                    4 -> DecreasedStocksTab(decreasedStocks, onStockClick)
+                    5 -> CashDepositTrendTab(cashDepositTrend)
                 }
             }
         }
     }
 }
 
-// ✅ 1. AmountRankingTab 수정
 @Composable
 private fun AmountRankingTab(
     rankings: List<StockAmountRanking>,
@@ -122,15 +149,16 @@ private fun AmountRankingTab(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(MaterialTheme.spacing.medium),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 "총 ${rankings.size}개 종목",
-                style = MaterialTheme.typography.titleSmall
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
             )
-            IconButton(
+            FilledTonalIconButton(
                 onClick = {
                     sortAscending = !sortAscending
                     viewModel.sortAmountRanking(sortAscending)
@@ -138,31 +166,35 @@ private fun AmountRankingTab(
             ) {
                 Icon(
                     if (sortAscending) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                    if (sortAscending) "오름차순" else "내림차순"
+                    contentDescription = if (sortAscending) "오름차순" else "내림차순"
                 )
             }
         }
 
-        // ✅ 헤더 카드 - "금액(억)" → "금액"으로 변경
-        Card(
+        // Header card
+        ElevatedCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .padding(horizontal = MaterialTheme.spacing.medium, vertical = MaterialTheme.spacing.extraSmall),
+            shape = MaterialTheme.extendedShapes.card,
+            colors = CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            )
         ) {
             Row(
-                modifier = Modifier.padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.padding(MaterialTheme.spacing.small),
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
             ) {
                 Text("순위", Modifier.weight(0.5f), style = MaterialTheme.typography.labelSmall)
                 Text("종목명", Modifier.weight(2f), style = MaterialTheme.typography.labelSmall)
-                Text("금액", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)  // ✅ 변경
+                Text("금액", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)
                 Text("ETF수", Modifier.weight(0.7f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
             }
         }
 
         LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            contentPadding = PaddingValues(MaterialTheme.spacing.medium),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
         ) {
             items(rankings.size) { index ->
                 val item = rankings[index]
@@ -172,20 +204,37 @@ private fun AmountRankingTab(
     }
 }
 
-// ✅ 2. AmountRankingCard 수정 - 단위 포함하여 표시
 @Composable
 private fun AmountRankingCard(
     rank: Int,
     item: StockAmountRanking,
     onStockClick: (String) -> Unit
 ) {
-    Card(
+    ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
-        onClick = { onStockClick(item.stockTicker) }
+        onClick = { onStockClick(item.stockTicker) },
+        shape = MaterialTheme.extendedShapes.card,
+        elevation = CardDefaults.elevatedCardElevation(
+            defaultElevation = MaterialTheme.elevation.level2,
+            pressedElevation = MaterialTheme.elevation.level1
+        ),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                            MaterialTheme.colorScheme.surface
+                        )
+                    )
+                )
+                .padding(MaterialTheme.spacing.small),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -200,24 +249,29 @@ private fun AmountRankingCard(
                 }
             )
             Column(Modifier.weight(2f)) {
-                Text(item.stockName, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    item.stockName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
                 Text(
                     item.stockTicker,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            // ✅ showUnit = true로 변경하여 단위 표시
             Text(
                 AmountFormatter.format(item.totalAmount, showUnit = true),
                 Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.End
             )
             Text(
                 "${item.etfCount}",
                 Modifier.weight(0.7f),
                 style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
         }
@@ -227,21 +281,22 @@ private fun AmountRankingCard(
 @Composable
 private fun NewStocksTab(
     stocks: List<StockChangeInfo>,
-    onStockClick: (String) -> Unit  // ✅ 추가
+    onStockClick: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
             "총 ${stocks.size}개 종목",
-            modifier = Modifier.padding(16.dp),
-            style = MaterialTheme.typography.titleSmall
+            modifier = Modifier.padding(MaterialTheme.spacing.medium),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            contentPadding = PaddingValues(MaterialTheme.spacing.medium),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
         ) {
             items(stocks) { stock ->
-                StockChangeCard(stock, HoldingStatus.NEW, onStockClick)  // ✅ 클릭 추가
+                StockChangeCard(stock, HoldingStatus.NEW, onStockClick)
             }
         }
     }
@@ -250,21 +305,22 @@ private fun NewStocksTab(
 @Composable
 private fun RemovedStocksTab(
     stocks: List<StockChangeInfo>,
-    onStockClick: (String) -> Unit  // ✅ 추가
+    onStockClick: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
             "총 ${stocks.size}개 종목",
-            modifier = Modifier.padding(16.dp),
-            style = MaterialTheme.typography.titleSmall
+            modifier = Modifier.padding(MaterialTheme.spacing.medium),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            contentPadding = PaddingValues(MaterialTheme.spacing.medium),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
         ) {
             items(stocks) { stock ->
-                StockChangeCard(stock, HoldingStatus.REMOVED, onStockClick)  // ✅ 클릭 추가
+                StockChangeCard(stock, HoldingStatus.REMOVED, onStockClick)
             }
         }
     }
@@ -273,27 +329,27 @@ private fun RemovedStocksTab(
 @Composable
 private fun IncreasedStocksTab(
     stocks: List<StockChangeInfo>,
-    onStockClick: (String) -> Unit  // ✅ 추가
+    onStockClick: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
             "총 ${stocks.size}개 종목",
-            modifier = Modifier.padding(16.dp),
-            style = MaterialTheme.typography.titleSmall
+            modifier = Modifier.padding(MaterialTheme.spacing.medium),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            contentPadding = PaddingValues(MaterialTheme.spacing.medium),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
         ) {
             items(stocks) { stock ->
-                StockChangeCard(stock, HoldingStatus.INCREASE, onStockClick)  // ✅ 클릭 추가
+                StockChangeCard(stock, HoldingStatus.INCREASE, onStockClick)
             }
         }
     }
 }
 
-// ✅ 비중 감소 탭 추가
 @Composable
 private fun DecreasedStocksTab(
     stocks: List<StockChangeInfo>,
@@ -302,13 +358,14 @@ private fun DecreasedStocksTab(
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
             "총 ${stocks.size}개 종목",
-            modifier = Modifier.padding(16.dp),
-            style = MaterialTheme.typography.titleSmall
+            modifier = Modifier.padding(MaterialTheme.spacing.medium),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            contentPadding = PaddingValues(MaterialTheme.spacing.medium),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
         ) {
             items(stocks) { stock ->
                 StockChangeCard(stock, HoldingStatus.DECREASE, onStockClick)
@@ -317,18 +374,33 @@ private fun DecreasedStocksTab(
     }
 }
 
-// ✅ 원화예금 추이 탭 추가
 @Composable
 private fun CashDepositTrendTab(trend: List<CashDepositTrend>) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(MaterialTheme.spacing.medium),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
     ) {
         if (trend.isEmpty()) {
-            Text("원화예금 데이터가 없습니다", style = MaterialTheme.typography.bodyMedium)
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.extendedShapes.cardLarge
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(MaterialTheme.spacing.large),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "원화예금 데이터가 없습니다",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         } else {
             CashDepositSummaryCard(trend)
             CashDepositChartCard(trend)
@@ -337,25 +409,31 @@ private fun CashDepositTrendTab(trend: List<CashDepositTrend>) {
     }
 }
 
-// ✅ 3. CashDepositSummaryCard 개선
 @Composable
 private fun CashDepositSummaryCard(trend: List<CashDepositTrend>) {
     val first = trend.first()
     val last = trend.last()
     val change = last.totalAmount - first.totalAmount
 
-    Card(
+    ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
+        shape = MaterialTheme.extendedShapes.cardLarge,
+        colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(MaterialTheme.spacing.medium),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
         ) {
-            Text("원화예금 요약", style = MaterialTheme.typography.titleMedium)
-            HorizontalDivider()
+            Text(
+                "원화예금 요약",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f)
+            )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -363,11 +441,11 @@ private fun CashDepositSummaryCard(trend: List<CashDepositTrend>) {
             ) {
                 SummaryItem(
                     label = "현재 총액",
-                    value = AmountFormatter.format(last.totalAmount)  // ✅ 개선
+                    value = AmountFormatter.format(last.totalAmount)
                 )
                 SummaryItem(
                     label = "변동액",
-                    value = AmountFormatter.formatChange(change)  // ✅ 개선
+                    value = AmountFormatter.formatChange(change)
                 )
                 SummaryItem(
                     label = "ETF 수",
@@ -380,12 +458,19 @@ private fun CashDepositSummaryCard(trend: List<CashDepositTrend>) {
 
 @Composable
 private fun CashDepositChartCard(trend: List<CashDepositTrend>) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.extendedShapes.cardLarge
+    ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(MaterialTheme.spacing.medium),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
         ) {
-            Text("원화예금 추이 (억원)", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "원화예금 추이 (억원)",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
 
             val modelProducer = remember { CartesianChartModelProducer() }
             val scope = rememberCoroutineScope()
@@ -444,46 +529,61 @@ private fun CashDepositChartCard(trend: List<CashDepositTrend>) {
     }
 }
 
-// ✅ 4. CashDepositDataTable 개선
 @Composable
 private fun CashDepositDataTable(trend: List<CashDepositTrend>) {
-    // 최대값 계산
     val maxAmount = trend.maxOfOrNull { it.totalAmount } ?: 0f
     val headerText = AmountFormatter.getTableHeader(maxAmount)
 
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("상세 데이터", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(8.dp))
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.extendedShapes.cardLarge
+    ) {
+        Column(modifier = Modifier.padding(MaterialTheme.spacing.medium)) {
+            Text(
+                "상세 데이터",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.height(MaterialTheme.spacing.small))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
             ) {
                 Text("날짜", Modifier.weight(2f), style = MaterialTheme.typography.labelSmall)
-                Text(headerText, Modifier.weight(1.5f), style = MaterialTheme.typography.labelSmall)  // ✅ 개선
+                Text(headerText, Modifier.weight(1.5f), style = MaterialTheme.typography.labelSmall)
                 Text("ETF수", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
             }
 
-            HorizontalDivider(Modifier.padding(vertical = 4.dp))
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = MaterialTheme.spacing.extraSmall),
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
 
             trend.reversed().forEach { item ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(vertical = MaterialTheme.spacing.extraSmall),
+                    horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
                 ) {
-                    Text(item.date, Modifier.weight(2f), style = MaterialTheme.typography.bodySmall)
                     Text(
-                        AmountFormatter.formatForTable(item.totalAmount, maxAmount),  // ✅ 개선
+                        item.date,
+                        Modifier.weight(2f),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        AmountFormatter.formatForTable(item.totalAmount, maxAmount),
                         Modifier.weight(1.5f),
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         "${item.etfCount}",
                         Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -494,8 +594,16 @@ private fun CashDepositDataTable(trend: List<CashDepositTrend>) {
 @Composable
 private fun SummaryItem(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, style = MaterialTheme.typography.labelSmall)
-        Text(value, style = MaterialTheme.typography.titleMedium)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSecondaryContainer
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer
+        )
     }
 }
 
@@ -512,20 +620,37 @@ private fun formatDateForChart(date: String): String {
     }
 }
 
-// ✅ 2. StockChangeCard 개선
 @Composable
 private fun StockChangeCard(
     stock: StockChangeInfo,
     status: HoldingStatus,
     onStockClick: (String) -> Unit
 ) {
-    Card(
+    ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
-        onClick = { onStockClick(stock.stockTicker) }
+        onClick = { onStockClick(stock.stockTicker) },
+        shape = MaterialTheme.extendedShapes.card,
+        elevation = CardDefaults.elevatedCardElevation(
+            defaultElevation = MaterialTheme.elevation.level2,
+            pressedElevation = MaterialTheme.elevation.level1
+        ),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                            MaterialTheme.colorScheme.surface
+                        )
+                    )
+                )
+                .padding(MaterialTheme.spacing.small),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -533,7 +658,11 @@ private fun StockChangeCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(stock.stockName, style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        stock.stockName,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                     Text(
                         stock.stockTicker,
                         style = MaterialTheme.typography.bodySmall,
@@ -543,11 +672,14 @@ private fun StockChangeCard(
                 StatusBadge(status)
             }
 
-            HorizontalDivider()
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
 
             Text(
                 "ETF: ${stock.etfName}",
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Row(
@@ -570,11 +702,11 @@ private fun StockChangeCard(
                 }
             }
 
-            // ✅ 개선: 동적 단위
             if (stock.currentAmount > 0) {
                 Text(
                     "평가금액: ${AmountFormatter.format(stock.currentAmount)}",
                     style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.End
                 )
@@ -595,11 +727,15 @@ private fun StatusBadge(status: HoldingStatus) {
 
     Surface(
         color = color.copy(alpha = 0.2f),
-        shape = MaterialTheme.shapes.small
+        shape = MaterialTheme.extendedShapes.badge,
+        tonalElevation = 1.dp
     ) {
         Text(
             text,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier.padding(
+                horizontal = MaterialTheme.spacing.small,
+                vertical = 4.dp
+            ),
             style = MaterialTheme.typography.labelSmall,
             color = color
         )
@@ -608,19 +744,34 @@ private fun StatusBadge(status: HoldingStatus) {
 
 @Composable
 private fun WeightInfo(label: String, weight: Float, modifier: Modifier = Modifier) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, style = MaterialTheme.typography.labelSmall)
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Text(
             String.format("%.2f%%", weight),
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
 
 @Composable
 private fun ChangeInfo(change: Float, modifier: Modifier = Modifier) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("변동", style = MaterialTheme.typography.labelSmall)
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            "변동",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Text(
             String.format("%+.2f%%", change),
             style = MaterialTheme.typography.bodyMedium,
@@ -633,30 +784,6 @@ private fun ChangeInfo(change: Float, modifier: Modifier = Modifier) {
     }
 }
 
-// ✅ 금액을 동적 단위로 포맷하는 함수
-private fun formatCashAmount(amount: Float): String {
-    return when {
-        amount >= 100_000_000 -> String.format("%.1f억", amount / 100_000_000)
-        amount >= 10_000_000 -> String.format("%.0f백만", amount / 10_000_000)
-        amount >= 10_000 -> String.format("%.0f만", amount / 10_000)
-        else -> String.format("%.0f원", amount)
-    }
-}
-
-// ✅ 변동액을 부호와 함께 표시
-private fun formatCashAmountChange(change: Float): String {
-    val sign = if (change >= 0) "+" else ""
-    return when {
-        kotlin.math.abs(change) >= 100_000_000 ->
-            String.format("%s%.1f억", sign, change / 100_000_000)
-        kotlin.math.abs(change) >= 10_000_000 ->
-            String.format("%s%.0f백만", sign, change / 10_000_000)
-        kotlin.math.abs(change) >= 10_000 ->
-            String.format("%s%.0f만", sign, change / 10_000)
-        else ->
-            String.format("%s%.0f원", sign, change)
-    }
-}
 enum class HoldingStatus {
     NEW, INCREASE, DECREASE, MAINTAIN, REMOVED
 }
