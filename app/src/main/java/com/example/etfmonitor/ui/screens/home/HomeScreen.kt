@@ -264,7 +264,6 @@ private fun HomeContent(
     onNavigateToMarketOscillator: () -> Unit
 ) {
     val hasData = (state as? HomeState.Idle)?.hasData ?: false
-    var searchQuery by remember { mutableStateOf("") }
 
     // Menu items
     val menuItems = buildList {
@@ -333,37 +332,6 @@ private fun HomeContent(
             .padding(MaterialTheme.spacing.medium),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
     ) {
-        // Search bar
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = MaterialTheme.spacing.small),
-            placeholder = {
-                Text(
-                    "기능 검색...",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "Search",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            singleLine = true,
-            shape = MaterialTheme.extendedShapes.searchBar,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                focusedBorderColor = MaterialTheme.colorScheme.outline,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline
-            )
-        )
-
         // Summary card
         val summary = (state as? HomeState.Idle)?.summary
         if (summary != null) {
@@ -454,10 +422,10 @@ private fun MenuCard(
                         )
                     )
                 ),
-            contentAlignment = Alignment.TopStart
+            contentAlignment = Alignment.Center
         ) {
             Column(
-                horizontalAlignment = Alignment.Start,
+                horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
                 modifier = Modifier
                     .padding(MaterialTheme.spacing.medium)
@@ -489,7 +457,7 @@ private fun MenuCard(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Start,
+                    textAlign = TextAlign.Center,
                     maxLines = 2
                 )
 
@@ -498,7 +466,7 @@ private fun MenuCard(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Start,
+                    textAlign = TextAlign.Center,
                     maxLines = 2
                 )
             }
