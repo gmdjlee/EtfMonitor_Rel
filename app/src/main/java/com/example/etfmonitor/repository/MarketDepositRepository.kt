@@ -40,11 +40,16 @@ class MarketDepositRepository(
     /**
      * 증시 자금 데이터 초기화 (Python에서 가져와서 DB에 저장)
      */
-    suspend fun initializeDeposits(numPages: Int = 10): Result<Int> = withContext(Dispatchers.IO) {
+    suspend fun initializeDeposits(
+        numPages: Int = 10,
+        onProgress: ((String, Int) -> Unit)? = null
+    ): Result<Int> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Initializing market deposit data from Python...")
+            onProgress?.invoke("증시 자금 동향 데이터 수집 준비 중...", 0)
 
             // Python에서 증시 자금 데이터 가져오기
+            onProgress?.invoke("증시 자금 동향 데이터 수집 중...", 30)
             val marketData = try {
                 pyClient.getMarketDepositData(numPages)
             } catch (e: Exception) {
@@ -56,6 +61,8 @@ class MarketDepositRepository(
                 Log.e(TAG, "Failed to get market deposit data from Python")
                 return@withContext Result.failure(Exception("Python 모듈 호출 실패: null 반환"))
             }
+
+            onProgress?.invoke("데이터 처리 중...", 70)
 
             // MarketDepositData를 MarketDeposit 엔티티 리스트로 변환
             val deposits = marketData.dates.mapIndexed { index, date ->
@@ -75,10 +82,12 @@ class MarketDepositRepository(
             }
 
             // DB에 일괄 저장
+            onProgress?.invoke("데이터베이스 저장 중...", 90)
             marketDepositDao.deleteAll()
             marketDepositDao.insertAll(deposits)
 
             Log.d(TAG, "Successfully initialized ${deposits.size} market deposit records")
+            onProgress?.invoke("완료", 100)
             Result.success(deposits.size)
         } catch (e: kotlinx.coroutines.CancellationException) {
             Log.w(TAG, "Initialization cancelled")

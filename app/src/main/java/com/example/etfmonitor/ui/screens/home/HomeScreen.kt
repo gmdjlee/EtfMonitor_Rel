@@ -50,18 +50,24 @@ fun HomeScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val showFirstRunDialog by viewModel.showFirstRunDialog.collectAsState()
+    val showMarketDepositDialog by viewModel.showMarketDepositDialog.collectAsState()
     val showFearGreedDialog by viewModel.showFearGreedDialog.collectAsState()
     val showMarketOscillatorDialog by viewModel.showMarketOscillatorDialog.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val lastDate = (state as? HomeState.Idle)?.lastDate
 
     var showDaysDialog by remember { mutableStateOf(false) }
+    var showMarketDepositPagesDialog by remember { mutableStateOf(false) }
     var showFearGreedPeriodDialog by remember { mutableStateOf(false) }
     var showMarketOscillatorPeriodDialog by remember { mutableStateOf(false) }
 
     // Dialog handlers
     LaunchedEffect(showFirstRunDialog) {
         if (showFirstRunDialog) showDaysDialog = true
+    }
+
+    LaunchedEffect(showMarketDepositDialog) {
+        if (showMarketDepositDialog) showMarketDepositPagesDialog = true
     }
 
     LaunchedEffect(showFearGreedDialog) {
@@ -164,6 +170,19 @@ fun HomeScreen(
                 viewModel.initialize(days)
                 showDaysDialog = false
                 if (showFirstRunDialog) viewModel.onFirstRunDialogShown()
+            }
+        )
+    }
+
+    if (showMarketDepositPagesDialog) {
+        MarketDepositPagesSelectionDialog(
+            onDismiss = {
+                showMarketDepositPagesDialog = false
+                if (showMarketDepositDialog) viewModel.onMarketDepositDialogShown()
+            },
+            onConfirm = { pages ->
+                viewModel.initializeMarketDeposit(pages)
+                showMarketDepositPagesDialog = false
             }
         )
     }
@@ -616,6 +635,98 @@ private fun DaysSelectionDialog(
 }
 
 @Composable
+private fun MarketDepositPagesSelectionDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    val pagesOptions = listOf(
+        MarketDepositPagesOption(5, "5페이지", "약 최근 5일"),
+        MarketDepositPagesOption(10, "10페이지 (권장)", "약 최근 10일"),
+        MarketDepositPagesOption(15, "15페이지", "약 최근 15일"),
+        MarketDepositPagesOption(20, "20페이지", "약 최근 20일"),
+        MarketDepositPagesOption(30, "30페이지", "약 최근 30일")
+    )
+
+    var selectedPages by remember { mutableStateOf(10) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("증시 자금 동향 초기화") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "증시 자금 동향 데이터 수집 페이지 수를 선택하세요.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                pagesOptions.forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = (selectedPages == option.pages),
+                                onClick = { selectedPages = option.pages }
+                            )
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (selectedPages == option.pages),
+                            onClick = { selectedPages = option.pages }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                option.label,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                option.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = MaterialTheme.extendedShapes.card
+                ) {
+                    Text(
+                        "데이터 수집에는 약 30초-1분 정도 소요됩니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(12.dp),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            FilledTonalButton(
+                onClick = { onConfirm(selectedPages) },
+                shape = MaterialTheme.extendedShapes.button
+            ) {
+                Text("수집 시작")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("나중에")
+            }
+        },
+        shape = MaterialTheme.extendedShapes.cardLarge
+    )
+}
+
+@Composable
 private fun FearGreedPeriodSelectionDialog(
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit
@@ -805,6 +916,12 @@ private data class MarketOscillatorPeriodOption(
 
 private data class FearGreedPeriodOption(
     val days: Int,
+    val label: String,
+    val description: String
+)
+
+private data class MarketDepositPagesOption(
+    val pages: Int,
     val label: String,
     val description: String
 )

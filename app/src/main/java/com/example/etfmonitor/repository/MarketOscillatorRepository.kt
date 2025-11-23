@@ -64,9 +64,14 @@ class MarketOscillatorRepository(
     /**
      * 초기 데이터 수집 (12개월)
      */
-    suspend fun initializeMarketData(market: String, days: Int = 365): Result<Int> {
+    suspend fun initializeMarketData(
+        market: String,
+        days: Int = 365,
+        onProgress: ((String, Int) -> Unit)? = null
+    ): Result<Int> {
         return try {
             Log.d(TAG, "Initializing $market data for $days days")
+            onProgress?.invoke("$market 데이터 수집 준비 중...", 0)
 
             // 종료일: 오늘
             val endDate = LocalDate.now()
@@ -78,6 +83,7 @@ class MarketOscillatorRepository(
             val endDateStr = endDate.format(formatter)
 
             // Python에서 데이터 수집
+            onProgress?.invoke("$market 시장 지수 데이터 수집 중...", 30)
             val jsonStr = pyClient.getMarketOscillator(market, startDateStr, endDateStr)
             val jsonObj = JSONObject(jsonStr)
 
@@ -86,6 +92,8 @@ class MarketOscillatorRepository(
                 Log.e(TAG, "Error fetching market data: $error")
                 return Result.failure(Exception(error))
             }
+
+            onProgress?.invoke("$market 데이터 처리 중...", 70)
 
             // JSON 파싱
             val dates = jsonObj.getJSONArray("dates").let { arr ->
@@ -110,9 +118,11 @@ class MarketOscillatorRepository(
             }
 
             // DB에 저장
+            onProgress?.invoke("$market 데이터베이스 저장 중...", 90)
             dao.insertAll(dataList)
 
             Log.d(TAG, "Initialized $market with ${dataList.size} data points")
+            onProgress?.invoke("$market 완료", 100)
             Result.success(dataList.size)
 
         } catch (e: Exception) {
