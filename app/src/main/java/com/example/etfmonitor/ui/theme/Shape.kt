@@ -28,16 +28,20 @@ val Shapes = Shapes(
 
 /**
  * Extended shape tokens for specialized use cases
+ * Updated for Moss Green Nature theme - More rounded, organic shapes
  */
 data class ExtendedShapes(
-    val card: Shape = RoundedCornerShape(12.dp),
-    val cardLarge: Shape = RoundedCornerShape(16.dp),
-    val button: Shape = RoundedCornerShape(8.dp),
-    val buttonLarge: Shape = RoundedCornerShape(12.dp),
+    val card: Shape = RoundedCornerShape(24.dp),  // Rounded-3xl per MD3 spec
+    val cardLarge: Shape = RoundedCornerShape(28.dp),
+    val button: Shape = CircleShape,  // Rounded-full per MD3 spec
+    val buttonOutlined: Shape = CircleShape,  // Rounded-full for outlined buttons
+    val buttonLarge: Shape = CircleShape,  // Fully rounded for prominence
     val dialog: Shape = RoundedCornerShape(28.dp),
     val bottomSheet: Shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-    val chip: Shape = RoundedCornerShape(8.dp),
-    val fab: Shape = RoundedCornerShape(16.dp),
+    val chip: Shape = CircleShape,  // Fully rounded chips
+    val fab: Shape = RoundedCornerShape(16.dp),  // Rounded-2xl per MD3 spec
+    val searchBar: Shape = CircleShape,  // Rounded-full per MD3 spec
+    val badge: Shape = RoundedCornerShape(8.dp),  // Status badges with gentle rounding
     val circle: Shape = CircleShape
 )
 
