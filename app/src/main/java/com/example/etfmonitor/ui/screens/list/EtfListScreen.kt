@@ -74,14 +74,15 @@ fun EtfListScreen(
                 placeholder = {
                     Text(
                         "ETF 이름 또는 티커 검색...",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 leadingIcon = {
                     Icon(
                         Icons.Default.Search,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 trailingIcon = {
@@ -89,7 +90,8 @@ fun EtfListScreen(
                         IconButton(onClick = viewModel::clearSearch) {
                             Icon(
                                 Icons.Default.Clear,
-                                contentDescription = "지우기"
+                                contentDescription = "지우기",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -97,7 +99,9 @@ fun EtfListScreen(
                 singleLine = true,
                 shape = MaterialTheme.extendedShapes.searchBar,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedBorderColor = MaterialTheme.colorScheme.outline,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline
                 )
             )
