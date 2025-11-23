@@ -41,6 +41,7 @@ data class ExtendedShapes(
     val chip: Shape = CircleShape,  // Fully rounded chips
     val fab: Shape = RoundedCornerShape(16.dp),  // Rounded-2xl per MD3 spec
     val searchBar: Shape = CircleShape,  // Rounded-full per MD3 spec
+    val badge: Shape = RoundedCornerShape(8.dp),  // Status badges with gentle rounding
     val circle: Shape = CircleShape
 )
 
