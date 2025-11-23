@@ -53,11 +53,16 @@ class FearGreedRepository(
      * 따라서 실제로는 약 3배의 데이터를 수집하여 원하는 기간만큼 남도록 합니다.
      * KRX API 제한으로 최대 730일(약 2년)까지만 수집합니다.
      */
-    suspend fun initializeFearGreed(days: Int = 365): Result<Int> = withContext(Dispatchers.IO) {
+    suspend fun initializeFearGreed(
+        days: Int = 365,
+        onProgress: ((String, Int) -> Unit)? = null
+    ): Result<Int> = withContext(Dispatchers.IO) {
         try {
             // 분석 과정의 데이터 손실을 고려하여 3배 수집, 최대 730일로 제한
             val collectionDays = minOf(days * 3, 730)
             Log.d(TAG, "Initializing Fear & Greed Index data: requested=$days days, collecting=$collectionDays days (max 730)")
+
+            onProgress?.invoke("Fear & Greed Index 데이터 수집 준비 중...", 0)
 
             // 날짜 범위 계산
             val endDate = LocalDate.now()
@@ -68,8 +73,9 @@ class FearGreedRepository(
             val endStr = endDate.format(formatter)
 
             // Python에서 Fear & Greed 데이터 가져오기
+            onProgress?.invoke("시장 데이터 수집 중...", 20)
             val fearGreedData = try {
-                calculateFearGreed(startStr, endStr)
+                calculateFearGreed(startStr, endStr, onProgress)
             } catch (e: Exception) {
                 Log.e(TAG, "Python call failed", e)
                 return@withContext Result.failure(Exception("Fear & Greed 계산 실패: ${e.message}", e))
@@ -81,10 +87,12 @@ class FearGreedRepository(
             }
 
             // DB에 저장
+            onProgress?.invoke("데이터베이스 저장 중...", 90)
             fearGreedDao.deleteAll()
             fearGreedDao.insertAll(fearGreedData)
 
             Log.d(TAG, "Successfully initialized ${fearGreedData.size} Fear & Greed records")
+            onProgress?.invoke("완료", 100)
             Result.success(fearGreedData.size)
         } catch (e: kotlinx.coroutines.CancellationException) {
             Log.w(TAG, "Initialization cancelled")
@@ -142,13 +150,18 @@ class FearGreedRepository(
     /**
      * Python 스크립트를 호출하여 Fear & Greed Index 계산
      */
-    private suspend fun calculateFearGreed(startDate: String, endDate: String): List<FearGreedIndex> =
+    private suspend fun calculateFearGreed(
+        startDate: String,
+        endDate: String,
+        onProgress: ((String, Int) -> Unit)? = null
+    ): List<FearGreedIndex> =
         withContext(Dispatchers.IO) {
             try {
                 Log.d(TAG, "Calculating Fear & Greed for period: $startDate ~ $endDate")
                 val module = python.getModule("feargreed")
 
                 // combine 함수 호출하여 데이터 수집
+                onProgress?.invoke("원시 데이터 수집 중...", 30)
                 val combineFunc = module["combine"]
                 if (combineFunc == null) {
                     Log.e(TAG, "combine function not found in Python module")
@@ -164,6 +177,7 @@ class FearGreedRepository(
                 Log.d(TAG, "Combined data retrieved successfully")
 
                 // analyze 함수 호출하여 분석
+                onProgress?.invoke("Fear & Greed Index 분석 중...", 60)
                 val analyzeFunc = module["analyze"]
                 if (analyzeFunc == null) {
                     Log.e(TAG, "analyze function not found in Python module")
@@ -177,6 +191,7 @@ class FearGreedRepository(
                 }
 
                 Log.d(TAG, "Analyze function completed")
+                onProgress?.invoke("데이터 파싱 중...", 80)
 
                 // 결과 파싱 (KOSPI, KOSDAQ) - Python에서 튜플 (kp_df, kq_df) 반환
                 val indices = mutableListOf<FearGreedIndex>()

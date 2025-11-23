@@ -45,6 +45,9 @@ class HomeViewModel @Inject constructor(
     private val _showFirstRunDialog = MutableStateFlow(false)
     val showFirstRunDialog: StateFlow<Boolean> = _showFirstRunDialog.asStateFlow()
 
+    private val _showMarketDepositDialog = MutableStateFlow(false)
+    val showMarketDepositDialog: StateFlow<Boolean> = _showMarketDepositDialog.asStateFlow()
+
     private val _showFearGreedDialog = MutableStateFlow(false)
     val showFearGreedDialog: StateFlow<Boolean> = _showFearGreedDialog.asStateFlow()
 
@@ -80,6 +83,18 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private fun checkMarketDepositFirstRun() {
+        viewModelScope.launch {
+            val dialogDismissed = etfDao.getSetting("market_deposit_dialog_dismissed")
+            val hasData = marketDepositRepository.getDepositCount() > 0
+
+            // 증시 자금 동향 데이터가 없고 다이얼로그를 본 적이 없으면 표시
+            if (!hasData && dialogDismissed != "true") {
+                _showMarketDepositDialog.value = true
+            }
+        }
+    }
+
     private fun checkFearGreedFirstRun() {
         viewModelScope.launch {
             val dialogDismissed = etfDao.getSetting("fear_greed_dialog_dismissed")
@@ -106,12 +121,42 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun onMarketDepositDialogShown() {
+        _showMarketDepositDialog.value = false
+    }
+
     fun onFearGreedDialogShown() {
         _showFearGreedDialog.value = false
     }
 
     fun onMarketOscillatorDialogShown() {
         _showMarketOscillatorDialog.value = false
+    }
+
+    fun initializeMarketDeposit(numPages: Int) {
+        viewModelScope.launch {
+            // 다이얼로그를 더 이상 표시하지 않음
+            etfDao.saveSetting(
+                com.etfmonitor.database.entities.Setting("market_deposit_dialog_dismissed", "true")
+            )
+            _showMarketDepositDialog.value = false
+
+            // 증시 자금 동향 데이터 수집
+            val result = marketDepositRepository.initializeDeposits(numPages) { message, progress ->
+                _state.value = HomeState.Initializing(message, progress)
+            }
+
+            if (result.isSuccess) {
+                _state.value = HomeState.Success("증시 자금 동향 데이터 수집 완료")
+            } else {
+                _state.value = HomeState.Error("증시 자금 동향 데이터 수집 실패: ${result.exceptionOrNull()?.message}")
+            }
+
+            checkData()
+
+            // 성공 여부와 관계없이 Fear & Greed 다이얼로그 표시
+            checkFearGreedFirstRun()
+        }
     }
 
     fun initializeFearGreed(days: Int) {
@@ -123,8 +168,9 @@ class HomeViewModel @Inject constructor(
             _showFearGreedDialog.value = false
 
             // Fear & Greed 데이터 수집
-            _state.value = HomeState.Initializing("Fear & Greed Index 데이터 수집 중...", 0)
-            val result = fearGreedRepository.initializeFearGreed(days)
+            val result = fearGreedRepository.initializeFearGreed(days) { message, progress ->
+                _state.value = HomeState.Initializing(message, progress)
+            }
 
             if (result.isSuccess) {
                 _state.value = HomeState.Success("Fear & Greed Index 데이터 수집 완료")
@@ -150,8 +196,15 @@ class HomeViewModel @Inject constructor(
             // 과매수/과매도 데이터 수집
             _state.value = HomeState.Initializing("과매수/과매도 데이터 수집 중...", 0)
 
-            val kospiResult = marketOscillatorRepository.initializeMarketData("KOSPI", days)
-            val kosdaqResult = marketOscillatorRepository.initializeMarketData("KOSDAQ", days)
+            val kospiResult = marketOscillatorRepository.initializeMarketData("KOSPI", days) { message, progress ->
+                // KOSPI 진행 상황: 0-50%
+                _state.value = HomeState.Initializing(message, progress / 2)
+            }
+
+            val kosdaqResult = marketOscillatorRepository.initializeMarketData("KOSDAQ", days) { message, progress ->
+                // KOSDAQ 진행 상황: 50-100%
+                _state.value = HomeState.Initializing(message, 50 + progress / 2)
+            }
 
             if (kospiResult.isSuccess && kosdaqResult.isSuccess) {
                 val totalCount = (kospiResult.getOrNull() ?: 0) + (kosdaqResult.getOrNull() ?: 0)
@@ -189,10 +242,10 @@ class HomeViewModel @Inject constructor(
                     if (wasInitializing || wasUpdating) {
                         checkData()
 
-                        // ETF 초기화가 완료된 경우 Fear & Greed 다이얼로그 표시
+                        // ETF 초기화가 완료된 경우 증시 자금 동향 다이얼로그 표시
                         if (wasInitializing && _etfInitializationCompleted.value) {
                             _etfInitializationCompleted.value = false  // 리셋
-                            checkFearGreedFirstRun()
+                            checkMarketDepositFirstRun()
                         }
                     }
                 }
