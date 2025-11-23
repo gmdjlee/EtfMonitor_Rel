@@ -125,12 +125,9 @@ fun EtfListScreen(
                             .padding(MaterialTheme.spacing.large),
                         contentAlignment = Alignment.Center
                     ) {
-                        ElevatedCard(
+                        OutlinedCard(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.extendedShapes.cardLarge,
-                            elevation = CardDefaults.elevatedCardElevation(
-                                defaultElevation = MaterialTheme.elevation.level2
-                            )
+                            shape = MaterialTheme.extendedShapes.cardLarge
                         ) {
                             Column(
                                 modifier = Modifier
@@ -166,10 +163,10 @@ fun EtfListScreen(
                             .padding(MaterialTheme.spacing.large),
                         contentAlignment = Alignment.Center
                     ) {
-                        ElevatedCard(
+                        OutlinedCard(
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.extendedShapes.cardLarge,
-                            colors = CardDefaults.elevatedCardColors(
+                            colors = CardDefaults.outlinedCardColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer
                             )
                         ) {
@@ -214,15 +211,11 @@ private fun EtfList(etfs: List<Etf>, onEtfClick: (String) -> Unit) {
 
 @Composable
 private fun EtfCard(etf: Etf, onClick: () -> Unit) {
-    ElevatedCard(
+    OutlinedCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.extendedShapes.card,
-        elevation = CardDefaults.elevatedCardElevation(
-            defaultElevation = MaterialTheme.elevation.level2,
-            pressedElevation = MaterialTheme.elevation.level1
-        ),
-        colors = CardDefaults.elevatedCardColors(
+        colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {

@@ -172,12 +172,12 @@ private fun AmountRankingTab(
         }
 
         // Header card
-        ElevatedCard(
+        OutlinedCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = MaterialTheme.spacing.medium, vertical = MaterialTheme.spacing.extraSmall),
             shape = MaterialTheme.extendedShapes.card,
-            colors = CardDefaults.elevatedCardColors(
+            colors = CardDefaults.outlinedCardColors(
                 containerColor = MaterialTheme.colorScheme.primaryContainer
             )
         ) {
@@ -210,15 +210,11 @@ private fun AmountRankingCard(
     item: StockAmountRanking,
     onStockClick: (String) -> Unit
 ) {
-    ElevatedCard(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = { onStockClick(item.stockTicker) },
         shape = MaterialTheme.extendedShapes.card,
-        elevation = CardDefaults.elevatedCardElevation(
-            defaultElevation = MaterialTheme.elevation.level2,
-            pressedElevation = MaterialTheme.elevation.level1
-        ),
-        colors = CardDefaults.elevatedCardColors(
+        colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
@@ -384,7 +380,7 @@ private fun CashDepositTrendTab(trend: List<CashDepositTrend>) {
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
     ) {
         if (trend.isEmpty()) {
-            ElevatedCard(
+            OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.extendedShapes.cardLarge
             ) {
@@ -415,10 +411,10 @@ private fun CashDepositSummaryCard(trend: List<CashDepositTrend>) {
     val last = trend.last()
     val change = last.totalAmount - first.totalAmount
 
-    ElevatedCard(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.extendedShapes.cardLarge,
-        colors = CardDefaults.elevatedCardColors(
+        colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
         )
     ) {
@@ -458,7 +454,7 @@ private fun CashDepositSummaryCard(trend: List<CashDepositTrend>) {
 
 @Composable
 private fun CashDepositChartCard(trend: List<CashDepositTrend>) {
-    ElevatedCard(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.extendedShapes.cardLarge
     ) {
@@ -534,7 +530,7 @@ private fun CashDepositDataTable(trend: List<CashDepositTrend>) {
     val maxAmount = trend.maxOfOrNull { it.totalAmount } ?: 0f
     val headerText = AmountFormatter.getTableHeader(maxAmount)
 
-    ElevatedCard(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.extendedShapes.cardLarge
     ) {
@@ -626,15 +622,11 @@ private fun StockChangeCard(
     status: HoldingStatus,
     onStockClick: (String) -> Unit
 ) {
-    ElevatedCard(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = { onStockClick(stock.stockTicker) },
         shape = MaterialTheme.extendedShapes.card,
-        elevation = CardDefaults.elevatedCardElevation(
-            defaultElevation = MaterialTheme.elevation.level2,
-            pressedElevation = MaterialTheme.elevation.level1
-        ),
-        colors = CardDefaults.elevatedCardColors(
+        colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
