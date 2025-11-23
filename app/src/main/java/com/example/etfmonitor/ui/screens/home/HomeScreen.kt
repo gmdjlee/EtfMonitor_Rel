@@ -356,8 +356,8 @@ private fun HomeContent(
             singleLine = true,
             shape = MaterialTheme.extendedShapes.searchBar,
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                 focusedBorderColor = MaterialTheme.colorScheme.outline,
                 unfocusedBorderColor = MaterialTheme.colorScheme.outline
             )
@@ -411,17 +411,6 @@ private fun MenuCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Elevation animation
-    val elevation by animateDpAsState(
-        targetValue = if (isPressed) MaterialTheme.elevation.level1
-                     else MaterialTheme.elevation.level2,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "elevation"
-    )
-
     // Scale animation
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.95f else 1f,
@@ -432,17 +421,15 @@ private fun MenuCard(
         label = "scale"
     )
 
-    ElevatedCard(
+    OutlinedCard(
         modifier = modifier
             .fillMaxHeight()
             .animateContentSize(),
-        elevation = CardDefaults.elevatedCardElevation(
-            defaultElevation = elevation
-        ),
         shape = MaterialTheme.extendedShapes.card,
-        colors = CardDefaults.elevatedCardColors(
+        colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surface
-        )
+        ),
+        border = CardDefaults.outlinedCardBorder()
     ) {
         Box(
             modifier = Modifier
@@ -455,15 +442,15 @@ private fun MenuCard(
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            color.copy(alpha = 0.08f),
-                            color.copy(alpha = 0.03f)
+                            color.copy(alpha = 0.05f),
+                            color.copy(alpha = 0.02f)
                         )
                     )
                 ),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.TopStart
         ) {
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
+                horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
                 modifier = Modifier
                     .padding(MaterialTheme.spacing.medium)
@@ -472,11 +459,11 @@ private fun MenuCard(
                         scaleY = scale
                     }
             ) {
-                // Icon with circular background
+                // Icon with rounded rectangle background
                 Box(
                     modifier = Modifier
                         .size(56.dp)
-                        .clip(MaterialTheme.extendedShapes.circle)
+                        .clip(MaterialTheme.shapes.medium)
                         .background(color.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
                 ) {
@@ -495,7 +482,7 @@ private fun MenuCard(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
+                    textAlign = TextAlign.Start,
                     maxLines = 2
                 )
 
@@ -504,7 +491,7 @@ private fun MenuCard(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
+                    textAlign = TextAlign.Start,
                     maxLines = 2
                 )
             }

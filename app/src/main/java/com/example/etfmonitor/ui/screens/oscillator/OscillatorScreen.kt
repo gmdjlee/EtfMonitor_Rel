@@ -132,8 +132,8 @@ fun OscillatorScreen(
                             },
                             shape = MaterialTheme.extendedShapes.searchBar,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                                 focusedBorderColor = MaterialTheme.colorScheme.outline,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline
                             )
