@@ -24,6 +24,7 @@ import com.etfmonitor.ui.components.MacdChart
 import com.etfmonitor.ui.components.LoadingCard
 import com.etfmonitor.ui.components.ErrorCard
 import com.etfmonitor.ui.components.IdleCard
+import com.etfmonitor.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
