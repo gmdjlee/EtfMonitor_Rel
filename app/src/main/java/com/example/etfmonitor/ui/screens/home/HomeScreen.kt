@@ -327,14 +327,15 @@ private fun HomeContent(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
             .padding(MaterialTheme.spacing.medium),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
     ) {
-        // Grid layout - 2 columns
+        // Grid layout - 2 columns, evenly distributed vertically
         menuItems.chunked(2).forEach { rowItems ->
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
             ) {
                 rowItems.forEach { item ->
@@ -400,7 +401,7 @@ private fun MenuCard(
 
     ElevatedCard(
         modifier = modifier
-            .aspectRatio(1f)
+            .fillMaxHeight()
             .animateContentSize(),
         elevation = CardDefaults.elevatedCardElevation(
             defaultElevation = elevation
