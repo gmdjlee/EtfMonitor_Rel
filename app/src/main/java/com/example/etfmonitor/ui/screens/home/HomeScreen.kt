@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.ui.theme.*
+import com.etfmonitor.ui.screens.home.HomeSummary
 
 /**
  * Home Screen - Moss Green Nature Theme
@@ -100,6 +102,15 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "설정",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -312,15 +323,6 @@ private fun HomeContent(
                 onClick = onNavigateToMarketOscillator
             )
         )
-        add(
-            MenuItem(
-                icon = Icons.Default.Settings,
-                title = "설정",
-                description = "앱 환경 설정",
-                color = MaterialTheme.colorScheme.primary,
-                onClick = onNavigateToSettings
-            )
-        )
     }
 
     Column(
@@ -330,6 +332,12 @@ private fun HomeContent(
             .padding(MaterialTheme.spacing.medium),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
     ) {
+        // Summary card
+        val summary = (state as? HomeState.Idle)?.summary
+        if (summary != null) {
+            SummaryCard(summary = summary)
+        }
+
         // Grid layout - 2 columns, evenly distributed vertically
         menuItems.chunked(2).forEach { rowItems ->
             Row(
@@ -378,17 +386,6 @@ private fun MenuCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Elevation animation
-    val elevation by animateDpAsState(
-        targetValue = if (isPressed) MaterialTheme.elevation.level1
-                     else MaterialTheme.elevation.level2,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "elevation"
-    )
-
     // Scale animation
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.95f else 1f,
@@ -399,17 +396,15 @@ private fun MenuCard(
         label = "scale"
     )
 
-    ElevatedCard(
+    OutlinedCard(
         modifier = modifier
             .fillMaxHeight()
             .animateContentSize(),
-        elevation = CardDefaults.elevatedCardElevation(
-            defaultElevation = elevation
-        ),
         shape = MaterialTheme.extendedShapes.card,
-        colors = CardDefaults.elevatedCardColors(
+        colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surface
-        )
+        ),
+        border = CardDefaults.outlinedCardBorder()
     ) {
         Box(
             modifier = Modifier
@@ -422,8 +417,8 @@ private fun MenuCard(
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            color.copy(alpha = 0.08f),
-                            color.copy(alpha = 0.03f)
+                            color.copy(alpha = 0.05f),
+                            color.copy(alpha = 0.02f)
                         )
                     )
                 ),
@@ -439,11 +434,11 @@ private fun MenuCard(
                         scaleY = scale
                     }
             ) {
-                // Icon with circular background
+                // Icon with rounded rectangle background
                 Box(
                     modifier = Modifier
                         .size(56.dp)
-                        .clip(MaterialTheme.extendedShapes.circle)
+                        .clip(MaterialTheme.shapes.medium)
                         .background(color.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
                 ) {
@@ -819,3 +814,164 @@ private data class DaysOption(
     val label: String,
     val description: String
 )
+
+@Composable
+private fun SummaryCard(summary: HomeSummary) {
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.extendedShapes.card,
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(MaterialTheme.spacing.medium),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
+        ) {
+            Text(
+                "시장 현황",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = MaterialTheme.spacing.small))
+
+            // 증시 자금 동향
+            if (summary.depositChange != null || summary.creditChange != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "증시 자금",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Column(horizontalAlignment = Alignment.End) {
+                        summary.depositChange?.let {
+                            Text(
+                                "예탁금: ${formatChange(it)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = getChangeColor(it)
+                            )
+                        }
+                        summary.creditChange?.let {
+                            Text(
+                                "신용잔고: ${formatChange(it)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = getChangeColor(it)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Fear & Greed Index
+            if (summary.kospiFearGreed != null || summary.kosdaqFearGreed != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Fear & Greed",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Column(horizontalAlignment = Alignment.End) {
+                        summary.kospiFearGreed?.let {
+                            Text(
+                                "KOSPI: ${String.format("%.2f", it)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = getFearGreedColor(it)
+                            )
+                        }
+                        summary.kosdaqFearGreed?.let {
+                            Text(
+                                "KOSDAQ: ${String.format("%.2f", it)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = getFearGreedColor(it)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 시장 과매수/과매도
+            if (summary.kospiStatus != null || summary.kosdaqStatus != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "시장 상태",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Column(horizontalAlignment = Alignment.End) {
+                        summary.kospiStatus?.let { status ->
+                            Text(
+                                "KOSPI: ${getStatusText(status)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = getStatusColor(status)
+                            )
+                        }
+                        summary.kosdaqStatus?.let { status ->
+                            Text(
+                                "KOSDAQ: ${getStatusText(status)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = getStatusColor(status)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun formatChange(value: Double): String {
+    val sign = if (value > 0) "+" else ""
+    return "$sign${String.format("%.0f", value / 100000000)}억"
+}
+
+@Composable
+private fun getChangeColor(value: Double): Color {
+    return when {
+        value > 0 -> MaterialTheme.colorScheme.error  // 증가 = 빨강
+        value < 0 -> MaterialTheme.colorScheme.primary  // 감소 = 파랑
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+}
+
+@Composable
+private fun getFearGreedColor(value: Double): Color {
+    return when {
+        value >= 60 -> MaterialTheme.colorScheme.error  // Greed
+        value <= 40 -> MaterialTheme.colorScheme.primary  // Fear
+        else -> MaterialTheme.colorScheme.onSurface  // Neutral
+    }
+}
+
+@Composable
+private fun getStatusText(status: String): String {
+    return when (status) {
+        "Overbought" -> "과매수"
+        "Oversold" -> "과매도"
+        else -> "중립"
+    }
+}
+
+@Composable
+private fun getStatusColor(status: String): Color {
+    return when (status) {
+        "Overbought" -> MaterialTheme.colorScheme.error
+        "Oversold" -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+}

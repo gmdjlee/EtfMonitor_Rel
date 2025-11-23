@@ -24,6 +24,7 @@ import com.etfmonitor.ui.components.MacdChart
 import com.etfmonitor.ui.components.LoadingCard
 import com.etfmonitor.ui.components.ErrorCard
 import com.etfmonitor.ui.components.IdleCard
+import com.etfmonitor.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,8 +103,18 @@ fun OscillatorScreen(
                                 viewModel.updateSearchQuery(it)
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text("종목명 또는 코드") },
-                            placeholder = { Text("예: 삼성전자") },
+                            label = {
+                                Text(
+                                    "종목명 또는 코드",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            placeholder = {
+                                Text(
+                                    "예: 삼성전자",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
                             singleLine = true,
                             trailingIcon = {
                                 if (textFieldValue.isNotBlank()) {
@@ -111,10 +122,21 @@ fun OscillatorScreen(
                                         textFieldValue = ""
                                         viewModel.clearSuggestions()
                                     }) {
-                                        Icon(Icons.Default.Clear, "지우기")
+                                        Icon(
+                                            Icons.Default.Clear,
+                                            "지우기",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
                                 }
-                            }
+                            },
+                            shape = MaterialTheme.extendedShapes.searchBar,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                focusedBorderColor = MaterialTheme.colorScheme.outline,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                            )
                         )
 
                         Button(

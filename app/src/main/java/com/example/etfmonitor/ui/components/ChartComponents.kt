@@ -131,7 +131,7 @@ fun MarketCapOscillatorChart(
                             gridLineWidth = 1f
                             setGridColor(gridColor)
                             enableGridDashedLine(10f, 5f, 0f)
-                            setTextColor(primaryColor)
+                            setTextColor(textColor)
                             setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
                             valueFormatter = object : ValueFormatter() {
                                 override fun getFormattedValue(value: Float): String {
@@ -149,7 +149,7 @@ fun MarketCapOscillatorChart(
                         axisRight.apply {
                             isEnabled = true
                             setDrawGridLines(false)
-                            setTextColor(tertiaryColor)
+                            setTextColor(textColor)
                             setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
                         }
 
@@ -449,7 +449,7 @@ fun MarketDepositChart(
                         gridLineWidth = 1f
                         setGridColor(gridColor)
                         enableGridDashedLine(10f, 5f, 0f)
-                        setTextColor(depositColor)
+                        setTextColor(textColor)
                         setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
                         valueFormatter = object : ValueFormatter() {
                             override fun getFormattedValue(value: Float): String {
@@ -462,7 +462,7 @@ fun MarketDepositChart(
                     axisRight.apply {
                         isEnabled = true
                         setDrawGridLines(false)
-                        setTextColor(creditColor)
+                        setTextColor(textColor)
                         setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
                         valueFormatter = object : ValueFormatter() {
                             override fun getFormattedValue(value: Float): String {

@@ -1577,8 +1577,25 @@ private fun ThemeCard(
                 OutlinedTextField(
                     value = newTheme,
                     onValueChange = { newTheme = it },
-                    label = { Text("키워드") },
-                    placeholder = { Text("예: 반도체") }
+                    label = {
+                        Text(
+                            "키워드",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    placeholder = {
+                        Text(
+                            "예: 반도체",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    shape = MaterialTheme.extendedShapes.searchBar,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedBorderColor = MaterialTheme.colorScheme.outline,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    )
                 )
             },
             confirmButton = {
@@ -1674,8 +1691,25 @@ private fun ExclusionCard(
                 OutlinedTextField(
                     value = newExclusion,
                     onValueChange = { newExclusion = it },
-                    label = { Text("키워드") },
-                    placeholder = { Text("예: 레버리지") }
+                    label = {
+                        Text(
+                            "키워드",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    placeholder = {
+                        Text(
+                            "예: 레버리지",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    shape = MaterialTheme.extendedShapes.searchBar,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedBorderColor = MaterialTheme.colorScheme.outline,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    )
                 )
             },
             confirmButton = {
