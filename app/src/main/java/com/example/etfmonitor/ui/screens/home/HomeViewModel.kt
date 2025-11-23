@@ -228,13 +228,21 @@ class HomeViewModel @Inject constructor(
                 creditChange = latestDeposit?.creditChange,
                 kospiFearGreed = kospiFearGreed?.indexValue,
                 kosdaqFearGreed = kosdaqFearGreed?.indexValue,
-                kospiOscillator = kospiOscillator?.oscillatorValue,
-                kospiStatus = kospiOscillator?.status,
-                kosdaqOscillator = kosdaqOscillator?.oscillatorValue,
-                kosdaqStatus = kosdaqOscillator?.status
+                kospiOscillator = kospiOscillator?.oscillator,
+                kospiStatus = kospiOscillator?.let { calculateOscillatorStatus(it.oscillator) },
+                kosdaqOscillator = kosdaqOscillator?.oscillator,
+                kosdaqStatus = kosdaqOscillator?.let { calculateOscillatorStatus(it.oscillator) }
             )
         } catch (e: Exception) {
             null
+        }
+    }
+
+    private fun calculateOscillatorStatus(oscillatorValue: Double): String {
+        return when {
+            oscillatorValue >= 70.0 -> "Overbought"
+            oscillatorValue <= -70.0 -> "Oversold"
+            else -> "Neutral"
         }
     }
 
