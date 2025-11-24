@@ -440,13 +440,13 @@ private fun MenuCard(
                             color.copy(alpha = 0.02f)
                         )
                     )
-                ),
-            contentAlignment = Alignment.Center
+                )
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Start,
                 modifier = Modifier
+                    .fillMaxSize()
                     .padding(MaterialTheme.spacing.medium)
                     .graphicsLayer {
                         scaleX = scale
@@ -469,25 +469,29 @@ private fun MenuCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(MaterialTheme.spacing.small))
+                Spacer(modifier = Modifier.width(MaterialTheme.spacing.medium))
 
-                // Title
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2
-                )
+                // Text content
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    // Title
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2
+                    )
 
-                // Description
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2
-                )
+                    // Description
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2
+                    )
+                }
             }
         }
     }
@@ -1054,7 +1058,8 @@ private fun SummaryCard(summary: HomeSummary) {
 @Composable
 private fun formatChange(value: Double): String {
     val sign = if (value > 0) "+" else ""
-    return "$sign${String.format("%.0f", value / 100000000)}억"
+    // 데이터가 이미 억원 단위이므로 그대로 사용
+    return "$sign${String.format("%.0f", value)}억"
 }
 
 @Composable
@@ -1068,9 +1073,10 @@ private fun getChangeColor(value: Double): Color {
 
 @Composable
 private fun getFearGreedColor(value: Double): Color {
+    // Oscillator 값 기준 (-100 ~ 100 범위)
     return when {
-        value >= 60 -> MaterialTheme.colorScheme.error  // Greed
-        value <= 40 -> MaterialTheme.colorScheme.primary  // Fear
+        value >= 20 -> MaterialTheme.colorScheme.error  // Greed (상승 모멘텀)
+        value <= -20 -> MaterialTheme.colorScheme.primary  // Fear (하락 모멘텀)
         else -> MaterialTheme.colorScheme.onSurface  // Neutral
     }
 }
