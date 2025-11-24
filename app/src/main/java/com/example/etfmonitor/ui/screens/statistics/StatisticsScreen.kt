@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -15,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -851,19 +854,52 @@ private fun StockAnalysisTab(
                         },
                         singleLine = true,
                         trailingIcon = {
-                            if (textFieldValue.isNotBlank()) {
-                                IconButton(onClick = {
-                                    textFieldValue = ""
-                                    onSearchQueryChange("")
-                                }) {
+                            Row(
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (textFieldValue.isNotBlank()) {
+                                    IconButton(onClick = {
+                                        textFieldValue = ""
+                                        onSearchQueryChange("")
+                                    }) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            "지우기",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                IconButton(
+                                    onClick = {
+                                        if (textFieldValue.isNotBlank() && !isAnalyzing) {
+                                            onStockSelect(textFieldValue)
+                                        }
+                                    },
+                                    enabled = textFieldValue.isNotBlank() && !isAnalyzing
+                                ) {
                                     Icon(
-                                        Icons.Default.Close,
-                                        "지우기",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        Icons.Default.Search,
+                                        "검색",
+                                        tint = if (textFieldValue.isNotBlank() && !isAnalyzing) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                                        }
                                     )
                                 }
                             }
                         },
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Search
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onSearch = {
+                                if (textFieldValue.isNotBlank() && !isAnalyzing) {
+                                    onStockSelect(textFieldValue)
+                                }
+                            }
+                        ),
                         shape = MaterialTheme.extendedShapes.searchBar,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -872,20 +908,6 @@ private fun StockAnalysisTab(
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         )
                     )
-
-                    Button(
-                        onClick = {
-                            if (textFieldValue.isNotBlank()) {
-                                onStockSelect(textFieldValue)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = textFieldValue.isNotBlank() && !isAnalyzing
-                    ) {
-                        Icon(Icons.Default.Search, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("분석")
-                    }
                 }
             }
 
