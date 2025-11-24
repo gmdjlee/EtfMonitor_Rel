@@ -288,10 +288,54 @@ interface EtfDao {
      * 종목명 가져오기
      */
     @Query("""
-        SELECT stockName 
-        FROM holdings 
-        WHERE stockTicker = :stockTicker 
+        SELECT stockName
+        FROM holdings
+        WHERE stockTicker = :stockTicker
         LIMIT 1
     """)
     suspend fun getStockName(stockTicker: String): String?
+
+    /**
+     * 종목 검색 (종목명 또는 티커로 검색)
+     */
+    @Query("""
+        SELECT DISTINCT stockTicker, stockName
+        FROM holdings
+        WHERE stockName LIKE '%' || :query || '%'
+           OR stockTicker LIKE '%' || :query || '%'
+        GROUP BY stockTicker
+        ORDER BY stockName
+        LIMIT 50
+    """)
+    suspend fun searchStocks(query: String): List<StockSearchResult>
+
+    /**
+     * 특정 종목의 현재/이전 날짜 ETF 보유 현황
+     */
+    @Query("""
+        SELECT
+            h.etfTicker,
+            e.name as etfName,
+            h.weight,
+            h.amount
+        FROM holdings h
+        INNER JOIN etfs e ON h.etfTicker = e.ticker
+        WHERE h.stockTicker = :stockTicker AND h.date = :date
+        ORDER BY h.amount DESC
+    """)
+    suspend fun getStockHoldingsByDate(stockTicker: String, date: String): List<StockHoldingByEtf>
 }
+
+// ✅ 종목 검색 결과
+data class StockSearchResult(
+    val stockTicker: String,
+    val stockName: String
+)
+
+// ✅ 종목의 ETF 보유 현황
+data class StockHoldingByEtf(
+    val etfTicker: String,
+    val etfName: String,
+    val weight: Float,
+    val amount: Float
+)

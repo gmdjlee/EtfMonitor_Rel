@@ -295,6 +295,136 @@ class DataRepository @Inject constructor(
         )
     }
 
+    /**
+     * 종목 검색
+     */
+    suspend fun searchStocks(query: String): List<com.etfmonitor.database.StockSearchResult> = withContext(Dispatchers.IO) {
+        if (query.isBlank()) return@withContext emptyList()
+        dao.searchStocks(query)
+    }
+
+    /**
+     * 종목 분석 - ETF 편입 현황 분석
+     */
+    suspend fun analyzeStock(stockTicker: String): StockAnalysisResult? = withContext(Dispatchers.IO) {
+        val dates = dao.getLatestTwoDates()
+        if (dates.isEmpty()) return@withContext null
+
+        val currentDate = dates[0]
+        val previousDate = if (dates.size >= 2) dates[1] else null
+
+        // 현재 보유 현황
+        val currentHoldings = dao.getStockHoldingsByDate(stockTicker, currentDate)
+        if (currentHoldings.isEmpty()) return@withContext null
+
+        val stockName = dao.getStockName(stockTicker) ?: stockTicker
+
+        // 이전 보유 현황
+        val previousHoldings = if (previousDate != null) {
+            dao.getStockHoldingsByDate(stockTicker, previousDate)
+        } else {
+            emptyList()
+        }
+
+        val previousMap = previousHoldings.associateBy { it.etfTicker }
+        val currentMap = currentHoldings.associateBy { it.etfTicker }
+
+        // ETF별 상세 정보 및 통계 계산
+        var increasedCount = 0
+        var decreasedCount = 0
+        var newIncludedCount = 0
+        val etfDetails = mutableListOf<StockEtfDetail>()
+
+        // 현재 보유 ETF 분석
+        currentHoldings.forEach { current ->
+            val previous = previousMap[current.etfTicker]
+            val status: HoldingStatus
+            val previousWeight: Float
+            val change: Float
+
+            if (previous == null) {
+                // 신규 편입
+                status = HoldingStatus.NEW
+                previousWeight = 0f
+                change = current.weight
+                newIncludedCount++
+            } else {
+                // 기존 보유 - 비중 변화 확인
+                previousWeight = previous.weight
+                change = current.weight - previous.weight
+                status = when {
+                    change > 0.01f -> {
+                        increasedCount++
+                        HoldingStatus.INCREASE
+                    }
+                    change < -0.01f -> {
+                        decreasedCount++
+                        HoldingStatus.DECREASE
+                    }
+                    else -> HoldingStatus.MAINTAIN
+                }
+            }
+
+            etfDetails.add(
+                StockEtfDetail(
+                    etfTicker = current.etfTicker,
+                    etfName = current.etfName,
+                    previousWeight = previousWeight,
+                    currentWeight = current.weight,
+                    change = change,
+                    amount = current.amount,
+                    status = status
+                )
+            )
+        }
+
+        // 제외된 ETF 수 계산
+        val removedCount = previousHoldings.count { prev ->
+            !currentMap.containsKey(prev.etfTicker)
+        }
+
+        // 제외된 ETF 상세 정보 추가
+        previousHoldings.forEach { previous ->
+            if (!currentMap.containsKey(previous.etfTicker)) {
+                etfDetails.add(
+                    StockEtfDetail(
+                        etfTicker = previous.etfTicker,
+                        etfName = previous.etfName,
+                        previousWeight = previous.weight,
+                        currentWeight = 0f,
+                        change = -previous.weight,
+                        amount = 0f,
+                        status = HoldingStatus.REMOVED
+                    )
+                )
+            }
+        }
+
+        // 통계 계산
+        val totalAmount = currentHoldings.sumOf { it.amount.toDouble() }.toFloat()
+        val avgWeight = currentHoldings.map { it.weight }.average().toFloat()
+        val maxWeight = currentHoldings.maxOfOrNull { it.weight } ?: 0f
+
+        StockAnalysisResult(
+            stockTicker = stockTicker,
+            stockName = stockName,
+            currentEtfCount = currentHoldings.size,
+            previousEtfCount = previousHoldings.size,
+            increasedCount = increasedCount,
+            decreasedCount = decreasedCount,
+            newIncludedCount = newIncludedCount,
+            removedCount = removedCount,
+            totalAmount = totalAmount,
+            avgWeight = avgWeight,
+            maxWeight = maxWeight,
+            etfDetails = etfDetails.sortedWith(
+                compareByDescending<StockEtfDetail> { it.status == HoldingStatus.NEW }
+                    .thenByDescending { it.status == HoldingStatus.INCREASE }
+                    .thenByDescending { it.amount }
+            )
+        )
+    }
+
     // ========== Stock Trend ==========
 
     suspend fun getStockTrend(etfTicker: String, stockTicker: String): StockTrend? = withContext(Dispatchers.IO) {
