@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.database.entities.CashDepositTrend
+import com.etfmonitor.database.entities.HoldingStatus
 import com.etfmonitor.database.entities.StockAmountRanking
 import com.etfmonitor.database.entities.StockChangeInfo
 import com.etfmonitor.ui.theme.*
@@ -790,10 +791,6 @@ private fun ChangeInfo(change: Float, modifier: Modifier = Modifier) {
             }
         )
     }
-}
-
-enum class HoldingStatus {
-    NEW, INCREASE, DECREASE, MAINTAIN, REMOVED
 }
 
 // ✅ 종목 분석 탭
