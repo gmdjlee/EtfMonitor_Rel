@@ -1068,9 +1068,10 @@ private fun getChangeColor(value: Double): Color {
 
 @Composable
 private fun getFearGreedColor(value: Double): Color {
+    // Oscillator 값 기준 (-100 ~ 100 범위)
     return when {
-        value >= 60 -> MaterialTheme.colorScheme.error  // Greed
-        value <= 40 -> MaterialTheme.colorScheme.primary  // Fear
+        value >= 20 -> MaterialTheme.colorScheme.error  // Greed (상승 모멘텀)
+        value <= -20 -> MaterialTheme.colorScheme.primary  // Fear (하락 모멘텀)
         else -> MaterialTheme.colorScheme.onSurface  // Neutral
     }
 }
