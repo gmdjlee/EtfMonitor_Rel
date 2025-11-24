@@ -1054,7 +1054,8 @@ private fun SummaryCard(summary: HomeSummary) {
 @Composable
 private fun formatChange(value: Double): String {
     val sign = if (value > 0) "+" else ""
-    return "$sign${String.format("%.0f", value / 100000000)}억"
+    // 데이터가 이미 억원 단위이므로 그대로 사용
+    return "$sign${String.format("%.0f", value)}억"
 }
 
 @Composable
