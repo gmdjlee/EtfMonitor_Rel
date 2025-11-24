@@ -148,6 +148,7 @@ fun StatisticsScreen(
                         analysisResult = analysisResult,
                         isAnalyzing = isAnalyzing,
                         onSearchQueryChange = { viewModel.updateSearchQuery(it) },
+                        onSearchAndAnalyze = { viewModel.searchAndAnalyze(it) },
                         onStockSelect = { viewModel.analyzeStock(it) },
                         onClearAnalysis = { viewModel.clearAnalysis() },
                         onStockClick = onStockClick
@@ -805,6 +806,7 @@ private fun StockAnalysisTab(
     analysisResult: com.etfmonitor.database.entities.StockAnalysisResult?,
     isAnalyzing: Boolean,
     onSearchQueryChange: (String) -> Unit,
+    onSearchAndAnalyze: (String) -> Unit,
     onStockSelect: (String) -> Unit,
     onClearAnalysis: () -> Unit,
     onStockClick: (String) -> Unit
@@ -873,7 +875,7 @@ private fun StockAnalysisTab(
                                 IconButton(
                                     onClick = {
                                         if (textFieldValue.isNotBlank() && !isAnalyzing) {
-                                            onStockSelect(textFieldValue)
+                                            onSearchAndAnalyze(textFieldValue)
                                         }
                                     },
                                     enabled = textFieldValue.isNotBlank() && !isAnalyzing
@@ -896,7 +898,7 @@ private fun StockAnalysisTab(
                         keyboardActions = KeyboardActions(
                             onSearch = {
                                 if (textFieldValue.isNotBlank() && !isAnalyzing) {
-                                    onStockSelect(textFieldValue)
+                                    onSearchAndAnalyze(textFieldValue)
                                 }
                             }
                         ),

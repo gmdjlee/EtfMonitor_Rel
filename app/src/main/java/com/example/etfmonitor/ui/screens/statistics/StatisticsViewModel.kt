@@ -125,6 +125,30 @@ class StatisticsViewModel @Inject constructor(
         }
     }
 
+    // ✅ 검색 후 분석 (종목명 또는 티커로 검색하여 분석)
+    fun searchAndAnalyze(query: String) {
+        viewModelScope.launch {
+            _isAnalyzing.value = true
+            try {
+                // 먼저 검색 수행
+                val results = repository.searchStocks(query)
+
+                if (results.isNotEmpty()) {
+                    // 첫 번째 결과 (가장 관련성 높은 결과)의 티커로 분석
+                    _analysisResult.value = repository.analyzeStock(results.first().stockTicker)
+                } else {
+                    // 검색 결과 없으면 입력값을 직접 티커로 간주하고 시도
+                    _analysisResult.value = repository.analyzeStock(query)
+                }
+
+                _searchQuery.value = ""
+                _searchResults.value = emptyList()
+            } finally {
+                _isAnalyzing.value = false
+            }
+        }
+    }
+
     // ✅ 분석 결과 초기화
     fun clearAnalysis() {
         _analysisResult.value = null
