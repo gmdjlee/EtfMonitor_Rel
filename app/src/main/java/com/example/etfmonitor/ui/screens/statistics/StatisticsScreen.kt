@@ -1,6 +1,7 @@
 package com.etfmonitor.ui.screens.statistics
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -805,69 +806,124 @@ private fun StockAnalysisTab(
     onClearAnalysis: () -> Unit,
     onStockClick: (String) -> Unit
 ) {
+    var textFieldValue by remember { mutableStateOf("") }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(MaterialTheme.spacing.medium),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
     ) {
-        // 검색 입력
-        OutlinedCard(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.extendedShapes.cardLarge
-        ) {
-            Column(
-                modifier = Modifier.padding(MaterialTheme.spacing.medium),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
+        // 검색 입력 - Box로 감싸서 드롭다운 오버레이
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.extendedShapes.cardLarge
             ) {
-                Text(
-                    "종목 분석",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    "종목명 또는 티커를 입력하세요",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column(
+                    modifier = Modifier.padding(MaterialTheme.spacing.medium),
+                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
+                ) {
+                    Text(
+                        "종목 분석",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
 
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = onSearchQueryChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("예: 삼성전자, 005930") },
-                    singleLine = true,
-                    shape = MaterialTheme.extendedShapes.card
-                )
-
-                // 검색 결과 드롭다운
-                if (searchResults.isNotEmpty()) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 200.dp),
-                        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall)
-                    ) {
-                        items(searchResults) { result ->
-                            OutlinedCard(
-                                modifier = Modifier.fillMaxWidth(),
-                                onClick = { onStockSelect(result.stockTicker) },
-                                shape = MaterialTheme.extendedShapes.card
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(MaterialTheme.spacing.small)
-                                ) {
-                                    Text(
-                                        result.stockName,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        result.stockTicker,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    OutlinedTextField(
+                        value = textFieldValue,
+                        onValueChange = {
+                            textFieldValue = it
+                            onSearchQueryChange(it)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = {
+                            Text(
+                                "종목명 또는 티커",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        placeholder = {
+                            Text(
+                                "예: 삼성전자, 005930",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        singleLine = true,
+                        trailingIcon = {
+                            if (textFieldValue.isNotBlank()) {
+                                IconButton(onClick = {
+                                    textFieldValue = ""
+                                    onSearchQueryChange("")
+                                }) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        "지우기",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
+                            }
+                        },
+                        shape = MaterialTheme.extendedShapes.searchBar,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        )
+                    )
+
+                    Button(
+                        onClick = {
+                            if (textFieldValue.isNotBlank()) {
+                                onStockSelect(textFieldValue)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = textFieldValue.isNotBlank() && !isAnalyzing
+                    ) {
+                        Icon(Icons.Default.Search, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("분석")
+                    }
+                }
+            }
+
+            // 자동완성 드롭다운 - 오버레이
+            if (searchResults.isNotEmpty() && textFieldValue.isNotBlank()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 140.dp)
+                        .heightIn(max = 300.dp),
+                    elevation = CardDefaults.cardElevation(
+                        defaultElevation = 8.dp
+                    ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    shape = MaterialTheme.extendedShapes.cardLarge
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(searchResults) { result ->
+                            ListItem(
+                                headlineContent = { Text(result.stockName) },
+                                supportingContent = {
+                                    Text(
+                                        result.stockTicker,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                },
+                                modifier = Modifier.clickable {
+                                    textFieldValue = result.stockName
+                                    onSearchQueryChange("")
+                                    onStockSelect(result.stockTicker)
+                                }
+                            )
+                            if (result != searchResults.last()) {
+                                HorizontalDivider()
                             }
                         }
                     }
