@@ -26,6 +26,7 @@ import com.etfmonitor.database.entities.CashDepositTrend
 import com.etfmonitor.database.entities.HoldingStatus
 import com.etfmonitor.database.entities.StockAmountRanking
 import com.etfmonitor.database.entities.StockChangeInfo
+import com.etfmonitor.ui.screens.statistics.SortColumn
 import com.etfmonitor.ui.theme.*
 import com.etfmonitor.ui.utils.AmountFormatter
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
@@ -165,7 +166,8 @@ private fun AmountRankingTab(
     viewModel: StatisticsViewModel,
     onStockClick: (String) -> Unit
 ) {
-    var sortAscending by remember { mutableStateOf(false) }
+    val sortColumn by viewModel.sortColumn.collectAsState()
+    val sortAscending by viewModel.sortAscending.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -180,17 +182,11 @@ private fun AmountRankingTab(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            FilledTonalIconButton(
-                onClick = {
-                    sortAscending = !sortAscending
-                    viewModel.sortAmountRanking(sortAscending)
-                }
-            ) {
-                Icon(
-                    if (sortAscending) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                    contentDescription = if (sortAscending) "오름차순" else "내림차순"
-                )
-            }
+            Text(
+                "열 클릭으로 정렬",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
         // Header card
@@ -208,9 +204,75 @@ private fun AmountRankingTab(
                 horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
             ) {
                 Text("순위", Modifier.weight(0.5f), style = MaterialTheme.typography.labelSmall)
-                Text("종목명", Modifier.weight(2f), style = MaterialTheme.typography.labelSmall)
-                Text("금액", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)
-                Text("ETF수", Modifier.weight(0.7f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
+
+                SortableHeaderText(
+                    text = "종목명",
+                    column = SortColumn.STOCK_NAME,
+                    currentColumn = sortColumn,
+                    ascending = sortAscending,
+                    modifier = Modifier.weight(2f),
+                    onClick = { viewModel.sortAmountRankingBy(SortColumn.STOCK_NAME) }
+                )
+
+                SortableHeaderText(
+                    text = "금액",
+                    column = SortColumn.TOTAL_AMOUNT,
+                    currentColumn = sortColumn,
+                    ascending = sortAscending,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.End,
+                    onClick = { viewModel.sortAmountRankingBy(SortColumn.TOTAL_AMOUNT) }
+                )
+
+                SortableHeaderText(
+                    text = "ETF수",
+                    column = SortColumn.ETF_COUNT,
+                    currentColumn = sortColumn,
+                    ascending = sortAscending,
+                    modifier = Modifier.weight(0.6f),
+                    textAlign = TextAlign.Center,
+                    onClick = { viewModel.sortAmountRankingBy(SortColumn.ETF_COUNT) }
+                )
+
+                SortableHeaderText(
+                    text = "신규",
+                    column = SortColumn.NEW_ETF_COUNT,
+                    currentColumn = sortColumn,
+                    ascending = sortAscending,
+                    modifier = Modifier.weight(0.5f),
+                    textAlign = TextAlign.Center,
+                    onClick = { viewModel.sortAmountRankingBy(SortColumn.NEW_ETF_COUNT) }
+                )
+
+                SortableHeaderText(
+                    text = "증가",
+                    column = SortColumn.INCREASED_ETF_COUNT,
+                    currentColumn = sortColumn,
+                    ascending = sortAscending,
+                    modifier = Modifier.weight(0.5f),
+                    textAlign = TextAlign.Center,
+                    onClick = { viewModel.sortAmountRankingBy(SortColumn.INCREASED_ETF_COUNT) }
+                )
+
+                SortableHeaderText(
+                    text = "감소",
+                    column = SortColumn.DECREASED_ETF_COUNT,
+                    currentColumn = sortColumn,
+                    ascending = sortAscending,
+                    modifier = Modifier.weight(0.5f),
+                    textAlign = TextAlign.Center,
+                    onClick = { viewModel.sortAmountRankingBy(SortColumn.DECREASED_ETF_COUNT) }
+                )
+
+                SortableHeaderText(
+                    text = "제외",
+                    column = SortColumn.REMOVED_ETF_COUNT,
+                    currentColumn = sortColumn,
+                    ascending = sortAscending,
+                    modifier = Modifier.weight(0.5f),
+                    textAlign = TextAlign.Center,
+                    onClick = { viewModel.sortAmountRankingBy(SortColumn.REMOVED_ETF_COUNT) }
+                )
             }
         }
 
@@ -287,9 +349,37 @@ private fun AmountRankingCard(
             )
             Text(
                 "${item.etfCount}",
-                Modifier.weight(0.7f),
+                Modifier.weight(0.6f),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                "${item.newEtfCount}",
+                Modifier.weight(0.5f),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (item.newEtfCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                "${item.increasedEtfCount}",
+                Modifier.weight(0.5f),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (item.increasedEtfCount > 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                "${item.decreasedEtfCount}",
+                Modifier.weight(0.5f),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (item.decreasedEtfCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                "${item.removedEtfCount}",
+                Modifier.weight(0.5f),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (item.removedEtfCount > 0) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
         }
@@ -1266,6 +1356,48 @@ private fun StockAnalysisDetailItem(
                     textAlign = TextAlign.End
                 )
             }
+        }
+    }
+}
+
+/**
+ * 정렬 가능한 헤더 텍스트 컴포넌트
+ */
+@Composable
+private fun SortableHeaderText(
+    text: String,
+    column: SortColumn,
+    currentColumn: SortColumn,
+    ascending: Boolean,
+    modifier: Modifier = Modifier,
+    textAlign: TextAlign? = null,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = modifier.clickable(onClick = onClick),
+        horizontalArrangement = when (textAlign) {
+            TextAlign.Center -> Arrangement.Center
+            TextAlign.End -> Arrangement.End
+            else -> Arrangement.Start
+        },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (column == currentColumn) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            }
+        )
+        if (column == currentColumn) {
+            Icon(
+                imageVector = if (ascending) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                contentDescription = if (ascending) "오름차순" else "내림차순",
+                modifier = Modifier.size(12.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }

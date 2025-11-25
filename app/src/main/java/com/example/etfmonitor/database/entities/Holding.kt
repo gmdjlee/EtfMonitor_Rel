@@ -70,7 +70,11 @@ data class StockAmountRanking(
     val totalAmount: Float,
     val etfCount: Int,
     val maxWeight: Float,
-    val etfList: String
+    val etfList: String,
+    val newEtfCount: Int = 0,        // 신규 편입 ETF 수
+    val increasedEtfCount: Int = 0,  // 비중 증가 ETF 수
+    val decreasedEtfCount: Int = 0,  // 비중 감소 ETF 수
+    val removedEtfCount: Int = 0     // 제외된 ETF 수
 )
 
 data class StockChangeInfo(

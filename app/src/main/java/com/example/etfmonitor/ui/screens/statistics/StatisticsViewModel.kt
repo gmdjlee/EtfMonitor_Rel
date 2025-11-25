@@ -37,6 +37,12 @@ class StatisticsViewModel @Inject constructor(
     private val _amountRanking = MutableStateFlow<List<StockAmountRanking>>(emptyList())
     val amountRanking: StateFlow<List<StockAmountRanking>> = _amountRanking.asStateFlow()
 
+    private val _sortColumn = MutableStateFlow(SortColumn.TOTAL_AMOUNT)
+    val sortColumn: StateFlow<SortColumn> = _sortColumn.asStateFlow()
+
+    private val _sortAscending = MutableStateFlow(false)
+    val sortAscending: StateFlow<Boolean> = _sortAscending.asStateFlow()
+
     private val _newStocks = MutableStateFlow<List<StockChangeInfo>>(emptyList())
     val newStocks: StateFlow<List<StockChangeInfo>> = _newStocks.asStateFlow()
 
@@ -88,14 +94,6 @@ class StatisticsViewModel @Inject constructor(
             } finally {
                 _isLoading.value = false
             }
-        }
-    }
-
-    fun sortAmountRanking(ascending: Boolean) {
-        _amountRanking.value = if (ascending) {
-            _amountRanking.value.sortedBy { it.totalAmount }
-        } else {
-            _amountRanking.value.sortedByDescending { it.totalAmount }
         }
     }
 
@@ -155,4 +153,63 @@ class StatisticsViewModel @Inject constructor(
         _searchQuery.value = ""
         _searchResults.value = emptyList()
     }
+
+    // ✅ 금액순위 정렬
+    fun sortAmountRankingBy(column: SortColumn) {
+        // 같은 컬럼을 클릭하면 정렬 방향 토글, 다른 컬럼이면 내림차순으로 시작
+        val ascending = if (_sortColumn.value == column) !_sortAscending.value else false
+        _sortColumn.value = column
+        _sortAscending.value = ascending
+
+        _amountRanking.value = when (column) {
+            SortColumn.STOCK_NAME -> if (ascending) {
+                _amountRanking.value.sortedBy { it.stockName }
+            } else {
+                _amountRanking.value.sortedByDescending { it.stockName }
+            }
+            SortColumn.TOTAL_AMOUNT -> if (ascending) {
+                _amountRanking.value.sortedBy { it.totalAmount }
+            } else {
+                _amountRanking.value.sortedByDescending { it.totalAmount }
+            }
+            SortColumn.ETF_COUNT -> if (ascending) {
+                _amountRanking.value.sortedBy { it.etfCount }
+            } else {
+                _amountRanking.value.sortedByDescending { it.etfCount }
+            }
+            SortColumn.NEW_ETF_COUNT -> if (ascending) {
+                _amountRanking.value.sortedBy { it.newEtfCount }
+            } else {
+                _amountRanking.value.sortedByDescending { it.newEtfCount }
+            }
+            SortColumn.INCREASED_ETF_COUNT -> if (ascending) {
+                _amountRanking.value.sortedBy { it.increasedEtfCount }
+            } else {
+                _amountRanking.value.sortedByDescending { it.increasedEtfCount }
+            }
+            SortColumn.DECREASED_ETF_COUNT -> if (ascending) {
+                _amountRanking.value.sortedBy { it.decreasedEtfCount }
+            } else {
+                _amountRanking.value.sortedByDescending { it.decreasedEtfCount }
+            }
+            SortColumn.REMOVED_ETF_COUNT -> if (ascending) {
+                _amountRanking.value.sortedBy { it.removedEtfCount }
+            } else {
+                _amountRanking.value.sortedByDescending { it.removedEtfCount }
+            }
+        }
+    }
+}
+
+/**
+ * 금액순위 정렬 기준 열
+ */
+enum class SortColumn {
+    STOCK_NAME,           // 종목명
+    TOTAL_AMOUNT,         // 금액
+    ETF_COUNT,            // ETF수
+    NEW_ETF_COUNT,        // 신규
+    INCREASED_ETF_COUNT,  // 증가
+    DECREASED_ETF_COUNT,  // 감소
+    REMOVED_ETF_COUNT     // 제외
 }

@@ -246,8 +246,11 @@ class DataRepository @Inject constructor(
     }
 
     suspend fun getStockAmountRanking(): List<StockAmountRanking> = withContext(Dispatchers.IO) {
-        val latestDate = dao.getLatestDate() ?: return@withContext emptyList()
-        dao.getStockAmountRanking(latestDate)
+        val dates = dao.getLatestTwoDates()
+        if (dates.isEmpty()) return@withContext emptyList()
+        val currentDate = dates[0]
+        val previousDate = if (dates.size >= 2) dates[1] else currentDate
+        dao.getStockAmountRanking(currentDate, previousDate)
     }
 
     suspend fun getAllNewStocks(): List<StockChangeInfo> = withContext(Dispatchers.IO) {
