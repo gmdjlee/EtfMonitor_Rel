@@ -17,7 +17,7 @@ import com.etfmonitor.database.entities.StockAnalysisData
 
 @Database(
     entities = [Etf::class, Holding::class, Setting::class, Stock::class, MarketDeposit::class, StockAnalysisData::class, SearchHistory::class, FearGreedIndex::class, MarketOscillatorData::class],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -154,5 +154,62 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
             )
             """.trimIndent()
         )
+    }
+}
+
+/**
+ * Migration from version 7 to 8: Optimize Holding table structure
+ * - weight (REAL) → weightBps (INTEGER) : 비중을 basis point로 저장
+ * - amount (REAL) → amountMillion (INTEGER) : 금액을 백만원 단위로 저장
+ * - snapshotType (TEXT) 추가 : 스냅샷 타입 구분
+ */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // 1. 임시 테이블 생성
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS holdings_new (
+                etfTicker TEXT NOT NULL,
+                stockTicker TEXT NOT NULL,
+                stockName TEXT NOT NULL,
+                date TEXT NOT NULL,
+                weightBps INTEGER NOT NULL,
+                amountMillion INTEGER NOT NULL,
+                snapshotType TEXT NOT NULL DEFAULT 'DAILY',
+                PRIMARY KEY (etfTicker, stockTicker, date)
+            )
+            """.trimIndent()
+        )
+
+        // 2. 기존 데이터 변환하여 복사
+        database.execSQL(
+            """
+            INSERT INTO holdings_new (etfTicker, stockTicker, stockName, date, weightBps, amountMillion, snapshotType)
+            SELECT
+                etfTicker,
+                stockTicker,
+                stockName,
+                date,
+                CAST(weight * 10000 AS INTEGER) as weightBps,
+                CAST(amount / 1000000 AS INTEGER) as amountMillion,
+                'DAILY' as snapshotType
+            FROM holdings
+            """.trimIndent()
+        )
+
+        // 3. 기존 테이블 삭제
+        database.execSQL("DROP TABLE holdings")
+
+        // 4. 새 테이블 이름 변경
+        database.execSQL("ALTER TABLE holdings_new RENAME TO holdings")
+
+        // 5. 인덱스 생성
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_holdings_date ON holdings(date)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_holdings_etfTicker ON holdings(etfTicker)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_holdings_etfTicker_date ON holdings(etfTicker, date)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_holdings_etfTicker_stockTicker ON holdings(etfTicker, stockTicker)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_holdings_stockTicker_date ON holdings(stockTicker, date)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_holdings_snapshotType ON holdings(snapshotType)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_holdings_date_snapshotType ON holdings(date, snapshotType)")
     }
 }

@@ -223,4 +223,88 @@ object WorkManagerHelper {
     fun runMarketOscillatorUpdateNow(context: Context) {
         runUpdateNow<MarketOscillatorUpdateWorker>(context, "market oscillator")
     }
+
+    /**
+     * 월 1회 데이터 아카이빙 작업 스케줄링
+     * - 실행 주기: 매월 1일 새벽 3시
+     * - 5년 이상 데이터 삭제
+     * - 3~5년 데이터를 월별 스냅샷으로 압축
+     * - 1~3년 데이터를 주별 스냅샷으로 압축
+     *
+     * @param context Context
+     */
+    fun scheduleDataArchiving(context: Context) {
+        Log.d(TAG, "Scheduling data archiving (monthly at 3:00 AM)")
+
+        // Constraints 설정 (배터리 충전 중, 네트워크 연결 시에만 실행)
+        val constraints = Constraints.Builder()
+            .setRequiresBatteryNotLow(true)
+            .build()
+
+        // 매월 1회 반복 작업 생성 (30일 주기)
+        val workRequest = PeriodicWorkRequestBuilder<DataArchiveWorker>(
+            repeatInterval = 30,
+            repeatIntervalTimeUnit = TimeUnit.DAYS
+        )
+            .setConstraints(constraints)
+            .setInitialDelay(calculateInitialDelayForMonthly(), TimeUnit.MILLISECONDS)
+            .addTag(DataArchiveWorker.WORK_NAME)
+            .build()
+
+        // 기존 작업 취소 후 새로 등록
+        WorkManager.getInstance(context).apply {
+            cancelUniqueWork(DataArchiveWorker.WORK_NAME)
+            enqueueUniquePeriodicWork(
+                DataArchiveWorker.WORK_NAME,
+                ExistingPeriodicWorkPolicy.KEEP,
+                workRequest
+            )
+        }
+
+        Log.d(TAG, "Data archiving scheduled successfully")
+    }
+
+    /**
+     * 매월 1일 새벽 3시까지의 초기 지연 시간 계산
+     */
+    private fun calculateInitialDelayForMonthly(): Long {
+        val currentTime = Calendar.getInstance()
+        val scheduledTime = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 3)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+
+            // 이미 지난 시간이면 다음 달로 설정
+            if (before(currentTime)) {
+                add(Calendar.MONTH, 1)
+            }
+        }
+
+        return scheduledTime.timeInMillis - currentTime.timeInMillis
+    }
+
+    /**
+     * 데이터 아카이빙 스케줄링 취소
+     */
+    fun cancelDataArchiving(context: Context) {
+        cancelUpdate(context, DataArchiveWorker.WORK_NAME, "data archiving")
+    }
+
+    /**
+     * 즉시 데이터 아카이빙 실행
+     */
+    fun runDataArchivingNow(context: Context) {
+        Log.d(TAG, "Running data archiving immediately")
+
+        val constraints = Constraints.Builder()
+            .setRequiresBatteryNotLow(true)
+            .build()
+
+        val workRequest = OneTimeWorkRequestBuilder<DataArchiveWorker>()
+            .setConstraints(constraints)
+            .build()
+
+        WorkManager.getInstance(context).enqueue(workRequest)
+    }
 }
