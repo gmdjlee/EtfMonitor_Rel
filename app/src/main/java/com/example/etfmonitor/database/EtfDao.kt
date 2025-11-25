@@ -111,22 +111,60 @@ interface EtfDao {
     // ========== 전체 통계 쿼리 ==========
 
     /**
-     * 전 종목 금액 순위 (모든 ETF 통합)
+     * 전 종목 금액 순위 (모든 ETF 통합) - 상태별 ETF 수 포함
      */
     @Query("""
-        SELECT 
-            stockTicker,
-            stockName,
-            SUM(amount) as totalAmount,
-            COUNT(DISTINCT etfTicker) as etfCount,
-            MAX(weight) as maxWeight,
-            GROUP_CONCAT(DISTINCT etfTicker) as etfList
-        FROM holdings
-        WHERE date = :date
-        GROUP BY stockTicker
+        SELECT
+            curr.stockTicker,
+            curr.stockName,
+            SUM(curr.amount) as totalAmount,
+            COUNT(DISTINCT curr.etfTicker) as etfCount,
+            MAX(curr.weight) as maxWeight,
+            GROUP_CONCAT(DISTINCT curr.etfTicker) as etfList,
+            COUNT(DISTINCT CASE
+                WHEN NOT EXISTS (
+                    SELECT 1 FROM holdings prev
+                    WHERE prev.stockTicker = curr.stockTicker
+                    AND prev.etfTicker = curr.etfTicker
+                    AND prev.date = :previousDate
+                ) THEN curr.etfTicker
+            END) as newEtfCount,
+            COUNT(DISTINCT CASE
+                WHEN EXISTS (
+                    SELECT 1 FROM holdings prev
+                    WHERE prev.stockTicker = curr.stockTicker
+                    AND prev.etfTicker = curr.etfTicker
+                    AND prev.date = :previousDate
+                    AND prev.weight < curr.weight
+                ) THEN curr.etfTicker
+            END) as increasedEtfCount,
+            COUNT(DISTINCT CASE
+                WHEN EXISTS (
+                    SELECT 1 FROM holdings prev
+                    WHERE prev.stockTicker = curr.stockTicker
+                    AND prev.etfTicker = curr.etfTicker
+                    AND prev.date = :previousDate
+                    AND prev.weight > curr.weight
+                ) THEN curr.etfTicker
+            END) as decreasedEtfCount,
+            IFNULL((
+                SELECT COUNT(DISTINCT prev.etfTicker)
+                FROM holdings prev
+                WHERE prev.stockTicker = curr.stockTicker
+                AND prev.date = :previousDate
+                AND NOT EXISTS (
+                    SELECT 1 FROM holdings curr2
+                    WHERE curr2.stockTicker = prev.stockTicker
+                    AND curr2.etfTicker = prev.etfTicker
+                    AND curr2.date = :currentDate
+                )
+            ), 0) as removedEtfCount
+        FROM holdings curr
+        WHERE curr.date = :currentDate
+        GROUP BY curr.stockTicker, curr.stockName
         ORDER BY totalAmount DESC
     """)
-    suspend fun getStockAmountRanking(date: String): List<StockAmountRanking>
+    suspend fun getStockAmountRanking(currentDate: String, previousDate: String): List<StockAmountRanking>
 
     /**
      * 전체 신규 편입 종목
