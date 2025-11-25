@@ -46,6 +46,7 @@ fun HomeScreen(
     onNavigateToMarketDeposit: () -> Unit,
     onNavigateToFearGreed: () -> Unit,
     onNavigateToMarketOscillator: () -> Unit,
+    onNavigateToAIAnalysis: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -153,7 +154,8 @@ fun HomeScreen(
                     onNavigateToOscillator = onNavigateToOscillator,
                     onNavigateToMarketDeposit = onNavigateToMarketDeposit,
                     onNavigateToFearGreed = onNavigateToFearGreed,
-                    onNavigateToMarketOscillator = onNavigateToMarketOscillator
+                    onNavigateToMarketOscillator = onNavigateToMarketOscillator,
+                    onNavigateToAIAnalysis = onNavigateToAIAnalysis
                 )
             }
         }
@@ -280,7 +282,8 @@ private fun HomeContent(
     onNavigateToOscillator: () -> Unit,
     onNavigateToMarketDeposit: () -> Unit,
     onNavigateToFearGreed: () -> Unit,
-    onNavigateToMarketOscillator: () -> Unit
+    onNavigateToMarketOscillator: () -> Unit,
+    onNavigateToAIAnalysis: () -> Unit
 ) {
     val hasData = (state as? HomeState.Idle)?.hasData ?: false
 
@@ -340,6 +343,15 @@ private fun HomeContent(
                 description = "RSI 기반 시장 분석",
                 color = MaterialTheme.colorScheme.secondary,
                 onClick = onNavigateToMarketOscillator
+            )
+        )
+        add(
+            MenuItem(
+                icon = Icons.Default.AutoAwesome,
+                title = "AI 시장 분석",
+                description = "Claude AI 매매 신호",
+                color = MaterialTheme.colorScheme.tertiary,
+                onClick = onNavigateToAIAnalysis
             )
         )
     }

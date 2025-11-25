@@ -303,6 +303,9 @@ private fun GeneralTab(
     fontScaleSettings: com.etfmonitor.ui.theme.FontScaleSettings,
     viewModel: SettingsViewModel
 ) {
+    val isApiKeyConfigured by viewModel.isApiKeyConfigured.collectAsState()
+    val apiKeyTestState by viewModel.apiKeyTestState.collectAsState()
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -313,6 +316,18 @@ private fun GeneralTab(
             ThemeSettingCard(
                 isDarkTheme = isDarkTheme,
                 onThemeChange = { viewModel.setDarkTheme(it) }
+            )
+        }
+
+        // Claude API 키 설정
+        item {
+            ClaudeApiKeyCard(
+                isConfigured = isApiKeyConfigured,
+                testState = apiKeyTestState,
+                onSetApiKey = { viewModel.setApiKey(it) },
+                onClearApiKey = { viewModel.clearApiKey() },
+                onTestConnection = { viewModel.testApiConnection() },
+                onClearTestState = { viewModel.clearApiTestState() }
             )
         }
 
@@ -1092,6 +1107,312 @@ private fun ThemeSettingCard(
             }
         }
     }
+}
+
+@Composable
+private fun ClaudeApiKeyCard(
+    isConfigured: Boolean,
+    testState: ApiKeyTestState,
+    onSetApiKey: (String) -> Unit,
+    onClearApiKey: () -> Unit,
+    onTestConnection: () -> Unit,
+    onClearTestState: () -> Unit
+) {
+    var showApiKeyDialog by remember { mutableStateOf(false) }
+    var showClearConfirmDialog by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("Claude API 설정", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            Text(
+                "AI 시장 분석 기능을 사용하려면 Claude API 키가 필요합니다",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            // API 키 상태 표시
+            Surface(
+                color = if (isConfigured)
+                    MaterialTheme.colorScheme.primaryContainer
+                else
+                    MaterialTheme.colorScheme.errorContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            if (isConfigured) Icons.Default.CheckCircle else Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = if (isConfigured)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            if (isConfigured) "API 키 설정됨" else "API 키 미설정",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isConfigured)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+
+            // API 테스트 상태 표시
+            when (testState) {
+                is ApiKeyTestState.Testing -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("API 연결 테스트 중...", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                is ApiKeyTestState.Success -> {
+                    Surface(
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        shape = MaterialTheme.shapes.small
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                "API 연결 성공!",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
+                }
+                is ApiKeyTestState.Error -> {
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = MaterialTheme.shapes.small
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Error,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                "연결 실패: ${testState.message}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+                else -> {}
+            }
+
+            // 버튼
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { showApiKeyDialog = true },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        if (isConfigured) Icons.Default.Edit else Icons.Default.Key,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(if (isConfigured) "변경" else "설정")
+                }
+
+                if (isConfigured) {
+                    OutlinedButton(
+                        onClick = onTestConnection,
+                        modifier = Modifier.weight(1f),
+                        enabled = testState !is ApiKeyTestState.Testing
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("테스트")
+                    }
+
+                    IconButton(
+                        onClick = { showClearConfirmDialog = true }
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "삭제",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+
+            // 안내 문구
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Text(
+                        "Claude API 키 발급:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "https://console.anthropic.com/settings/keys",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+
+    // API 키 입력 다이얼로그
+    if (showApiKeyDialog) {
+        ApiKeyInputDialog(
+            onDismiss = { showApiKeyDialog = false },
+            onConfirm = { apiKey ->
+                onSetApiKey(apiKey)
+                showApiKeyDialog = false
+                onClearTestState()
+            }
+        )
+    }
+
+    // 삭제 확인 다이얼로그
+    if (showClearConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmDialog = false },
+            icon = { Icon(Icons.Default.Warning, null) },
+            title = { Text("API 키 삭제") },
+            text = { Text("저장된 API 키를 삭제하시겠습니까?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onClearApiKey()
+                        showClearConfirmDialog = false
+                        onClearTestState()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("삭제")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirmDialog = false }) {
+                    Text("취소")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun ApiKeyInputDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var apiKey by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Claude API 키 설정") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Claude API 키를 입력하세요",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = { apiKey = it },
+                    label = { Text("API Key") },
+                    placeholder = { Text("sk-ant-...") },
+                    singleLine = false,
+                    maxLines = 3,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Text(
+                        "API 키는 안전하게 암호화되어 기기에 저장됩니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(8.dp),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(apiKey) },
+                enabled = apiKey.isNotBlank()
+            ) {
+                Text("저장")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소")
+            }
+        }
+    )
 }
 
 @Composable

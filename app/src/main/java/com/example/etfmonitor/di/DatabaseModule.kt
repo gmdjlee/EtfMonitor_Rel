@@ -47,7 +47,9 @@ object DatabaseModule {
                 MIGRATION_4_5,
                 MIGRATION_5_6,
                 MIGRATION_6_7,
-                MIGRATION_7_8
+                MIGRATION_7_8,
+                MIGRATION_8_9,
+                MIGRATION_9_10
             )
             .build()
     }
@@ -120,5 +122,25 @@ object DatabaseModule {
     @Singleton
     fun provideMarketOscillatorDao(database: AppDatabase): MarketOscillatorDao {
         return database.marketOscillatorDao()
+    }
+
+    /**
+     * Market Index DAO 제공
+     * 시장 지수 데이터를 관리하는 DAO
+     */
+    @Provides
+    @Singleton
+    fun provideMarketIndexDao(database: AppDatabase): MarketIndexDao {
+        return database.marketIndexDao()
+    }
+
+    /**
+     * Daily ETF Statistics DAO 제공
+     * 일별 ETF 통계 데이터를 관리하는 DAO
+     */
+    @Provides
+    @Singleton
+    fun provideDailyEtfStatisticsDao(database: AppDatabase): DailyEtfStatisticsDao {
+        return database.dailyEtfStatisticsDao()
     }
 }
