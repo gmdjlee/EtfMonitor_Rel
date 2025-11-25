@@ -135,6 +135,9 @@ dependencies {
     // Graphics shapes for hexagon menu with morph animation
     implementation("androidx.graphics:graphics-shapes:1.1.0")
 
+    // OkHttp for Claude API
+    implementation(libs.okhttp)
+
     // Hilt Dependency Injection
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
