@@ -5,10 +5,12 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.etfmonitor.database.entities.DailyEtfStatistics
 import com.etfmonitor.database.entities.Etf
 import com.etfmonitor.database.entities.FearGreedIndex
 import com.etfmonitor.database.entities.Holding
 import com.etfmonitor.database.entities.MarketDeposit
+import com.etfmonitor.database.entities.MarketIndex
 import com.etfmonitor.database.entities.MarketOscillatorData
 import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.database.entities.Setting
@@ -16,8 +18,8 @@ import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.StockAnalysisData
 
 @Database(
-    entities = [Etf::class, Holding::class, Setting::class, Stock::class, MarketDeposit::class, StockAnalysisData::class, SearchHistory::class, FearGreedIndex::class, MarketOscillatorData::class],
-    version = 8,
+    entities = [Etf::class, Holding::class, Setting::class, Stock::class, MarketDeposit::class, StockAnalysisData::class, SearchHistory::class, FearGreedIndex::class, MarketOscillatorData::class, MarketIndex::class, DailyEtfStatistics::class],
+    version = 10,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -29,6 +31,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun searchHistoryDao(): SearchHistoryDao
     abstract fun fearGreedDao(): FearGreedDao
     abstract fun marketOscillatorDao(): MarketOscillatorDao
+    abstract fun marketIndexDao(): MarketIndexDao
+    abstract fun dailyEtfStatisticsDao(): DailyEtfStatisticsDao
 }
 
 /**
@@ -211,5 +215,68 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         database.execSQL("CREATE INDEX IF NOT EXISTS index_holdings_stockTicker_date ON holdings(stockTicker, date)")
         database.execSQL("CREATE INDEX IF NOT EXISTS index_holdings_snapshotType ON holdings(snapshotType)")
         database.execSQL("CREATE INDEX IF NOT EXISTS index_holdings_date_snapshotType ON holdings(date, snapshotType)")
+    }
+}
+
+/**
+ * Migration from version 8 to 9: Add MarketIndex table
+ * 시장 지수 데이터 저장 테이블 추가 (ETF 통계와의 상관관계 분석용)
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS market_index (
+                id TEXT PRIMARY KEY NOT NULL,
+                market TEXT NOT NULL,
+                date TEXT NOT NULL,
+                closePrice REAL NOT NULL,
+                openPrice REAL NOT NULL,
+                highPrice REAL NOT NULL,
+                lowPrice REAL NOT NULL,
+                volume INTEGER NOT NULL,
+                changeRate REAL NOT NULL,
+                lastUpdated INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // 인덱스 생성
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_market_index_market ON market_index(market)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_market_index_date ON market_index(date)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_market_index_market_date ON market_index(market, date)")
+    }
+}
+
+/**
+ * Migration from version 9 to 10: Add DailyEtfStatistics table
+ * 일별 ETF 통계 데이터 저장 테이블 추가
+ */
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS daily_etf_statistics (
+                date TEXT PRIMARY KEY NOT NULL,
+                newStockCount INTEGER NOT NULL,
+                newStockAmount INTEGER NOT NULL,
+                removedStockCount INTEGER NOT NULL,
+                removedStockAmount INTEGER NOT NULL,
+                increasedStockCount INTEGER NOT NULL,
+                increasedStockAmount INTEGER NOT NULL,
+                decreasedStockCount INTEGER NOT NULL,
+                decreasedStockAmount INTEGER NOT NULL,
+                cashDepositAmount INTEGER NOT NULL,
+                cashDepositChange INTEGER NOT NULL,
+                cashDepositChangeRate REAL NOT NULL,
+                totalEtfCount INTEGER NOT NULL,
+                totalHoldingAmount INTEGER NOT NULL,
+                lastUpdated INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // 인덱스 생성
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_daily_etf_statistics_date ON daily_etf_statistics(date)")
     }
 }

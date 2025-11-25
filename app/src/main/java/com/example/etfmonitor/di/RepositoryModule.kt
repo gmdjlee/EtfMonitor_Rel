@@ -114,4 +114,30 @@ object RepositoryModule {
     ): MarketOscillatorRepository {
         return MarketOscillatorRepository(marketOscillatorDao, oscillatorPyClient)
     }
+
+    /**
+     * MarketIndexRepository 제공 (Singleton)
+     * 시장 지수 데이터를 관리
+     */
+    @Provides
+    @Singleton
+    fun provideMarketIndexRepository(
+        marketIndexDao: MarketIndexDao
+    ): MarketIndexRepository {
+        return MarketIndexRepository(marketIndexDao)
+    }
+
+    /**
+     * StatisticsAnalysisRepository 제공 (Singleton)
+     * ETF 통계 분석 및 상관관계 계산
+     */
+    @Provides
+    @Singleton
+    fun provideStatisticsAnalysisRepository(
+        etfDao: EtfDao,
+        marketIndexDao: MarketIndexDao,
+        dailyEtfStatisticsDao: DailyEtfStatisticsDao
+    ): StatisticsAnalysisRepository {
+        return StatisticsAnalysisRepository(etfDao, marketIndexDao, dailyEtfStatisticsDao)
+    }
 }
