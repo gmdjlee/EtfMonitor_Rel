@@ -365,6 +365,14 @@ private fun ChartTab(
             )
         }
 
+        // Fear & Greed Index 차트 색상
+        item {
+            FearGreedColorCard(
+                colors = chartColorSettings.fearGreed,
+                viewModel = viewModel
+            )
+        }
+
         // 초기화 버튼
         item {
             ResetChartColorsCard(
@@ -747,6 +755,75 @@ private fun MarketDepositColorCard(
                 currentColor = colors.legendColor,
                 onColorSelected = { viewModel.setMarketDepositLegendColor(it) },
                 onReset = { viewModel.setMarketDepositLegendColor(null) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun FearGreedColorCard(
+    colors: SingleChartColorSettings,
+    viewModel: SettingsViewModel
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.BarChart,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("Fear & Greed Index 차트", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            // 라인 색상
+            Text(
+                "라인 색상",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            ColorPickerRow(
+                label = "Oscillator 라인",
+                currentColor = colors.lineColor1,
+                onColorSelected = { viewModel.setFearGreedLineColor1(it) }
+            )
+
+            ColorPickerRow(
+                label = "지수 라인",
+                currentColor = colors.lineColor2,
+                onColorSelected = { viewModel.setFearGreedLineColor2(it) }
+            )
+
+            HorizontalDivider()
+
+            // 텍스트/범례 색상
+            Text(
+                "텍스트 & 범례 색상 (선택사항)",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            OptionalColorPickerRow(
+                label = "축 라벨/틱 색상",
+                currentColor = colors.textColor,
+                onColorSelected = { viewModel.setFearGreedTextColor(it) },
+                onReset = { viewModel.setFearGreedTextColor(null) }
+            )
+
+            OptionalColorPickerRow(
+                label = "범례 색상",
+                currentColor = colors.legendColor,
+                onColorSelected = { viewModel.setFearGreedLegendColor(it) },
+                onReset = { viewModel.setFearGreedLegendColor(null) }
             )
         }
     }

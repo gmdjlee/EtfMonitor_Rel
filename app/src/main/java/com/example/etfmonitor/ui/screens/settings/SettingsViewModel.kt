@@ -258,6 +258,11 @@ class SettingsViewModel @Inject constructor(
         val depositText = etfDao.getSetting("chart_deposit_text")?.toIntOrNull()
         val depositLegend = etfDao.getSetting("chart_deposit_legend")?.toIntOrNull()
 
+        val fearGreedLine1 = etfDao.getSetting("chart_feargreed_line1")?.toIntOrNull()
+        val fearGreedLine2 = etfDao.getSetting("chart_feargreed_line2")?.toIntOrNull()
+        val fearGreedText = etfDao.getSetting("chart_feargreed_text")?.toIntOrNull()
+        val fearGreedLegend = etfDao.getSetting("chart_feargreed_legend")?.toIntOrNull()
+
         val defaultSettings = ChartColorSettings()
 
         val settings = ChartColorSettings(
@@ -280,6 +285,12 @@ class SettingsViewModel @Inject constructor(
                 lineColor2 = depositLine2 ?: defaultSettings.marketDeposit.lineColor2,
                 textColor = depositText,
                 legendColor = depositLegend
+            ),
+            fearGreed = SingleChartColorSettings(
+                lineColor1 = fearGreedLine1 ?: defaultSettings.fearGreed.lineColor1,
+                lineColor2 = fearGreedLine2 ?: defaultSettings.fearGreed.lineColor2,
+                textColor = fearGreedText,
+                legendColor = fearGreedLegend
             )
         )
 
@@ -977,6 +988,70 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setFearGreedLineColor1(color: Int) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("chart_feargreed_line1", color.toString()))
+                val updated = _chartColorSettings.value.fearGreed.copy(lineColor1 = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(fearGreed = updated)
+                themeManager.setFearGreedColors(updated)
+                _message.value = "Fear & Greed Oscillator 라인 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setFearGreedLineColor2(color: Int) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting("chart_feargreed_line2", color.toString()))
+                val updated = _chartColorSettings.value.fearGreed.copy(lineColor2 = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(fearGreed = updated)
+                themeManager.setFearGreedColors(updated)
+                _message.value = "지수 라인 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setFearGreedTextColor(color: Int?) {
+        viewModelScope.launch {
+            try {
+                if (color != null) {
+                    etfDao.saveSetting(Setting("chart_feargreed_text", color.toString()))
+                } else {
+                    etfDao.deleteSetting("chart_feargreed_text")
+                }
+                val updated = _chartColorSettings.value.fearGreed.copy(textColor = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(fearGreed = updated)
+                themeManager.setFearGreedColors(updated)
+                _message.value = "Fear & Greed 차트 텍스트 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    fun setFearGreedLegendColor(color: Int?) {
+        viewModelScope.launch {
+            try {
+                if (color != null) {
+                    etfDao.saveSetting(Setting("chart_feargreed_legend", color.toString()))
+                } else {
+                    etfDao.deleteSetting("chart_feargreed_legend")
+                }
+                val updated = _chartColorSettings.value.fearGreed.copy(legendColor = color)
+                _chartColorSettings.value = _chartColorSettings.value.copy(fearGreed = updated)
+                themeManager.setFearGreedColors(updated)
+                _message.value = "Fear & Greed 차트 범례 색상이 변경되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
     fun resetChartColors() {
         viewModelScope.launch {
             try {
@@ -995,6 +1070,10 @@ class SettingsViewModel @Inject constructor(
                 etfDao.deleteSetting("chart_deposit_line2")
                 etfDao.deleteSetting("chart_deposit_text")
                 etfDao.deleteSetting("chart_deposit_legend")
+                etfDao.deleteSetting("chart_feargreed_line1")
+                etfDao.deleteSetting("chart_feargreed_line2")
+                etfDao.deleteSetting("chart_feargreed_text")
+                etfDao.deleteSetting("chart_feargreed_legend")
 
                 val defaultSettings = ChartColorSettings()
                 _chartColorSettings.value = defaultSettings
