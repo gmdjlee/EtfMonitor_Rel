@@ -43,6 +43,10 @@ fun FearGreedScreen(
     val showFirstRunDialog by viewModel.showFirstRunDialog.collectAsState()
     var showManualPeriodDialog by remember { mutableStateOf(false) }
 
+    // Get chart colors from settings
+    val settingsViewModel: com.etfmonitor.ui.screens.settings.SettingsViewModel = hiltViewModel()
+    val chartColorSettings by settingsViewModel.chartColorSettings.collectAsState()
+
     // 첫 실행 다이얼로그
     if (showFirstRunDialog) {
         FearGreedInitializeDialog(
@@ -240,6 +244,7 @@ fun FearGreedScreen(
 
                         FearGreedChart(
                             data = fearGreedData,
+                            chartColors = chartColorSettings.fearGreed,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(350.dp)
@@ -254,12 +259,13 @@ fun FearGreedScreen(
 @Composable
 fun FearGreedChart(
     data: List<com.etfmonitor.database.entities.FearGreedIndex>,
+    chartColors: SingleChartColorSettings,
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
-    val fearGreedColor = ChartOrange.toArgb()  // Fear & Greed Index - Amber
-    val indexColor = ChartSecondary.toArgb()   // KOSPI/KOSDAQ 지수 - Teal
-    val textColor = if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val fearGreedColor = chartColors.lineColor1  // Fear & Greed Oscillator
+    val indexColor = chartColors.lineColor2      // KOSPI/KOSDAQ 지수
+    val textColor = chartColors.textColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
     AndroidView(
@@ -332,7 +338,7 @@ fun FearGreedChart(
                 legend.apply {
                     isEnabled = true
                     textSize = 12f
-                    setTextColor(textColor)
+                    setTextColor(chartColors.legendColor ?: textColor)
                 }
             }
         },

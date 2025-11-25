@@ -44,6 +44,10 @@ data class ChartColorSettings(
     val marketDeposit: SingleChartColorSettings = SingleChartColorSettings(
         lineColor1 = ChartPrimary.toArgb(),
         lineColor2 = ChartTertiary.toArgb()
+    ),
+    val fearGreed: SingleChartColorSettings = SingleChartColorSettings(
+        lineColor1 = ChartOrange.toArgb(),     // Fear & Greed Oscillator
+        lineColor2 = ChartSecondary.toArgb()   // KOSPI/KOSDAQ Index
     )
 )
 
@@ -109,5 +113,9 @@ class ThemeManager @Inject constructor() {
 
     fun setMarketDepositColors(colors: SingleChartColorSettings) {
         _chartColorSettings.value = _chartColorSettings.value.copy(marketDeposit = colors)
+    }
+
+    fun setFearGreedColors(colors: SingleChartColorSettings) {
+        _chartColorSettings.value = _chartColorSettings.value.copy(fearGreed = colors)
     }
 }
