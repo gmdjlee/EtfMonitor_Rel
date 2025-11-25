@@ -1129,7 +1129,7 @@ class SettingsViewModel @Inject constructor(
                     return@launch
                 }
 
-                apiKeyProvider.saveApiKey(apiKey)
+                apiKeyProvider.setApiKey(apiKey)
                 _isApiKeyConfigured.value = true
                 _message.value = "API 키가 저장되었습니다"
             } catch (e: Exception) {
@@ -1144,7 +1144,7 @@ class SettingsViewModel @Inject constructor(
     fun clearApiKey() {
         viewModelScope.launch {
             try {
-                apiKeyProvider.clearApiKey()
+                apiKeyProvider.removeApiKey()
                 _isApiKeyConfigured.value = false
                 _apiKeyTestState.value = ApiKeyTestState.Idle
                 _message.value = "API 키가 삭제되었습니다"
