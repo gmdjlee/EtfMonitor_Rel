@@ -185,6 +185,10 @@ class MainActivity : ComponentActivity() {
                 // WorkManager 스케줄 설정
                 WorkManagerHelper.scheduleStockUpdate(this@MainActivity, hour, minute)
                 Log.d("MainActivity", "WorkManager scheduled for $hour:${String.format("%02d", minute)}")
+
+                // 데이터 아카이빙 스케줄 설정 (월 1회)
+                WorkManagerHelper.scheduleDataArchiving(this@MainActivity)
+                Log.d("MainActivity", "Data archiving scheduled (monthly)")
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error initializing stock database", e)
             }

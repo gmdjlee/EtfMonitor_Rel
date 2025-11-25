@@ -240,13 +240,15 @@ class PyKrxClient @Inject constructor(
                     val holdings = holdingJsonList.map { holdingJson ->
                         val stockName = getStockName(holdingJson.ticker)
 
-                        Holding(
+                        // 최적화된 형식으로 생성 (DAILY 스냅샷)
+                        Holding.create(
                             etfTicker = etfTicker,
                             stockTicker = holdingJson.ticker,
                             stockName = stockName,
                             date = formatDate(date),
                             weight = holdingJson.weight.toFloat(),
-                            amount = holdingJson.amount.toFloat()
+                            amount = holdingJson.amount.toFloat(),
+                            snapshotType = SnapshotType.DAILY
                         )
                     }
 

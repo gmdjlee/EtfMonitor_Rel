@@ -362,6 +362,61 @@ interface EtfDao {
         ORDER BY h.amount DESC
     """)
     suspend fun getStockHoldingsByDate(stockTicker: String, date: String): List<StockHoldingByEtf>
+
+    // ========== 데이터 아카이빙 관련 ==========
+
+    /**
+     * 특정 기간의 모든 holding 데이터 조회
+     */
+    @Query("""
+        SELECT * FROM holdings
+        WHERE date >= :startDate AND date <= :endDate
+        ORDER BY date ASC
+    """)
+    suspend fun getHoldingsByDateRange(startDate: String, endDate: String): List<Holding>
+
+    /**
+     * 특정 기간의 데이터 삭제
+     */
+    @Query("""
+        DELETE FROM holdings
+        WHERE date >= :startDate AND date <= :endDate
+    """)
+    suspend fun deleteHoldingsByDateRange(startDate: String, endDate: String)
+
+    /**
+     * 특정 날짜보다 오래된 데이터 삭제
+     */
+    @Query("""
+        DELETE FROM holdings
+        WHERE date < :beforeDate
+    """)
+    suspend fun deleteHoldingsBeforeDate(beforeDate: String)
+
+    /**
+     * 스냅샷 타입별 데이터 개수 조회
+     */
+    @Query("""
+        SELECT snapshotType, COUNT(*) as count
+        FROM holdings
+        GROUP BY snapshotType
+    """)
+    suspend fun getSnapshotTypeCounts(): List<SnapshotTypeCount>
+
+    /**
+     * 전체 holding 데이터 개수
+     */
+    @Query("SELECT COUNT(*) FROM holdings")
+    suspend fun getTotalHoldingCount(): Long
+
+    /**
+     * 기간별 데이터 개수
+     */
+    @Query("""
+        SELECT COUNT(*) FROM holdings
+        WHERE date >= :startDate AND date <= :endDate
+    """)
+    suspend fun getHoldingCountByDateRange(startDate: String, endDate: String): Long
 }
 
 // ✅ 종목 검색 결과
@@ -376,4 +431,10 @@ data class StockHoldingByEtf(
     val etfName: String,
     val weight: Float,
     val amount: Float
+)
+
+// ✅ 스냅샷 타입별 개수
+data class SnapshotTypeCount(
+    val snapshotType: String,
+    val count: Int
 )
