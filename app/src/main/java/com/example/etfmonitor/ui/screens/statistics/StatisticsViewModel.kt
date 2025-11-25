@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.database.entities.CashDepositTrend
 import com.etfmonitor.database.entities.StockAmountRanking
+import com.etfmonitor.database.entities.StockAnalysisResult
 import com.etfmonitor.database.entities.StockChangeInfo
 import com.etfmonitor.repository.DataRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -56,6 +57,19 @@ class StatisticsViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    // ✅ 종목 분석 상태
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _searchResults = MutableStateFlow<List<com.etfmonitor.database.StockSearchResult>>(emptyList())
+    val searchResults: StateFlow<List<com.etfmonitor.database.StockSearchResult>> = _searchResults.asStateFlow()
+
+    private val _analysisResult = MutableStateFlow<StockAnalysisResult?>(null)
+    val analysisResult: StateFlow<StockAnalysisResult?> = _analysisResult.asStateFlow()
+
+    private val _isAnalyzing = MutableStateFlow(false)
+    val isAnalyzing: StateFlow<Boolean> = _isAnalyzing.asStateFlow()
+
     init {
         loadStatistics()
     }
@@ -83,5 +97,62 @@ class StatisticsViewModel @Inject constructor(
         } else {
             _amountRanking.value.sortedByDescending { it.totalAmount }
         }
+    }
+
+    // ✅ 종목 검색
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+        if (query.length >= 2) {
+            viewModelScope.launch {
+                _searchResults.value = repository.searchStocks(query)
+            }
+        } else {
+            _searchResults.value = emptyList()
+        }
+    }
+
+    // ✅ 종목 분석
+    fun analyzeStock(stockTicker: String) {
+        viewModelScope.launch {
+            _isAnalyzing.value = true
+            try {
+                _analysisResult.value = repository.analyzeStock(stockTicker)
+                _searchQuery.value = ""
+                _searchResults.value = emptyList()
+            } finally {
+                _isAnalyzing.value = false
+            }
+        }
+    }
+
+    // ✅ 검색 후 분석 (종목명 또는 티커로 검색하여 분석)
+    fun searchAndAnalyze(query: String) {
+        viewModelScope.launch {
+            _isAnalyzing.value = true
+            try {
+                // 먼저 검색 수행
+                val results = repository.searchStocks(query)
+
+                if (results.isNotEmpty()) {
+                    // 첫 번째 결과 (가장 관련성 높은 결과)의 티커로 분석
+                    _analysisResult.value = repository.analyzeStock(results.first().stockTicker)
+                } else {
+                    // 검색 결과 없으면 입력값을 직접 티커로 간주하고 시도
+                    _analysisResult.value = repository.analyzeStock(query)
+                }
+
+                _searchQuery.value = ""
+                _searchResults.value = emptyList()
+            } finally {
+                _isAnalyzing.value = false
+            }
+        }
+    }
+
+    // ✅ 분석 결과 초기화
+    fun clearAnalysis() {
+        _analysisResult.value = null
+        _searchQuery.value = ""
+        _searchResults.value = emptyList()
     }
 }

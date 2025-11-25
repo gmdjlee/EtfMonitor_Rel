@@ -1,10 +1,13 @@
 package com.etfmonitor.ui.screens.statistics
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -14,11 +17,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.database.entities.CashDepositTrend
+import com.etfmonitor.database.entities.HoldingStatus
 import com.etfmonitor.database.entities.StockAmountRanking
 import com.etfmonitor.database.entities.StockChangeInfo
 import com.etfmonitor.ui.theme.*
@@ -57,8 +62,14 @@ fun StatisticsScreen(
     val cashDepositTrend by viewModel.cashDepositTrend.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
+    // ✅ 종목 분석 상태
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val searchResults by viewModel.searchResults.collectAsState()
+    val analysisResult by viewModel.analysisResult.collectAsState()
+    val isAnalyzing by viewModel.isAnalyzing.collectAsState()
+
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("금액 순위", "신규 편입", "제외", "비중 증가", "비중 감소", "원화예금")
+    val tabs = listOf("금액 순위", "신규 편입", "제외", "비중 증가", "비중 감소", "원화예금", "분석")
 
     Scaffold(
         topBar = {
@@ -131,6 +142,17 @@ fun StatisticsScreen(
                     3 -> IncreasedStocksTab(increasedStocks, onStockClick)
                     4 -> DecreasedStocksTab(decreasedStocks, onStockClick)
                     5 -> CashDepositTrendTab(cashDepositTrend)
+                    6 -> StockAnalysisTab(
+                        searchQuery = searchQuery,
+                        searchResults = searchResults,
+                        analysisResult = analysisResult,
+                        isAnalyzing = isAnalyzing,
+                        onSearchQueryChange = { viewModel.updateSearchQuery(it) },
+                        onSearchAndAnalyze = { viewModel.searchAndAnalyze(it) },
+                        onStockSelect = { viewModel.analyzeStock(it) },
+                        onClearAnalysis = { viewModel.clearAnalysis() },
+                        onStockClick = onStockClick
+                    )
                 }
             }
         }
@@ -776,6 +798,474 @@ private fun ChangeInfo(change: Float, modifier: Modifier = Modifier) {
     }
 }
 
-enum class HoldingStatus {
-    NEW, INCREASE, DECREASE, MAINTAIN, REMOVED
+// ✅ 종목 분석 탭
+@Composable
+private fun StockAnalysisTab(
+    searchQuery: String,
+    searchResults: List<com.etfmonitor.database.StockSearchResult>,
+    analysisResult: com.etfmonitor.database.entities.StockAnalysisResult?,
+    isAnalyzing: Boolean,
+    onSearchQueryChange: (String) -> Unit,
+    onSearchAndAnalyze: (String) -> Unit,
+    onStockSelect: (String) -> Unit,
+    onClearAnalysis: () -> Unit,
+    onStockClick: (String) -> Unit
+) {
+    var textFieldValue by remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(MaterialTheme.spacing.medium),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
+    ) {
+        // 검색 입력 - Box로 감싸서 드롭다운 오버레이
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.extendedShapes.cardLarge
+            ) {
+                Column(
+                    modifier = Modifier.padding(MaterialTheme.spacing.medium),
+                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
+                ) {
+                    Text(
+                        "종목 분석",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    OutlinedTextField(
+                        value = textFieldValue,
+                        onValueChange = {
+                            textFieldValue = it
+                            onSearchQueryChange(it)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = {
+                            Text(
+                                "종목명 또는 티커",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        placeholder = {
+                            Text(
+                                "예: 삼성전자, 005930",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        singleLine = true,
+                        trailingIcon = {
+                            Row(
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (textFieldValue.isNotBlank()) {
+                                    IconButton(onClick = {
+                                        textFieldValue = ""
+                                        onSearchQueryChange("")
+                                    }) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            "지우기",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                IconButton(
+                                    onClick = {
+                                        if (textFieldValue.isNotBlank() && !isAnalyzing) {
+                                            onSearchAndAnalyze(textFieldValue)
+                                        }
+                                    },
+                                    enabled = textFieldValue.isNotBlank() && !isAnalyzing
+                                ) {
+                                    Icon(
+                                        Icons.Default.Search,
+                                        "검색",
+                                        tint = if (textFieldValue.isNotBlank() && !isAnalyzing) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                                        }
+                                    )
+                                }
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Search
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onSearch = {
+                                if (textFieldValue.isNotBlank() && !isAnalyzing) {
+                                    onSearchAndAnalyze(textFieldValue)
+                                }
+                            }
+                        ),
+                        shape = MaterialTheme.extendedShapes.searchBar,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        )
+                    )
+                }
+            }
+
+            // 자동완성 드롭다운 - 오버레이
+            if (searchResults.isNotEmpty() && textFieldValue.isNotBlank()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 140.dp)
+                        .heightIn(max = 300.dp),
+                    elevation = CardDefaults.cardElevation(
+                        defaultElevation = 8.dp
+                    ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    shape = MaterialTheme.extendedShapes.cardLarge
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(searchResults) { result ->
+                            ListItem(
+                                headlineContent = { Text(result.stockName) },
+                                supportingContent = {
+                                    Text(
+                                        result.stockTicker,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                },
+                                modifier = Modifier.clickable {
+                                    textFieldValue = result.stockName
+                                    onSearchQueryChange("")
+                                    onStockSelect(result.stockTicker)
+                                }
+                            )
+                            if (result != searchResults.last()) {
+                                HorizontalDivider()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 분석 중 표시
+        if (isAnalyzing) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        // 분석 결과 표시
+        analysisResult?.let { result ->
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
+            ) {
+                item {
+                    StockAnalysisSummaryCard(result, onClearAnalysis)
+                }
+
+                item {
+                    StockAnalysisStatisticsCard(result)
+                }
+
+                item {
+                    StockAnalysisDetailsCard(result, onStockClick)
+                }
+            }
+        }
+
+        // 초기 안내 메시지
+        if (!isAnalyzing && analysisResult == null && searchQuery.isEmpty()) {
+            OutlinedCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.extendedShapes.cardLarge
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(MaterialTheme.spacing.extraLarge),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "종목을 검색하여 ETF 편입 현황을 분석하세요",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StockAnalysisSummaryCard(
+    result: com.etfmonitor.database.entities.StockAnalysisResult,
+    onClearAnalysis: () -> Unit
+) {
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.extendedShapes.cardLarge,
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(MaterialTheme.spacing.medium),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        result.stockName,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        result.stockTicker,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    )
+                }
+                IconButton(onClick = onClearAnalysis) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "닫기",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                SummaryItem(
+                    label = "포함 ETF",
+                    value = "${result.currentEtfCount}개"
+                )
+                SummaryItem(
+                    label = "평가금액",
+                    value = AmountFormatter.format(result.totalAmount, showUnit = true)
+                )
+                SummaryItem(
+                    label = "평균 비중",
+                    value = String.format("%.2f%%", result.avgWeight)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StockAnalysisStatisticsCard(
+    result: com.etfmonitor.database.entities.StockAnalysisResult
+) {
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.extendedShapes.cardLarge
+    ) {
+        Column(
+            modifier = Modifier.padding(MaterialTheme.spacing.medium),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
+        ) {
+            Text(
+                "ETF 편입 변동",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                StatItem(
+                    label = "신규 편입",
+                    value = "${result.newIncludedCount}",
+                    color = MaterialTheme.colorScheme.primary
+                )
+                StatItem(
+                    label = "비중 증가",
+                    value = "${result.increasedCount}",
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+                StatItem(
+                    label = "비중 감소",
+                    value = "${result.decreasedCount}",
+                    color = MaterialTheme.colorScheme.error
+                )
+                StatItem(
+                    label = "제외",
+                    value = "${result.removedCount}",
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+
+            if (result.previousEtfCount > 0) {
+                val change = result.currentEtfCount - result.previousEtfCount
+                Text(
+                    "이전 대비: ${if (change >= 0) "+" else ""}$change ETF",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = when {
+                        change > 0 -> MaterialTheme.colorScheme.tertiary
+                        change < 0 -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatItem(label: String, value: String, color: androidx.compose.ui.graphics.Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.titleLarge,
+            color = color
+        )
+    }
+}
+
+@Composable
+private fun StockAnalysisDetailsCard(
+    result: com.etfmonitor.database.entities.StockAnalysisResult,
+    onStockClick: (String) -> Unit
+) {
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.extendedShapes.cardLarge
+    ) {
+        Column(
+            modifier = Modifier.padding(MaterialTheme.spacing.medium),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
+        ) {
+            Text(
+                "ETF별 상세 현황 (${result.etfDetails.size}개)",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
+            result.etfDetails.forEach { detail ->
+                StockAnalysisDetailItem(detail, onStockClick)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StockAnalysisDetailItem(
+    detail: com.etfmonitor.database.entities.StockEtfDetail,
+    onStockClick: (String) -> Unit
+) {
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { onStockClick(detail.etfTicker) },
+        shape = MaterialTheme.extendedShapes.card,
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                            MaterialTheme.colorScheme.surface
+                        )
+                    )
+                )
+                .padding(MaterialTheme.spacing.small),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        detail.etfName,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        detail.etfTicker,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                StatusBadge(detail.status)
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                when (detail.status) {
+                    HoldingStatus.NEW -> {
+                        WeightInfo("비중", detail.currentWeight, Modifier.weight(1f))
+                    }
+                    HoldingStatus.REMOVED -> {
+                        WeightInfo("이전", detail.previousWeight, Modifier.weight(1f))
+                    }
+                    else -> {
+                        WeightInfo("이전", detail.previousWeight, Modifier.weight(1f))
+                        WeightInfo("현재", detail.currentWeight, Modifier.weight(1f))
+                        ChangeInfo(detail.change, Modifier.weight(1f))
+                    }
+                }
+            }
+
+            if (detail.amount > 0) {
+                Text(
+                    "평가금액: ${AmountFormatter.format(detail.amount)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.End
+                )
+            }
+        }
+    }
 }
