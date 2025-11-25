@@ -52,22 +52,22 @@ class StatisticsAnalysisRepository @Inject constructor(
             // 신규 편입 통계
             val newStocks = etfDao.getAllNewStocks(currentDate, previousDate)
             val newStockCount = newStocks.size
-            val newStockAmount = newStocks.sumOf { it.currentAmount.toLong() }
+            val newStockAmount = newStocks.sumOf { it.currentAmount.toLong() as Long }
 
             // 제외 종목 통계
             val removedStocks = etfDao.getAllRemovedStocks(currentDate, previousDate)
             val removedStockCount = removedStocks.size
-            val removedStockAmount = removedStocks.sumOf { it.previousWeight * 1000000 }.toLong() // 추정치
+            val removedStockAmount = removedStocks.sumOf { (it.previousWeight * 1000000).toLong() as Long }
 
             // 비중 증가 통계
             val increasedStocks = etfDao.getAllIncreasedStocks(currentDate, previousDate)
             val increasedStockCount = increasedStocks.size
-            val increasedStockAmount = increasedStocks.sumOf { it.currentAmount.toLong() }
+            val increasedStockAmount = increasedStocks.sumOf { it.currentAmount.toLong() as Long }
 
             // 비중 감소 통계
             val decreasedStocks = etfDao.getAllDecreasedStocks(currentDate, previousDate)
             val decreasedStockCount = decreasedStocks.size
-            val decreasedStockAmount = decreasedStocks.sumOf { it.currentAmount.toLong() }
+            val decreasedStockAmount = decreasedStocks.sumOf { it.currentAmount.toLong() as Long }
 
             // 원화예금 통계
             val cashTrend = etfDao.getCashDepositTrend()
