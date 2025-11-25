@@ -3,8 +3,10 @@ package com.etfmonitor.ui.screens.settings
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etfmonitor.ai.ApiKeyProvider
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.entities.Setting
+import com.etfmonitor.repository.AIAnalysisRepository
 import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.repository.FearGreedRepository
 import com.etfmonitor.repository.MarketDepositRepository
@@ -57,6 +59,16 @@ data class MarketOscillatorUpdateSettings(
 )
 
 /**
+ * API 키 테스트 상태
+ */
+sealed class ApiKeyTestState {
+    object Idle : ApiKeyTestState()
+    object Testing : ApiKeyTestState()
+    object Success : ApiKeyTestState()
+    data class Error(val message: String) : ApiKeyTestState()
+}
+
+/**
  * Production Level SettingsViewModel with Hilt
  *
  * 최적화 포인트:
@@ -77,6 +89,8 @@ class SettingsViewModel @Inject constructor(
     private val marketDepositRepository: MarketDepositRepository,
     private val fearGreedRepository: FearGreedRepository,
     private val marketOscillatorRepository: com.etfmonitor.repository.MarketOscillatorRepository,
+    private val aiAnalysisRepository: AIAnalysisRepository,
+    private val apiKeyProvider: ApiKeyProvider,
     private val etfDao: EtfDao,
     private val themeManager: ThemeManager,
     @ApplicationContext private val context: Context
@@ -123,6 +137,13 @@ class SettingsViewModel @Inject constructor(
     private val _chartColorSettings = MutableStateFlow(ChartColorSettings())
     val chartColorSettings: StateFlow<ChartColorSettings> = _chartColorSettings.asStateFlow()
 
+    // Claude API 키 설정
+    private val _isApiKeyConfigured = MutableStateFlow(false)
+    val isApiKeyConfigured: StateFlow<Boolean> = _isApiKeyConfigured.asStateFlow()
+
+    private val _apiKeyTestState = MutableStateFlow<ApiKeyTestState>(ApiKeyTestState.Idle)
+    val apiKeyTestState: StateFlow<ApiKeyTestState> = _apiKeyTestState.asStateFlow()
+
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
@@ -132,6 +153,7 @@ class SettingsViewModel @Inject constructor(
         loadMarketDepositInfo()
         loadFearGreedInfo()
         loadMarketOscillatorInfo()
+        checkApiKeyStatus()
     }
 
     private fun loadSettings() {
@@ -1083,5 +1105,82 @@ class SettingsViewModel @Inject constructor(
                 _message.value = "초기화 실패: ${e.message}"
             }
         }
+    }
+
+    // ==================== Claude API 키 관리 ====================
+
+    /**
+     * API 키 설정 여부 확인
+     */
+    private fun checkApiKeyStatus() {
+        viewModelScope.launch {
+            _isApiKeyConfigured.value = aiAnalysisRepository.isApiAvailable()
+        }
+    }
+
+    /**
+     * API 키 설정
+     */
+    fun setApiKey(apiKey: String) {
+        viewModelScope.launch {
+            try {
+                if (apiKey.isBlank()) {
+                    _message.value = "API 키를 입력해주세요"
+                    return@launch
+                }
+
+                apiKeyProvider.saveApiKey(apiKey)
+                _isApiKeyConfigured.value = true
+                _message.value = "API 키가 저장되었습니다"
+            } catch (e: Exception) {
+                _message.value = "API 키 저장 실패: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * API 키 제거
+     */
+    fun clearApiKey() {
+        viewModelScope.launch {
+            try {
+                apiKeyProvider.clearApiKey()
+                _isApiKeyConfigured.value = false
+                _apiKeyTestState.value = ApiKeyTestState.Idle
+                _message.value = "API 키가 삭제되었습니다"
+            } catch (e: Exception) {
+                _message.value = "API 키 삭제 실패: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * API 연결 테스트
+     */
+    fun testApiConnection() {
+        viewModelScope.launch {
+            try {
+                _apiKeyTestState.value = ApiKeyTestState.Testing
+
+                val result = aiAnalysisRepository.testApiConnection()
+
+                _apiKeyTestState.value = if (result.isSuccess) {
+                    _message.value = "API 연결 성공!"
+                    ApiKeyTestState.Success
+                } else {
+                    val errorMsg = result.exceptionOrNull()?.message ?: "연결 실패"
+                    ApiKeyTestState.Error(errorMsg)
+                }
+            } catch (e: Exception) {
+                _apiKeyTestState.value = ApiKeyTestState.Error(e.message ?: "알 수 없는 오류")
+            }
+        }
+    }
+
+    /**
+     * API 테스트 상태 초기화
+     */
+    fun clearApiTestState() {
+        _apiKeyTestState.value = ApiKeyTestState.Idle
     }
 }

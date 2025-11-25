@@ -17,6 +17,7 @@ import com.etfmonitor.ui.screens.oscillator.OscillatorScreen
 import com.etfmonitor.ui.screens.oscillator.MarketDepositScreen
 import com.etfmonitor.ui.screens.feargreed.FearGreedScreen
 import com.etfmonitor.ui.screens.marketoscillator.MarketOscillatorScreen
+import com.etfmonitor.ui.screens.aianalysis.AIAnalysisScreen
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -42,6 +43,8 @@ sealed class Screen(val route: String) {
     object FearGreed : Screen("fear_greed")
     // ✅ Market Oscillator (시장 과매수/과매도)
     object MarketOscillator : Screen("market_oscillator")
+    // ✅ AI Analysis (AI 시장 분석)
+    object AIAnalysis : Screen("ai_analysis")
 }
 
 @Composable
@@ -60,7 +63,8 @@ fun Navigation() {
                 onNavigateToOscillator = { navController.navigate(Screen.Oscillator.route) },
                 onNavigateToMarketDeposit = { navController.navigate(Screen.MarketDeposit.route) },
                 onNavigateToFearGreed = { navController.navigate(Screen.FearGreed.route) },
-                onNavigateToMarketOscillator = { navController.navigate(Screen.MarketOscillator.route) }
+                onNavigateToMarketOscillator = { navController.navigate(Screen.MarketOscillator.route) },
+                onNavigateToAIAnalysis = { navController.navigate(Screen.AIAnalysis.route) }
             )
         }
 
@@ -158,6 +162,11 @@ fun Navigation() {
             MarketOscillatorScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
+        }
+
+        // ✅ AI Analysis 화면 (AI 시장 분석)
+        composable(Screen.AIAnalysis.route) {
+            AIAnalysisScreen(navController = navController)
         }
     }
 }
