@@ -37,9 +37,9 @@ interface EtfDao {
     // ========== Holdings ==========
 
     @Query("""
-        SELECT * FROM holdings 
+        SELECT * FROM holdings
         WHERE etfTicker = :etfTicker AND date = :date
-        ORDER BY weight DESC
+        ORDER BY weightBps DESC
     """)
     suspend fun getHoldings(etfTicker: String, date: String): List<Holding>
 
@@ -65,8 +65,11 @@ interface EtfDao {
 
     // ✅ 시계열 데이터 조회
     @Query("""
-        SELECT date, weight, amount 
-        FROM holdings 
+        SELECT
+            date,
+            CAST(weightBps AS REAL) / 10000.0 as weight,
+            CAST(amountMillion AS REAL) * 1000000.0 as amount
+        FROM holdings
         WHERE etfTicker = :etfTicker AND stockTicker = :stockTicker
         ORDER BY date ASC
     """)
@@ -78,11 +81,11 @@ interface EtfDao {
     // ========== Stats ==========
 
     @Query("""
-        SELECT 
+        SELECT
             stockTicker,
             stockName,
             COUNT(DISTINCT etfTicker) as etfCount,
-            SUM(amount) as totalAmount,
+            SUM(CAST(amountMillion AS REAL) * 1000000.0) as totalAmount,
             GROUP_CONCAT(DISTINCT etfTicker) as etfList
         FROM holdings
         WHERE date = :date
@@ -94,16 +97,16 @@ interface EtfDao {
     suspend fun getOverlapStocks(date: String, limit: Int): List<OverlapStock>
 
     @Query("""
-        SELECT 
+        SELECT
             h.stockTicker,
             h.stockName,
             e.name as etfName,
-            h.weight,
-            h.amount
+            CAST(h.weightBps AS REAL) / 10000.0 as weight,
+            CAST(h.amountMillion AS REAL) * 1000000.0 as amount
         FROM holdings h
         INNER JOIN etfs e ON h.etfTicker = e.ticker
         WHERE h.date = :date
-        ORDER BY h.amount DESC
+        ORDER BY h.amountMillion DESC
         LIMIT :limit
     """)
     suspend fun getAmountRanking(date: String, limit: Int): List<AmountRank>
@@ -117,9 +120,9 @@ interface EtfDao {
         SELECT
             curr.stockTicker,
             curr.stockName,
-            SUM(curr.amount) as totalAmount,
+            SUM(CAST(curr.amountMillion AS REAL) * 1000000.0) as totalAmount,
             COUNT(DISTINCT curr.etfTicker) as etfCount,
-            MAX(curr.weight) as maxWeight,
+            MAX(CAST(curr.weightBps AS REAL) / 10000.0) as maxWeight,
             GROUP_CONCAT(DISTINCT curr.etfTicker) as etfList,
             COUNT(DISTINCT CASE
                 WHEN NOT EXISTS (
@@ -135,7 +138,7 @@ interface EtfDao {
                     WHERE prev.stockTicker = curr.stockTicker
                     AND prev.etfTicker = curr.etfTicker
                     AND prev.date = :previousDate
-                    AND prev.weight < curr.weight
+                    AND prev.weightBps < curr.weightBps
                 ) THEN curr.etfTicker
             END) as increasedEtfCount,
             COUNT(DISTINCT CASE
@@ -144,7 +147,7 @@ interface EtfDao {
                     WHERE prev.stockTicker = curr.stockTicker
                     AND prev.etfTicker = curr.etfTicker
                     AND prev.date = :previousDate
-                    AND prev.weight > curr.weight
+                    AND prev.weightBps > curr.weightBps
                 ) THEN curr.etfTicker
             END) as decreasedEtfCount,
             IFNULL((
@@ -170,15 +173,15 @@ interface EtfDao {
      * 전체 신규 편입 종목
      */
     @Query("""
-        SELECT 
+        SELECT
             curr.stockTicker,
             curr.stockName,
             curr.etfTicker,
             e.name as etfName,
             0.0 as previousWeight,
-            curr.weight as currentWeight,
-            curr.weight as change,
-            curr.amount as currentAmount
+            CAST(curr.weightBps AS REAL) / 10000.0 as currentWeight,
+            CAST(curr.weightBps AS REAL) / 10000.0 as change,
+            CAST(curr.amountMillion AS REAL) * 1000000.0 as currentAmount
         FROM holdings curr
         INNER JOIN etfs e ON curr.etfTicker = e.ticker
         WHERE curr.date = :currentDate
@@ -188,7 +191,7 @@ interface EtfDao {
             AND prev.etfTicker = curr.etfTicker
             AND prev.date = :previousDate
         )
-        ORDER BY curr.amount DESC
+        ORDER BY curr.amountMillion DESC
     """)
     suspend fun getAllNewStocks(currentDate: String, previousDate: String): List<StockChangeInfo>
 
@@ -196,14 +199,14 @@ interface EtfDao {
      * 전체 제외 종목
      */
     @Query("""
-        SELECT 
+        SELECT
             prev.stockTicker,
             prev.stockName,
             prev.etfTicker,
             e.name as etfName,
-            prev.weight as previousWeight,
+            CAST(prev.weightBps AS REAL) / 10000.0 as previousWeight,
             0.0 as currentWeight,
-            -prev.weight as change,
+            -CAST(prev.weightBps AS REAL) / 10000.0 as change,
             0.0 as currentAmount
         FROM holdings prev
         INNER JOIN etfs e ON prev.etfTicker = e.ticker
@@ -214,7 +217,7 @@ interface EtfDao {
             AND curr.etfTicker = prev.etfTicker
             AND curr.date = :currentDate
         )
-        ORDER BY prev.amount DESC
+        ORDER BY prev.amountMillion DESC
     """)
     suspend fun getAllRemovedStocks(currentDate: String, previousDate: String): List<StockChangeInfo>
 
@@ -222,24 +225,24 @@ interface EtfDao {
      * 전체 비중 증가 종목
      */
     @Query("""
-        SELECT 
+        SELECT
             curr.stockTicker,
             curr.stockName,
             curr.etfTicker,
             e.name as etfName,
-            prev.weight as previousWeight,
-            curr.weight as currentWeight,
-            (curr.weight - prev.weight) as change,
-            curr.amount as currentAmount
+            CAST(prev.weightBps AS REAL) / 10000.0 as previousWeight,
+            CAST(curr.weightBps AS REAL) / 10000.0 as currentWeight,
+            (CAST(curr.weightBps AS REAL) - CAST(prev.weightBps AS REAL)) / 10000.0 as change,
+            CAST(curr.amountMillion AS REAL) * 1000000.0 as currentAmount
         FROM holdings curr
-        INNER JOIN holdings prev 
-            ON curr.stockTicker = prev.stockTicker 
+        INNER JOIN holdings prev
+            ON curr.stockTicker = prev.stockTicker
             AND curr.etfTicker = prev.etfTicker
         INNER JOIN etfs e ON curr.etfTicker = e.ticker
         WHERE curr.date = :currentDate
         AND prev.date = :previousDate
-        AND curr.weight > prev.weight + 0.01
-        ORDER BY (curr.weight - prev.weight) DESC
+        AND curr.weightBps > prev.weightBps + 100
+        ORDER BY (curr.weightBps - prev.weightBps) DESC
     """)
     suspend fun getAllIncreasedStocks(currentDate: String, previousDate: String): List<StockChangeInfo>
 
@@ -269,34 +272,34 @@ interface EtfDao {
      * 전체 비중 감소 종목
      */
     @Query("""
-    SELECT 
-        curr.stockTicker,
-        curr.stockName,
-        curr.etfTicker,
-        e.name as etfName,
-        prev.weight as previousWeight,
-        curr.weight as currentWeight,
-        (curr.weight - prev.weight) as change,
-        curr.amount as currentAmount
-    FROM holdings curr
-    INNER JOIN holdings prev 
-        ON curr.stockTicker = prev.stockTicker 
-        AND curr.etfTicker = prev.etfTicker
-    INNER JOIN etfs e ON curr.etfTicker = e.ticker
-    WHERE curr.date = :currentDate
-    AND prev.date = :previousDate
-    AND curr.weight < prev.weight - 0.01
-    ORDER BY (curr.weight - prev.weight) ASC
-""")
+        SELECT
+            curr.stockTicker,
+            curr.stockName,
+            curr.etfTicker,
+            e.name as etfName,
+            CAST(prev.weightBps AS REAL) / 10000.0 as previousWeight,
+            CAST(curr.weightBps AS REAL) / 10000.0 as currentWeight,
+            (CAST(curr.weightBps AS REAL) - CAST(prev.weightBps AS REAL)) / 10000.0 as change,
+            CAST(curr.amountMillion AS REAL) * 1000000.0 as currentAmount
+        FROM holdings curr
+        INNER JOIN holdings prev
+            ON curr.stockTicker = prev.stockTicker
+            AND curr.etfTicker = prev.etfTicker
+        INNER JOIN etfs e ON curr.etfTicker = e.ticker
+        WHERE curr.date = :currentDate
+        AND prev.date = :previousDate
+        AND curr.weightBps < prev.weightBps - 100
+        ORDER BY (curr.weightBps - prev.weightBps) ASC
+    """)
     suspend fun getAllDecreasedStocks(currentDate: String, previousDate: String): List<StockChangeInfo>
 
     /**
      * 원화예금 추이 (모든 ETF 합계)
      */
     @Query("""
-        SELECT 
+        SELECT
             date,
-            SUM(amount) as totalAmount,
+            SUM(CAST(amountMillion AS REAL) * 1000000.0) as totalAmount,
             COUNT(DISTINCT etfTicker) as etfCount
         FROM holdings
         WHERE stockName LIKE '%원화예금%' OR stockName LIKE '%cash%'
@@ -309,12 +312,12 @@ interface EtfDao {
      * 특정 종목의 전체 ETF 통합 추이
      */
     @Query("""
-        SELECT 
+        SELECT
             date,
-            SUM(amount) as totalAmount,
+            SUM(CAST(amountMillion AS REAL) * 1000000.0) as totalAmount,
             COUNT(DISTINCT etfTicker) as etfCount,
-            MAX(weight) as maxWeight,
-            AVG(weight) as avgWeight
+            MAX(CAST(weightBps AS REAL) / 10000.0) as maxWeight,
+            AVG(CAST(weightBps AS REAL) / 10000.0) as avgWeight
         FROM holdings
         WHERE stockTicker = :stockTicker
         GROUP BY date
@@ -354,12 +357,12 @@ interface EtfDao {
         SELECT
             h.etfTicker,
             e.name as etfName,
-            h.weight,
-            h.amount
+            CAST(h.weightBps AS REAL) / 10000.0 as weight,
+            CAST(h.amountMillion AS REAL) * 1000000.0 as amount
         FROM holdings h
         INNER JOIN etfs e ON h.etfTicker = e.ticker
         WHERE h.stockTicker = :stockTicker AND h.date = :date
-        ORDER BY h.amount DESC
+        ORDER BY h.amountMillion DESC
     """)
     suspend fun getStockHoldingsByDate(stockTicker: String, date: String): List<StockHoldingByEtf>
 
