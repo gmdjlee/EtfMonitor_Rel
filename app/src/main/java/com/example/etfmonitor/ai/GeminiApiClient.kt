@@ -36,7 +36,7 @@ class GeminiApiClient @Inject constructor(
         private const val TAG = "GeminiApiClient"
         private const val API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val MODELS_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-        private const val MODEL = "gemini-1.5-flash" // Default model (v1beta compatible)
+        private const val MODEL = "gemini-2.0-flash-exp" // Default model - Gemini 2.0 Flash (experimental)
         private const val MAX_OUTPUT_TOKENS = 2048
         private const val TIMEOUT_SECONDS = 60L
     }
@@ -278,8 +278,8 @@ class GeminiApiClient @Inject constructor(
             apiKeyProvider.setSelectedModel(AIProvider.GEMINI, fixedModel)
         }
 
-        // 유효한 모델명 패턴 검증 (gemini-x.x-xxx 형식)
-        val validPattern = "^gemini-[0-9]+(\\.[0-9]+)?-[a-z]+(-[a-z]+)?$".toRegex()
+        // 유효한 모델명 패턴 검증 (gemini-x.x-xxx 형식, -exp 접미사 허용)
+        val validPattern = "^gemini-[0-9]+(\\.[0-9]+)?-[a-z]+(-[a-z]+)?(-exp)?$".toRegex()
         if (!validPattern.matches(fixedModel)) {
             Log.w(TAG, "Invalid model name format: '$fixedModel', using default: $MODEL")
             fixedModel = MODEL

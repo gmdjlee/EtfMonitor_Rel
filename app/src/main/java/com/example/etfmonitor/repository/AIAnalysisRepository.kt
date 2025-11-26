@@ -49,7 +49,12 @@ class AIAnalysisRepository @Inject constructor(
 
             // 1. 데이터 수집
             val analysisData = collectAnalysisData(market, date)
-                ?: return@withContext Result.failure(Exception("$date 날짜의 데이터를 찾을 수 없습니다"))
+            if (analysisData == null) {
+                Log.e(TAG, "Failed to collect analysis data for $market on $date")
+                return@withContext Result.failure(
+                    Exception("$date 날짜의 데이터를 찾을 수 없습니다.\n\n시장 지수 또는 ETF 통계 데이터가 누락되었습니다.\n홈 화면에서 데이터를 수집해주세요.")
+                )
+            }
 
             // 2. 프롬프트 생성
             val prompt = when (analysisType) {
@@ -94,10 +99,19 @@ class AIAnalysisRepository @Inject constructor(
      */
     suspend fun analyzeLatestMarket(market: String): Result<AIAnalysisResponse> = withContext(Dispatchers.IO) {
         try {
+            Log.d(TAG, "Analyzing latest market data for: $market")
+
             // 최신 날짜 조회
             val latestDate = dailyEtfStatisticsDao.getLatestDate()
-                ?: return@withContext Result.failure(Exception("데이터가 없습니다"))
 
+            if (latestDate == null) {
+                Log.e(TAG, "No ETF statistics data found in database")
+                return@withContext Result.failure(
+                    Exception("데이터가 없습니다.\n\n홈 화면에서 'ETF 데이터 수집'을 먼저 실행해주세요.")
+                )
+            }
+
+            Log.d(TAG, "Latest date found: $latestDate")
             analyzeMarket(market, latestDate)
         } catch (e: Exception) {
             Log.e(TAG, "Latest market analysis error", e)
@@ -113,13 +127,23 @@ class AIAnalysisRepository @Inject constructor(
         date: String
     ): MarketAnalysisData? = withContext(Dispatchers.IO) {
         try {
+            Log.d(TAG, "Collecting analysis data for market=$market, date=$date")
+
             // 시장 지수
             val marketIndex = marketIndexDao.getByMarketAndDate(market, date)
-                ?: return@withContext null
+            if (marketIndex == null) {
+                Log.e(TAG, "Market index not found for $market on $date")
+                return@withContext null
+            }
+            Log.d(TAG, "Market index found: closePrice=${marketIndex.closePrice}, changeRate=${marketIndex.changeRate}")
 
             // ETF 통계
             val etfStats = dailyEtfStatisticsDao.getByDate(date)
-                ?: return@withContext null
+            if (etfStats == null) {
+                Log.e(TAG, "ETF statistics not found for $date")
+                return@withContext null
+            }
+            Log.d(TAG, "ETF stats found: newStocks=${etfStats.newStockCount}, removed=${etfStats.removedStockCount}")
 
             // Fear & Greed (optional)
             val fearGreed = try {
