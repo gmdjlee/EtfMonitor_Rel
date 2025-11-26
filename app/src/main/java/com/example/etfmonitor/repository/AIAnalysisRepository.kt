@@ -14,11 +14,11 @@ import javax.inject.Singleton
 
 /**
  * AI 분석 Repository
- * Claude API를 활용한 시장 분석 및 신호 생성
+ * AI API (Claude, Gemini 등)를 활용한 시장 분석 및 신호 생성
  */
 @Singleton
 class AIAnalysisRepository @Inject constructor(
-    private val claudeApiClient: ClaudeApiClient,
+    private val aiApiClientFactory: AIApiClientFactory,
     private val marketIndexDao: MarketIndexDao,
     private val dailyEtfStatisticsDao: DailyEtfStatisticsDao,
     private val fearGreedDao: FearGreedDao,
@@ -28,6 +28,11 @@ class AIAnalysisRepository @Inject constructor(
     companion object {
         private const val TAG = "AIAnalysisRepository"
     }
+
+    /**
+     * 현재 선택된 AI 클라이언트
+     */
+    private fun getClient(): AIApiClient = aiApiClientFactory.getClient()
 
     /**
      * 종합 시장 분석 수행
@@ -55,7 +60,7 @@ class AIAnalysisRepository @Inject constructor(
             }
 
             // 3. AI 분석 수행
-            val signalResult = claudeApiClient.analyzeMarket(prompt)
+            val signalResult = getClient().analyzeMarket(prompt)
             if (signalResult.isFailure) {
                 return@withContext Result.failure(signalResult.exceptionOrNull()
                     ?: Exception("AI 분석 실패"))
@@ -176,28 +181,31 @@ class AIAnalysisRepository @Inject constructor(
     }
 
     /**
-     * API 키 설정
-     */
-    fun setApiKey(apiKey: String) {
-        // ApiKeyProvider를 통해 설정
-        if (claudeApiClient is ClaudeApiClient) {
-            // SharedPreferencesApiKeyProvider로 저장
-            // 실제 구현은 DI에서 처리
-        }
-    }
-
-    /**
      * API 사용 가능 여부 확인
      */
     suspend fun isApiAvailable(): Boolean {
-        return claudeApiClient.isApiAvailable()
+        return getClient().isApiAvailable()
     }
 
     /**
      * API 키 테스트
      */
     suspend fun testApiConnection(): Result<Boolean> {
-        return claudeApiClient.testApiKey()
+        return getClient().testApiKey()
+    }
+
+    /**
+     * 현재 선택된 AI 제공자
+     */
+    fun getSelectedProvider(): AIProvider {
+        return aiApiClientFactory.getClient().provider
+    }
+
+    /**
+     * 사용 가능한 모든 AI 제공자 목록
+     */
+    fun getAvailableProviders(): List<AIProvider> {
+        return aiApiClientFactory.getAvailableProviders()
     }
 
     /**
@@ -212,7 +220,7 @@ class AIAnalysisRepository @Inject constructor(
                 ?: return@withContext Result.failure(Exception("데이터 없음"))
 
             val prompt = MarketAnalysisPrompts.createQuickSignalPrompt(analysisData)
-            claudeApiClient.analyzeMarket(prompt, temperature = 0.3) // 낮은 temperature로 일관성 향상
+            getClient().analyzeMarket(prompt, temperature = 0.3) // 낮은 temperature로 일관성 향상
         } catch (e: Exception) {
             Log.e(TAG, "Quick signal generation error", e)
             Result.failure(e)
