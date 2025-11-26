@@ -36,7 +36,7 @@ class GeminiApiClient @Inject constructor(
         private const val TAG = "GeminiApiClient"
         private const val API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val MODELS_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-        private const val MODEL = "gemini-1.5-flash-latest" // Updated model name
+        private const val MODEL = "gemini-2.0-flash-exp" // Default model - Gemini 2.0 Flash (experimental)
         private const val MAX_OUTPUT_TOKENS = 2048
         private const val TIMEOUT_SECONDS = 60L
     }
@@ -67,7 +67,12 @@ class GeminiApiClient @Inject constructor(
             }
 
             // 선택된 모델 가져오기 (없으면 기본 모델 사용)
-            val model = apiKeyProvider.getSelectedModel(AIProvider.GEMINI) ?: MODEL
+            var model = apiKeyProvider.getSelectedModel(AIProvider.GEMINI) ?: MODEL
+            Log.d(TAG, "Retrieved model from settings: $model")
+
+            // 잘못된 모델명 검증 및 수정
+            model = validateAndFixModelName(model)
+            Log.d(TAG, "Validated model name: $model")
 
             Log.d(TAG, "Analyzing market with Gemini API using model: $model")
 
@@ -108,6 +113,7 @@ class GeminiApiClient @Inject constructor(
         }
 
         val url = "$API_BASE_URL/$model:generateContent?key=$apiKey"
+        Log.d(TAG, "Calling Gemini API with URL: $API_BASE_URL/$model:generateContent")
 
         val request = Request.Builder()
             .url(url)
@@ -118,8 +124,8 @@ class GeminiApiClient @Inject constructor(
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string() ?: "Unknown error"
-                Log.e(TAG, "API call failed: ${response.code} - $errorBody")
-                throw Exception("Gemini API 호출 실패: ${response.code} - $errorBody")
+                Log.e(TAG, "API call failed for model '$model': ${response.code} - $errorBody")
+                throw Exception("Gemini API 호출 실패 (모델: $model): ${response.code} - $errorBody")
             }
 
             val responseBody = response.body?.string()
@@ -249,6 +255,41 @@ class GeminiApiClient @Inject constructor(
     }
 
     /**
+     * 모델명 검증 및 수정
+     * - 공백이나 잘못된 문자 처리
+     * - '-latest' 접미사 제거
+     * - 잘못된 모델명을 기본값으로 대체
+     */
+    private fun validateAndFixModelName(modelName: String): String {
+        var fixedModel = modelName.trim()
+
+        // 공백이 포함된 경우 (예: "gemini 2.5 pro")
+        if (fixedModel.contains(" ")) {
+            Log.w(TAG, "Invalid model name with spaces: '$fixedModel'")
+            fixedModel = MODEL
+            apiKeyProvider.setSelectedModel(AIProvider.GEMINI, MODEL)
+            return fixedModel
+        }
+
+        // -latest 접미사 제거 (v1beta에서 지원 안됨)
+        if (fixedModel.endsWith("-latest")) {
+            Log.w(TAG, "Model name with '-latest' suffix: $fixedModel, removing suffix")
+            fixedModel = fixedModel.removeSuffix("-latest")
+            apiKeyProvider.setSelectedModel(AIProvider.GEMINI, fixedModel)
+        }
+
+        // 유효한 모델명 패턴 검증 (gemini-x.x-xxx 형식, -exp 접미사 허용)
+        val validPattern = "^gemini-[0-9]+(\\.[0-9]+)?-[a-z]+(-[a-z]+)?(-exp)?$".toRegex()
+        if (!validPattern.matches(fixedModel)) {
+            Log.w(TAG, "Invalid model name format: '$fixedModel', using default: $MODEL")
+            fixedModel = MODEL
+            apiKeyProvider.setSelectedModel(AIProvider.GEMINI, MODEL)
+        }
+
+        return fixedModel
+    }
+
+    /**
      * API 사용 가능 여부 확인
      */
     override suspend fun isApiAvailable(): Boolean = withContext(Dispatchers.IO) {
@@ -316,12 +357,16 @@ class GeminiApiClient @Inject constructor(
                         if (supportedGenerationMethods?.any {
                             it.jsonPrimitive.content == "generateContent"
                         } != true) {
+                            Log.d(TAG, "Skipping model $modelId (doesn't support generateContent)")
                             return@mapNotNull null
                         }
 
+                        val displayName = modelObj["displayName"]?.jsonPrimitive?.content ?: modelId
+                        Log.d(TAG, "Found model - ID: $modelId, Name: $displayName")
+
                         AIModel(
                             id = modelId,
-                            name = modelObj["displayName"]?.jsonPrimitive?.content ?: modelId,
+                            name = displayName,
                             provider = AIProvider.GEMINI,
                             description = modelObj["description"]?.jsonPrimitive?.content,
                             contextWindow = modelObj["inputTokenLimit"]?.jsonPrimitive?.content?.toIntOrNull(),
@@ -329,6 +374,7 @@ class GeminiApiClient @Inject constructor(
                         )
                     }
 
+                    Log.d(TAG, "Successfully loaded ${models.size} Gemini models")
                     Result.success(models)
                 }
             }

@@ -1,6 +1,7 @@
 package com.etfmonitor.ui.screens.settings
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.ai.AIProvider
@@ -96,6 +97,10 @@ class SettingsViewModel @Inject constructor(
     private val themeManager: ThemeManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "SettingsViewModel"
+    }
 
     private val _themes = MutableStateFlow<List<String>>(emptyList())
     val themes: StateFlow<List<String>> = _themes.asStateFlow()
@@ -1366,10 +1371,13 @@ class SettingsViewModel @Inject constructor(
     fun setGeminiModel(modelId: String) {
         viewModelScope.launch {
             try {
+                Log.d(TAG, "Setting Gemini model: $modelId")
                 apiKeyProvider.setSelectedModel(AIProvider.GEMINI, modelId)
                 _selectedGeminiModel.value = modelId
-                _message.value = "Gemini 모델이 선택되었습니다"
+                _message.value = "Gemini 모델이 선택되었습니다: $modelId"
+                Log.d(TAG, "Gemini model saved successfully")
             } catch (e: Exception) {
+                Log.e(TAG, "Failed to set Gemini model", e)
                 _message.value = "모델 선택 실패: ${e.message}"
             }
         }
