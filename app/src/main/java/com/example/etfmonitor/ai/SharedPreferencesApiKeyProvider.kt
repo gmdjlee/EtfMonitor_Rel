@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * SharedPreferences 기반 API 키 제공자
@@ -11,20 +13,19 @@ import androidx.security.crypto.MasterKey
  * EncryptedSharedPreferences를 사용하여 API 키를 안전하게 저장
  * Android Keystore를 통해 암호화 키 관리
  */
-class SharedPreferencesApiKeyProvider(
+@Singleton
+class SharedPreferencesApiKeyProvider @Inject constructor(
     context: Context
 ) : ApiKeyProvider {
 
-    private val sharedPreferences: SharedPreferences
-
-    init {
+    private val sharedPreferences: SharedPreferences = run {
         // MasterKey 생성 (Android Keystore 기반)
         val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
 
         // EncryptedSharedPreferences 생성
-        sharedPreferences = EncryptedSharedPreferences.create(
+        EncryptedSharedPreferences.create(
             context,
             PREFS_NAME,
             masterKey,

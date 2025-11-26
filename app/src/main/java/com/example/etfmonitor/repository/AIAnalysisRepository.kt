@@ -132,7 +132,7 @@ class AIAnalysisRepository @Inject constructor(
 
             // 고객예탁금 (optional)
             val marketDeposit = try {
-                marketDepositDao.getByDate(date)
+                marketDepositDao.getDepositByDate(date)
             } catch (e: Exception) {
                 null
             }

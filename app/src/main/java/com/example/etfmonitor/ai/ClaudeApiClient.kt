@@ -252,33 +252,3 @@ class ClaudeApiClient @Inject constructor(
         }
     }
 }
-
-/**
- * API 키 제공자 인터페이스
- */
-interface ApiKeyProvider {
-    fun getApiKey(): String?
-    fun setApiKey(key: String)
-}
-
-/**
- * SharedPreferences 기반 API 키 제공자
- */
-class SharedPreferencesApiKeyProvider @Inject constructor(
-    private val context: android.content.Context
-) : ApiKeyProvider {
-    companion object {
-        private const val PREFS_NAME = "claude_api_prefs"
-        private const val KEY_API_KEY = "api_key"
-    }
-
-    private val prefs = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
-
-    override fun getApiKey(): String? {
-        return prefs.getString(KEY_API_KEY, null)
-    }
-
-    override fun setApiKey(key: String) {
-        prefs.edit().putString(KEY_API_KEY, key).apply()
-    }
-}
