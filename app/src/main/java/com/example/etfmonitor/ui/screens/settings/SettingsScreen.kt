@@ -308,6 +308,13 @@ private fun GeneralTab(
     val isGeminiConfigured by viewModel.isGeminiApiKeyConfigured.collectAsState()
     val apiKeyTestState by viewModel.apiKeyTestState.collectAsState()
 
+    val claudeModels by viewModel.claudeModels.collectAsState()
+    val geminiModels by viewModel.geminiModels.collectAsState()
+    val selectedClaudeModel by viewModel.selectedClaudeModel.collectAsState()
+    val selectedGeminiModel by viewModel.selectedGeminiModel.collectAsState()
+    val isLoadingClaudeModels by viewModel.isLoadingClaudeModels.collectAsState()
+    val isLoadingGeminiModels by viewModel.isLoadingGeminiModels.collectAsState()
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -328,13 +335,23 @@ private fun GeneralTab(
                 isClaudeConfigured = isClaudeConfigured,
                 isGeminiConfigured = isGeminiConfigured,
                 testState = apiKeyTestState,
+                claudeModels = claudeModels,
+                geminiModels = geminiModels,
+                selectedClaudeModel = selectedClaudeModel,
+                selectedGeminiModel = selectedGeminiModel,
+                isLoadingClaudeModels = isLoadingClaudeModels,
+                isLoadingGeminiModels = isLoadingGeminiModels,
                 onProviderSelected = { viewModel.setSelectedProvider(it) },
                 onSetClaudeApiKey = { viewModel.setClaudeApiKey(it) },
                 onSetGeminiApiKey = { viewModel.setGeminiApiKey(it) },
                 onClearClaudeApiKey = { viewModel.clearClaudeApiKey() },
                 onClearGeminiApiKey = { viewModel.clearGeminiApiKey() },
                 onTestConnection = { viewModel.testApiConnection() },
-                onClearTestState = { viewModel.clearApiTestState() }
+                onClearTestState = { viewModel.clearApiTestState() },
+                onLoadClaudeModels = { viewModel.loadClaudeModels() },
+                onLoadGeminiModels = { viewModel.loadGeminiModels() },
+                onSelectClaudeModel = { viewModel.setClaudeModel(it) },
+                onSelectGeminiModel = { viewModel.setGeminiModel(it) }
             )
         }
 
@@ -1122,17 +1139,29 @@ private fun AIApiKeyCard(
     isClaudeConfigured: Boolean,
     isGeminiConfigured: Boolean,
     testState: ApiKeyTestState,
+    claudeModels: List<com.etfmonitor.ai.AIModel>,
+    geminiModels: List<com.etfmonitor.ai.AIModel>,
+    selectedClaudeModel: String?,
+    selectedGeminiModel: String?,
+    isLoadingClaudeModels: Boolean,
+    isLoadingGeminiModels: Boolean,
     onProviderSelected: (com.etfmonitor.ai.AIProvider) -> Unit,
     onSetClaudeApiKey: (String) -> Unit,
     onSetGeminiApiKey: (String) -> Unit,
     onClearClaudeApiKey: () -> Unit,
     onClearGeminiApiKey: () -> Unit,
     onTestConnection: () -> Unit,
-    onClearTestState: () -> Unit
+    onClearTestState: () -> Unit,
+    onLoadClaudeModels: () -> Unit,
+    onLoadGeminiModels: () -> Unit,
+    onSelectClaudeModel: (String) -> Unit,
+    onSelectGeminiModel: (String) -> Unit
 ) {
     var showClaudeDialog by remember { mutableStateOf(false) }
     var showGeminiDialog by remember { mutableStateOf(false) }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
+    var expandedClaudeModels by remember { mutableStateOf(false) }
+    var expandedGeminiModels by remember { mutableStateOf(false) }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -1344,6 +1373,39 @@ private fun AIApiKeyCard(
                     }
                 }
                 else -> {}
+            }
+
+            // 모델 선택 (API 키가 설정된 경우에만 표시)
+            if (currentIsConfigured) {
+                HorizontalDivider()
+
+                // 현재 선택된 제공자에 따라 모델 선택 UI 표시
+                when (selectedProvider) {
+                    com.etfmonitor.ai.AIProvider.CLAUDE -> {
+                        ModelSelectionSection(
+                            providerName = "Claude",
+                            models = claudeModels,
+                            selectedModel = selectedClaudeModel,
+                            isLoading = isLoadingClaudeModels,
+                            expanded = expandedClaudeModels,
+                            onExpandChanged = { expandedClaudeModels = it },
+                            onLoadModels = onLoadClaudeModels,
+                            onSelectModel = onSelectClaudeModel
+                        )
+                    }
+                    com.etfmonitor.ai.AIProvider.GEMINI -> {
+                        ModelSelectionSection(
+                            providerName = "Gemini",
+                            models = geminiModels,
+                            selectedModel = selectedGeminiModel,
+                            isLoading = isLoadingGeminiModels,
+                            expanded = expandedGeminiModels,
+                            onExpandChanged = { expandedGeminiModels = it },
+                            onLoadModels = onLoadGeminiModels,
+                            onSelectModel = onSelectGeminiModel
+                        )
+                    }
+                }
             }
 
             // 버튼
@@ -3209,4 +3271,144 @@ private fun TimePickerDialog(
             }
         }
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ModelSelectionSection(
+    providerName: String,
+    models: List<com.etfmonitor.ai.AIModel>,
+    selectedModel: String?,
+    isLoading: Boolean,
+    expanded: Boolean,
+    onExpandChanged: (Boolean) -> Unit,
+    onLoadModels: () -> Unit,
+    onSelectModel: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "$providerName 모델 선택",
+            style = MaterialTheme.typography.labelLarge
+        )
+
+        // 모델 목록이 비어있으면 로드 버튼 표시
+        if (models.isEmpty() && !isLoading) {
+            OutlinedButton(
+                onClick = onLoadModels,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Refresh, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("사용 가능한 모델 불러오기")
+            }
+        }
+
+        // 로딩 중일 때
+        if (isLoading) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("모델 목록 불러오는 중...", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        // 모델 목록이 있을 때 드롭다운 표시
+        if (models.isNotEmpty()) {
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = onExpandChanged
+            ) {
+                OutlinedTextField(
+                    value = selectedModel?.let { modelId ->
+                        models.find { it.id == modelId }?.displayName() ?: modelId
+                    } ?: "모델을 선택하세요",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("선택된 모델") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { onExpandChanged(false) }
+                ) {
+                    models.forEach { model ->
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(
+                                        model.displayName(),
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    if (model.description != null) {
+                                        Text(
+                                            model.description,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    if (model.contextWindow != null || model.maxOutputTokens != null) {
+                                        Text(
+                                            buildString {
+                                                if (model.contextWindow != null) {
+                                                    append("입력: ${model.contextWindow}")
+                                                }
+                                                if (model.maxOutputTokens != null) {
+                                                    if (model.contextWindow != null) append(" | ")
+                                                    append("출력: ${model.maxOutputTokens}")
+                                                }
+                                                append(" 토큰")
+                                            },
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
+                                }
+                            },
+                            onClick = {
+                                onSelectModel(model.id)
+                                onExpandChanged(false)
+                            },
+                            leadingIcon = if (selectedModel == model.id) {
+                                {
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            } else null
+                        )
+                    }
+                }
+            }
+
+            // 새로고침 버튼
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(
+                    onClick = onLoadModels,
+                    enabled = !isLoading
+                ) {
+                    Icon(Icons.Default.Refresh, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("새로고침", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
 }
