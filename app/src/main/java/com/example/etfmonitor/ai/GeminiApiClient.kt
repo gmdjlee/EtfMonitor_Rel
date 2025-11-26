@@ -36,7 +36,7 @@ class GeminiApiClient @Inject constructor(
         private const val TAG = "GeminiApiClient"
         private const val API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val MODELS_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-        private const val MODEL = "gemini-1.5-flash-latest" // Updated model name
+        private const val MODEL = "gemini-1.5-flash" // Default model (v1beta compatible)
         private const val MAX_OUTPUT_TOKENS = 2048
         private const val TIMEOUT_SECONDS = 60L
     }
@@ -67,7 +67,15 @@ class GeminiApiClient @Inject constructor(
             }
 
             // 선택된 모델 가져오기 (없으면 기본 모델 사용)
-            val model = apiKeyProvider.getSelectedModel(AIProvider.GEMINI) ?: MODEL
+            var model = apiKeyProvider.getSelectedModel(AIProvider.GEMINI) ?: MODEL
+
+            // 잘못된 모델명 처리 (-latest 접미사는 v1beta에서 지원 안됨)
+            if (model.endsWith("-latest")) {
+                Log.w(TAG, "Invalid model name detected: $model, using default: $MODEL")
+                model = MODEL
+                // 잘못된 모델명을 올바른 기본값으로 업데이트
+                apiKeyProvider.setSelectedModel(AIProvider.GEMINI, MODEL)
+            }
 
             Log.d(TAG, "Analyzing market with Gemini API using model: $model")
 
