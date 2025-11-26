@@ -3,6 +3,7 @@ package com.etfmonitor.ui.screens.settings
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etfmonitor.ai.AIProvider
 import com.etfmonitor.ai.ApiKeyProvider
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.entities.Setting
@@ -137,12 +138,26 @@ class SettingsViewModel @Inject constructor(
     private val _chartColorSettings = MutableStateFlow(ChartColorSettings())
     val chartColorSettings: StateFlow<ChartColorSettings> = _chartColorSettings.asStateFlow()
 
-    // Claude API 키 설정
-    private val _isApiKeyConfigured = MutableStateFlow(false)
-    val isApiKeyConfigured: StateFlow<Boolean> = _isApiKeyConfigured.asStateFlow()
+    // AI API 키 설정
+    private val _selectedProvider = MutableStateFlow(AIProvider.CLAUDE)
+    val selectedProvider: StateFlow<AIProvider> = _selectedProvider.asStateFlow()
+
+    private val _isClaudeApiKeyConfigured = MutableStateFlow(false)
+    val isClaudeApiKeyConfigured: StateFlow<Boolean> = _isClaudeApiKeyConfigured.asStateFlow()
+
+    private val _isGeminiApiKeyConfigured = MutableStateFlow(false)
+    val isGeminiApiKeyConfigured: StateFlow<Boolean> = _isGeminiApiKeyConfigured.asStateFlow()
 
     private val _apiKeyTestState = MutableStateFlow<ApiKeyTestState>(ApiKeyTestState.Idle)
     val apiKeyTestState: StateFlow<ApiKeyTestState> = _apiKeyTestState.asStateFlow()
+
+    // 하위 호환성을 위한 deprecated 프로퍼티
+    @Deprecated("Use isClaudeApiKeyConfigured or isGeminiApiKeyConfigured")
+    val isApiKeyConfigured: StateFlow<Boolean>
+        get() = when (_selectedProvider.value) {
+            AIProvider.CLAUDE -> _isClaudeApiKeyConfigured
+            AIProvider.GEMINI -> _isGeminiApiKeyConfigured
+        }
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
@@ -1107,21 +1122,38 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    // ==================== Claude API 키 관리 ====================
+    // ==================== AI API 키 관리 ====================
 
     /**
      * API 키 설정 여부 확인
      */
     private fun checkApiKeyStatus() {
         viewModelScope.launch {
-            _isApiKeyConfigured.value = aiAnalysisRepository.isApiAvailable()
+            _selectedProvider.value = apiKeyProvider.getSelectedProvider()
+            _isClaudeApiKeyConfigured.value = apiKeyProvider.hasApiKey(AIProvider.CLAUDE)
+            _isGeminiApiKeyConfigured.value = apiKeyProvider.hasApiKey(AIProvider.GEMINI)
         }
     }
 
     /**
-     * API 키 설정
+     * AI 프로바이더 선택
      */
-    fun setApiKey(apiKey: String) {
+    fun setSelectedProvider(provider: AIProvider) {
+        viewModelScope.launch {
+            try {
+                apiKeyProvider.setSelectedProvider(provider)
+                _selectedProvider.value = provider
+                _message.value = "${provider.toDisplayName()}이(가) 선택되었습니다"
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * Claude API 키 설정
+     */
+    fun setClaudeApiKey(apiKey: String) {
         viewModelScope.launch {
             try {
                 if (apiKey.isBlank()) {
@@ -1129,9 +1161,9 @@ class SettingsViewModel @Inject constructor(
                     return@launch
                 }
 
-                apiKeyProvider.setApiKey(apiKey)
-                _isApiKeyConfigured.value = true
-                _message.value = "API 키가 저장되었습니다"
+                apiKeyProvider.setApiKey(AIProvider.CLAUDE, apiKey)
+                _isClaudeApiKeyConfigured.value = true
+                _message.value = "Claude API 키가 저장되었습니다"
             } catch (e: Exception) {
                 _message.value = "API 키 저장 실패: ${e.message}"
             }
@@ -1139,18 +1171,80 @@ class SettingsViewModel @Inject constructor(
     }
 
     /**
-     * API 키 제거
+     * Gemini API 키 설정
      */
-    fun clearApiKey() {
+    fun setGeminiApiKey(apiKey: String) {
         viewModelScope.launch {
             try {
-                apiKeyProvider.removeApiKey()
-                _isApiKeyConfigured.value = false
-                _apiKeyTestState.value = ApiKeyTestState.Idle
-                _message.value = "API 키가 삭제되었습니다"
+                if (apiKey.isBlank()) {
+                    _message.value = "API 키를 입력해주세요"
+                    return@launch
+                }
+
+                apiKeyProvider.setApiKey(AIProvider.GEMINI, apiKey)
+                _isGeminiApiKeyConfigured.value = true
+                _message.value = "Gemini API 키가 저장되었습니다"
+            } catch (e: Exception) {
+                _message.value = "API 키 저장 실패: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * API 키 설정 (하위 호환성)
+     */
+    @Deprecated("Use setClaudeApiKey or setGeminiApiKey instead")
+    fun setApiKey(apiKey: String) {
+        when (_selectedProvider.value) {
+            AIProvider.CLAUDE -> setClaudeApiKey(apiKey)
+            AIProvider.GEMINI -> setGeminiApiKey(apiKey)
+        }
+    }
+
+    /**
+     * Claude API 키 제거
+     */
+    fun clearClaudeApiKey() {
+        viewModelScope.launch {
+            try {
+                apiKeyProvider.removeApiKey(AIProvider.CLAUDE)
+                _isClaudeApiKeyConfigured.value = false
+                if (_selectedProvider.value == AIProvider.CLAUDE) {
+                    _apiKeyTestState.value = ApiKeyTestState.Idle
+                }
+                _message.value = "Claude API 키가 삭제되었습니다"
             } catch (e: Exception) {
                 _message.value = "API 키 삭제 실패: ${e.message}"
             }
+        }
+    }
+
+    /**
+     * Gemini API 키 제거
+     */
+    fun clearGeminiApiKey() {
+        viewModelScope.launch {
+            try {
+                apiKeyProvider.removeApiKey(AIProvider.GEMINI)
+                _isGeminiApiKeyConfigured.value = false
+                if (_selectedProvider.value == AIProvider.GEMINI) {
+                    _apiKeyTestState.value = ApiKeyTestState.Idle
+                }
+                _message.value = "Gemini API 키가 삭제되었습니다"
+            } catch (e: Exception) {
+                _message.value = "API 키 삭제 실패: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * API 키 제거 (하위 호환성)
+     */
+    @Deprecated("Use clearClaudeApiKey or clearGeminiApiKey instead")
+    fun clearApiKey() {
+        when (_selectedProvider.value) {
+            AIProvider.CLAUDE -> clearClaudeApiKey()
+            AIProvider.GEMINI -> clearGeminiApiKey()
         }
     }
 
@@ -1165,7 +1259,7 @@ class SettingsViewModel @Inject constructor(
                 val result = aiAnalysisRepository.testApiConnection()
 
                 _apiKeyTestState.value = if (result.isSuccess) {
-                    _message.value = "API 연결 성공!"
+                    _message.value = "${_selectedProvider.value.toDisplayName()} API 연결 성공!"
                     ApiKeyTestState.Success
                 } else {
                     val errorMsg = result.exceptionOrNull()?.message ?: "연결 실패"
