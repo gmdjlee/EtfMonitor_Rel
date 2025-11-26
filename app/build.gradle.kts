@@ -138,6 +138,9 @@ dependencies {
     // OkHttp for Claude API
     implementation(libs.okhttp)
 
+    // Security - Encrypted SharedPreferences for API key storage
+    implementation(libs.androidx.security.crypto)
+
     // Hilt Dependency Injection
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
