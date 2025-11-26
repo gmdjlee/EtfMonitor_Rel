@@ -1,6 +1,7 @@
 package com.etfmonitor.ui.screens.settings
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.ai.AIProvider
@@ -96,6 +97,10 @@ class SettingsViewModel @Inject constructor(
     private val themeManager: ThemeManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "SettingsViewModel"
+    }
 
     private val _themes = MutableStateFlow<List<String>>(emptyList())
     val themes: StateFlow<List<String>> = _themes.asStateFlow()
