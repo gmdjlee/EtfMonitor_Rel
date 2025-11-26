@@ -20,7 +20,7 @@ import javax.inject.Singleton
 
 /**
  * Google Gemini API 클라이언트
- * Gemini Pro 모델을 통한 시장 분석
+ * Gemini 1.5 Flash 모델을 통한 시장 분석
  *
  * 사용 전 API 키 설정 필요:
  * - Settings에서 GEMINI_API_KEY 저장
@@ -35,7 +35,7 @@ class GeminiApiClient @Inject constructor(
     companion object {
         private const val TAG = "GeminiApiClient"
         private const val API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-        private const val MODEL = "gemini-pro"
+        private const val MODEL = "gemini-1.5-flash-latest" // Updated model name
         private const val MAX_OUTPUT_TOKENS = 2048
         private const val TIMEOUT_SECONDS = 60L
     }
