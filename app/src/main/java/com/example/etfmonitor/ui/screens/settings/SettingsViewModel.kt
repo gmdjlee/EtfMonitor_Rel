@@ -151,6 +151,25 @@ class SettingsViewModel @Inject constructor(
     private val _apiKeyTestState = MutableStateFlow<ApiKeyTestState>(ApiKeyTestState.Idle)
     val apiKeyTestState: StateFlow<ApiKeyTestState> = _apiKeyTestState.asStateFlow()
 
+    // AI 모델 목록 및 선택
+    private val _claudeModels = MutableStateFlow<List<com.etfmonitor.ai.AIModel>>(emptyList())
+    val claudeModels: StateFlow<List<com.etfmonitor.ai.AIModel>> = _claudeModels.asStateFlow()
+
+    private val _geminiModels = MutableStateFlow<List<com.etfmonitor.ai.AIModel>>(emptyList())
+    val geminiModels: StateFlow<List<com.etfmonitor.ai.AIModel>> = _geminiModels.asStateFlow()
+
+    private val _selectedClaudeModel = MutableStateFlow<String?>(null)
+    val selectedClaudeModel: StateFlow<String?> = _selectedClaudeModel.asStateFlow()
+
+    private val _selectedGeminiModel = MutableStateFlow<String?>(null)
+    val selectedGeminiModel: StateFlow<String?> = _selectedGeminiModel.asStateFlow()
+
+    private val _isLoadingClaudeModels = MutableStateFlow(false)
+    val isLoadingClaudeModels: StateFlow<Boolean> = _isLoadingClaudeModels.asStateFlow()
+
+    private val _isLoadingGeminiModels = MutableStateFlow(false)
+    val isLoadingGeminiModels: StateFlow<Boolean> = _isLoadingGeminiModels.asStateFlow()
+
     // 하위 호환성을 위한 deprecated 프로퍼티
     @Deprecated("Use isClaudeApiKeyConfigured or isGeminiApiKeyConfigured")
     val isApiKeyConfigured: StateFlow<Boolean>
@@ -1276,5 +1295,83 @@ class SettingsViewModel @Inject constructor(
      */
     fun clearApiTestState() {
         _apiKeyTestState.value = ApiKeyTestState.Idle
+    }
+
+    /**
+     * Claude 사용 가능한 모델 목록 조회
+     */
+    fun loadClaudeModels() {
+        viewModelScope.launch {
+            try {
+                _isLoadingClaudeModels.value = true
+                val result = aiAnalysisRepository.listModels(AIProvider.CLAUDE)
+
+                if (result.isSuccess) {
+                    _claudeModels.value = result.getOrNull() ?: emptyList()
+                    // 현재 선택된 모델 로드
+                    _selectedClaudeModel.value = apiKeyProvider.getSelectedModel(AIProvider.CLAUDE)
+                } else {
+                    _message.value = "Claude 모델 목록 조회 실패: ${result.exceptionOrNull()?.message}"
+                }
+            } catch (e: Exception) {
+                _message.value = "Claude 모델 목록 조회 실패: ${e.message}"
+            } finally {
+                _isLoadingClaudeModels.value = false
+            }
+        }
+    }
+
+    /**
+     * Gemini 사용 가능한 모델 목록 조회
+     */
+    fun loadGeminiModels() {
+        viewModelScope.launch {
+            try {
+                _isLoadingGeminiModels.value = true
+                val result = aiAnalysisRepository.listModels(AIProvider.GEMINI)
+
+                if (result.isSuccess) {
+                    _geminiModels.value = result.getOrNull() ?: emptyList()
+                    // 현재 선택된 모델 로드
+                    _selectedGeminiModel.value = apiKeyProvider.getSelectedModel(AIProvider.GEMINI)
+                } else {
+                    _message.value = "Gemini 모델 목록 조회 실패: ${result.exceptionOrNull()?.message}"
+                }
+            } catch (e: Exception) {
+                _message.value = "Gemini 모델 목록 조회 실패: ${e.message}"
+            } finally {
+                _isLoadingGeminiModels.value = false
+            }
+        }
+    }
+
+    /**
+     * Claude 모델 선택
+     */
+    fun setClaudeModel(modelId: String) {
+        viewModelScope.launch {
+            try {
+                apiKeyProvider.setSelectedModel(AIProvider.CLAUDE, modelId)
+                _selectedClaudeModel.value = modelId
+                _message.value = "Claude 모델이 선택되었습니다"
+            } catch (e: Exception) {
+                _message.value = "모델 선택 실패: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * Gemini 모델 선택
+     */
+    fun setGeminiModel(modelId: String) {
+        viewModelScope.launch {
+            try {
+                apiKeyProvider.setSelectedModel(AIProvider.GEMINI, modelId)
+                _selectedGeminiModel.value = modelId
+                _message.value = "Gemini 모델이 선택되었습니다"
+            } catch (e: Exception) {
+                _message.value = "모델 선택 실패: ${e.message}"
+            }
+        }
     }
 }

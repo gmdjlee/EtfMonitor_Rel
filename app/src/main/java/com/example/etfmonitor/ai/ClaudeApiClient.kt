@@ -35,6 +35,7 @@ class ClaudeApiClient @Inject constructor(
     companion object {
         private const val TAG = "ClaudeApiClient"
         private const val API_URL = "https://api.anthropic.com/v1/messages"
+        private const val MODELS_API_URL = "https://api.anthropic.com/v1/models"
         private const val MODEL = "claude-3-5-sonnet-20241022" // Latest Sonnet model
         private const val MAX_TOKENS = 2048
         private const val TIMEOUT_SECONDS = 60L
@@ -65,10 +66,13 @@ class ClaudeApiClient @Inject constructor(
                 return@withContext Result.failure(Exception("Claude API 키가 설정되지 않았습니다. 설정에서 API 키를 등록해주세요."))
             }
 
-            Log.d(TAG, "Analyzing market with Claude API...")
+            // 선택된 모델 가져오기 (없으면 기본 모델 사용)
+            val model = apiKeyProvider.getSelectedModel(AIProvider.CLAUDE) ?: MODEL
+
+            Log.d(TAG, "Analyzing market with Claude API using model: $model")
 
             withTimeout(TIMEOUT_SECONDS * 1000) {
-                val response = callClaudeApi(apiKey, prompt, temperature)
+                val response = callClaudeApi(apiKey, prompt, temperature, model)
                 val signal = parseResponse(response)
                 Result.success(signal)
             }
@@ -84,10 +88,11 @@ class ClaudeApiClient @Inject constructor(
     private suspend fun callClaudeApi(
         apiKey: String,
         prompt: String,
-        temperature: Double
+        temperature: Double,
+        model: String = MODEL
     ): String = withContext(Dispatchers.IO) {
         val requestBody = JSONObject().apply {
-            put("model", MODEL)
+            put("model", model)
             put("max_tokens", MAX_TOKENS)
             put("temperature", temperature)
             put("messages", JSONArray().apply {
@@ -251,6 +256,60 @@ class ClaudeApiClient @Inject constructor(
             Result.success(response.isNotBlank())
         } catch (e: Exception) {
             Log.e(TAG, "API key test failed", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 사용 가능한 Claude 모델 목록 조회
+     */
+    override suspend fun listModels(): Result<List<AIModel>> = withContext(Dispatchers.IO) {
+        try {
+            val apiKey = apiKeyProvider.getApiKey(AIProvider.CLAUDE)
+            if (apiKey.isNullOrBlank()) {
+                return@withContext Result.failure(Exception("Claude API 키가 설정되지 않았습니다."))
+            }
+
+            withTimeout(TIMEOUT_SECONDS * 1000) {
+                val request = Request.Builder()
+                    .url(MODELS_API_URL)
+                    .addHeader("x-api-key", apiKey)
+                    .addHeader("anthropic-version", "2023-06-01")
+                    .get()
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        val errorBody = response.body?.string() ?: "Unknown error"
+                        Log.e(TAG, "Models API call failed: ${response.code} - $errorBody")
+                        throw Exception("Claude 모델 목록 조회 실패: ${response.code}")
+                    }
+
+                    val responseBody = response.body?.string()
+                        ?: throw Exception("Empty response from Claude Models API")
+
+                    Log.d(TAG, "Models API response: ${responseBody.take(200)}...")
+
+                    val jsonResponse = json.parseToJsonElement(responseBody).jsonObject
+                    val data = jsonResponse["data"]?.jsonArray ?: throw Exception("No data in response")
+
+                    val models = data.map { modelElement ->
+                        val modelObj = modelElement.jsonObject
+                        AIModel(
+                            id = modelObj["id"]?.jsonPrimitive?.content ?: "",
+                            name = modelObj["display_name"]?.jsonPrimitive?.content ?: modelObj["id"]?.jsonPrimitive?.content ?: "",
+                            provider = AIProvider.CLAUDE,
+                            description = modelObj["description"]?.jsonPrimitive?.content,
+                            contextWindow = modelObj["context_window"]?.jsonPrimitive?.content?.toIntOrNull(),
+                            maxOutputTokens = modelObj["max_output_tokens"]?.jsonPrimitive?.content?.toIntOrNull()
+                        )
+                    }
+
+                    Result.success(models)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to list models", e)
             Result.failure(e)
         }
     }

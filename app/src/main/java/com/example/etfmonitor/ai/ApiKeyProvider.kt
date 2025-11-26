@@ -48,6 +48,26 @@ interface ApiKeyProvider {
      */
     fun setSelectedProvider(provider: AIProvider)
 
+    /**
+     * 특정 AI 제공자의 선택된 모델 ID 조회
+     * @param provider AI 제공자
+     * @return 선택된 모델 ID 또는 null (미설정 시)
+     */
+    fun getSelectedModel(provider: AIProvider): String?
+
+    /**
+     * 특정 AI 제공자의 선택된 모델 ID 설정
+     * @param provider AI 제공자
+     * @param modelId 모델 ID
+     */
+    fun setSelectedModel(provider: AIProvider, modelId: String)
+
+    /**
+     * 특정 AI 제공자의 선택된 모델 ID 삭제
+     * @param provider AI 제공자
+     */
+    fun removeSelectedModel(provider: AIProvider)
+
     // 하위 호환성을 위한 기본 메서드 (deprecated)
     @Deprecated("Use getApiKey(AIProvider) instead", ReplaceWith("getApiKey(AIProvider.CLAUDE)"))
     fun getApiKey(): String? = getApiKey(AIProvider.CLAUDE)

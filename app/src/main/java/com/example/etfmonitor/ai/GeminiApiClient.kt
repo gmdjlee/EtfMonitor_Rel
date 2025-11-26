@@ -35,6 +35,7 @@ class GeminiApiClient @Inject constructor(
     companion object {
         private const val TAG = "GeminiApiClient"
         private const val API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
+        private const val MODELS_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val MODEL = "gemini-1.5-flash-latest" // Updated model name
         private const val MAX_OUTPUT_TOKENS = 2048
         private const val TIMEOUT_SECONDS = 60L
@@ -65,10 +66,13 @@ class GeminiApiClient @Inject constructor(
                 return@withContext Result.failure(Exception("Gemini API 키가 설정되지 않았습니다. 설정에서 API 키를 등록해주세요."))
             }
 
-            Log.d(TAG, "Analyzing market with Gemini API...")
+            // 선택된 모델 가져오기 (없으면 기본 모델 사용)
+            val model = apiKeyProvider.getSelectedModel(AIProvider.GEMINI) ?: MODEL
+
+            Log.d(TAG, "Analyzing market with Gemini API using model: $model")
 
             withTimeout(TIMEOUT_SECONDS * 1000) {
-                val response = callGeminiApi(apiKey, prompt, temperature)
+                val response = callGeminiApi(apiKey, prompt, temperature, model)
                 val signal = parseResponse(response)
                 Result.success(signal)
             }
@@ -84,7 +88,8 @@ class GeminiApiClient @Inject constructor(
     private suspend fun callGeminiApi(
         apiKey: String,
         prompt: String,
-        temperature: Double
+        temperature: Double,
+        model: String = MODEL
     ): String = withContext(Dispatchers.IO) {
         val requestBody = JSONObject().apply {
             put("contents", JSONArray().apply {
@@ -102,7 +107,7 @@ class GeminiApiClient @Inject constructor(
             })
         }
 
-        val url = "$API_BASE_URL/$MODEL:generateContent?key=$apiKey"
+        val url = "$API_BASE_URL/$model:generateContent?key=$apiKey"
 
         val request = Request.Builder()
             .url(url)
@@ -262,6 +267,73 @@ class GeminiApiClient @Inject constructor(
             Result.success(response.isNotBlank())
         } catch (e: Exception) {
             Log.e(TAG, "API key test failed", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 사용 가능한 Gemini 모델 목록 조회
+     */
+    override suspend fun listModels(): Result<List<AIModel>> = withContext(Dispatchers.IO) {
+        try {
+            val apiKey = apiKeyProvider.getApiKey(AIProvider.GEMINI)
+            if (apiKey.isNullOrBlank()) {
+                return@withContext Result.failure(Exception("Gemini API 키가 설정되지 않았습니다."))
+            }
+
+            withTimeout(TIMEOUT_SECONDS * 1000) {
+                val url = "$MODELS_API_URL?key=$apiKey"
+                val request = Request.Builder()
+                    .url(url)
+                    .get()
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        val errorBody = response.body?.string() ?: "Unknown error"
+                        Log.e(TAG, "Models API call failed: ${response.code} - $errorBody")
+                        throw Exception("Gemini 모델 목록 조회 실패: ${response.code}")
+                    }
+
+                    val responseBody = response.body?.string()
+                        ?: throw Exception("Empty response from Gemini Models API")
+
+                    Log.d(TAG, "Models API response: ${responseBody.take(200)}...")
+
+                    val jsonResponse = json.parseToJsonElement(responseBody).jsonObject
+                    val modelsArray = jsonResponse["models"]?.jsonArray
+                        ?: throw Exception("No models in response")
+
+                    val models = modelsArray.mapNotNull { modelElement ->
+                        val modelObj = modelElement.jsonObject
+                        val modelName = modelObj["name"]?.jsonPrimitive?.content ?: return@mapNotNull null
+
+                        // Extract model ID from "models/gemini-pro" format
+                        val modelId = modelName.removePrefix("models/")
+
+                        // Filter to only include generative models
+                        val supportedGenerationMethods = modelObj["supportedGenerationMethods"]?.jsonArray
+                        if (supportedGenerationMethods?.any {
+                            it.jsonPrimitive.content == "generateContent"
+                        } != true) {
+                            return@mapNotNull null
+                        }
+
+                        AIModel(
+                            id = modelId,
+                            name = modelObj["displayName"]?.jsonPrimitive?.content ?: modelId,
+                            provider = AIProvider.GEMINI,
+                            description = modelObj["description"]?.jsonPrimitive?.content,
+                            contextWindow = modelObj["inputTokenLimit"]?.jsonPrimitive?.content?.toIntOrNull(),
+                            maxOutputTokens = modelObj["outputTokenLimit"]?.jsonPrimitive?.content?.toIntOrNull()
+                        )
+                    }
+
+                    Result.success(models)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to list models", e)
             Result.failure(e)
         }
     }

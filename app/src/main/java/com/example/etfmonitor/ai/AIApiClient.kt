@@ -32,4 +32,10 @@ interface AIApiClient {
      * @return 테스트 성공 시 true
      */
     suspend fun testApiKey(): Result<Boolean>
+
+    /**
+     * 사용 가능한 모델 목록 조회
+     * @return 사용 가능한 모델 목록
+     */
+    suspend fun listModels(): Result<List<AIModel>>
 }

@@ -70,8 +70,27 @@ class SharedPreferencesApiKeyProvider @Inject constructor(
             .apply()
     }
 
+    override fun getSelectedModel(provider: AIProvider): String? {
+        val key = getModelKeyForProvider(provider)
+        return sharedPreferences.getString(key, null)
+    }
+
+    override fun setSelectedModel(provider: AIProvider, modelId: String) {
+        val key = getModelKeyForProvider(provider)
+        sharedPreferences.edit()
+            .putString(key, modelId)
+            .apply()
+    }
+
+    override fun removeSelectedModel(provider: AIProvider) {
+        val key = getModelKeyForProvider(provider)
+        sharedPreferences.edit()
+            .remove(key)
+            .apply()
+    }
+
     /**
-     * AI 제공자별 키 이름 생성
+     * AI 제공자별 API 키 이름 생성
      */
     private fun getKeyForProvider(provider: AIProvider): String {
         return when (provider) {
@@ -80,10 +99,22 @@ class SharedPreferencesApiKeyProvider @Inject constructor(
         }
     }
 
+    /**
+     * AI 제공자별 모델 키 이름 생성
+     */
+    private fun getModelKeyForProvider(provider: AIProvider): String {
+        return when (provider) {
+            AIProvider.CLAUDE -> KEY_MODEL_CLAUDE
+            AIProvider.GEMINI -> KEY_MODEL_GEMINI
+        }
+    }
+
     companion object {
         private const val PREFS_NAME = "ai_api_prefs"
         private const val KEY_API_KEY_CLAUDE = "api_key_claude"
         private const val KEY_API_KEY_GEMINI = "api_key_gemini"
         private const val KEY_SELECTED_PROVIDER = "selected_provider"
+        private const val KEY_MODEL_CLAUDE = "model_claude"
+        private const val KEY_MODEL_GEMINI = "model_gemini"
     }
 }

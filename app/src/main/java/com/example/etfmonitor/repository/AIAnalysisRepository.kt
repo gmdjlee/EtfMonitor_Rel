@@ -209,6 +209,19 @@ class AIAnalysisRepository @Inject constructor(
     }
 
     /**
+     * 특정 AI 제공자의 사용 가능한 모델 목록 조회
+     */
+    suspend fun listModels(provider: AIProvider): Result<List<AIModel>> = withContext(Dispatchers.IO) {
+        try {
+            val client = aiApiClientFactory.getClient(provider)
+            client.listModels()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to list models for $provider", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
      * 빠른 신호 생성 (간소화 분석)
      */
     suspend fun generateQuickSignal(
