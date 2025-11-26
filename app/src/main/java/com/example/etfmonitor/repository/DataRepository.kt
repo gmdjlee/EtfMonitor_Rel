@@ -1,6 +1,7 @@
 package com.etfmonitor.repository
 
 import android.util.Log
+import com.etfmonitor.database.DailyEtfStatisticsDao
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.entities.*
 import com.etfmonitor.python.PyKrxClient
@@ -32,6 +33,7 @@ import javax.inject.Singleton
 @Singleton
 class DataRepository @Inject constructor(
     private val dao: EtfDao,
+    private val dailyEtfStatisticsDao: DailyEtfStatisticsDao,
     private val pyKrx: PyKrxClient
 ) {
 
@@ -527,6 +529,15 @@ class DataRepository @Inject constructor(
                     }
                 }
 
+                // ✅ 일별 ETF 통계 계산 및 저장
+                try {
+                    val dailyStats = calculateDailyStatistics(date, results)
+                    dailyEtfStatisticsDao.insert(dailyStats)
+                    Log.d(TAG, "Daily statistics saved for $date: newStocks=${dailyStats.newStockCount}, removed=${dailyStats.removedStockCount}")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to save daily statistics for $date", e)
+                }
+
                 val dateElapsed = System.currentTimeMillis() - dateStartTime
                 Log.d(TAG, "Date $date processed in ${dateElapsed}ms (${results.size} ETFs)")
 
@@ -784,6 +795,81 @@ class DataRepository @Inject constructor(
         "글로벌", "차이나", "채권", "달러", "China",
         "아시아", "미국", "일본", "금리", "금융채", "회사채"
     )
+
+    /**
+     * 일별 ETF 통계 계산
+     * Holdings 데이터를 분석하여 신규/제외/증가/감소 종목 통계 생성
+     */
+    private suspend fun calculateDailyStatistics(
+        date: String,
+        results: List<EtfProcessResult>
+    ): DailyEtfStatistics = withContext(Dispatchers.IO) {
+        var totalHoldingAmount = 0L
+        var cashDepositAmount = 0L
+        var validEtfCount = 0
+
+        // 현재 날짜의 모든 holdings 집계
+        results.forEach { result ->
+            if (result.holdings.isNotEmpty()) {
+                validEtfCount++
+                result.holdings.forEach { holding ->
+                    if (holding.stockName == "현금") {
+                        cashDepositAmount += holding.amount
+                    } else {
+                        totalHoldingAmount += holding.amount
+                    }
+                }
+            }
+        }
+
+        // 전날 데이터 조회 (비교용)
+        val previousDate = getPreviousBusinessDay(date)
+        val previousStats = if (previousDate != null) {
+            dailyEtfStatisticsDao.getByDate(previousDate)
+        } else null
+
+        // 원화예금 변화 계산
+        val cashDepositChange = if (previousStats != null) {
+            cashDepositAmount - previousStats.cashDepositAmount
+        } else 0L
+
+        val cashDepositChangeRate = if (previousStats != null && previousStats.cashDepositAmount > 0) {
+            (cashDepositChange.toDouble() / previousStats.cashDepositAmount) * 100
+        } else 0.0
+
+        // 간소화된 통계 (전일 대비 변화는 추후 개선 가능)
+        DailyEtfStatistics(
+            date = date,
+            newStockCount = 0,  // 추후 개선: 전일 대비 신규 편입 종목
+            newStockAmount = 0,
+            removedStockCount = 0,  // 추후 개선: 전일 대비 제외 종목
+            removedStockAmount = 0,
+            increasedStockCount = 0,  // 추후 개선: 전일 대비 비중 증가
+            increasedStockAmount = 0,
+            decreasedStockCount = 0,  // 추후 개선: 전일 대비 비중 감소
+            decreasedStockAmount = 0,
+            cashDepositAmount = cashDepositAmount,
+            cashDepositChange = cashDepositChange,
+            cashDepositChangeRate = cashDepositChangeRate,
+            totalEtfCount = validEtfCount,
+            totalHoldingAmount = totalHoldingAmount
+        )
+    }
+
+    /**
+     * 이전 영업일 조회 (간단 구현)
+     */
+    private suspend fun getPreviousBusinessDay(date: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val allDates = dailyEtfStatisticsDao.getAllDates()
+            val index = allDates.indexOf(date)
+            if (index > 0 && index < allDates.size) {
+                allDates[index + 1]  // Descending order이므로 +1이 이전 날짜
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     // ✅ Data class 추가
     private data class EtfProcessResult(
