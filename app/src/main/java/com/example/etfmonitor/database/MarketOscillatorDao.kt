@@ -38,6 +38,12 @@ interface MarketOscillatorDao {
     suspend fun getLatestData(market: String): MarketOscillatorData?
 
     /**
+     * 특정 시장의 특정 날짜 데이터 조회
+     */
+    @Query("SELECT * FROM market_oscillator WHERE market = :market AND date = :date")
+    suspend fun getByMarketAndDate(market: String, date: String): MarketOscillatorData?
+
+    /**
      * 특정 시장의 데이터 개수 조회
      */
     @Query("SELECT COUNT(*) FROM market_oscillator WHERE market = :market")

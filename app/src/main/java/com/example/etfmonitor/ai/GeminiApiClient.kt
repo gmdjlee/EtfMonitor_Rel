@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.MediaType.Companion.toMediaType
@@ -18,26 +19,25 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Claude API 클라이언트
- * Anthropic Claude API를 통한 시장 분석
+ * Google Gemini API 클라이언트
+ * Gemini 1.5 Flash 모델을 통한 시장 분석
  *
  * 사용 전 API 키 설정 필요:
- * - Settings에서 CLAUDE_API_KEY 저장
- * - 또는 BuildConfig에 API_KEY 추가
+ * - Settings에서 GEMINI_API_KEY 저장
  */
 @Singleton
-class ClaudeApiClient @Inject constructor(
+class GeminiApiClient @Inject constructor(
     private val apiKeyProvider: ApiKeyProvider
 ) : AIApiClient {
 
-    override val provider: AIProvider = AIProvider.CLAUDE
+    override val provider: AIProvider = AIProvider.GEMINI
 
     companion object {
-        private const val TAG = "ClaudeApiClient"
-        private const val API_URL = "https://api.anthropic.com/v1/messages"
-        private const val MODELS_API_URL = "https://api.anthropic.com/v1/models"
-        private const val MODEL = "claude-3-5-sonnet-20241022" // Latest Sonnet model
-        private const val MAX_TOKENS = 2048
+        private const val TAG = "GeminiApiClient"
+        private const val API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
+        private const val MODELS_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
+        private const val MODEL = "gemini-1.5-flash-latest" // Updated model name
+        private const val MAX_OUTPUT_TOKENS = 2048
         private const val TIMEOUT_SECONDS = 60L
     }
 
@@ -60,19 +60,19 @@ class ClaudeApiClient @Inject constructor(
         temperature: Double
     ): Result<MarketSignal> = withContext(Dispatchers.IO) {
         try {
-            val apiKey = apiKeyProvider.getApiKey(AIProvider.CLAUDE)
+            val apiKey = apiKeyProvider.getApiKey(AIProvider.GEMINI)
             if (apiKey.isNullOrBlank()) {
                 Log.e(TAG, "API key not configured")
-                return@withContext Result.failure(Exception("Claude API 키가 설정되지 않았습니다. 설정에서 API 키를 등록해주세요."))
+                return@withContext Result.failure(Exception("Gemini API 키가 설정되지 않았습니다. 설정에서 API 키를 등록해주세요."))
             }
 
             // 선택된 모델 가져오기 (없으면 기본 모델 사용)
-            val model = apiKeyProvider.getSelectedModel(AIProvider.CLAUDE) ?: MODEL
+            val model = apiKeyProvider.getSelectedModel(AIProvider.GEMINI) ?: MODEL
 
-            Log.d(TAG, "Analyzing market with Claude API using model: $model")
+            Log.d(TAG, "Analyzing market with Gemini API using model: $model")
 
             withTimeout(TIMEOUT_SECONDS * 1000) {
-                val response = callClaudeApi(apiKey, prompt, temperature, model)
+                val response = callGeminiApi(apiKey, prompt, temperature, model)
                 val signal = parseResponse(response)
                 Result.success(signal)
             }
@@ -83,31 +83,35 @@ class ClaudeApiClient @Inject constructor(
     }
 
     /**
-     * Claude API 호출
+     * Gemini API 호출
      */
-    private suspend fun callClaudeApi(
+    private suspend fun callGeminiApi(
         apiKey: String,
         prompt: String,
         temperature: Double,
         model: String = MODEL
     ): String = withContext(Dispatchers.IO) {
         val requestBody = JSONObject().apply {
-            put("model", model)
-            put("max_tokens", MAX_TOKENS)
-            put("temperature", temperature)
-            put("messages", JSONArray().apply {
+            put("contents", JSONArray().apply {
                 put(JSONObject().apply {
-                    put("role", "user")
-                    put("content", prompt)
+                    put("parts", JSONArray().apply {
+                        put(JSONObject().apply {
+                            put("text", prompt)
+                        })
+                    })
                 })
+            })
+            put("generationConfig", JSONObject().apply {
+                put("temperature", temperature)
+                put("maxOutputTokens", MAX_OUTPUT_TOKENS)
             })
         }
 
+        val url = "$API_BASE_URL/$model:generateContent?key=$apiKey"
+
         val request = Request.Builder()
-            .url(API_URL)
-            .addHeader("x-api-key", apiKey)
-            .addHeader("anthropic-version", "2023-06-01")
-            .addHeader("content-type", "application/json")
+            .url(url)
+            .addHeader("Content-Type", "application/json")
             .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
             .build()
 
@@ -115,27 +119,33 @@ class ClaudeApiClient @Inject constructor(
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string() ?: "Unknown error"
                 Log.e(TAG, "API call failed: ${response.code} - $errorBody")
-                throw Exception("Claude API 호출 실패: ${response.code} - $errorBody")
+                throw Exception("Gemini API 호출 실패: ${response.code} - $errorBody")
             }
 
             val responseBody = response.body?.string()
-                ?: throw Exception("Empty response from Claude API")
+                ?: throw Exception("Empty response from Gemini API")
 
             Log.d(TAG, "API response received: ${responseBody.take(200)}...")
 
-            // Extract content from response
+            // Extract text from response
             val jsonResponse = JSONObject(responseBody)
-            val content = jsonResponse.getJSONArray("content")
-            if (content.length() == 0) {
-                throw Exception("No content in Claude API response")
+            val candidates = jsonResponse.getJSONArray("candidates")
+            if (candidates.length() == 0) {
+                throw Exception("No candidates in Gemini API response")
             }
 
-            content.getJSONObject(0).getString("text")
+            val content = candidates.getJSONObject(0).getJSONObject("content")
+            val parts = content.getJSONArray("parts")
+            if (parts.length() == 0) {
+                throw Exception("No parts in Gemini API response")
+            }
+
+            parts.getJSONObject(0).getString("text")
         }
     }
 
     /**
-     * Claude 응답을 MarketSignal로 파싱
+     * Gemini 응답을 MarketSignal로 파싱
      */
     private fun parseResponse(responseText: String): MarketSignal {
         try {
@@ -159,7 +169,7 @@ class ClaudeApiClient @Inject constructor(
                 riskLevel = parseRiskLevel(jsonElement["riskLevel"]?.jsonPrimitive?.content ?: "MEDIUM")
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse Claude response", e)
+            Log.e(TAG, "Failed to parse Gemini response", e)
             // 파싱 실패 시 기본 신호 반환
             return MarketSignal(
                 market = "UNKNOWN",
@@ -242,7 +252,7 @@ class ClaudeApiClient @Inject constructor(
      * API 사용 가능 여부 확인
      */
     override suspend fun isApiAvailable(): Boolean = withContext(Dispatchers.IO) {
-        val apiKey = apiKeyProvider.getApiKey(AIProvider.CLAUDE)
+        val apiKey = apiKeyProvider.getApiKey(AIProvider.GEMINI)
         !apiKey.isNullOrBlank()
     }
 
@@ -251,8 +261,9 @@ class ClaudeApiClient @Inject constructor(
      */
     override suspend fun testApiKey(): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
+            val apiKey = apiKeyProvider.getApiKey(AIProvider.GEMINI) ?: ""
             val testPrompt = "Hello, please respond with 'OK'"
-            val response = callClaudeApi(apiKeyProvider.getApiKey(AIProvider.CLAUDE) ?: "", testPrompt, 0.0)
+            val response = callGeminiApi(apiKey, testPrompt, 0.0)
             Result.success(response.isNotBlank())
         } catch (e: Exception) {
             Log.e(TAG, "API key test failed", e)
@@ -261,20 +272,19 @@ class ClaudeApiClient @Inject constructor(
     }
 
     /**
-     * 사용 가능한 Claude 모델 목록 조회
+     * 사용 가능한 Gemini 모델 목록 조회
      */
     override suspend fun listModels(): Result<List<AIModel>> = withContext(Dispatchers.IO) {
         try {
-            val apiKey = apiKeyProvider.getApiKey(AIProvider.CLAUDE)
+            val apiKey = apiKeyProvider.getApiKey(AIProvider.GEMINI)
             if (apiKey.isNullOrBlank()) {
-                return@withContext Result.failure(Exception("Claude API 키가 설정되지 않았습니다."))
+                return@withContext Result.failure(Exception("Gemini API 키가 설정되지 않았습니다."))
             }
 
             withTimeout(TIMEOUT_SECONDS * 1000) {
+                val url = "$MODELS_API_URL?key=$apiKey"
                 val request = Request.Builder()
-                    .url(MODELS_API_URL)
-                    .addHeader("x-api-key", apiKey)
-                    .addHeader("anthropic-version", "2023-06-01")
+                    .url(url)
                     .get()
                     .build()
 
@@ -282,26 +292,40 @@ class ClaudeApiClient @Inject constructor(
                     if (!response.isSuccessful) {
                         val errorBody = response.body?.string() ?: "Unknown error"
                         Log.e(TAG, "Models API call failed: ${response.code} - $errorBody")
-                        throw Exception("Claude 모델 목록 조회 실패: ${response.code}")
+                        throw Exception("Gemini 모델 목록 조회 실패: ${response.code}")
                     }
 
                     val responseBody = response.body?.string()
-                        ?: throw Exception("Empty response from Claude Models API")
+                        ?: throw Exception("Empty response from Gemini Models API")
 
                     Log.d(TAG, "Models API response: ${responseBody.take(200)}...")
 
                     val jsonResponse = json.parseToJsonElement(responseBody).jsonObject
-                    val data = jsonResponse["data"]?.jsonArray ?: throw Exception("No data in response")
+                    val modelsArray = jsonResponse["models"]?.jsonArray
+                        ?: throw Exception("No models in response")
 
-                    val models = data.map { modelElement ->
+                    val models = modelsArray.mapNotNull { modelElement ->
                         val modelObj = modelElement.jsonObject
+                        val modelName = modelObj["name"]?.jsonPrimitive?.content ?: return@mapNotNull null
+
+                        // Extract model ID from "models/gemini-pro" format
+                        val modelId = modelName.removePrefix("models/")
+
+                        // Filter to only include generative models
+                        val supportedGenerationMethods = modelObj["supportedGenerationMethods"]?.jsonArray
+                        if (supportedGenerationMethods?.any {
+                            it.jsonPrimitive.content == "generateContent"
+                        } != true) {
+                            return@mapNotNull null
+                        }
+
                         AIModel(
-                            id = modelObj["id"]?.jsonPrimitive?.content ?: "",
-                            name = modelObj["display_name"]?.jsonPrimitive?.content ?: modelObj["id"]?.jsonPrimitive?.content ?: "",
-                            provider = AIProvider.CLAUDE,
+                            id = modelId,
+                            name = modelObj["displayName"]?.jsonPrimitive?.content ?: modelId,
+                            provider = AIProvider.GEMINI,
                             description = modelObj["description"]?.jsonPrimitive?.content,
-                            contextWindow = modelObj["context_window"]?.jsonPrimitive?.content?.toIntOrNull(),
-                            maxOutputTokens = modelObj["max_output_tokens"]?.jsonPrimitive?.content?.toIntOrNull()
+                            contextWindow = modelObj["inputTokenLimit"]?.jsonPrimitive?.content?.toIntOrNull(),
+                            maxOutputTokens = modelObj["outputTokenLimit"]?.jsonPrimitive?.content?.toIntOrNull()
                         )
                     }
 

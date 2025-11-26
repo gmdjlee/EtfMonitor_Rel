@@ -303,8 +303,17 @@ private fun GeneralTab(
     fontScaleSettings: com.etfmonitor.ui.theme.FontScaleSettings,
     viewModel: SettingsViewModel
 ) {
-    val isApiKeyConfigured by viewModel.isApiKeyConfigured.collectAsState()
+    val selectedProvider by viewModel.selectedProvider.collectAsState()
+    val isClaudeConfigured by viewModel.isClaudeApiKeyConfigured.collectAsState()
+    val isGeminiConfigured by viewModel.isGeminiApiKeyConfigured.collectAsState()
     val apiKeyTestState by viewModel.apiKeyTestState.collectAsState()
+
+    val claudeModels by viewModel.claudeModels.collectAsState()
+    val geminiModels by viewModel.geminiModels.collectAsState()
+    val selectedClaudeModel by viewModel.selectedClaudeModel.collectAsState()
+    val selectedGeminiModel by viewModel.selectedGeminiModel.collectAsState()
+    val isLoadingClaudeModels by viewModel.isLoadingClaudeModels.collectAsState()
+    val isLoadingGeminiModels by viewModel.isLoadingGeminiModels.collectAsState()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -319,15 +328,30 @@ private fun GeneralTab(
             )
         }
 
-        // Claude API 키 설정
+        // AI API 키 설정
         item {
-            ClaudeApiKeyCard(
-                isConfigured = isApiKeyConfigured,
+            AIApiKeyCard(
+                selectedProvider = selectedProvider,
+                isClaudeConfigured = isClaudeConfigured,
+                isGeminiConfigured = isGeminiConfigured,
                 testState = apiKeyTestState,
-                onSetApiKey = { viewModel.setApiKey(it) },
-                onClearApiKey = { viewModel.clearApiKey() },
+                claudeModels = claudeModels,
+                geminiModels = geminiModels,
+                selectedClaudeModel = selectedClaudeModel,
+                selectedGeminiModel = selectedGeminiModel,
+                isLoadingClaudeModels = isLoadingClaudeModels,
+                isLoadingGeminiModels = isLoadingGeminiModels,
+                onProviderSelected = { viewModel.setSelectedProvider(it) },
+                onSetClaudeApiKey = { viewModel.setClaudeApiKey(it) },
+                onSetGeminiApiKey = { viewModel.setGeminiApiKey(it) },
+                onClearClaudeApiKey = { viewModel.clearClaudeApiKey() },
+                onClearGeminiApiKey = { viewModel.clearGeminiApiKey() },
                 onTestConnection = { viewModel.testApiConnection() },
-                onClearTestState = { viewModel.clearApiTestState() }
+                onClearTestState = { viewModel.clearApiTestState() },
+                onLoadClaudeModels = { viewModel.loadClaudeModels() },
+                onLoadGeminiModels = { viewModel.loadGeminiModels() },
+                onSelectClaudeModel = { viewModel.setClaudeModel(it) },
+                onSelectGeminiModel = { viewModel.setGeminiModel(it) }
             )
         }
 
@@ -1110,16 +1134,34 @@ private fun ThemeSettingCard(
 }
 
 @Composable
-private fun ClaudeApiKeyCard(
-    isConfigured: Boolean,
+private fun AIApiKeyCard(
+    selectedProvider: com.etfmonitor.ai.AIProvider,
+    isClaudeConfigured: Boolean,
+    isGeminiConfigured: Boolean,
     testState: ApiKeyTestState,
-    onSetApiKey: (String) -> Unit,
-    onClearApiKey: () -> Unit,
+    claudeModels: List<com.etfmonitor.ai.AIModel>,
+    geminiModels: List<com.etfmonitor.ai.AIModel>,
+    selectedClaudeModel: String?,
+    selectedGeminiModel: String?,
+    isLoadingClaudeModels: Boolean,
+    isLoadingGeminiModels: Boolean,
+    onProviderSelected: (com.etfmonitor.ai.AIProvider) -> Unit,
+    onSetClaudeApiKey: (String) -> Unit,
+    onSetGeminiApiKey: (String) -> Unit,
+    onClearClaudeApiKey: () -> Unit,
+    onClearGeminiApiKey: () -> Unit,
     onTestConnection: () -> Unit,
-    onClearTestState: () -> Unit
+    onClearTestState: () -> Unit,
+    onLoadClaudeModels: () -> Unit,
+    onLoadGeminiModels: () -> Unit,
+    onSelectClaudeModel: (String) -> Unit,
+    onSelectGeminiModel: (String) -> Unit
 ) {
-    var showApiKeyDialog by remember { mutableStateOf(false) }
+    var showClaudeDialog by remember { mutableStateOf(false) }
+    var showGeminiDialog by remember { mutableStateOf(false) }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
+    var expandedClaudeModels by remember { mutableStateOf(false) }
+    var expandedGeminiModels by remember { mutableStateOf(false) }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -1135,19 +1177,97 @@ private fun ClaudeApiKeyCard(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Text("Claude API 설정", style = MaterialTheme.typography.titleMedium)
+                Text("AI API 설정", style = MaterialTheme.typography.titleMedium)
             }
 
             HorizontalDivider()
 
             Text(
-                "AI 시장 분석 기능을 사용하려면 Claude API 키가 필요합니다",
+                "AI 시장 분석 기능을 사용하려면 API 키가 필요합니다",
                 style = MaterialTheme.typography.bodyMedium
             )
 
-            // API 키 상태 표시
+            // AI 프로바이더 선택
             Surface(
-                color = if (isConfigured)
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        "AI 제공자 선택",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Spacer(Modifier.height(8.dp))
+
+                    // Claude 선택
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onProviderSelected(com.etfmonitor.ai.AIProvider.CLAUDE) }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedProvider == com.etfmonitor.ai.AIProvider.CLAUDE,
+                            onClick = { onProviderSelected(com.etfmonitor.ai.AIProvider.CLAUDE) }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                "Claude (Anthropic)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            if (isClaudeConfigured) {
+                                Text(
+                                    "✓ API 키 설정됨",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+
+                    // Gemini 선택
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onProviderSelected(com.etfmonitor.ai.AIProvider.GEMINI) }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedProvider == com.etfmonitor.ai.AIProvider.GEMINI,
+                            onClick = { onProviderSelected(com.etfmonitor.ai.AIProvider.GEMINI) }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                "Gemini (Google)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            if (isGeminiConfigured) {
+                                Text(
+                                    "✓ API 키 설정됨",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            val currentIsConfigured = when (selectedProvider) {
+                com.etfmonitor.ai.AIProvider.CLAUDE -> isClaudeConfigured
+                com.etfmonitor.ai.AIProvider.GEMINI -> isGeminiConfigured
+            }
+
+            // 선택된 프로바이더의 API 키 상태 표시
+            Surface(
+                color = if (currentIsConfigured)
                     MaterialTheme.colorScheme.primaryContainer
                 else
                     MaterialTheme.colorScheme.errorContainer,
@@ -1165,17 +1285,18 @@ private fun ClaudeApiKeyCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            if (isConfigured) Icons.Default.CheckCircle else Icons.Default.Warning,
+                            if (currentIsConfigured) Icons.Default.CheckCircle else Icons.Default.Warning,
                             contentDescription = null,
-                            tint = if (isConfigured)
+                            tint = if (currentIsConfigured)
                                 MaterialTheme.colorScheme.onPrimaryContainer
                             else
                                 MaterialTheme.colorScheme.onErrorContainer
                         )
                         Text(
-                            if (isConfigured) "API 키 설정됨" else "API 키 미설정",
+                            "${selectedProvider.toDisplayName()} " +
+                                    if (currentIsConfigured) "API 키 설정됨" else "API 키 미설정",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (isConfigured)
+                            color = if (currentIsConfigured)
                                 MaterialTheme.colorScheme.onPrimaryContainer
                             else
                                 MaterialTheme.colorScheme.onErrorContainer
@@ -1254,25 +1375,63 @@ private fun ClaudeApiKeyCard(
                 else -> {}
             }
 
+            // 모델 선택 (API 키가 설정된 경우에만 표시)
+            if (currentIsConfigured) {
+                HorizontalDivider()
+
+                // 현재 선택된 제공자에 따라 모델 선택 UI 표시
+                when (selectedProvider) {
+                    com.etfmonitor.ai.AIProvider.CLAUDE -> {
+                        ModelSelectionSection(
+                            providerName = "Claude",
+                            models = claudeModels,
+                            selectedModel = selectedClaudeModel,
+                            isLoading = isLoadingClaudeModels,
+                            expanded = expandedClaudeModels,
+                            onExpandChanged = { expandedClaudeModels = it },
+                            onLoadModels = onLoadClaudeModels,
+                            onSelectModel = onSelectClaudeModel
+                        )
+                    }
+                    com.etfmonitor.ai.AIProvider.GEMINI -> {
+                        ModelSelectionSection(
+                            providerName = "Gemini",
+                            models = geminiModels,
+                            selectedModel = selectedGeminiModel,
+                            isLoading = isLoadingGeminiModels,
+                            expanded = expandedGeminiModels,
+                            onExpandChanged = { expandedGeminiModels = it },
+                            onLoadModels = onLoadGeminiModels,
+                            onSelectModel = onSelectGeminiModel
+                        )
+                    }
+                }
+            }
+
             // 버튼
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
-                    onClick = { showApiKeyDialog = true },
+                    onClick = {
+                        when (selectedProvider) {
+                            com.etfmonitor.ai.AIProvider.CLAUDE -> showClaudeDialog = true
+                            com.etfmonitor.ai.AIProvider.GEMINI -> showGeminiDialog = true
+                        }
+                    },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        if (isConfigured) Icons.Default.Edit else Icons.Default.Key,
+                        if (currentIsConfigured) Icons.Default.Edit else Icons.Default.Key,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(Modifier.width(4.dp))
-                    Text(if (isConfigured) "변경" else "설정")
+                    Text(if (currentIsConfigured) "변경" else "설정")
                 }
 
-                if (isConfigured) {
+                if (currentIsConfigured) {
                     OutlinedButton(
                         onClick = onTestConnection,
                         modifier = Modifier.weight(1f),
@@ -1301,29 +1460,62 @@ private fun ClaudeApiKeyCard(
                 shape = MaterialTheme.shapes.small
             ) {
                 Column(modifier = Modifier.padding(8.dp)) {
-                    Text(
-                        "Claude API 키 발급:",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "https://console.anthropic.com/settings/keys",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    when (selectedProvider) {
+                        com.etfmonitor.ai.AIProvider.CLAUDE -> {
+                            Text(
+                                "Claude API 키 발급:",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "https://console.anthropic.com/settings/keys",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        com.etfmonitor.ai.AIProvider.GEMINI -> {
+                            Text(
+                                "Gemini API 키 발급:",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "https://aistudio.google.com/app/apikey",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 
-    // API 키 입력 다이얼로그
-    if (showApiKeyDialog) {
+    // Claude API 키 입력 다이얼로그
+    if (showClaudeDialog) {
         ApiKeyInputDialog(
-            onDismiss = { showApiKeyDialog = false },
+            title = "Claude API 키 설정",
+            placeholder = "sk-ant-...",
+            onDismiss = { showClaudeDialog = false },
             onConfirm = { apiKey ->
-                onSetApiKey(apiKey)
-                showApiKeyDialog = false
+                onSetClaudeApiKey(apiKey)
+                showClaudeDialog = false
+                onClearTestState()
+            }
+        )
+    }
+
+    // Gemini API 키 입력 다이얼로그
+    if (showGeminiDialog) {
+        ApiKeyInputDialog(
+            title = "Gemini API 키 설정",
+            placeholder = "AIza...",
+            onDismiss = { showGeminiDialog = false },
+            onConfirm = { apiKey ->
+                onSetGeminiApiKey(apiKey)
+                showGeminiDialog = false
                 onClearTestState()
             }
         )
@@ -1335,11 +1527,14 @@ private fun ClaudeApiKeyCard(
             onDismissRequest = { showClearConfirmDialog = false },
             icon = { Icon(Icons.Default.Warning, null) },
             title = { Text("API 키 삭제") },
-            text = { Text("저장된 API 키를 삭제하시겠습니까?") },
+            text = { Text("${selectedProvider.toDisplayName()} API 키를 삭제하시겠습니까?") },
             confirmButton = {
                 Button(
                     onClick = {
-                        onClearApiKey()
+                        when (selectedProvider) {
+                            com.etfmonitor.ai.AIProvider.CLAUDE -> onClearClaudeApiKey()
+                            com.etfmonitor.ai.AIProvider.GEMINI -> onClearGeminiApiKey()
+                        }
                         showClearConfirmDialog = false
                         onClearTestState()
                     },
@@ -1361,6 +1556,8 @@ private fun ClaudeApiKeyCard(
 
 @Composable
 private fun ApiKeyInputDialog(
+    title: String,
+    placeholder: String,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
 ) {
@@ -1368,11 +1565,11 @@ private fun ApiKeyInputDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Claude API 키 설정") },
+        title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "Claude API 키를 입력하세요",
+                    "API 키를 입력하세요",
                     style = MaterialTheme.typography.bodyMedium
                 )
 
@@ -1380,7 +1577,7 @@ private fun ApiKeyInputDialog(
                     value = apiKey,
                     onValueChange = { apiKey = it },
                     label = { Text("API Key") },
-                    placeholder = { Text("sk-ant-...") },
+                    placeholder = { Text(placeholder) },
                     singleLine = false,
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth()
@@ -3074,4 +3271,144 @@ private fun TimePickerDialog(
             }
         }
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ModelSelectionSection(
+    providerName: String,
+    models: List<com.etfmonitor.ai.AIModel>,
+    selectedModel: String?,
+    isLoading: Boolean,
+    expanded: Boolean,
+    onExpandChanged: (Boolean) -> Unit,
+    onLoadModels: () -> Unit,
+    onSelectModel: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "$providerName 모델 선택",
+            style = MaterialTheme.typography.labelLarge
+        )
+
+        // 모델 목록이 비어있으면 로드 버튼 표시
+        if (models.isEmpty() && !isLoading) {
+            OutlinedButton(
+                onClick = onLoadModels,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Refresh, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("사용 가능한 모델 불러오기")
+            }
+        }
+
+        // 로딩 중일 때
+        if (isLoading) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("모델 목록 불러오는 중...", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        // 모델 목록이 있을 때 드롭다운 표시
+        if (models.isNotEmpty()) {
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = onExpandChanged
+            ) {
+                OutlinedTextField(
+                    value = selectedModel?.let { modelId ->
+                        models.find { it.id == modelId }?.displayName() ?: modelId
+                    } ?: "모델을 선택하세요",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("선택된 모델") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { onExpandChanged(false) }
+                ) {
+                    models.forEach { model ->
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(
+                                        model.displayName(),
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    if (model.description != null) {
+                                        Text(
+                                            model.description,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    if (model.contextWindow != null || model.maxOutputTokens != null) {
+                                        Text(
+                                            buildString {
+                                                if (model.contextWindow != null) {
+                                                    append("입력: ${model.contextWindow}")
+                                                }
+                                                if (model.maxOutputTokens != null) {
+                                                    if (model.contextWindow != null) append(" | ")
+                                                    append("출력: ${model.maxOutputTokens}")
+                                                }
+                                                append(" 토큰")
+                                            },
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
+                                }
+                            },
+                            onClick = {
+                                onSelectModel(model.id)
+                                onExpandChanged(false)
+                            },
+                            leadingIcon = if (selectedModel == model.id) {
+                                {
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            } else null
+                        )
+                    }
+                }
+            }
+
+            // 새로고침 버튼
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(
+                    onClick = onLoadModels,
+                    enabled = !isLoading
+                ) {
+                    Icon(Icons.Default.Refresh, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("새로고침", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
 }

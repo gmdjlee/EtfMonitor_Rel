@@ -1,9 +1,7 @@
 package com.etfmonitor.di
 
 import android.content.Context
-import com.etfmonitor.ai.ApiKeyProvider
-import com.etfmonitor.ai.ClaudeApiClient
-import com.etfmonitor.ai.SharedPreferencesApiKeyProvider
+import com.etfmonitor.ai.*
 import com.etfmonitor.analysis.Backtester
 import com.etfmonitor.database.*
 import com.etfmonitor.repository.AIAnalysisRepository
@@ -19,6 +17,7 @@ import javax.inject.Singleton
  *
  * Phase 3: AI 신호 생성 기능
  * - Claude API 통합
+ * - Gemini API 통합
  * - 시장 분석 및 신호 생성
  * - 백테스팅
  */
@@ -27,7 +26,7 @@ import javax.inject.Singleton
 object AIModule {
 
     /**
-     * API 키 제공자 (SharedPreferences 기반)
+     * API 키 제공자 (EncryptedSharedPreferences 기반)
      */
     @Provides
     @Singleton
@@ -49,13 +48,38 @@ object AIModule {
     }
 
     /**
+     * Gemini API 클라이언트
+     */
+    @Provides
+    @Singleton
+    fun provideGeminiApiClient(
+        apiKeyProvider: ApiKeyProvider
+    ): GeminiApiClient {
+        return GeminiApiClient(apiKeyProvider)
+    }
+
+    /**
+     * AI API 클라이언트 팩토리
+     * 선택된 AI 제공자에 따라 적절한 클라이언트 반환
+     */
+    @Provides
+    @Singleton
+    fun provideAIApiClientFactory(
+        apiKeyProvider: ApiKeyProvider,
+        claudeApiClient: ClaudeApiClient,
+        geminiApiClient: GeminiApiClient
+    ): AIApiClientFactory {
+        return AIApiClientFactory(apiKeyProvider, claudeApiClient, geminiApiClient)
+    }
+
+    /**
      * AI 분석 Repository
      * 시장 분석 및 신호 생성의 핵심 로직
      */
     @Provides
     @Singleton
     fun provideAIAnalysisRepository(
-        claudeApiClient: ClaudeApiClient,
+        aiApiClientFactory: AIApiClientFactory,
         marketIndexDao: MarketIndexDao,
         dailyEtfStatisticsDao: DailyEtfStatisticsDao,
         fearGreedDao: FearGreedDao,
@@ -63,7 +87,7 @@ object AIModule {
         marketDepositDao: MarketDepositDao
     ): AIAnalysisRepository {
         return AIAnalysisRepository(
-            claudeApiClient,
+            aiApiClientFactory,
             marketIndexDao,
             dailyEtfStatisticsDao,
             fearGreedDao,
