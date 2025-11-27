@@ -9,17 +9,24 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.etfmonitor.EtfMonitorApp
 import com.etfmonitor.database.entities.StockAggregatedTimePoint
 import com.etfmonitor.database.entities.StockAggregatedTrend
 import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.ui.utils.AmountFormatter
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
@@ -40,11 +47,18 @@ import kotlinx.coroutines.launch
 @Composable
 fun AggregatedStockTrendScreen(
     stockTicker: String,
-    onNavigateBack: () -> Unit,
-    viewModel: AggregatedStockTrendViewModel = viewModel(
-        factory = AggregatedStockTrendViewModel.factory(stockTicker)
-    )
+    onNavigateBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val viewModel: AggregatedStockTrendViewModel = viewModel(
+        factory = AggregatedStockTrendViewModel.provideFactory(
+            assistedFactory = EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                AggregatedStockTrendViewModelFactory::class.java
+            ),
+            stockTicker = stockTicker
+        )
+    )
     val state by viewModel.state.collectAsState()
 
     Scaffold(
@@ -358,10 +372,23 @@ private fun AggregatedDataTable(timeSeries: List<StockAggregatedTimePoint>) {
     }
 }
 
-class AggregatedStockTrendViewModel(
-    private val stockTicker: String,
+/**
+ * Production-ready ViewModel using Hilt Assisted Injection
+ *
+ * 최적화:
+ * - @AssistedInject: 런타임 파라미터(stockTicker)와 Hilt 의존성(repository)을 모두 지원
+ * - AssistedFactory: 타입 안전한 팩토리 패턴
+ * - EtfMonitorApp.instance 제거: 메모리 누수 위험 제거
+ */
+class AggregatedStockTrendViewModel @AssistedInject constructor(
+    @Assisted private val stockTicker: String,
     private val repository: DataRepository
 ) : ViewModel() {
+
+    @AssistedFactory
+    interface Factory {
+        fun create(stockTicker: String): AggregatedStockTrendViewModel
+    }
 
     private val _state = MutableStateFlow<AggregatedTrendState>(AggregatedTrendState.Loading)
     val state: StateFlow<AggregatedTrendState> = _state.asStateFlow()
@@ -386,15 +413,13 @@ class AggregatedStockTrendViewModel(
     }
 
     companion object {
-        fun factory(stockTicker: String): ViewModelProvider.Factory {
-            return object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return AggregatedStockTrendViewModel(
-                        stockTicker,
-                        EtfMonitorApp.instance.repository
-                    ) as T
-                }
+        fun provideFactory(
+            assistedFactory: AggregatedStockTrendViewModelFactory,
+            stockTicker: String
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return assistedFactory.create(stockTicker) as T
             }
         }
     }
@@ -404,4 +429,13 @@ sealed class AggregatedTrendState {
     object Loading : AggregatedTrendState()
     data class Success(val trend: StockAggregatedTrend) : AggregatedTrendState()
     data class Error(val message: String) : AggregatedTrendState()
+}
+
+/**
+ * Hilt EntryPoint to access AssistedFactory from Composable
+ */
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface AggregatedStockTrendViewModelFactory {
+    fun create(stockTicker: String): AggregatedStockTrendViewModel
 }

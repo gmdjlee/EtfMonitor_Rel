@@ -39,6 +39,12 @@ class HomeViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
+    companion object {
+        // Oscillator threshold constants
+        private const val OSCILLATOR_OVERBOUGHT_THRESHOLD = 70.0
+        private const val OSCILLATOR_OVERSOLD_THRESHOLD = -70.0
+    }
+
     private val _state = MutableStateFlow<HomeState>(HomeState.Loading)
     val state: StateFlow<HomeState> = _state.asStateFlow()
 
@@ -263,17 +269,26 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun loadSummaryData(): HomeSummary? {
-        return try {
-            // 증시 자금 동향 - 최근 데이터
-            val recentDeposits = marketDepositRepository.getRecentDeposits(2).first()
-            val latestDeposit = recentDeposits.firstOrNull()
+        return withContext(Dispatchers.IO) {
+            try {
+                // 증시 자금 동향 - 최근 데이터
+                val recentDeposits = marketDepositRepository.getRecentDeposits(2)
+                    .flowOn(Dispatchers.IO)
+                    .first()
+                val latestDeposit = recentDeposits.firstOrNull()
 
-            // 디버깅: 예탁금 데이터 확인
-            android.util.Log.d("HomeViewModel", "Market deposit data - count: ${recentDeposits.size}, latest: $latestDeposit")
+                // 디버깅: 예탁금 데이터 확인
+                android.util.Log.d("HomeViewModel", "Market deposit data - count: ${recentDeposits.size}, latest: $latestDeposit")
 
-            // Fear & Greed Index - KOSPI, KOSDAQ 최근 값 (oscillator 사용)
-            val kospiFearGreed = fearGreedRepository.getRecentByMarket("KOSPI", 1).first().firstOrNull()
-            val kosdaqFearGreed = fearGreedRepository.getRecentByMarket("KOSDAQ", 1).first().firstOrNull()
+                // Fear & Greed Index - KOSPI, KOSDAQ 최근 값 (oscillator 사용)
+                val kospiFearGreed = fearGreedRepository.getRecentByMarket("KOSPI", 1)
+                    .flowOn(Dispatchers.IO)
+                    .first()
+                    .firstOrNull()
+                val kosdaqFearGreed = fearGreedRepository.getRecentByMarket("KOSDAQ", 1)
+                    .flowOn(Dispatchers.IO)
+                    .first()
+                    .firstOrNull()
 
             // 디버깅: Fear & Greed 데이터 확인
             android.util.Log.d("HomeViewModel", "Fear & Greed - KOSPI: ${kospiFearGreed?.oscillator}, KOSDAQ: ${kosdaqFearGreed?.oscillator}")
@@ -282,26 +297,27 @@ class HomeViewModel @Inject constructor(
             val kospiOscillator = marketOscillatorRepository.getLatestData("KOSPI")
             val kosdaqOscillator = marketOscillatorRepository.getLatestData("KOSDAQ")
 
-            HomeSummary(
-                depositChange = latestDeposit?.depositChange,
-                creditChange = latestDeposit?.creditChange,
-                kospiFearGreed = kospiFearGreed?.oscillator,  // oscillator 값 사용
-                kosdaqFearGreed = kosdaqFearGreed?.oscillator,  // oscillator 값 사용
-                kospiOscillator = kospiOscillator?.oscillator,
-                kospiStatus = kospiOscillator?.let { calculateOscillatorStatus(it.oscillator) },
-                kosdaqOscillator = kosdaqOscillator?.oscillator,
-                kosdaqStatus = kosdaqOscillator?.let { calculateOscillatorStatus(it.oscillator) }
-            )
-        } catch (e: Exception) {
-            android.util.Log.e("HomeViewModel", "Error loading summary data", e)
-            null
+                HomeSummary(
+                    depositChange = latestDeposit?.depositChange,
+                    creditChange = latestDeposit?.creditChange,
+                    kospiFearGreed = kospiFearGreed?.oscillator,  // oscillator 값 사용
+                    kosdaqFearGreed = kosdaqFearGreed?.oscillator,  // oscillator 값 사용
+                    kospiOscillator = kospiOscillator?.oscillator,
+                    kospiStatus = kospiOscillator?.let { calculateOscillatorStatus(it.oscillator) },
+                    kosdaqOscillator = kosdaqOscillator?.oscillator,
+                    kosdaqStatus = kosdaqOscillator?.let { calculateOscillatorStatus(it.oscillator) }
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Error loading summary data", e)
+                null
+            }
         }
     }
 
     private fun calculateOscillatorStatus(oscillatorValue: Double): String {
         return when {
-            oscillatorValue >= 70.0 -> "Overbought"
-            oscillatorValue <= -70.0 -> "Oversold"
+            oscillatorValue >= OSCILLATOR_OVERBOUGHT_THRESHOLD -> "Overbought"
+            oscillatorValue <= OSCILLATOR_OVERSOLD_THRESHOLD -> "Oversold"
             else -> "Neutral"
         }
     }

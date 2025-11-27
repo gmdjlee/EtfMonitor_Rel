@@ -40,6 +40,8 @@ class DataRepository @Inject constructor(
     companion object {
         private const val TAG = "DataRepository"
         private const val PARALLEL_LIMIT = 5
+        // Holding weight change threshold for status determination (in percentage points)
+        private const val WEIGHT_CHANGE_THRESHOLD = 0.01f
     }
 
     // ========== ETF List ==========
@@ -175,8 +177,8 @@ class DataRepository @Inject constructor(
                     val change = currWeight - prevWeight
 
                     val status = when {
-                        change > 0.01f -> HoldingStatus.INCREASE
-                        change < -0.01f -> HoldingStatus.DECREASE
+                        change > WEIGHT_CHANGE_THRESHOLD -> HoldingStatus.INCREASE
+                        change < -WEIGHT_CHANGE_THRESHOLD -> HoldingStatus.DECREASE
                         else -> HoldingStatus.MAINTAIN
                     }
 

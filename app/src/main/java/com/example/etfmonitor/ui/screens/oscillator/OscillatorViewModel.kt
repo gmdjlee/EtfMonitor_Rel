@@ -140,7 +140,9 @@ class OscillatorViewModel @Inject constructor(
 
     private suspend fun searchStockSuggestions(query: String) {
         try {
-            val stocks = stockRepository.searchStocks(query).first()
+            val stocks = stockRepository.searchStocks(query)
+                .flowOn(Dispatchers.IO)
+                .first()
             _suggestions.value = stocks.take(10) // 최대 10개만 표시
         } catch (e: Exception) {
             android.util.Log.e("OscillatorViewModel", "Error searching stocks", e)
@@ -174,7 +176,10 @@ class OscillatorViewModel @Inject constructor(
                 }
 
                 // 3. 검색 히스토리에 저장
-                val stock = stockRepository.searchStocks(ticker).first().firstOrNull()
+                val stock = stockRepository.searchStocks(ticker)
+                    .flowOn(Dispatchers.IO)
+                    .first()
+                    .firstOrNull()
                 if (stock != null) {
                     saveToHistory(stock.ticker, stock.name, stock.market)
                 }
@@ -210,7 +215,10 @@ class OscillatorViewModel @Inject constructor(
                 }
 
                 // 검색 히스토리에 저장
-                val stock = stockRepository.searchStocks(ticker).first().firstOrNull()
+                val stock = stockRepository.searchStocks(ticker)
+                    .flowOn(Dispatchers.IO)
+                    .first()
+                    .firstOrNull()
                 if (stock != null) {
                     saveToHistory(stock.ticker, stock.name, stock.market)
                 }
