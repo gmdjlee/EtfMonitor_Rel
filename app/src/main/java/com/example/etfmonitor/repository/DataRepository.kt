@@ -814,9 +814,9 @@ class DataRepository @Inject constructor(
                 validEtfCount++
                 result.holdings.forEach { holding ->
                     if (holding.stockName == "현금") {
-                        cashDepositAmount += holding.amount
+                        cashDepositAmount += holding.amount.toLong()
                     } else {
-                        totalHoldingAmount += holding.amount
+                        totalHoldingAmount += holding.amount.toLong()
                     }
                 }
             }
