@@ -43,6 +43,9 @@ class DataCollectionService : Service() {
     @Inject
     lateinit var marketOscillatorRepository: com.etfmonitor.repository.MarketOscillatorRepository
 
+    @Inject
+    lateinit var marketIndexRepository: com.etfmonitor.repository.MarketIndexRepository
+
     private val serviceScope = CoroutineScope(Dispatchers.Default + Job())
     private val notificationManager by lazy {
         getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -140,11 +143,9 @@ class DataCollectionService : Service() {
                             updateNotification(progress.message, progress.progress)
                         }
                         is DataProgress.Success -> {
-                            // ETF 초기화 완료
+                            // ETF 초기화 완료, 시장 지수 초기화 시작
                             Log.d(TAG, "ETF initialization completed: ${progress.message}")
-                            CollectionState.complete(progress.message)
-                            updateNotification(progress.message, 100, isComplete = true)
-                            stopSelf()
+                            initializeMarketIndex(days)
                         }
                         is DataProgress.Error -> {
                             CollectionState.error(progress.message)
@@ -153,6 +154,37 @@ class DataCollectionService : Service() {
                         }
                     }
                 }
+        }
+    }
+
+    private fun initializeMarketIndex(days: Int) {
+        serviceScope.launch {
+            try {
+                Log.d(TAG, "Starting Market Index initialization")
+                updateNotification("시장 지수 데이터 수집 중...", 91)
+
+                val result = marketIndexRepository.initializeMarketIndex(days)
+
+                if (result.isSuccess) {
+                    val count = result.getOrNull() ?: 0
+                    val successMsg = "초기화 완료! 시장 지수 ${count}개 데이터"
+                    Log.d(TAG, successMsg)
+                    CollectionState.complete(successMsg)
+                    updateNotification(successMsg, 100, isComplete = true)
+                } else {
+                    val errorMsg = "시장 지수 초기화 실패: ${result.exceptionOrNull()?.message}"
+                    Log.e(TAG, errorMsg)
+                    CollectionState.error(errorMsg)
+                    updateNotification(errorMsg, 0, isError = true)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in Market Index initialization", e)
+                val errorMsg = "시장 지수 초기화 실패: ${e.message}"
+                CollectionState.error(errorMsg)
+                updateNotification(errorMsg, 0, isError = true)
+            } finally {
+                stopSelf()
+            }
         }
     }
 
@@ -176,9 +208,9 @@ class DataCollectionService : Service() {
                             updateNotification(progress.message, progress.progress)
                         }
                         is DataProgress.Success -> {
-                            // ETF 업데이트 완료, Fear & Greed 업데이트 시작
+                            // ETF 업데이트 완료, 시장 지수 업데이트 시작
                             Log.d(TAG, "ETF update completed: ${progress.message}")
-                            updateFearGreed(fearGreedRepository)
+                            updateMarketIndex()
                         }
                         is DataProgress.Error -> {
                             CollectionState.error(progress.message)
@@ -187,6 +219,36 @@ class DataCollectionService : Service() {
                         }
                     }
                 }
+        }
+    }
+
+    private fun updateMarketIndex() {
+        serviceScope.launch {
+            try {
+                Log.d(TAG, "Starting Market Index update")
+                updateNotification("시장 지수 데이터 업데이트 중...", 30)
+
+                val result = marketIndexRepository.updateMarketIndex(30)
+
+                if (result.isSuccess) {
+                    val count = result.getOrNull() ?: 0
+                    Log.d(TAG, "Market Index update completed: $count records")
+                    // Market Index 완료 후 Fear & Greed 업데이트 시작
+                    updateFearGreed(fearGreedRepository)
+                } else {
+                    val errorMsg = "시장 지수 업데이트 실패: ${result.exceptionOrNull()?.message}"
+                    Log.e(TAG, errorMsg)
+                    CollectionState.error(errorMsg)
+                    updateNotification(errorMsg, 0, isError = true)
+                    stopSelf()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in Market Index update", e)
+                val errorMsg = "시장 지수 업데이트 실패: ${e.message}"
+                CollectionState.error(errorMsg)
+                updateNotification(errorMsg, 0, isError = true)
+                stopSelf()
+            }
         }
     }
 
