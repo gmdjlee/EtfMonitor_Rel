@@ -50,12 +50,14 @@ fun AggregatedStockTrendScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val factory = EntryPointAccessors.fromApplication(
+        context.applicationContext,
+        AggregatedStockTrendViewModelFactoryProvider::class.java
+    ).aggregatedStockTrendViewModelFactory()
+
     val viewModel: AggregatedStockTrendViewModel = viewModel(
         factory = AggregatedStockTrendViewModel.provideFactory(
-            assistedFactory = EntryPointAccessors.fromApplication(
-                context.applicationContext,
-                AggregatedStockTrendViewModelFactory::class.java
-            ),
+            assistedFactory = factory,
             stockTicker = stockTicker
         )
     )
@@ -414,7 +416,7 @@ class AggregatedStockTrendViewModel @AssistedInject constructor(
 
     companion object {
         fun provideFactory(
-            assistedFactory: AggregatedStockTrendViewModelFactory,
+            assistedFactory: Factory,
             stockTicker: String
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -433,9 +435,10 @@ sealed class AggregatedTrendState {
 
 /**
  * Hilt EntryPoint to access AssistedFactory from Composable
+ * EntryPoint는 Factory 타입을 제공하는 메서드를 가져야 함
  */
 @EntryPoint
 @InstallIn(SingletonComponent::class)
-interface AggregatedStockTrendViewModelFactory {
-    fun create(stockTicker: String): AggregatedStockTrendViewModel
+interface AggregatedStockTrendViewModelFactoryProvider {
+    fun aggregatedStockTrendViewModelFactory(): AggregatedStockTrendViewModel.Factory
 }
