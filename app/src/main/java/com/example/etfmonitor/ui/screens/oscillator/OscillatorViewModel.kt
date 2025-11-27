@@ -12,12 +12,14 @@ import com.etfmonitor.oscillator.python.OscillatorPyClient
 import com.etfmonitor.repository.StockAnalysisRepository
 import com.etfmonitor.repository.StockRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -140,7 +142,9 @@ class OscillatorViewModel @Inject constructor(
 
     private suspend fun searchStockSuggestions(query: String) {
         try {
-            val stocks = stockRepository.searchStocks(query).first()
+            val stocks = stockRepository.searchStocks(query)
+                .flowOn(Dispatchers.IO)
+                .first()
             _suggestions.value = stocks.take(10) // 최대 10개만 표시
         } catch (e: Exception) {
             android.util.Log.e("OscillatorViewModel", "Error searching stocks", e)
@@ -174,7 +178,10 @@ class OscillatorViewModel @Inject constructor(
                 }
 
                 // 3. 검색 히스토리에 저장
-                val stock = stockRepository.searchStocks(ticker).first().firstOrNull()
+                val stock = stockRepository.searchStocks(ticker)
+                    .flowOn(Dispatchers.IO)
+                    .first()
+                    .firstOrNull()
                 if (stock != null) {
                     saveToHistory(stock.ticker, stock.name, stock.market)
                 }
@@ -210,7 +217,10 @@ class OscillatorViewModel @Inject constructor(
                 }
 
                 // 검색 히스토리에 저장
-                val stock = stockRepository.searchStocks(ticker).first().firstOrNull()
+                val stock = stockRepository.searchStocks(ticker)
+                    .flowOn(Dispatchers.IO)
+                    .first()
+                    .firstOrNull()
                 if (stock != null) {
                     saveToHistory(stock.ticker, stock.name, stock.market)
                 }
