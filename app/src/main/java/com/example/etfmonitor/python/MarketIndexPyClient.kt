@@ -60,6 +60,7 @@ class MarketIndexPyClient @Inject constructor(
 
                 dtoList.map { dto ->
                     MarketIndex(
+                        id = "${dto.market}-${dto.date}",
                         date = dto.date,
                         market = dto.market,
                         closePrice = dto.closePrice,
@@ -105,6 +106,7 @@ class MarketIndexPyClient @Inject constructor(
 
                 dtoList.map { dto ->
                     MarketIndex(
+                        id = "${dto.market}-${dto.date}",
                         date = dto.date,
                         market = dto.market,
                         closePrice = dto.closePrice,
@@ -147,6 +149,7 @@ class MarketIndexPyClient @Inject constructor(
                 val dto = json.decodeFromString<MarketIndexDto>(result.toString())
 
                 MarketIndex(
+                    id = "${dto.market}-${dto.date}",
                     date = dto.date,
                     market = dto.market,
                     closePrice = dto.closePrice,
