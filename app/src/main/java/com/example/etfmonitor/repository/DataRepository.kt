@@ -623,6 +623,15 @@ class DataRepository @Inject constructor(
                 val results = processEtfsInParallel(validEtfs, dateYYYYMMDD, date)
                 totalEtfs += results.count { it.holdings.isNotEmpty() }
 
+                // ✅ 일별 ETF 통계 계산 및 저장
+                try {
+                    val dailyStats = calculateDailyStatistics(date, results)
+                    dailyEtfStatisticsDao.insert(dailyStats)
+                    Log.d(TAG, "Daily statistics saved for $date: newStocks=${dailyStats.newStockCount}, removed=${dailyStats.removedStockCount}")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to save daily statistics for $date", e)
+                }
+
                 delay(50)
             }
 
