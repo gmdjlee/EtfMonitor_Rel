@@ -3,6 +3,7 @@ package com.etfmonitor.di
 import com.chaquo.python.Python
 import com.etfmonitor.database.*
 import com.etfmonitor.oscillator.python.OscillatorPyClient
+import com.etfmonitor.python.MarketIndexPyClient
 import com.etfmonitor.python.PyKrxClient
 import com.etfmonitor.repository.*
 import dagger.Module
@@ -123,9 +124,10 @@ object RepositoryModule {
     @Provides
     @Singleton
     fun provideMarketIndexRepository(
-        marketIndexDao: MarketIndexDao
+        marketIndexDao: MarketIndexDao,
+        marketIndexPyClient: MarketIndexPyClient
     ): MarketIndexRepository {
-        return MarketIndexRepository(marketIndexDao)
+        return MarketIndexRepository(marketIndexDao, marketIndexPyClient)
     }
 
     /**
