@@ -45,9 +45,10 @@ object RepositoryModule {
     @Singleton
     fun provideDataRepository(
         etfDao: EtfDao,
+        dailyEtfStatisticsDao: DailyEtfStatisticsDao,
         pyKrxClient: PyKrxClient
     ): DataRepository {
-        return DataRepository(etfDao, pyKrxClient)
+        return DataRepository(etfDao, dailyEtfStatisticsDao, pyKrxClient)
     }
 
     /**
