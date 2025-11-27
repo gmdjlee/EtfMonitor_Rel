@@ -379,6 +379,17 @@ interface EtfDao {
     suspend fun getHoldingsByDateRange(startDate: String, endDate: String): List<Holding>
 
     /**
+     * 특정 날짜의 모든 holdings 조회 (통계 계산용)
+     * 이미 getHoldingsByDateRange가 있으므로 이를 활용
+     */
+    @Query("""
+        SELECT * FROM holdings
+        WHERE date = :date
+        ORDER BY etfTicker, stockTicker
+    """)
+    suspend fun getHoldingsByDate(date: String): List<Holding>
+
+    /**
      * 특정 기간의 데이터 삭제
      */
     @Query("""

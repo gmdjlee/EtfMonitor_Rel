@@ -40,6 +40,10 @@ class DataRepository @Inject constructor(
     companion object {
         private const val TAG = "DataRepository"
         private const val PARALLEL_LIMIT = 5
+        // Holding weight change threshold for status determination (in percentage points)
+        private const val WEIGHT_CHANGE_THRESHOLD = 0.01f
+        // Basis points threshold for statistics (1% = 100 bps)
+        private const val WEIGHT_CHANGE_THRESHOLD_BPS = 100
     }
 
     // ========== ETF List ==========
@@ -175,8 +179,8 @@ class DataRepository @Inject constructor(
                     val change = currWeight - prevWeight
 
                     val status = when {
-                        change > 0.01f -> HoldingStatus.INCREASE
-                        change < -0.01f -> HoldingStatus.DECREASE
+                        change > WEIGHT_CHANGE_THRESHOLD -> HoldingStatus.INCREASE
+                        change < -WEIGHT_CHANGE_THRESHOLD -> HoldingStatus.DECREASE
                         else -> HoldingStatus.MAINTAIN
                     }
 
@@ -493,11 +497,12 @@ class DataRepository @Inject constructor(
             var totalHoldings = 0
             val startTime = System.currentTimeMillis()
 
-            // ✅ 전체 진행률 계산을 위한 변수
+            // 전체 진행률 계산을 위한 변수
             val totalDays = businessDays.size
 
+            // 날짜별로 순차 처리 (이전 날짜 데이터가 필요하므로)
             businessDays.forEachIndexed { index, date ->
-                // ✅ 전체 기준 진행률 계산 (10% ~ 90%)
+                // 전체 기준 진행률 계산 (10% ~ 90%)
                 val baseProgress = 10
                 val progressRange = 80
                 val progress = baseProgress + ((index + 1) * progressRange / totalDays)
@@ -529,11 +534,15 @@ class DataRepository @Inject constructor(
                     }
                 }
 
-                // ✅ 일별 ETF 통계 계산 및 저장
+                // 일별 ETF 통계 계산 및 저장 (개선된 버전)
                 try {
-                    val dailyStats = calculateDailyStatistics(date, results)
+                    val dailyStats = calculateDailyStatisticsImproved(date, results)
                     dailyEtfStatisticsDao.insert(dailyStats)
-                    Log.d(TAG, "Daily statistics saved for $date: newStocks=${dailyStats.newStockCount}, removed=${dailyStats.removedStockCount}")
+                    Log.d(TAG, "Daily statistics saved for $date: " +
+                            "newStocks=${dailyStats.newStockCount}, " +
+                            "removed=${dailyStats.removedStockCount}, " +
+                            "increased=${dailyStats.increasedStockCount}, " +
+                            "decreased=${dailyStats.decreasedStockCount}")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to save daily statistics for $date", e)
                 }
@@ -600,11 +609,11 @@ class DataRepository @Inject constructor(
             var totalEtfs = 0
             val startTime = System.currentTimeMillis()
 
-            // ✅ 전체 진행률 계산
+            // 전체 진행률 계산
             val totalDays = newDays.size
 
             newDays.forEachIndexed { index, date ->
-                // ✅ 전체 기준 진행률 (20% ~ 90%)
+                // 전체 기준 진행률 (20% ~ 90%)
                 val baseProgress = 20
                 val progressRange = 70
                 val progress = baseProgress + ((index + 1) * progressRange / totalDays)
@@ -623,11 +632,15 @@ class DataRepository @Inject constructor(
                 val results = processEtfsInParallel(validEtfs, dateYYYYMMDD, date)
                 totalEtfs += results.count { it.holdings.isNotEmpty() }
 
-                // ✅ 일별 ETF 통계 계산 및 저장
+                // 일별 ETF 통계 계산 및 저장 (개선된 버전)
                 try {
-                    val dailyStats = calculateDailyStatistics(date, results)
+                    val dailyStats = calculateDailyStatisticsImproved(date, results)
                     dailyEtfStatisticsDao.insert(dailyStats)
-                    Log.d(TAG, "Daily statistics saved for $date: newStocks=${dailyStats.newStockCount}, removed=${dailyStats.removedStockCount}")
+                    Log.d(TAG, "Daily statistics saved for $date: " +
+                            "newStocks=${dailyStats.newStockCount}, " +
+                            "removed=${dailyStats.removedStockCount}, " +
+                            "increased=${dailyStats.increasedStockCount}, " +
+                            "decreased=${dailyStats.decreasedStockCount}")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to save daily statistics for $date", e)
                 }
@@ -805,24 +818,38 @@ class DataRepository @Inject constructor(
         "아시아", "미국", "일본", "금리", "금융채", "회사채"
     )
 
+    // ========== 일별 ETF 통계 계산 (개선된 버전) ==========
+
     /**
-     * 일별 ETF 통계 계산
-     * Holdings 데이터를 분석하여 신규/제외/증가/감소 종목 통계 생성
+     * 일별 ETF 통계 계산 (개선된 버전)
+     *
+     * 실제로 신규/제외/증가/감소 종목을 계산하여 AI 분석에 유의미한 데이터 제공
+     *
+     * @param date 현재 날짜 (yyyy-MM-dd 형식)
+     * @param currentResults 현재 날짜의 ETF 처리 결과
      */
-    private suspend fun calculateDailyStatistics(
+    private suspend fun calculateDailyStatisticsImproved(
         date: String,
-        results: List<EtfProcessResult>
+        currentResults: List<EtfProcessResult>
     ): DailyEtfStatistics = withContext(Dispatchers.IO) {
+        Log.d(TAG, "calculateDailyStatisticsImproved for $date")
+
+        // 현재 날짜의 모든 종목을 ETF-종목 조합으로 집계
+        // Key: "etfTicker:stockTicker", Value: Holding
+        val currentHoldingsMap = mutableMapOf<String, Holding>()
         var totalHoldingAmount = 0L
         var cashDepositAmount = 0L
         var validEtfCount = 0
 
-        // 현재 날짜의 모든 holdings 집계
-        results.forEach { result ->
+        currentResults.forEach { result ->
             if (result.holdings.isNotEmpty()) {
                 validEtfCount++
                 result.holdings.forEach { holding ->
-                    if (holding.stockName == "현금") {
+                    val key = "${holding.etfTicker}:${holding.stockTicker}"
+                    currentHoldingsMap[key] = holding
+
+                    // 현금/원화예금 구분
+                    if (isCashDeposit(holding.stockName)) {
                         cashDepositAmount += holding.amount.toLong()
                     } else {
                         totalHoldingAmount += holding.amount.toLong()
@@ -831,13 +858,101 @@ class DataRepository @Inject constructor(
             }
         }
 
-        // 전날 데이터 조회 (비교용)
+        // 이전 영업일 조회
         val previousDate = getPreviousBusinessDay(date)
-        val previousStats = if (previousDate != null) {
-            dailyEtfStatisticsDao.getByDate(previousDate)
-        } else null
+        Log.d(TAG, "Previous business day: $previousDate")
+
+        // 이전 날짜의 holdings 조회
+        val previousHoldingsMap = if (previousDate != null) {
+            try {
+                val previousHoldings = dao.getHoldingsByDateRange(previousDate, previousDate)
+                previousHoldings.associateBy { "${it.etfTicker}:${it.stockTicker}" }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to get previous holdings: ${e.message}")
+                emptyMap()
+            }
+        } else {
+            emptyMap()
+        }
+
+        // 통계 계산
+        var newStockCount = 0
+        var newStockAmount = 0L
+        var removedStockCount = 0
+        var removedStockAmount = 0L
+        var increasedStockCount = 0
+        var increasedStockAmount = 0L
+        var decreasedStockCount = 0
+        var decreasedStockAmount = 0L
+
+        // 현재 종목 중에서 신규/비중 변화 종목 찾기
+        val processedStocks = mutableSetOf<String>() // 종목별로 한번만 카운트
+
+        currentHoldingsMap.forEach { (key, currentHolding) ->
+            val stockTicker = currentHolding.stockTicker
+
+            // 현금/원화예금은 통계에서 제외
+            if (isCashDeposit(currentHolding.stockName)) {
+                return@forEach
+            }
+
+            val previousHolding = previousHoldingsMap[key]
+
+            when {
+                // 신규 편입 (이전에 없던 ETF-종목 조합)
+                previousHolding == null -> {
+                    if (!processedStocks.contains("NEW:$stockTicker")) {
+                        newStockCount++
+                        processedStocks.add("NEW:$stockTicker")
+                    }
+                    newStockAmount += currentHolding.amount.toLong()
+                }
+                // 비중 증가 (1% 이상 증가)
+                currentHolding.weightBps > previousHolding.weightBps + WEIGHT_CHANGE_THRESHOLD_BPS -> {
+                    if (!processedStocks.contains("INC:$stockTicker")) {
+                        increasedStockCount++
+                        processedStocks.add("INC:$stockTicker")
+                    }
+                    increasedStockAmount += currentHolding.amount.toLong()
+                }
+                // 비중 감소 (1% 이상 감소)
+                currentHolding.weightBps < previousHolding.weightBps - WEIGHT_CHANGE_THRESHOLD_BPS -> {
+                    if (!processedStocks.contains("DEC:$stockTicker")) {
+                        decreasedStockCount++
+                        processedStocks.add("DEC:$stockTicker")
+                    }
+                    decreasedStockAmount += currentHolding.amount.toLong()
+                }
+            }
+        }
+
+        // 제외된 종목 찾기 (이전에 있었는데 현재 없는 ETF-종목 조합)
+        previousHoldingsMap.forEach { (key, previousHolding) ->
+            val stockTicker = previousHolding.stockTicker
+
+            // 현금/원화예금은 통계에서 제외
+            if (isCashDeposit(previousHolding.stockName)) {
+                return@forEach
+            }
+
+            if (!currentHoldingsMap.containsKey(key)) {
+                if (!processedStocks.contains("REM:$stockTicker")) {
+                    removedStockCount++
+                    processedStocks.add("REM:$stockTicker")
+                }
+                removedStockAmount += previousHolding.amount.toLong()
+            }
+        }
 
         // 원화예금 변화 계산
+        val previousStats = if (previousDate != null) {
+            try {
+                dailyEtfStatisticsDao.getByDate(previousDate)
+            } catch (e: Exception) {
+                null
+            }
+        } else null
+
         val cashDepositChange = if (previousStats != null) {
             cashDepositAmount - previousStats.cashDepositAmount
         } else 0L
@@ -846,17 +961,23 @@ class DataRepository @Inject constructor(
             (cashDepositChange.toDouble() / previousStats.cashDepositAmount) * 100
         } else 0.0
 
-        // 간소화된 통계 (전일 대비 변화는 추후 개선 가능)
+        Log.d(TAG, "Statistics calculated: " +
+                "new=$newStockCount (${formatAmount(newStockAmount)}), " +
+                "removed=$removedStockCount (${formatAmount(removedStockAmount)}), " +
+                "increased=$increasedStockCount (${formatAmount(increasedStockAmount)}), " +
+                "decreased=$decreasedStockCount (${formatAmount(decreasedStockAmount)}), " +
+                "cash=${formatAmount(cashDepositAmount)} (${String.format("%.2f", cashDepositChangeRate)}%)")
+
         DailyEtfStatistics(
             date = date,
-            newStockCount = 0,  // 추후 개선: 전일 대비 신규 편입 종목
-            newStockAmount = 0,
-            removedStockCount = 0,  // 추후 개선: 전일 대비 제외 종목
-            removedStockAmount = 0,
-            increasedStockCount = 0,  // 추후 개선: 전일 대비 비중 증가
-            increasedStockAmount = 0,
-            decreasedStockCount = 0,  // 추후 개선: 전일 대비 비중 감소
-            decreasedStockAmount = 0,
+            newStockCount = newStockCount,
+            newStockAmount = newStockAmount,
+            removedStockCount = removedStockCount,
+            removedStockAmount = removedStockAmount,
+            increasedStockCount = increasedStockCount,
+            increasedStockAmount = increasedStockAmount,
+            decreasedStockCount = decreasedStockCount,
+            decreasedStockAmount = decreasedStockAmount,
             cashDepositAmount = cashDepositAmount,
             cashDepositChange = cashDepositChange,
             cashDepositChangeRate = cashDepositChangeRate,
@@ -866,21 +987,60 @@ class DataRepository @Inject constructor(
     }
 
     /**
-     * 이전 영업일 조회 (간단 구현)
+     * 현금/원화예금 종목인지 확인
+     */
+    private fun isCashDeposit(stockName: String): Boolean {
+        val lowerName = stockName.lowercase()
+        return lowerName.contains("원화예금") ||
+                lowerName.contains("현금") ||
+                lowerName.contains("cash") ||
+                lowerName.contains("예금") ||
+                lowerName.contains("krw")
+    }
+
+    /**
+     * 금액 포맷팅 (로깅용)
+     */
+    private fun formatAmount(amount: Long): String {
+        return when {
+            amount >= 1_000_000_000_000 -> String.format("%.1f조", amount / 1_000_000_000_000.0)
+            amount >= 100_000_000 -> String.format("%.0f억", amount / 100_000_000.0)
+            amount >= 10_000 -> String.format("%.0f만", amount / 10_000.0)
+            else -> String.format("%,d", amount)
+        }
+    }
+
+    /**
+     * 이전 영업일 조회
+     * DailyEtfStatistics 테이블에서 현재 날짜 이전의 최신 날짜 반환
      */
     private suspend fun getPreviousBusinessDay(date: String): String? = withContext(Dispatchers.IO) {
         try {
+            // 방법 1: DailyEtfStatistics 테이블에서 조회
             val allDates = dailyEtfStatisticsDao.getAllDates()
-            val index = allDates.indexOf(date)
-            if (index > 0 && index < allDates.size) {
-                allDates[index + 1]  // Descending order이므로 +1이 이전 날짜
-            } else null
+            val sortedDates = allDates.sorted()
+            val index = sortedDates.indexOf(date)
+
+            if (index > 0) {
+                return@withContext sortedDates[index - 1]
+            }
+
+            // 방법 2: Holdings 테이블에서 조회 (첫 날인 경우)
+            val holdingDates = dao.getLatestTwoDates()
+            val currentIndex = holdingDates.indexOf(date)
+            if (currentIndex >= 0 && currentIndex < holdingDates.size - 1) {
+                return@withContext holdingDates[currentIndex + 1] // desc order이므로 +1
+            }
+
+            null
         } catch (e: Exception) {
+            Log.w(TAG, "Failed to get previous business day: ${e.message}")
             null
         }
     }
 
-    // ✅ Data class 추가
+    // ========== Data classes ==========
+
     private data class EtfProcessResult(
         val ticker: String,
         val holdings: List<Holding>
