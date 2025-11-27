@@ -6,14 +6,18 @@ import com.etfmonitor.database.entities.MarketOscillatorData
 import com.etfmonitor.oscillator.python.OscillatorPyClient
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
-import org.json.JSONObject
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * 시장 과매수/과매도 데이터 Repository
  */
-class MarketOscillatorRepository(
+@Singleton
+class MarketOscillatorRepository @Inject constructor(
     private val dao: MarketOscillatorDao,
     private val pyClient: OscillatorPyClient
 ) {
@@ -21,6 +25,19 @@ class MarketOscillatorRepository(
         private const val TAG = "MarketOscillatorRepo"
         private const val DEFAULT_KEEP_DAYS = 365 // 기본 1년치 데이터 유지
     }
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+    }
+
+    @Serializable
+    private data class MarketOscillatorResponse(
+        val dates: List<String> = emptyList(),
+        val index: List<Double> = emptyList(),
+        val oscillator: List<Double> = emptyList(),
+        val error: String? = null
+    )
 
     /**
      * 특정 시장의 모든 데이터 조회
@@ -85,26 +102,24 @@ class MarketOscillatorRepository(
             // Python에서 데이터 수집
             onProgress?.invoke("$market 시장 지수 데이터 수집 중...", 30)
             val jsonStr = pyClient.getMarketOscillator(market, startDateStr, endDateStr)
-            val jsonObj = JSONObject(jsonStr)
+            val response = json.decodeFromString<MarketOscillatorResponse>(jsonStr)
 
-            if (jsonObj.has("error")) {
-                val error = jsonObj.getString("error")
-                Log.e(TAG, "Error fetching market data: $error")
-                return Result.failure(Exception(error))
+            if (response.error != null) {
+                Log.e(TAG, "Error fetching market data: ${response.error}")
+                return Result.failure(Exception(response.error))
             }
 
             onProgress?.invoke("$market 데이터 처리 중...", 70)
 
-            // JSON 파싱
-            val dates = jsonObj.getJSONArray("dates").let { arr ->
-                List(arr.length()) { arr.getString(it) }
+            // 데이터 검증
+            if (response.dates.isEmpty() || response.index.isEmpty() || response.oscillator.isEmpty()) {
+                Log.e(TAG, "Empty data received from Python")
+                return Result.failure(Exception("데이터를 가져오지 못했습니다"))
             }
-            val indexValues = jsonObj.getJSONArray("index").let { arr ->
-                List(arr.length()) { arr.getDouble(it) }
-            }
-            val oscillators = jsonObj.getJSONArray("oscillator").let { arr ->
-                List(arr.length()) { arr.getDouble(it) }
-            }
+
+            val dates = response.dates
+            val indexValues = response.index
+            val oscillators = response.oscillator
 
             // Entity 리스트 생성
             val dataList = dates.indices.map { i ->
@@ -148,24 +163,22 @@ class MarketOscillatorRepository(
 
             // Python에서 데이터 수집
             val jsonStr = pyClient.getMarketOscillator(market, startDateStr, endDateStr)
-            val jsonObj = JSONObject(jsonStr)
+            val response = json.decodeFromString<MarketOscillatorResponse>(jsonStr)
 
-            if (jsonObj.has("error")) {
-                val error = jsonObj.getString("error")
-                Log.e(TAG, "Error updating market data: $error")
-                return Result.failure(Exception(error))
+            if (response.error != null) {
+                Log.e(TAG, "Error updating market data: ${response.error}")
+                return Result.failure(Exception(response.error))
             }
 
-            // JSON 파싱
-            val dates = jsonObj.getJSONArray("dates").let { arr ->
-                List(arr.length()) { arr.getString(it) }
+            // 데이터 검증
+            if (response.dates.isEmpty() || response.index.isEmpty() || response.oscillator.isEmpty()) {
+                Log.e(TAG, "Empty data received from Python")
+                return Result.failure(Exception("데이터를 가져오지 못했습니다"))
             }
-            val indexValues = jsonObj.getJSONArray("index").let { arr ->
-                List(arr.length()) { arr.getDouble(it) }
-            }
-            val oscillators = jsonObj.getJSONArray("oscillator").let { arr ->
-                List(arr.length()) { arr.getDouble(it) }
-            }
+
+            val dates = response.dates
+            val indexValues = response.index
+            val oscillators = response.oscillator
 
             // Entity 리스트 생성
             val dataList = dates.indices.map { i ->

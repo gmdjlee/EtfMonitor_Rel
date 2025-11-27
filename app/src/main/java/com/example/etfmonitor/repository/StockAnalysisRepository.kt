@@ -9,8 +9,11 @@ import com.etfmonitor.oscillator.python.OscillatorPyClient
 import com.etfmonitor.utils.DateFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class StockAnalysisRepository(
+@Singleton
+class StockAnalysisRepository @Inject constructor(
     private val stockAnalysisDao: StockAnalysisDao,
     private val python: Python
 ) {

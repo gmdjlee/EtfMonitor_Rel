@@ -12,8 +12,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class FearGreedRepository(
+@Singleton
+class FearGreedRepository @Inject constructor(
     private val fearGreedDao: FearGreedDao,
     private val python: Python
 ) {
