@@ -245,7 +245,6 @@ class FearGreedRepository @Inject constructor(
                 indices
             } catch (e: Exception) {
                 Log.e(TAG, "Error calculating Fear & Greed", e)
-                e.printStackTrace()
                 emptyList()
             }
         }
@@ -377,7 +376,6 @@ class FearGreedRepository @Inject constructor(
             return indices
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing Fear & Greed data for $market", e)
-            e.printStackTrace()
             return emptyList()
         }
     }

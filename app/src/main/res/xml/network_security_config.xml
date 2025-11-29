@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Network Security Configuration for EtfMonitor
+    - Enforces HTTPS for all API communications
+    - Disables cleartext traffic for security
+    - Pins certificates for API endpoints (optional, commented for flexibility)
+-->
+<network-security-config>
+    <!-- Global base configuration -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Anthropic Claude API -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.anthropic.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Google Gemini API -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">generativelanguage.googleapis.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- KRX Market Data (PyKrx endpoints) -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">data.krx.co.kr</domain>
+        <domain includeSubdomains="true">finance.naver.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

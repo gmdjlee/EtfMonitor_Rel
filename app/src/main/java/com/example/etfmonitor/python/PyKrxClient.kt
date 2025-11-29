@@ -107,7 +107,7 @@ class PyKrxClient @Inject constructor(
 
             // ✅ 검증: 빈 리스트 확인
             if (includeKeywords.isEmpty()) {
-                Log.e(TAG, "❌ ERROR: includeKeywords is empty in PyKrxClient!")
+                Log.e(TAG, "ERROR: includeKeywords is empty in PyKrxClient")
                 return@withContext emptyList()
             }
 
@@ -126,7 +126,7 @@ class PyKrxClient @Inject constructor(
 
             // ✅ 검증: JSON 형식 확인
             if (!includeJson.startsWith("[") || !includeJson.endsWith("]")) {
-                Log.e(TAG, "❌ ERROR: Invalid JSON format for includeKeywords!")
+                Log.e(TAG, "ERROR: Invalid JSON format for includeKeywords")
             }
 
             // STEP 3: Python 호출
@@ -177,8 +177,7 @@ class PyKrxClient @Inject constructor(
 
             etfs
         } catch (e: Exception) {
-            Log.e(TAG, "❌ getFilteredEtfList ERROR", e)
-            e.printStackTrace()
+            Log.e(TAG, "getFilteredEtfList failed", e)
             emptyList()
         }
     }

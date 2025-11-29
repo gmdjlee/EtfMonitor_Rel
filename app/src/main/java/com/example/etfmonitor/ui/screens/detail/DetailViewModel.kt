@@ -1,5 +1,6 @@
 package com.etfmonitor.ui.screens.detail
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -31,6 +32,10 @@ class DetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
+    companion object {
+        private const val TAG = "DetailViewModel"
+    }
+
     private val etfTicker: String = savedStateHandle.get<String>("ticker")
         ?: throw IllegalArgumentException("ticker is required")
 
@@ -59,6 +64,7 @@ class DetailViewModel @Inject constructor(
                     DetailState.Error("데이터를 찾을 수 없습니다")
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "Error loading comparison for ticker: $etfTicker", e)
                 _state.value = DetailState.Error(e.message ?: "오류 발생")
             }
         }
