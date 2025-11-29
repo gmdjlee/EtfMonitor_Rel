@@ -101,7 +101,7 @@ def fetch_market_index(
 def fetch_all_markets(
     start_date: str,
     end_date: str,
-    markets: Optional[List[str]] = None
+    markets = None
 ) -> str:
     """
     여러 시장의 지수 데이터를 한번에 수집
@@ -116,6 +116,9 @@ def fetch_all_markets(
     """
     if markets is None:
         markets = ["KOSPI", "KOSDAQ"]
+    else:
+        # Convert Java ArrayList to Python list if passed from Kotlin/Java
+        markets = list(markets)
 
     all_data = []
 
@@ -126,7 +129,7 @@ def fetch_all_markets(
     return json.dumps(all_data, ensure_ascii=False)
 
 
-def fetch_recent_days(days: int = 30, markets: Optional[List[str]] = None) -> str:
+def fetch_recent_days(days: int = 30, markets = None) -> str:
     """
     최근 N일의 지수 데이터 수집
 
@@ -137,6 +140,10 @@ def fetch_recent_days(days: int = 30, markets: Optional[List[str]] = None) -> st
     Returns:
         JSON 문자열 형태의 지수 데이터
     """
+    # Convert Java ArrayList to Python list if passed from Kotlin/Java
+    if markets is not None:
+        markets = list(markets)
+
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days + 30)  # 주말/공휴일 고려하여 여유있게
 
