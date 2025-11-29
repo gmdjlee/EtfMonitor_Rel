@@ -3,8 +3,12 @@ package com.etfmonitor.di
 import android.content.Context
 import com.etfmonitor.ai.*
 import com.etfmonitor.analysis.Backtester
+import com.etfmonitor.analysis.CorrelationAnalyzer
 import com.etfmonitor.database.*
 import com.etfmonitor.repository.AIAnalysisRepository
+import com.etfmonitor.repository.AIChatRepository
+import com.etfmonitor.repository.CorrelationAnalysisRepository
+import com.etfmonitor.repository.MarketIndexRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -106,5 +110,73 @@ object AIModule {
         marketIndexDao: MarketIndexDao
     ): Backtester {
         return Backtester(marketIndexDao)
+    }
+
+    /**
+     * CorrelationAnalyzer
+     * 로컬에서 상관관계 계산 수행
+     */
+    @Provides
+    @Singleton
+    fun provideCorrelationAnalyzer(
+        marketIndexDao: MarketIndexDao,
+        dailyEtfStatisticsDao: DailyEtfStatisticsDao,
+        fearGreedDao: FearGreedDao,
+        marketOscillatorDao: MarketOscillatorDao,
+        marketDepositDao: MarketDepositDao
+    ): CorrelationAnalyzer {
+        return CorrelationAnalyzer(
+            marketIndexDao,
+            dailyEtfStatisticsDao,
+            fearGreedDao,
+            marketOscillatorDao,
+            marketDepositDao
+        )
+    }
+
+    /**
+     * CorrelationAnalysisRepository
+     * 상관관계 분석 + AI 해석 통합 Repository
+     */
+    @Provides
+    @Singleton
+    fun provideCorrelationAnalysisRepository(
+        correlationAnalyzer: CorrelationAnalyzer,
+        correlationAnalysisDao: CorrelationAnalysisDao,
+        aiAnalysisDao: AIAnalysisDao,
+        marketIndexDao: MarketIndexDao,
+        marketIndexRepository: MarketIndexRepository,
+        dailyEtfStatisticsDao: DailyEtfStatisticsDao,
+        aiApiClientFactory: AIApiClientFactory
+    ): CorrelationAnalysisRepository {
+        return CorrelationAnalysisRepository(
+            correlationAnalyzer,
+            correlationAnalysisDao,
+            aiAnalysisDao,
+            marketIndexDao,
+            marketIndexRepository,
+            dailyEtfStatisticsDao,
+            aiApiClientFactory
+        )
+    }
+
+    /**
+     * AIChatRepository
+     * AI 채팅 기능 Repository
+     */
+    @Provides
+    @Singleton
+    fun provideAIChatRepository(
+        chatDao: AIChatDao,
+        aiAnalysisDao: AIAnalysisDao,
+        correlationAnalysisDao: CorrelationAnalysisDao,
+        aiApiClientFactory: AIApiClientFactory
+    ): AIChatRepository {
+        return AIChatRepository(
+            chatDao,
+            aiAnalysisDao,
+            correlationAnalysisDao,
+            aiApiClientFactory
+        )
     }
 }

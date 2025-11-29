@@ -22,6 +22,19 @@ interface AIApiClient {
     ): Result<MarketSignal>
 
     /**
+     * 채팅 메시지 전송
+     * @param messages 대화 이력 (역할, 내용 쌍)
+     * @param systemPrompt 시스템 프롬프트 (옵션)
+     * @param temperature 창의성 조절 (0.0 ~ 1.0)
+     * @return AI 응답 텍스트
+     */
+    suspend fun chat(
+        messages: List<ChatMessage>,
+        systemPrompt: String? = null,
+        temperature: Double = 0.7
+    ): Result<String>
+
+    /**
      * API 사용 가능 여부 확인
      * @return API 키가 설정되어 있으면 true
      */
@@ -39,3 +52,11 @@ interface AIApiClient {
      */
     suspend fun listModels(): Result<List<AIModel>>
 }
+
+/**
+ * 채팅 메시지 데이터 클래스
+ */
+data class ChatMessage(
+    val role: String, // "user" 또는 "assistant"
+    val content: String
+)

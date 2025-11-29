@@ -17,7 +17,7 @@ import com.etfmonitor.ui.screens.oscillator.OscillatorScreen
 import com.etfmonitor.ui.screens.oscillator.MarketDepositScreen
 import com.etfmonitor.ui.screens.feargreed.FearGreedScreen
 import com.etfmonitor.ui.screens.marketoscillator.MarketOscillatorScreen
-import com.etfmonitor.ui.screens.aianalysis.AIAnalysisScreen
+import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisScreen
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -164,9 +164,11 @@ fun Navigation() {
             )
         }
 
-        // ✅ AI Analysis 화면 (AI 시장 분석)
+        // ✅ AI Analysis 화면 (AI 시장 분석 - 새 버전)
         composable(Screen.AIAnalysis.route) {
-            AIAnalysisScreen(navController = navController)
+            NewAIAnalysisScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }

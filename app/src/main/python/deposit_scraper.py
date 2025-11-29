@@ -149,7 +149,13 @@ def scrape_page(page_num: int) -> Optional[List[Dict[str, Any]]]:
                     if len(cols) < 5:
                         continue
 
-                    date = cols[0].get_text(strip=True)
+                    raw_date = cols[0].get_text(strip=True)
+
+                    if not raw_date:
+                        continue
+
+                    # 날짜 형식 변환 (YYYY-MM-DD)
+                    date = convert_date_format(raw_date)
 
                     if not date:
                         continue
@@ -204,6 +210,66 @@ def scrape_page(page_num: int) -> Optional[List[Dict[str, Any]]]:
             return None
 
     return None
+
+
+def convert_date_format(date_str: str) -> str:
+    """
+    다양한 날짜 형식을 YYYY-MM-DD 형식으로 변환합니다.
+
+    Args:
+        date_str: 원본 날짜 문자열 (예: "2025.01.29", "25.01.29", "2025-01-29")
+
+    Returns:
+        str: YYYY-MM-DD 형식의 날짜
+    """
+    try:
+        # 공백 제거
+        date_str = date_str.strip()
+
+        if not date_str:
+            return ""
+
+        # 이미 YYYY-MM-DD 형식인 경우
+        if len(date_str) == 10 and date_str[4] == '-' and date_str[7] == '-':
+            return date_str
+
+        # YYYY.MM.DD 형식 (네이버 증권에서 가장 흔한 형식)
+        if '.' in date_str:
+            parts = date_str.split('.')
+            if len(parts) == 3:
+                year = parts[0].strip()
+                month = parts[1].strip().zfill(2)
+                day = parts[2].strip().zfill(2)
+
+                # YY.MM.DD 형식인 경우 (2자리 연도)
+                if len(year) == 2:
+                    year = '20' + year
+
+                return f"{year}-{month}-{day}"
+
+        # YYYYMMDD 형식
+        if len(date_str) == 8 and date_str.isdigit():
+            return f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
+
+        # YYYY/MM/DD 형식
+        if '/' in date_str:
+            parts = date_str.split('/')
+            if len(parts) == 3:
+                year = parts[0].strip()
+                month = parts[1].strip().zfill(2)
+                day = parts[2].strip().zfill(2)
+
+                if len(year) == 2:
+                    year = '20' + year
+
+                return f"{year}-{month}-{day}"
+
+        logger.warning("Unknown date format: %s", date_str)
+        return date_str  # 변환 실패 시 원본 반환
+
+    except Exception as e:
+        logger.error("Date conversion error for '%s': %s", date_str, str(e))
+        return date_str
 
 
 def parse_number(text: str) -> float:

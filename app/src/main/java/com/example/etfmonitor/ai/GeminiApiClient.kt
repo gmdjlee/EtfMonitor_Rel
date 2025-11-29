@@ -290,6 +290,110 @@ class GeminiApiClient @Inject constructor(
     }
 
     /**
+     * 채팅 메시지 전송
+     */
+    override suspend fun chat(
+        messages: List<ChatMessage>,
+        systemPrompt: String?,
+        temperature: Double
+    ): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val apiKey = apiKeyProvider.getApiKey(AIProvider.GEMINI)
+            if (apiKey.isNullOrBlank()) {
+                return@withContext Result.failure(Exception("Gemini API 키가 설정되지 않았습니다."))
+            }
+
+            var model = apiKeyProvider.getSelectedModel(AIProvider.GEMINI) ?: MODEL
+            model = validateAndFixModelName(model)
+
+            withTimeout(TIMEOUT_SECONDS * 1000) {
+                val response = callGeminiChatApi(apiKey, messages, systemPrompt, temperature, model)
+                Result.success(response)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Chat failed", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Gemini Chat API 호출
+     */
+    private suspend fun callGeminiChatApi(
+        apiKey: String,
+        messages: List<ChatMessage>,
+        systemPrompt: String?,
+        temperature: Double,
+        model: String
+    ): String = withContext(Dispatchers.IO) {
+        val requestBody = JSONObject().apply {
+            // 시스템 프롬프트 설정 (Gemini는 systemInstruction 사용)
+            if (!systemPrompt.isNullOrBlank()) {
+                put("systemInstruction", JSONObject().apply {
+                    put("parts", JSONArray().apply {
+                        put(JSONObject().apply {
+                            put("text", systemPrompt)
+                        })
+                    })
+                })
+            }
+
+            // 대화 이력 구성
+            put("contents", JSONArray().apply {
+                for (msg in messages) {
+                    put(JSONObject().apply {
+                        // Gemini는 "user"와 "model" 역할 사용
+                        put("role", if (msg.role == "assistant") "model" else msg.role)
+                        put("parts", JSONArray().apply {
+                            put(JSONObject().apply {
+                                put("text", msg.content)
+                            })
+                        })
+                    })
+                }
+            })
+
+            put("generationConfig", JSONObject().apply {
+                put("temperature", temperature)
+                put("maxOutputTokens", MAX_OUTPUT_TOKENS)
+            })
+        }
+
+        val url = "$API_BASE_URL/$model:generateContent?key=$apiKey"
+
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Content-Type", "application/json")
+            .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val errorBody = response.body?.string() ?: "Unknown error"
+                Log.e(TAG, "Chat API call failed: ${response.code} - $errorBody")
+                throw Exception("Gemini API 호출 실패: ${response.code}")
+            }
+
+            val responseBody = response.body?.string()
+                ?: throw Exception("Empty response from Gemini API")
+
+            val jsonResponse = JSONObject(responseBody)
+            val candidates = jsonResponse.getJSONArray("candidates")
+            if (candidates.length() == 0) {
+                throw Exception("No candidates in Gemini API response")
+            }
+
+            val content = candidates.getJSONObject(0).getJSONObject("content")
+            val parts = content.getJSONArray("parts")
+            if (parts.length() == 0) {
+                throw Exception("No parts in Gemini API response")
+            }
+
+            parts.getJSONObject(0).getString("text")
+        }
+    }
+
+    /**
      * API 사용 가능 여부 확인
      */
     override suspend fun isApiAvailable(): Boolean = withContext(Dispatchers.IO) {

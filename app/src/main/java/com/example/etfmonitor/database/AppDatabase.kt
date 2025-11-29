@@ -5,6 +5,10 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.etfmonitor.database.entities.AIChatMessage
+import com.etfmonitor.database.entities.AIChatSession
+import com.etfmonitor.database.entities.AIAnalysisResult
+import com.etfmonitor.database.entities.CorrelationAnalysisResult
 import com.etfmonitor.database.entities.DailyEtfStatistics
 import com.etfmonitor.database.entities.Etf
 import com.etfmonitor.database.entities.FearGreedIndex
@@ -18,8 +22,24 @@ import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.StockAnalysisData
 
 @Database(
-    entities = [Etf::class, Holding::class, Setting::class, Stock::class, MarketDeposit::class, StockAnalysisData::class, SearchHistory::class, FearGreedIndex::class, MarketOscillatorData::class, MarketIndex::class, DailyEtfStatistics::class],
-    version = 10,
+    entities = [
+        Etf::class,
+        Holding::class,
+        Setting::class,
+        Stock::class,
+        MarketDeposit::class,
+        StockAnalysisData::class,
+        SearchHistory::class,
+        FearGreedIndex::class,
+        MarketOscillatorData::class,
+        MarketIndex::class,
+        DailyEtfStatistics::class,
+        CorrelationAnalysisResult::class,
+        AIAnalysisResult::class,
+        AIChatSession::class,
+        AIChatMessage::class
+    ],
+    version = 11,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -33,6 +53,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun marketOscillatorDao(): MarketOscillatorDao
     abstract fun marketIndexDao(): MarketIndexDao
     abstract fun dailyEtfStatisticsDao(): DailyEtfStatisticsDao
+    abstract fun correlationAnalysisDao(): CorrelationAnalysisDao
+    abstract fun aiAnalysisDao(): AIAnalysisDao
+    abstract fun aiChatDao(): AIChatDao
 }
 
 /**
@@ -278,5 +301,111 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
 
         // 인덱스 생성
         database.execSQL("CREATE INDEX IF NOT EXISTS index_daily_etf_statistics_date ON daily_etf_statistics(date)")
+    }
+}
+
+/**
+ * Migration from version 10 to 11: Add AI Analysis tables
+ * - CorrelationAnalysisResult: 상관관계 분석 결과
+ * - AIAnalysisResult: AI 분석 결과
+ * - AIChatSession: 채팅 세션
+ * - AIChatMessage: 채팅 메시지
+ */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // 1. CorrelationAnalysisResult 테이블 생성
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS correlation_analysis_result (
+                id TEXT PRIMARY KEY NOT NULL,
+                market TEXT NOT NULL,
+                analysisDate TEXT NOT NULL,
+                periodDays INTEGER NOT NULL,
+                etfNewStockCorrelation REAL NOT NULL,
+                etfRemovedStockCorrelation REAL NOT NULL,
+                etfIncreasedCorrelation REAL NOT NULL,
+                etfDecreasedCorrelation REAL NOT NULL,
+                etfNetFlowCorrelation REAL NOT NULL,
+                cashDepositCorrelation REAL NOT NULL,
+                marketDepositCorrelation REAL,
+                creditBalanceCorrelation REAL,
+                fearGreedCorrelation REAL,
+                fearGreedLeadCorrelation REAL,
+                oscillatorCorrelation REAL,
+                oscillatorLeadCorrelation REAL,
+                compositeScore REAL NOT NULL,
+                signal TEXT NOT NULL,
+                confidence REAL NOT NULL,
+                upProbability REAL NOT NULL,
+                downProbability REAL NOT NULL,
+                analysisContext TEXT NOT NULL,
+                createdAt INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // 2. AIAnalysisResult 테이블 생성
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS ai_analysis_result (
+                id TEXT PRIMARY KEY NOT NULL,
+                market TEXT NOT NULL,
+                analysisDate TEXT NOT NULL,
+                correlationResultId TEXT,
+                aiProvider TEXT NOT NULL,
+                aiModel TEXT NOT NULL,
+                signal TEXT NOT NULL,
+                confidence REAL NOT NULL,
+                upProbability REAL NOT NULL,
+                downProbability REAL NOT NULL,
+                riskLevel TEXT NOT NULL,
+                reasoning TEXT NOT NULL,
+                keyFactors TEXT NOT NULL,
+                recommendation TEXT NOT NULL,
+                alternativeScenarios TEXT,
+                promptUsed TEXT NOT NULL,
+                rawResponse TEXT NOT NULL,
+                processingTimeMs INTEGER NOT NULL,
+                createdAt INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // 3. AIChatSession 테이블 생성
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS ai_chat_session (
+                id TEXT PRIMARY KEY NOT NULL,
+                title TEXT NOT NULL,
+                market TEXT,
+                analysisDate TEXT,
+                contextData TEXT,
+                messageCount INTEGER NOT NULL DEFAULT 0,
+                createdAt INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // 4. AIChatMessage 테이블 생성
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS ai_chat_message (
+                id TEXT PRIMARY KEY NOT NULL,
+                sessionId TEXT NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                analysisResultId TEXT,
+                aiProvider TEXT,
+                aiModel TEXT,
+                tokenCount INTEGER,
+                timestamp INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // 인덱스 생성
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_ai_chat_message_sessionId ON ai_chat_message(sessionId)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_ai_chat_message_sessionId_timestamp ON ai_chat_message(sessionId, timestamp)")
     }
 }

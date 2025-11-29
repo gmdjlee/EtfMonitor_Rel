@@ -49,7 +49,8 @@ object DatabaseModule {
                 MIGRATION_6_7,
                 MIGRATION_7_8,
                 MIGRATION_8_9,
-                MIGRATION_9_10
+                MIGRATION_9_10,
+                MIGRATION_10_11
             )
             .build()
     }
@@ -142,5 +143,35 @@ object DatabaseModule {
     @Singleton
     fun provideDailyEtfStatisticsDao(database: AppDatabase): DailyEtfStatisticsDao {
         return database.dailyEtfStatisticsDao()
+    }
+
+    /**
+     * Correlation Analysis DAO 제공
+     * 상관관계 분석 결과를 관리하는 DAO
+     */
+    @Provides
+    @Singleton
+    fun provideCorrelationAnalysisDao(database: AppDatabase): CorrelationAnalysisDao {
+        return database.correlationAnalysisDao()
+    }
+
+    /**
+     * AI Analysis DAO 제공
+     * AI 분석 결과를 관리하는 DAO
+     */
+    @Provides
+    @Singleton
+    fun provideAIAnalysisDao(database: AppDatabase): AIAnalysisDao {
+        return database.aiAnalysisDao()
+    }
+
+    /**
+     * AI Chat DAO 제공
+     * AI 채팅 세션 및 메시지를 관리하는 DAO
+     */
+    @Provides
+    @Singleton
+    fun provideAIChatDao(database: AppDatabase): AIChatDao {
+        return database.aiChatDao()
     }
 }
