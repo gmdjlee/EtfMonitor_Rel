@@ -26,6 +26,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+// ==================== Data Classes ====================
+
 data class StockUpdateSettings(
     val updateHour: Int = 1,
     val updateMinute: Int = 0,
@@ -35,7 +37,7 @@ data class StockUpdateSettings(
 )
 
 data class MarketDepositUpdateSettings(
-    val updateHour: Int = 2, // 기본값: 새벽 2시
+    val updateHour: Int = 2,
     val updateMinute: Int = 0,
     val lastUpdateTime: Long? = null,
     val depositCount: Int = 0,
@@ -43,7 +45,7 @@ data class MarketDepositUpdateSettings(
 )
 
 data class FearGreedUpdateSettings(
-    val updateHour: Int = 3, // 기본값: 새벽 3시
+    val updateHour: Int = 3,
     val updateMinute: Int = 0,
     val lastUpdateTime: Long? = null,
     val kospiCount: Int = 0,
@@ -52,7 +54,7 @@ data class FearGreedUpdateSettings(
 )
 
 data class MarketOscillatorUpdateSettings(
-    val updateHour: Int = 4, // 기본값: 새벽 4시
+    val updateHour: Int = 4,
     val updateMinute: Int = 0,
     val lastUpdateTime: Long? = null,
     val kospiCount: Int = 0,
@@ -60,9 +62,6 @@ data class MarketOscillatorUpdateSettings(
     val isUpdating: Boolean = false
 )
 
-/**
- * API 키 테스트 상태
- */
 sealed class ApiKeyTestState {
     object Idle : ApiKeyTestState()
     object Testing : ApiKeyTestState()
@@ -70,19 +69,17 @@ sealed class ApiKeyTestState {
     data class Error(val message: String) : ApiKeyTestState()
 }
 
+// 차트 색상 타입 (코드 중복 제거용)
+enum class ChartType { MARKET_CAP, MACD, DEPOSIT, FEAR_GREED }
+enum class ColorProperty { LINE1, LINE2, TEXT, LEGEND, POSITIVE, NEGATIVE }
+
 /**
- * Production Level SettingsViewModel with Hilt
+ * SettingsViewModel - Optimized for code reduction and maintainability
  *
- * 최적화 포인트:
- * 1. @HiltViewModel: Hilt가 ViewModel 생명주기 자동 관리
- * 2. @Inject: 생성자 주입으로 의존성 명확화
- * 3. @ApplicationContext: Application Context 직접 주입
- * 4. Factory 패턴 제거: Hilt가 자동으로 ViewModel 생성
- * 5. AndroidViewModel → ViewModel: Application 직접 주입 제거
- *
- * 기존 문제점 해결:
- * - EtfMonitorApp.instance 제거: 메모리 누수 위험 제거
- * - 수동 Factory 제거: Hilt가 자동으로 관리하여 코드 간결화
+ * 최적화:
+ * - 반복 코드 패턴을 제네릭 헬퍼 함수로 통합
+ * - 차트 색상 설정을 단일 함수로 처리
+ * - 설정 저장/로드 로직 간소화
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -100,7 +97,25 @@ class SettingsViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "SettingsViewModel"
+
+        // 설정 키 상수
+        private object Keys {
+            const val THEMES = "themes"
+            const val EXCLUSIONS = "exclusions"
+            const val DEFAULT_DAYS = "default_days"
+            const val SEARCH_HISTORY_LIMIT = "search_history_limit"
+            const val FEAR_GREED_PERIOD = "fear_greed_period_days"
+            const val OSCILLATOR_PERIOD = "market_oscillator_period_days"
+            const val DARK_THEME = "dark_theme"
+
+            fun updateHour(type: String) = "${type}_update_hour"
+            fun updateMinute(type: String) = "${type}_update_minute"
+            fun fontScale(type: String) = "font_scale_$type"
+            fun chartColor(chart: String, prop: String) = "chart_${chart}_$prop"
+        }
     }
+
+    // ==================== State Flows ====================
 
     private val _themes = MutableStateFlow<List<String>>(emptyList())
     val themes: StateFlow<List<String>> = _themes.asStateFlow()
@@ -126,24 +141,22 @@ class SettingsViewModel @Inject constructor(
     private val _searchHistoryLimit = MutableStateFlow(15)
     val searchHistoryLimit: StateFlow<Int> = _searchHistoryLimit.asStateFlow()
 
-    private val _fearGreedPeriodDays = MutableStateFlow(365) // 기본값: 12개월
+    private val _fearGreedPeriodDays = MutableStateFlow(365)
     val fearGreedPeriodDays: StateFlow<Int> = _fearGreedPeriodDays.asStateFlow()
 
-    private val _marketOscillatorPeriodDays = MutableStateFlow(365) // 기본값: 12개월
+    private val _marketOscillatorPeriodDays = MutableStateFlow(365)
     val marketOscillatorPeriodDays: StateFlow<Int> = _marketOscillatorPeriodDays.asStateFlow()
 
-    // General settings
-    private val _isDarkTheme = MutableStateFlow<Boolean?>(null) // null = 시스템 설정 따름
+    private val _isDarkTheme = MutableStateFlow<Boolean?>(null)
     val isDarkTheme: StateFlow<Boolean?> = _isDarkTheme.asStateFlow()
 
     private val _fontScaleSettings = MutableStateFlow(FontScaleSettings())
     val fontScaleSettings: StateFlow<FontScaleSettings> = _fontScaleSettings.asStateFlow()
 
-    // 차트 색상 설정
     private val _chartColorSettings = MutableStateFlow(ChartColorSettings())
     val chartColorSettings: StateFlow<ChartColorSettings> = _chartColorSettings.asStateFlow()
 
-    // AI API 키 설정
+    // AI 관련 상태
     private val _selectedProvider = MutableStateFlow(AIProvider.CLAUDE)
     val selectedProvider: StateFlow<AIProvider> = _selectedProvider.asStateFlow()
 
@@ -156,7 +169,6 @@ class SettingsViewModel @Inject constructor(
     private val _apiKeyTestState = MutableStateFlow<ApiKeyTestState>(ApiKeyTestState.Idle)
     val apiKeyTestState: StateFlow<ApiKeyTestState> = _apiKeyTestState.asStateFlow()
 
-    // AI 모델 목록 및 선택
     private val _claudeModels = MutableStateFlow<List<com.etfmonitor.ai.AIModel>>(emptyList())
     val claudeModels: StateFlow<List<com.etfmonitor.ai.AIModel>> = _claudeModels.asStateFlow()
 
@@ -175,183 +187,137 @@ class SettingsViewModel @Inject constructor(
     private val _isLoadingGeminiModels = MutableStateFlow(false)
     val isLoadingGeminiModels: StateFlow<Boolean> = _isLoadingGeminiModels.asStateFlow()
 
-    // 하위 호환성을 위한 deprecated 프로퍼티
-    @Deprecated("Use isClaudeApiKeyConfigured or isGeminiApiKeyConfigured")
-    val isApiKeyConfigured: StateFlow<Boolean>
-        get() = when (_selectedProvider.value) {
-            AIProvider.CLAUDE -> _isClaudeApiKeyConfigured
-            AIProvider.GEMINI -> _isGeminiApiKeyConfigured
-        }
-
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
     init {
-        loadSettings()
-        loadStockInfo()
-        loadMarketDepositInfo()
-        loadFearGreedInfo()
-        loadMarketOscillatorInfo()
-        checkApiKeyStatus()
+        loadAllSettings()
     }
 
-    private fun loadSettings() {
+    // ==================== Helper Functions ====================
+
+    /** 공통 설정 저장 패턴 - 코드 중복 제거 */
+    private inline fun saveSetting(
+        successMessage: String,
+        crossinline action: suspend () -> Unit
+    ) {
         viewModelScope.launch {
-            _themes.value = repository.getThemes()
-            _exclusions.value = repository.getExclusions()
-            _defaultDays.value = repository.getDefaultDays()
-
-            // 검색 히스토리 개수 로드
-            val historyLimitStr = etfDao.getSetting("search_history_limit")
-            _searchHistoryLimit.value = historyLimitStr?.toIntOrNull() ?: 15
-
-            // Fear & Greed 데이터 수집 기간 로드
-            val fearGreedPeriodStr = etfDao.getSetting("fear_greed_period_days")
-            _fearGreedPeriodDays.value = fearGreedPeriodStr?.toIntOrNull() ?: 365 // 기본값: 12개월
-
-            // 과매수/과매도 데이터 수집 기간 로드
-            val marketOscillatorPeriodStr = etfDao.getSetting("market_oscillator_period_days")
-            _marketOscillatorPeriodDays.value = marketOscillatorPeriodStr?.toIntOrNull() ?: 365 // 기본값: 12개월
-
-            // Stock 업데이트 시간 로드
-            val stockHourStr = etfDao.getSetting("stock_update_hour")
-            val stockMinuteStr = etfDao.getSetting("stock_update_minute")
-
-            val stockHour = stockHourStr?.toIntOrNull() ?: 1 // 기본값: 새벽 1시
-            val stockMinute = stockMinuteStr?.toIntOrNull() ?: 0
-
-            _stockUpdateSettings.value = _stockUpdateSettings.value.copy(
-                updateHour = stockHour,
-                updateMinute = stockMinute
-            )
-
-            // 스케줄 재설정
-            WorkManagerHelper.scheduleStockUpdate(context, stockHour, stockMinute)
-
-            // Market Deposit 업데이트 시간 로드
-            val depositHourStr = etfDao.getSetting("market_deposit_update_hour")
-            val depositMinuteStr = etfDao.getSetting("market_deposit_update_minute")
-
-            val depositHour = depositHourStr?.toIntOrNull() ?: 2 // 기본값: 새벽 2시
-            val depositMinute = depositMinuteStr?.toIntOrNull() ?: 0
-
-            _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(
-                updateHour = depositHour,
-                updateMinute = depositMinute
-            )
-
-            // 스케줄 재설정
-            WorkManagerHelper.scheduleMarketDepositUpdate(context, depositHour, depositMinute)
-
-            // Fear & Greed 업데이트 시간 로드
-            val fearGreedHourStr = etfDao.getSetting("fear_greed_update_hour")
-            val fearGreedMinuteStr = etfDao.getSetting("fear_greed_update_minute")
-
-            val fearGreedHour = fearGreedHourStr?.toIntOrNull() ?: 3 // 기본값: 새벽 3시
-            val fearGreedMinute = fearGreedMinuteStr?.toIntOrNull() ?: 0
-
-            _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(
-                updateHour = fearGreedHour,
-                updateMinute = fearGreedMinute
-            )
-
-            // 스케줄 재설정
-            WorkManagerHelper.scheduleFearGreedUpdate(context, fearGreedHour, fearGreedMinute)
-
-            // 과매수/과매도 업데이트 시간 로드
-            val marketOscillatorHourStr = etfDao.getSetting("market_oscillator_update_hour")
-            val marketOscillatorMinuteStr = etfDao.getSetting("market_oscillator_update_minute")
-
-            val marketOscillatorHour = marketOscillatorHourStr?.toIntOrNull() ?: 4 // 기본값: 새벽 4시
-            val marketOscillatorMinute = marketOscillatorMinuteStr?.toIntOrNull() ?: 0
-
-            _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(
-                updateHour = marketOscillatorHour,
-                updateMinute = marketOscillatorMinute
-            )
-
-            // 스케줄 재설정
-            WorkManagerHelper.scheduleMarketOscillatorUpdate(context, marketOscillatorHour, marketOscillatorMinute)
-
-            // General settings 로드
-            val darkThemeStr = etfDao.getSetting("dark_theme")
-            _isDarkTheme.value = when (darkThemeStr) {
-                "true" -> true
-                "false" -> false
-                else -> null // 시스템 설정 따름
+            try {
+                action()
+                _message.value = successMessage
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
             }
-
-            // 폰트 스케일 설정 로드
-            val displayScale = etfDao.getSetting("font_scale_display")?.toFloatOrNull() ?: 1.0f
-            val headlineScale = etfDao.getSetting("font_scale_headline")?.toFloatOrNull() ?: 1.0f
-            val titleScale = etfDao.getSetting("font_scale_title")?.toFloatOrNull() ?: 1.0f
-            val bodyScale = etfDao.getSetting("font_scale_body")?.toFloatOrNull() ?: 1.0f
-            val labelScale = etfDao.getSetting("font_scale_label")?.toFloatOrNull() ?: 1.0f
-
-            _fontScaleSettings.value = FontScaleSettings(
-                displayScale = displayScale,
-                headlineScale = headlineScale,
-                titleScale = titleScale,
-                bodyScale = bodyScale,
-                labelScale = labelScale
-            )
-
-            // 차트 색상 설정 로드
-            loadChartColorSettings()
         }
     }
 
+    // ==================== Settings Load ====================
+
+    private fun loadAllSettings() {
+        viewModelScope.launch {
+            loadBasicSettings()
+            loadUpdateScheduleSettings()
+            loadThemeSettings()
+            loadChartColorSettings()
+            loadDataInfo()
+            checkApiKeyStatus()
+        }
+    }
+
+    private suspend fun loadBasicSettings() {
+        _themes.value = repository.getThemes()
+        _exclusions.value = repository.getExclusions()
+        _defaultDays.value = repository.getDefaultDays()
+        _searchHistoryLimit.value = etfDao.getSetting(Keys.SEARCH_HISTORY_LIMIT)?.toIntOrNull() ?: 15
+        _fearGreedPeriodDays.value = etfDao.getSetting(Keys.FEAR_GREED_PERIOD)?.toIntOrNull() ?: 365
+        _marketOscillatorPeriodDays.value = etfDao.getSetting(Keys.OSCILLATOR_PERIOD)?.toIntOrNull() ?: 365
+    }
+
+    private suspend fun loadUpdateScheduleSettings() {
+        // Stock update
+        val stockHour = etfDao.getSetting(Keys.updateHour("stock"))?.toIntOrNull() ?: 1
+        val stockMinute = etfDao.getSetting(Keys.updateMinute("stock"))?.toIntOrNull() ?: 0
+        _stockUpdateSettings.value = _stockUpdateSettings.value.copy(
+            updateHour = stockHour, updateMinute = stockMinute
+        )
+        WorkManagerHelper.scheduleStockUpdate(context, stockHour, stockMinute)
+
+        // Market deposit update
+        val depositHour = etfDao.getSetting(Keys.updateHour("market_deposit"))?.toIntOrNull() ?: 2
+        val depositMinute = etfDao.getSetting(Keys.updateMinute("market_deposit"))?.toIntOrNull() ?: 0
+        _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(
+            updateHour = depositHour, updateMinute = depositMinute
+        )
+        WorkManagerHelper.scheduleMarketDepositUpdate(context, depositHour, depositMinute)
+
+        // Fear & Greed update
+        val fgHour = etfDao.getSetting(Keys.updateHour("fear_greed"))?.toIntOrNull() ?: 3
+        val fgMinute = etfDao.getSetting(Keys.updateMinute("fear_greed"))?.toIntOrNull() ?: 0
+        _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(
+            updateHour = fgHour, updateMinute = fgMinute
+        )
+        WorkManagerHelper.scheduleFearGreedUpdate(context, fgHour, fgMinute)
+
+        // Market oscillator update
+        val oscHour = etfDao.getSetting(Keys.updateHour("market_oscillator"))?.toIntOrNull() ?: 4
+        val oscMinute = etfDao.getSetting(Keys.updateMinute("market_oscillator"))?.toIntOrNull() ?: 0
+        _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(
+            updateHour = oscHour, updateMinute = oscMinute
+        )
+        WorkManagerHelper.scheduleMarketOscillatorUpdate(context, oscHour, oscMinute)
+    }
+
+    private suspend fun loadThemeSettings() {
+        _isDarkTheme.value = when (etfDao.getSetting(Keys.DARK_THEME)) {
+            "true" -> true
+            "false" -> false
+            else -> null
+        }
+
+        _fontScaleSettings.value = FontScaleSettings(
+            displayScale = etfDao.getSetting(Keys.fontScale("display"))?.toFloatOrNull() ?: 1.0f,
+            headlineScale = etfDao.getSetting(Keys.fontScale("headline"))?.toFloatOrNull() ?: 1.0f,
+            titleScale = etfDao.getSetting(Keys.fontScale("title"))?.toFloatOrNull() ?: 1.0f,
+            bodyScale = etfDao.getSetting(Keys.fontScale("body"))?.toFloatOrNull() ?: 1.0f,
+            labelScale = etfDao.getSetting(Keys.fontScale("label"))?.toFloatOrNull() ?: 1.0f
+        )
+    }
+
     private suspend fun loadChartColorSettings() {
-        val marketCapLine1 = etfDao.getSetting("chart_marketcap_line1")?.toIntOrNull()
-        val marketCapLine2 = etfDao.getSetting("chart_marketcap_line2")?.toIntOrNull()
-        val marketCapText = etfDao.getSetting("chart_marketcap_text")?.toIntOrNull()
-        val marketCapLegend = etfDao.getSetting("chart_marketcap_legend")?.toIntOrNull()
+        val default = ChartColorSettings()
 
-        val macdLine1 = etfDao.getSetting("chart_macd_line1")?.toIntOrNull()
-        val macdLine2 = etfDao.getSetting("chart_macd_line2")?.toIntOrNull()
-        val macdPositive = etfDao.getSetting("chart_macd_positive")?.toIntOrNull()
-        val macdNegative = etfDao.getSetting("chart_macd_negative")?.toIntOrNull()
-        val macdText = etfDao.getSetting("chart_macd_text")?.toIntOrNull()
-        val macdLegend = etfDao.getSetting("chart_macd_legend")?.toIntOrNull()
+        fun loadColor(chart: String, prop: String, default: Int): Int =
+            etfDao.getSetting(Keys.chartColor(chart, prop))?.toIntOrNull() ?: default
 
-        val depositLine1 = etfDao.getSetting("chart_deposit_line1")?.toIntOrNull()
-        val depositLine2 = etfDao.getSetting("chart_deposit_line2")?.toIntOrNull()
-        val depositText = etfDao.getSetting("chart_deposit_text")?.toIntOrNull()
-        val depositLegend = etfDao.getSetting("chart_deposit_legend")?.toIntOrNull()
-
-        val fearGreedLine1 = etfDao.getSetting("chart_feargreed_line1")?.toIntOrNull()
-        val fearGreedLine2 = etfDao.getSetting("chart_feargreed_line2")?.toIntOrNull()
-        val fearGreedText = etfDao.getSetting("chart_feargreed_text")?.toIntOrNull()
-        val fearGreedLegend = etfDao.getSetting("chart_feargreed_legend")?.toIntOrNull()
-
-        val defaultSettings = ChartColorSettings()
+        fun loadOptionalColor(chart: String, prop: String): Int? =
+            etfDao.getSetting(Keys.chartColor(chart, prop))?.toIntOrNull()
 
         val settings = ChartColorSettings(
             marketCapOscillator = SingleChartColorSettings(
-                lineColor1 = marketCapLine1 ?: defaultSettings.marketCapOscillator.lineColor1,
-                lineColor2 = marketCapLine2 ?: defaultSettings.marketCapOscillator.lineColor2,
-                textColor = marketCapText,
-                legendColor = marketCapLegend
+                lineColor1 = loadColor("marketcap", "line1", default.marketCapOscillator.lineColor1),
+                lineColor2 = loadColor("marketcap", "line2", default.marketCapOscillator.lineColor2),
+                textColor = loadOptionalColor("marketcap", "text"),
+                legendColor = loadOptionalColor("marketcap", "legend")
             ),
             macd = SingleChartColorSettings(
-                lineColor1 = macdLine1 ?: defaultSettings.macd.lineColor1,
-                lineColor2 = macdLine2 ?: defaultSettings.macd.lineColor2,
-                positiveColor = macdPositive ?: defaultSettings.macd.positiveColor,
-                negativeColor = macdNegative ?: defaultSettings.macd.negativeColor,
-                textColor = macdText,
-                legendColor = macdLegend
+                lineColor1 = loadColor("macd", "line1", default.macd.lineColor1),
+                lineColor2 = loadColor("macd", "line2", default.macd.lineColor2),
+                positiveColor = loadColor("macd", "positive", default.macd.positiveColor),
+                negativeColor = loadColor("macd", "negative", default.macd.negativeColor),
+                textColor = loadOptionalColor("macd", "text"),
+                legendColor = loadOptionalColor("macd", "legend")
             ),
             marketDeposit = SingleChartColorSettings(
-                lineColor1 = depositLine1 ?: defaultSettings.marketDeposit.lineColor1,
-                lineColor2 = depositLine2 ?: defaultSettings.marketDeposit.lineColor2,
-                textColor = depositText,
-                legendColor = depositLegend
+                lineColor1 = loadColor("deposit", "line1", default.marketDeposit.lineColor1),
+                lineColor2 = loadColor("deposit", "line2", default.marketDeposit.lineColor2),
+                textColor = loadOptionalColor("deposit", "text"),
+                legendColor = loadOptionalColor("deposit", "legend")
             ),
             fearGreed = SingleChartColorSettings(
-                lineColor1 = fearGreedLine1 ?: defaultSettings.fearGreed.lineColor1,
-                lineColor2 = fearGreedLine2 ?: defaultSettings.fearGreed.lineColor2,
-                textColor = fearGreedText,
-                legendColor = fearGreedLegend
+                lineColor1 = loadColor("feargreed", "line1", default.fearGreed.lineColor1),
+                lineColor2 = loadColor("feargreed", "line2", default.fearGreed.lineColor2),
+                textColor = loadOptionalColor("feargreed", "text"),
+                legendColor = loadOptionalColor("feargreed", "legend")
             )
         )
 
@@ -359,167 +325,142 @@ class SettingsViewModel @Inject constructor(
         themeManager.setChartColorSettings(settings)
     }
 
-    private fun loadStockInfo() {
+    private fun loadDataInfo() {
         viewModelScope.launch {
             try {
-                val count = stockRepository.getStockCount()
-                val lastUpdate = stockRepository.getLastUpdateTime()
-
+                // Stock info
                 _stockUpdateSettings.value = _stockUpdateSettings.value.copy(
-                    stockCount = count,
-                    lastUpdateTime = lastUpdate
+                    stockCount = stockRepository.getStockCount(),
+                    lastUpdateTime = stockRepository.getLastUpdateTime()
                 )
-            } catch (e: Exception) {
-                android.util.Log.e("SettingsViewModel", "Error loading stock info", e)
-            }
-        }
-    }
 
-    private fun loadMarketDepositInfo() {
-        viewModelScope.launch {
-            try {
-                val count = marketDepositRepository.getDepositCount()
-                val lastUpdate = marketDepositRepository.getLastUpdateTime()
-
+                // Market deposit info
                 _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(
-                    depositCount = count,
-                    lastUpdateTime = lastUpdate
+                    depositCount = marketDepositRepository.getDepositCount(),
+                    lastUpdateTime = marketDepositRepository.getLastUpdateTime()
                 )
-            } catch (e: Exception) {
-                android.util.Log.e("SettingsViewModel", "Error loading market deposit info", e)
-            }
-        }
-    }
 
-    private fun loadFearGreedInfo() {
-        viewModelScope.launch {
-            try {
-                val kospiCount = fearGreedRepository.getCountByMarket("KOSPI")
-                val kosdaqCount = fearGreedRepository.getCountByMarket("KOSDAQ")
-                val kospiLastUpdate = fearGreedRepository.getLastUpdateTime("KOSPI")
-                val kosdaqLastUpdate = fearGreedRepository.getLastUpdateTime("KOSDAQ")
-                val lastUpdate = maxOf(kospiLastUpdate ?: 0L, kosdaqLastUpdate ?: 0L).takeIf { it > 0L }
-
+                // Fear & Greed info
+                val fgKospiUpdate = fearGreedRepository.getLastUpdateTime("KOSPI")
+                val fgKosdaqUpdate = fearGreedRepository.getLastUpdateTime("KOSDAQ")
                 _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(
-                    kospiCount = kospiCount,
-                    kosdaqCount = kosdaqCount,
-                    lastUpdateTime = lastUpdate
+                    kospiCount = fearGreedRepository.getCountByMarket("KOSPI"),
+                    kosdaqCount = fearGreedRepository.getCountByMarket("KOSDAQ"),
+                    lastUpdateTime = maxOf(fgKospiUpdate ?: 0L, fgKosdaqUpdate ?: 0L).takeIf { it > 0L }
                 )
-            } catch (e: Exception) {
-                android.util.Log.e("SettingsViewModel", "Error loading fear greed info", e)
-            }
-        }
-    }
 
-    private fun loadMarketOscillatorInfo() {
-        viewModelScope.launch {
-            try {
-                val kospiCount = marketOscillatorRepository.getDataCount("KOSPI")
-                val kosdaqCount = marketOscillatorRepository.getDataCount("KOSDAQ")
-                val kospiLatest = marketOscillatorRepository.getLatestData("KOSPI")
-                val kosdaqLatest = marketOscillatorRepository.getLatestData("KOSDAQ")
-                val kospiLastUpdate = kospiLatest?.lastUpdated
-                val kosdaqLastUpdate = kosdaqLatest?.lastUpdated
-                val lastUpdate = maxOf(kospiLastUpdate ?: 0L, kosdaqLastUpdate ?: 0L).takeIf { it > 0L }
-
+                // Market oscillator info
+                val oscKospiUpdate = marketOscillatorRepository.getLatestData("KOSPI")?.lastUpdated
+                val oscKosdaqUpdate = marketOscillatorRepository.getLatestData("KOSDAQ")?.lastUpdated
                 _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(
-                    kospiCount = kospiCount,
-                    kosdaqCount = kosdaqCount,
-                    lastUpdateTime = lastUpdate
+                    kospiCount = marketOscillatorRepository.getDataCount("KOSPI"),
+                    kosdaqCount = marketOscillatorRepository.getDataCount("KOSDAQ"),
+                    lastUpdateTime = maxOf(oscKospiUpdate ?: 0L, oscKosdaqUpdate ?: 0L).takeIf { it > 0L }
                 )
             } catch (e: Exception) {
-                android.util.Log.e("SettingsViewModel", "Error loading market oscillator info", e)
+                Log.e(TAG, "Error loading data info", e)
             }
         }
     }
 
-    // ✅ 기본 수집 기간 설정 메서드 추가
-    fun setDefaultDays(days: Int) {
-        viewModelScope.launch {
-            repository.setDefaultDays(days)
-            _defaultDays.value = days
-            _message.value = "기본 수집 기간이 ${days}일로 설정되었습니다"
-        }
+    // ==================== Basic Settings ====================
+
+    fun setDefaultDays(days: Int) = saveSetting("기본 수집 기간이 ${days}일로 설정되었습니다") {
+        repository.setDefaultDays(days)
+        _defaultDays.value = days
     }
 
     fun addTheme(theme: String) {
-        if (theme.isBlank()) {
-            _message.value = "키워드를 입력하세요"
-            return
-        }
-        viewModelScope.launch {
+        if (theme.isBlank()) { _message.value = "키워드를 입력하세요"; return }
+        saveSetting("테마 추가됨: $theme") {
             repository.addTheme(theme)
             _themes.value = repository.getThemes()
-            _message.value = "테마 추가됨: $theme"
         }
     }
 
-    fun removeTheme(theme: String) {
-        viewModelScope.launch {
-            repository.removeTheme(theme)
-            _themes.value = repository.getThemes()
-            _message.value = "테마 제거됨: $theme"
-        }
+    fun removeTheme(theme: String) = saveSetting("테마 제거됨: $theme") {
+        repository.removeTheme(theme)
+        _themes.value = repository.getThemes()
     }
 
     fun addExclusion(keyword: String) {
-        if (keyword.isBlank()) {
-            _message.value = "키워드를 입력하세요"
-            return
-        }
-        viewModelScope.launch {
+        if (keyword.isBlank()) { _message.value = "키워드를 입력하세요"; return }
+        saveSetting("제외 키워드 추가됨: $keyword") {
             repository.addExclusion(keyword)
             _exclusions.value = repository.getExclusions()
-            _message.value = "제외 키워드 추가됨: $keyword"
         }
     }
 
-    fun removeExclusion(keyword: String) {
-        viewModelScope.launch {
-            repository.removeExclusion(keyword)
-            _exclusions.value = repository.getExclusions()
-            _message.value = "제외 키워드 제거됨: $keyword"
+    fun removeExclusion(keyword: String) = saveSetting("제외 키워드 제거됨: $keyword") {
+        repository.removeExclusion(keyword)
+        _exclusions.value = repository.getExclusions()
+    }
+
+    fun resetDatabase() = saveSetting("데이터베이스가 초기화되었습니다") { repository.resetDatabase() }
+
+    fun setSearchHistoryLimit(limit: Int) = saveSetting("검색 히스토리가 최대 ${limit}개로 설정되었습니다") {
+        etfDao.saveSetting(Setting(Keys.SEARCH_HISTORY_LIMIT, limit.toString()))
+        _searchHistoryLimit.value = limit
+    }
+
+    fun setFearGreedPeriodDays(days: Int) = saveSetting(formatPeriodMessage("Fear & Greed Index", days)) {
+        etfDao.saveSetting(Setting(Keys.FEAR_GREED_PERIOD, days.toString()))
+        _fearGreedPeriodDays.value = days
+    }
+
+    fun setMarketOscillatorPeriodDays(days: Int) = saveSetting(formatPeriodMessage("과매수/과매도", days)) {
+        etfDao.saveSetting(Setting(Keys.OSCILLATOR_PERIOD, days.toString()))
+        _marketOscillatorPeriodDays.value = days
+    }
+
+    private fun formatPeriodMessage(name: String, days: Int): String {
+        val period = when (days) {
+            180 -> "6개월"; 365 -> "12개월"; 540 -> "18개월"; 730 -> "24개월"; else -> "${days}일"
+        }
+        return "$name 데이터 수집 기간이 ${period}로 설정되었습니다"
+    }
+
+    // ==================== Update Time Settings ====================
+
+    fun setUpdateTime(hour: Int, minute: Int) = setSchedule("stock", hour, minute, "업데이트") {
+        _stockUpdateSettings.value = _stockUpdateSettings.value.copy(updateHour = hour, updateMinute = minute)
+        WorkManagerHelper.scheduleStockUpdate(context, hour, minute)
+    }
+
+    fun setMarketDepositUpdateTime(hour: Int, minute: Int) = setSchedule("market_deposit", hour, minute, "증시 자금 업데이트") {
+        _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(updateHour = hour, updateMinute = minute)
+        WorkManagerHelper.scheduleMarketDepositUpdate(context, hour, minute)
+    }
+
+    fun setFearGreedUpdateTime(hour: Int, minute: Int) = setSchedule("fear_greed", hour, minute, "Fear & Greed Index 업데이트") {
+        _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(updateHour = hour, updateMinute = minute)
+        WorkManagerHelper.scheduleFearGreedUpdate(context, hour, minute)
+    }
+
+    fun setMarketOscillatorUpdateTime(hour: Int, minute: Int) = setSchedule("market_oscillator", hour, minute, "과매수/과매도 업데이트") {
+        _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(updateHour = hour, updateMinute = minute)
+        WorkManagerHelper.scheduleMarketOscillatorUpdate(context, hour, minute)
+    }
+
+    private inline fun setSchedule(type: String, hour: Int, minute: Int, name: String, crossinline onSchedule: () -> Unit) {
+        saveSetting("$name 시간이 ${hour}:${String.format("%02d", minute)}로 설정되었습니다") {
+            etfDao.saveSetting(Setting(Keys.updateHour(type), hour.toString()))
+            etfDao.saveSetting(Setting(Keys.updateMinute(type), minute.toString()))
+            onSchedule()
         }
     }
 
-    fun resetDatabase() {
-        viewModelScope.launch {
-            repository.resetDatabase()
-            _message.value = "데이터베이스가 초기화되었습니다"
-        }
-    }
-
-    fun setUpdateTime(hour: Int, minute: Int) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("stock_update_hour", hour.toString()))
-                etfDao.saveSetting(Setting("stock_update_minute", minute.toString()))
-
-                _stockUpdateSettings.value = _stockUpdateSettings.value.copy(
-                    updateHour = hour,
-                    updateMinute = minute
-                )
-
-                WorkManagerHelper.scheduleStockUpdate(context, hour, minute)
-                _message.value = "업데이트 시간이 ${hour}:${String.format("%02d", minute)}로 설정되었습니다"
-            } catch (e: Exception) {
-                _message.value = "시간 설정 실패: ${e.message}"
-            }
-        }
-    }
+    // ==================== Manual Updates ====================
 
     fun updateStocksNow() {
         viewModelScope.launch {
             try {
                 _stockUpdateSettings.value = _stockUpdateSettings.value.copy(isUpdating = true)
                 _message.value = "종목 데이터 업데이트 중..."
-
                 val result = stockRepository.updateStocks()
-
                 if (result.isSuccess) {
-                    val count = result.getOrNull() ?: 0
-                    loadStockInfo()
-                    _message.value = "업데이트 완료: ${count}개 종목"
+                    loadDataInfo()
+                    _message.value = "업데이트 완료: ${result.getOrNull() ?: 0}개 종목"
                 } else {
                     _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
                 }
@@ -531,37 +472,15 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setMarketDepositUpdateTime(hour: Int, minute: Int) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("market_deposit_update_hour", hour.toString()))
-                etfDao.saveSetting(Setting("market_deposit_update_minute", minute.toString()))
-
-                _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(
-                    updateHour = hour,
-                    updateMinute = minute
-                )
-
-                WorkManagerHelper.scheduleMarketDepositUpdate(context, hour, minute)
-                _message.value = "증시 자금 업데이트 시간이 ${hour}:${String.format("%02d", minute)}로 설정되었습니다"
-            } catch (e: Exception) {
-                _message.value = "시간 설정 실패: ${e.message}"
-            }
-        }
-    }
-
     fun updateMarketDepositsNow() {
         viewModelScope.launch {
             try {
                 _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(isUpdating = true)
                 _message.value = "증시 자금 데이터 업데이트 중..."
-
                 val result = marketDepositRepository.updateDeposits(numPages = 10)
-
                 if (result.isSuccess) {
-                    val count = result.getOrNull() ?: 0
-                    loadMarketDepositInfo()
-                    _message.value = "업데이트 완료: ${count}개 데이터"
+                    loadDataInfo()
+                    _message.value = "업데이트 완료: ${result.getOrNull() ?: 0}개 데이터"
                 } else {
                     _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
                 }
@@ -573,37 +492,15 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setFearGreedUpdateTime(hour: Int, minute: Int) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("fear_greed_update_hour", hour.toString()))
-                etfDao.saveSetting(Setting("fear_greed_update_minute", minute.toString()))
-
-                _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(
-                    updateHour = hour,
-                    updateMinute = minute
-                )
-
-                WorkManagerHelper.scheduleFearGreedUpdate(context, hour, minute)
-                _message.value = "Fear & Greed Index 업데이트 시간이 ${hour}:${String.format("%02d", minute)}로 설정되었습니다"
-            } catch (e: Exception) {
-                _message.value = "시간 설정 실패: ${e.message}"
-            }
-        }
-    }
-
     fun updateFearGreedNow() {
         viewModelScope.launch {
             try {
                 _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(isUpdating = true)
                 _message.value = "Fear & Greed Index 업데이트 중..."
-
                 val result = fearGreedRepository.updateFearGreed()
-
                 if (result.isSuccess) {
-                    val count = result.getOrNull() ?: 0
-                    loadFearGreedInfo()
-                    _message.value = "업데이트 완료: ${count}개 데이터"
+                    loadDataInfo()
+                    _message.value = "업데이트 완료: ${result.getOrNull() ?: 0}개 데이터"
                 } else {
                     _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
                 }
@@ -611,56 +508,6 @@ class SettingsViewModel @Inject constructor(
                 _message.value = "오류 발생: ${e.message}"
             } finally {
                 _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(isUpdating = false)
-            }
-        }
-    }
-
-    fun setSearchHistoryLimit(limit: Int) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("search_history_limit", limit.toString()))
-                _searchHistoryLimit.value = limit
-                _message.value = "검색 히스토리가 최대 ${limit}개로 설정되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setFearGreedPeriodDays(days: Int) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("fear_greed_period_days", days.toString()))
-                _fearGreedPeriodDays.value = days
-                val monthText = when (days) {
-                    180 -> "6개월"
-                    365 -> "12개월"
-                    540 -> "18개월"
-                    730 -> "24개월"
-                    else -> "${days}일"
-                }
-                _message.value = "Fear & Greed Index 데이터 수집 기간이 ${monthText}로 설정되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setMarketOscillatorUpdateTime(hour: Int, minute: Int) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("market_oscillator_update_hour", hour.toString()))
-                etfDao.saveSetting(Setting("market_oscillator_update_minute", minute.toString()))
-
-                _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(
-                    updateHour = hour,
-                    updateMinute = minute
-                )
-
-                WorkManagerHelper.scheduleMarketOscillatorUpdate(context, hour, minute)
-                _message.value = "과매수/과매도 업데이트 시간이 ${hour}:${String.format("%02d", minute)}로 설정되었습니다"
-            } catch (e: Exception) {
-                _message.value = "시간 설정 실패: ${e.message}"
             }
         }
     }
@@ -675,14 +522,13 @@ class SettingsViewModel @Inject constructor(
                 val kosdaqResult = marketOscillatorRepository.updateMarketData("KOSDAQ")
 
                 if (kospiResult.isSuccess && kosdaqResult.isSuccess) {
-                    val kospiCount = kospiResult.getOrNull() ?: 0
-                    val kosdaqCount = kosdaqResult.getOrNull() ?: 0
-                    loadMarketOscillatorInfo()
-                    _message.value = "업데이트 완료: KOSPI ${kospiCount}개, KOSDAQ ${kosdaqCount}개"
+                    loadDataInfo()
+                    _message.value = "업데이트 완료: KOSPI ${kospiResult.getOrNull() ?: 0}개, KOSDAQ ${kosdaqResult.getOrNull() ?: 0}개"
                 } else {
-                    val errors = mutableListOf<String>()
-                    if (kospiResult.isFailure) errors.add("KOSPI: ${kospiResult.exceptionOrNull()?.message}")
-                    if (kosdaqResult.isFailure) errors.add("KOSDAQ: ${kosdaqResult.exceptionOrNull()?.message}")
+                    val errors = listOfNotNull(
+                        kospiResult.exceptionOrNull()?.let { "KOSPI: ${it.message}" },
+                        kosdaqResult.exceptionOrNull()?.let { "KOSDAQ: ${it.message}" }
+                    )
                     _message.value = "업데이트 실패: ${errors.joinToString(", ")}"
                 }
             } catch (e: Exception) {
@@ -693,448 +539,149 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setMarketOscillatorPeriodDays(days: Int) {
+    // ==================== Data Collection ====================
+
+    fun initializeData(days: Int) = saveSetting("데이터 초기화를 시작합니다") {
+        com.etfmonitor.service.DataCollectionService.startInitialize(context, days)
+    }
+
+    fun updateData() = saveSetting("데이터 업데이트를 시작합니다") {
+        com.etfmonitor.service.DataCollectionService.startUpdate(context)
+    }
+
+    // ==================== Theme Settings ====================
+
+    fun setDarkTheme(isDark: Boolean?) = saveSetting(when (isDark) {
+        true -> "테마가 다크 모드로 변경되었습니다"
+        false -> "테마가 라이트 모드로 변경되었습니다"
+        null -> "테마가 시스템 설정으로 변경되었습니다"
+    }) {
+        val value = when (isDark) { true -> "true"; false -> "false"; null -> "system" }
+        etfDao.saveSetting(Setting(Keys.DARK_THEME, value))
+        _isDarkTheme.value = isDark
+        themeManager.setDarkTheme(isDark)
+    }
+
+    fun setDisplayScale(scale: Float) = setFontScale("display", scale, "Display") { _fontScaleSettings.value.copy(displayScale = scale) }
+    fun setHeadlineScale(scale: Float) = setFontScale("headline", scale, "Headline") { _fontScaleSettings.value.copy(headlineScale = scale) }
+    fun setTitleScale(scale: Float) = setFontScale("title", scale, "Title") { _fontScaleSettings.value.copy(titleScale = scale) }
+    fun setBodyScale(scale: Float) = setFontScale("body", scale, "Body") { _fontScaleSettings.value.copy(bodyScale = scale) }
+    fun setLabelScale(scale: Float) = setFontScale("label", scale, "Label") { _fontScaleSettings.value.copy(labelScale = scale) }
+
+    private inline fun setFontScale(type: String, scale: Float, displayName: String, crossinline updateState: () -> FontScaleSettings) {
+        saveSetting("$displayName 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다") {
+            etfDao.saveSetting(Setting(Keys.fontScale(type), scale.toString()))
+            _fontScaleSettings.value = updateState()
+            when (type) {
+                "display" -> themeManager.setDisplayScale(scale)
+                "headline" -> themeManager.setHeadlineScale(scale)
+                "title" -> themeManager.setTitleScale(scale)
+                "body" -> themeManager.setBodyScale(scale)
+                "label" -> themeManager.setLabelScale(scale)
+            }
+        }
+    }
+
+    // ==================== Chart Color Settings (Unified) ====================
+
+    /** 통합 차트 색상 설정 함수 - 모든 차트 색상 변경을 단일 진입점으로 처리 */
+    fun setChartColor(chartType: ChartType, property: ColorProperty, color: Int?, message: String) {
         viewModelScope.launch {
             try {
-                etfDao.saveSetting(Setting("market_oscillator_period_days", days.toString()))
-                _marketOscillatorPeriodDays.value = days
-                val monthText = when (days) {
-                    180 -> "6개월"
-                    365 -> "12개월"
-                    540 -> "18개월"
-                    730 -> "24개월"
-                    else -> "${days}일"
+                val chartKey = when (chartType) {
+                    ChartType.MARKET_CAP -> "marketcap"
+                    ChartType.MACD -> "macd"
+                    ChartType.DEPOSIT -> "deposit"
+                    ChartType.FEAR_GREED -> "feargreed"
                 }
-                _message.value = "과매수/과매도 데이터 수집 기간이 ${monthText}로 설정되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun initializeData(days: Int) {
-        viewModelScope.launch {
-            try {
-                com.etfmonitor.service.DataCollectionService.startInitialize(context, days)
-                _message.value = "데이터 초기화를 시작합니다"
-            } catch (e: Exception) {
-                _message.value = "초기화 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun updateData() {
-        viewModelScope.launch {
-            try {
-                com.etfmonitor.service.DataCollectionService.startUpdate(context)
-                _message.value = "데이터 업데이트를 시작합니다"
-            } catch (e: Exception) {
-                _message.value = "업데이트 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun clearMessage() {
-        _message.value = null
-    }
-
-    // General settings methods
-    fun setDarkTheme(isDark: Boolean?) {
-        viewModelScope.launch {
-            try {
-                val value = when (isDark) {
-                    true -> "true"
-                    false -> "false"
-                    null -> "system"
+                val propKey = when (property) {
+                    ColorProperty.LINE1 -> "line1"
+                    ColorProperty.LINE2 -> "line2"
+                    ColorProperty.TEXT -> "text"
+                    ColorProperty.LEGEND -> "legend"
+                    ColorProperty.POSITIVE -> "positive"
+                    ColorProperty.NEGATIVE -> "negative"
                 }
-                etfDao.saveSetting(Setting("dark_theme", value))
-                _isDarkTheme.value = isDark
-                // ThemeManager 업데이트하여 즉시 테마 적용
-                themeManager.setDarkTheme(isDark)
-                val themeText = when (isDark) {
-                    true -> "다크 모드"
-                    false -> "라이트 모드"
-                    null -> "시스템 설정"
-                }
-                _message.value = "테마가 ${themeText}로 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
 
-    fun setDisplayScale(scale: Float) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("font_scale_display", scale.toString()))
-                _fontScaleSettings.value = _fontScaleSettings.value.copy(displayScale = scale)
-                themeManager.setDisplayScale(scale)
-                _message.value = "Display 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setHeadlineScale(scale: Float) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("font_scale_headline", scale.toString()))
-                _fontScaleSettings.value = _fontScaleSettings.value.copy(headlineScale = scale)
-                themeManager.setHeadlineScale(scale)
-                _message.value = "Headline 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setTitleScale(scale: Float) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("font_scale_title", scale.toString()))
-                _fontScaleSettings.value = _fontScaleSettings.value.copy(titleScale = scale)
-                themeManager.setTitleScale(scale)
-                _message.value = "Title 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setBodyScale(scale: Float) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("font_scale_body", scale.toString()))
-                _fontScaleSettings.value = _fontScaleSettings.value.copy(bodyScale = scale)
-                themeManager.setBodyScale(scale)
-                _message.value = "Body 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setLabelScale(scale: Float) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("font_scale_label", scale.toString()))
-                _fontScaleSettings.value = _fontScaleSettings.value.copy(labelScale = scale)
-                themeManager.setLabelScale(scale)
-                _message.value = "Label 폰트 크기가 ${(scale * 100).toInt()}%로 설정되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    // 차트 색상 설정 메서드들
-    fun setMarketCapOscillatorLineColor1(color: Int) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("chart_marketcap_line1", color.toString()))
-                val updated = _chartColorSettings.value.marketCapOscillator.copy(lineColor1 = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(marketCapOscillator = updated)
-                themeManager.setMarketCapOscillatorColors(updated)
-                _message.value = "시가총액 라인 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setMarketCapOscillatorLineColor2(color: Int) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("chart_marketcap_line2", color.toString()))
-                val updated = _chartColorSettings.value.marketCapOscillator.copy(lineColor2 = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(marketCapOscillator = updated)
-                themeManager.setMarketCapOscillatorColors(updated)
-                _message.value = "오실레이터 라인 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setMarketCapOscillatorTextColor(color: Int?) {
-        viewModelScope.launch {
-            try {
+                val settingKey = Keys.chartColor(chartKey, propKey)
                 if (color != null) {
-                    etfDao.saveSetting(Setting("chart_marketcap_text", color.toString()))
+                    etfDao.saveSetting(Setting(settingKey, color.toString()))
                 } else {
-                    etfDao.deleteSetting("chart_marketcap_text")
+                    etfDao.deleteSetting(settingKey)
                 }
-                val updated = _chartColorSettings.value.marketCapOscillator.copy(textColor = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(marketCapOscillator = updated)
-                themeManager.setMarketCapOscillatorColors(updated)
-                _message.value = "시가총액 차트 텍스트 색상이 변경되었습니다"
+
+                updateChartColorState(chartType, property, color)
+                _message.value = message
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
             }
         }
     }
 
-    fun setMarketCapOscillatorLegendColor(color: Int?) {
-        viewModelScope.launch {
-            try {
-                if (color != null) {
-                    etfDao.saveSetting(Setting("chart_marketcap_legend", color.toString()))
-                } else {
-                    etfDao.deleteSetting("chart_marketcap_legend")
-                }
-                val updated = _chartColorSettings.value.marketCapOscillator.copy(legendColor = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(marketCapOscillator = updated)
-                themeManager.setMarketCapOscillatorColors(updated)
-                _message.value = "시가총액 차트 범례 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
+    private fun updateChartColorState(chartType: ChartType, property: ColorProperty, color: Int?) {
+        val current = _chartColorSettings.value
+        val updated = when (chartType) {
+            ChartType.MARKET_CAP -> {
+                val colors = current.marketCapOscillator.updateProperty(property, color)
+                current.copy(marketCapOscillator = colors).also { themeManager.setMarketCapOscillatorColors(colors) }
+            }
+            ChartType.MACD -> {
+                val colors = current.macd.updateProperty(property, color)
+                current.copy(macd = colors).also { themeManager.setMacdColors(colors) }
+            }
+            ChartType.DEPOSIT -> {
+                val colors = current.marketDeposit.updateProperty(property, color)
+                current.copy(marketDeposit = colors).also { themeManager.setMarketDepositColors(colors) }
+            }
+            ChartType.FEAR_GREED -> {
+                val colors = current.fearGreed.updateProperty(property, color)
+                current.copy(fearGreed = colors).also { themeManager.setFearGreedColors(colors) }
             }
         }
+        _chartColorSettings.value = updated
     }
 
-    fun setMacdLineColor1(color: Int) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("chart_macd_line1", color.toString()))
-                val updated = _chartColorSettings.value.macd.copy(lineColor1 = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(macd = updated)
-                themeManager.setMacdColors(updated)
-                _message.value = "MACD 라인 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
+    private fun SingleChartColorSettings.updateProperty(property: ColorProperty, color: Int?): SingleChartColorSettings = when (property) {
+        ColorProperty.LINE1 -> copy(lineColor1 = color ?: lineColor1)
+        ColorProperty.LINE2 -> copy(lineColor2 = color ?: lineColor2)
+        ColorProperty.TEXT -> copy(textColor = color)
+        ColorProperty.LEGEND -> copy(legendColor = color)
+        ColorProperty.POSITIVE -> copy(positiveColor = color ?: positiveColor)
+        ColorProperty.NEGATIVE -> copy(negativeColor = color ?: negativeColor)
     }
 
-    fun setMacdLineColor2(color: Int) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("chart_macd_line2", color.toString()))
-                val updated = _chartColorSettings.value.macd.copy(lineColor2 = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(macd = updated)
-                themeManager.setMacdColors(updated)
-                _message.value = "Signal 라인 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
+    // 하위 호환성을 위한 개별 메서드들
+    fun setMarketCapOscillatorLineColor1(color: Int) = setChartColor(ChartType.MARKET_CAP, ColorProperty.LINE1, color, "시가총액 라인 색상이 변경되었습니다")
+    fun setMarketCapOscillatorLineColor2(color: Int) = setChartColor(ChartType.MARKET_CAP, ColorProperty.LINE2, color, "오실레이터 라인 색상이 변경되었습니다")
+    fun setMarketCapOscillatorTextColor(color: Int?) = setChartColor(ChartType.MARKET_CAP, ColorProperty.TEXT, color, "시가총액 차트 텍스트 색상이 변경되었습니다")
+    fun setMarketCapOscillatorLegendColor(color: Int?) = setChartColor(ChartType.MARKET_CAP, ColorProperty.LEGEND, color, "시가총액 차트 범례 색상이 변경되었습니다")
 
-    fun setMacdPositiveColor(color: Int) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("chart_macd_positive", color.toString()))
-                val updated = _chartColorSettings.value.macd.copy(positiveColor = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(macd = updated)
-                themeManager.setMacdColors(updated)
-                _message.value = "MACD 양수 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
+    fun setMacdLineColor1(color: Int) = setChartColor(ChartType.MACD, ColorProperty.LINE1, color, "MACD 라인 색상이 변경되었습니다")
+    fun setMacdLineColor2(color: Int) = setChartColor(ChartType.MACD, ColorProperty.LINE2, color, "Signal 라인 색상이 변경되었습니다")
+    fun setMacdPositiveColor(color: Int) = setChartColor(ChartType.MACD, ColorProperty.POSITIVE, color, "MACD 양수 색상이 변경되었습니다")
+    fun setMacdNegativeColor(color: Int) = setChartColor(ChartType.MACD, ColorProperty.NEGATIVE, color, "MACD 음수 색상이 변경되었습니다")
+    fun setMacdTextColor(color: Int?) = setChartColor(ChartType.MACD, ColorProperty.TEXT, color, "MACD 텍스트 색상이 변경되었습니다")
+    fun setMacdLegendColor(color: Int?) = setChartColor(ChartType.MACD, ColorProperty.LEGEND, color, "MACD 범례 색상이 변경되었습니다")
 
-    fun setMacdNegativeColor(color: Int) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("chart_macd_negative", color.toString()))
-                val updated = _chartColorSettings.value.macd.copy(negativeColor = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(macd = updated)
-                themeManager.setMacdColors(updated)
-                _message.value = "MACD 음수 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
+    fun setMarketDepositLineColor1(color: Int) = setChartColor(ChartType.DEPOSIT, ColorProperty.LINE1, color, "고객예탁금 라인 색상이 변경되었습니다")
+    fun setMarketDepositLineColor2(color: Int) = setChartColor(ChartType.DEPOSIT, ColorProperty.LINE2, color, "신용잔고 라인 색상이 변경되었습니다")
+    fun setMarketDepositTextColor(color: Int?) = setChartColor(ChartType.DEPOSIT, ColorProperty.TEXT, color, "증시자금 차트 텍스트 색상이 변경되었습니다")
+    fun setMarketDepositLegendColor(color: Int?) = setChartColor(ChartType.DEPOSIT, ColorProperty.LEGEND, color, "증시자금 차트 범례 색상이 변경되었습니다")
 
-    fun setMacdTextColor(color: Int?) {
-        viewModelScope.launch {
-            try {
-                if (color != null) {
-                    etfDao.saveSetting(Setting("chart_macd_text", color.toString()))
-                } else {
-                    etfDao.deleteSetting("chart_macd_text")
-                }
-                val updated = _chartColorSettings.value.macd.copy(textColor = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(macd = updated)
-                themeManager.setMacdColors(updated)
-                _message.value = "MACD 텍스트 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setMacdLegendColor(color: Int?) {
-        viewModelScope.launch {
-            try {
-                if (color != null) {
-                    etfDao.saveSetting(Setting("chart_macd_legend", color.toString()))
-                } else {
-                    etfDao.deleteSetting("chart_macd_legend")
-                }
-                val updated = _chartColorSettings.value.macd.copy(legendColor = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(macd = updated)
-                themeManager.setMacdColors(updated)
-                _message.value = "MACD 범례 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setMarketDepositLineColor1(color: Int) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("chart_deposit_line1", color.toString()))
-                val updated = _chartColorSettings.value.marketDeposit.copy(lineColor1 = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(marketDeposit = updated)
-                themeManager.setMarketDepositColors(updated)
-                _message.value = "고객예탁금 라인 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setMarketDepositLineColor2(color: Int) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("chart_deposit_line2", color.toString()))
-                val updated = _chartColorSettings.value.marketDeposit.copy(lineColor2 = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(marketDeposit = updated)
-                themeManager.setMarketDepositColors(updated)
-                _message.value = "신용잔고 라인 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setMarketDepositTextColor(color: Int?) {
-        viewModelScope.launch {
-            try {
-                if (color != null) {
-                    etfDao.saveSetting(Setting("chart_deposit_text", color.toString()))
-                } else {
-                    etfDao.deleteSetting("chart_deposit_text")
-                }
-                val updated = _chartColorSettings.value.marketDeposit.copy(textColor = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(marketDeposit = updated)
-                themeManager.setMarketDepositColors(updated)
-                _message.value = "증시자금 차트 텍스트 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setMarketDepositLegendColor(color: Int?) {
-        viewModelScope.launch {
-            try {
-                if (color != null) {
-                    etfDao.saveSetting(Setting("chart_deposit_legend", color.toString()))
-                } else {
-                    etfDao.deleteSetting("chart_deposit_legend")
-                }
-                val updated = _chartColorSettings.value.marketDeposit.copy(legendColor = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(marketDeposit = updated)
-                themeManager.setMarketDepositColors(updated)
-                _message.value = "증시자금 차트 범례 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setFearGreedLineColor1(color: Int) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("chart_feargreed_line1", color.toString()))
-                val updated = _chartColorSettings.value.fearGreed.copy(lineColor1 = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(fearGreed = updated)
-                themeManager.setFearGreedColors(updated)
-                _message.value = "Fear & Greed Oscillator 라인 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setFearGreedLineColor2(color: Int) {
-        viewModelScope.launch {
-            try {
-                etfDao.saveSetting(Setting("chart_feargreed_line2", color.toString()))
-                val updated = _chartColorSettings.value.fearGreed.copy(lineColor2 = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(fearGreed = updated)
-                themeManager.setFearGreedColors(updated)
-                _message.value = "지수 라인 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setFearGreedTextColor(color: Int?) {
-        viewModelScope.launch {
-            try {
-                if (color != null) {
-                    etfDao.saveSetting(Setting("chart_feargreed_text", color.toString()))
-                } else {
-                    etfDao.deleteSetting("chart_feargreed_text")
-                }
-                val updated = _chartColorSettings.value.fearGreed.copy(textColor = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(fearGreed = updated)
-                themeManager.setFearGreedColors(updated)
-                _message.value = "Fear & Greed 차트 텍스트 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
-
-    fun setFearGreedLegendColor(color: Int?) {
-        viewModelScope.launch {
-            try {
-                if (color != null) {
-                    etfDao.saveSetting(Setting("chart_feargreed_legend", color.toString()))
-                } else {
-                    etfDao.deleteSetting("chart_feargreed_legend")
-                }
-                val updated = _chartColorSettings.value.fearGreed.copy(legendColor = color)
-                _chartColorSettings.value = _chartColorSettings.value.copy(fearGreed = updated)
-                themeManager.setFearGreedColors(updated)
-                _message.value = "Fear & Greed 차트 범례 색상이 변경되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
-    }
+    fun setFearGreedLineColor1(color: Int) = setChartColor(ChartType.FEAR_GREED, ColorProperty.LINE1, color, "Fear & Greed Oscillator 라인 색상이 변경되었습니다")
+    fun setFearGreedLineColor2(color: Int) = setChartColor(ChartType.FEAR_GREED, ColorProperty.LINE2, color, "지수 라인 색상이 변경되었습니다")
+    fun setFearGreedTextColor(color: Int?) = setChartColor(ChartType.FEAR_GREED, ColorProperty.TEXT, color, "Fear & Greed 차트 텍스트 색상이 변경되었습니다")
+    fun setFearGreedLegendColor(color: Int?) = setChartColor(ChartType.FEAR_GREED, ColorProperty.LEGEND, color, "Fear & Greed 차트 범례 색상이 변경되었습니다")
 
     fun resetChartColors() {
         viewModelScope.launch {
             try {
-                // 모든 차트 색상 설정 삭제
-                etfDao.deleteSetting("chart_marketcap_line1")
-                etfDao.deleteSetting("chart_marketcap_line2")
-                etfDao.deleteSetting("chart_marketcap_text")
-                etfDao.deleteSetting("chart_marketcap_legend")
-                etfDao.deleteSetting("chart_macd_line1")
-                etfDao.deleteSetting("chart_macd_line2")
-                etfDao.deleteSetting("chart_macd_positive")
-                etfDao.deleteSetting("chart_macd_negative")
-                etfDao.deleteSetting("chart_macd_text")
-                etfDao.deleteSetting("chart_macd_legend")
-                etfDao.deleteSetting("chart_deposit_line1")
-                etfDao.deleteSetting("chart_deposit_line2")
-                etfDao.deleteSetting("chart_deposit_text")
-                etfDao.deleteSetting("chart_deposit_legend")
-                etfDao.deleteSetting("chart_feargreed_line1")
-                etfDao.deleteSetting("chart_feargreed_line2")
-                etfDao.deleteSetting("chart_feargreed_text")
-                etfDao.deleteSetting("chart_feargreed_legend")
+                // 모든 차트 색상 설정 키 삭제
+                listOf("marketcap", "macd", "deposit", "feargreed").flatMap { chart ->
+                    listOf("line1", "line2", "text", "legend", "positive", "negative").map { prop ->
+                        Keys.chartColor(chart, prop)
+                    }
+                }.forEach { etfDao.deleteSetting(it) }
 
                 val defaultSettings = ChartColorSettings()
                 _chartColorSettings.value = defaultSettings
@@ -1146,11 +693,8 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    // ==================== AI API 키 관리 ====================
+    // ==================== AI API Key Management ====================
 
-    /**
-     * API 키 설정 여부 확인
-     */
     private fun checkApiKeyStatus() {
         viewModelScope.launch {
             _selectedProvider.value = apiKeyProvider.getSelectedProvider()
@@ -1159,135 +703,53 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /**
-     * AI 프로바이더 선택
-     */
-    fun setSelectedProvider(provider: AIProvider) {
-        viewModelScope.launch {
-            try {
-                apiKeyProvider.setSelectedProvider(provider)
-                _selectedProvider.value = provider
-                _message.value = "${provider.toDisplayName()}이(가) 선택되었습니다"
-            } catch (e: Exception) {
-                _message.value = "설정 실패: ${e.message}"
-            }
-        }
+    fun setSelectedProvider(provider: AIProvider) = saveSetting("${provider.toDisplayName()}이(가) 선택되었습니다") {
+        apiKeyProvider.setSelectedProvider(provider)
+        _selectedProvider.value = provider
     }
 
-    /**
-     * Claude API 키 설정
-     */
     fun setClaudeApiKey(apiKey: String) {
-        viewModelScope.launch {
-            try {
-                if (apiKey.isBlank()) {
-                    _message.value = "API 키를 입력해주세요"
-                    return@launch
-                }
-
-                apiKeyProvider.setApiKey(AIProvider.CLAUDE, apiKey)
-                _isClaudeApiKeyConfigured.value = true
-                _message.value = "Claude API 키가 저장되었습니다"
-            } catch (e: Exception) {
-                _message.value = "API 키 저장 실패: ${e.message}"
-            }
+        if (apiKey.isBlank()) { _message.value = "API 키를 입력해주세요"; return }
+        saveSetting("Claude API 키가 저장되었습니다") {
+            apiKeyProvider.setApiKey(AIProvider.CLAUDE, apiKey)
+            _isClaudeApiKeyConfigured.value = true
         }
     }
 
-    /**
-     * Gemini API 키 설정
-     */
     fun setGeminiApiKey(apiKey: String) {
-        viewModelScope.launch {
-            try {
-                if (apiKey.isBlank()) {
-                    _message.value = "API 키를 입력해주세요"
-                    return@launch
-                }
-
-                apiKeyProvider.setApiKey(AIProvider.GEMINI, apiKey)
-                _isGeminiApiKeyConfigured.value = true
-                _message.value = "Gemini API 키가 저장되었습니다"
-            } catch (e: Exception) {
-                _message.value = "API 키 저장 실패: ${e.message}"
-            }
+        if (apiKey.isBlank()) { _message.value = "API 키를 입력해주세요"; return }
+        saveSetting("Gemini API 키가 저장되었습니다") {
+            apiKeyProvider.setApiKey(AIProvider.GEMINI, apiKey)
+            _isGeminiApiKeyConfigured.value = true
         }
     }
 
-    /**
-     * API 키 설정 (하위 호환성)
-     */
-    @Deprecated("Use setClaudeApiKey or setGeminiApiKey instead")
-    fun setApiKey(apiKey: String) {
-        when (_selectedProvider.value) {
-            AIProvider.CLAUDE -> setClaudeApiKey(apiKey)
-            AIProvider.GEMINI -> setGeminiApiKey(apiKey)
+    fun clearClaudeApiKey() = saveSetting("Claude API 키가 삭제되었습니다") {
+        apiKeyProvider.removeApiKey(AIProvider.CLAUDE)
+        _isClaudeApiKeyConfigured.value = false
+        if (_selectedProvider.value == AIProvider.CLAUDE) {
+            _apiKeyTestState.value = ApiKeyTestState.Idle
         }
     }
 
-    /**
-     * Claude API 키 제거
-     */
-    fun clearClaudeApiKey() {
-        viewModelScope.launch {
-            try {
-                apiKeyProvider.removeApiKey(AIProvider.CLAUDE)
-                _isClaudeApiKeyConfigured.value = false
-                if (_selectedProvider.value == AIProvider.CLAUDE) {
-                    _apiKeyTestState.value = ApiKeyTestState.Idle
-                }
-                _message.value = "Claude API 키가 삭제되었습니다"
-            } catch (e: Exception) {
-                _message.value = "API 키 삭제 실패: ${e.message}"
-            }
+    fun clearGeminiApiKey() = saveSetting("Gemini API 키가 삭제되었습니다") {
+        apiKeyProvider.removeApiKey(AIProvider.GEMINI)
+        _isGeminiApiKeyConfigured.value = false
+        if (_selectedProvider.value == AIProvider.GEMINI) {
+            _apiKeyTestState.value = ApiKeyTestState.Idle
         }
     }
 
-    /**
-     * Gemini API 키 제거
-     */
-    fun clearGeminiApiKey() {
-        viewModelScope.launch {
-            try {
-                apiKeyProvider.removeApiKey(AIProvider.GEMINI)
-                _isGeminiApiKeyConfigured.value = false
-                if (_selectedProvider.value == AIProvider.GEMINI) {
-                    _apiKeyTestState.value = ApiKeyTestState.Idle
-                }
-                _message.value = "Gemini API 키가 삭제되었습니다"
-            } catch (e: Exception) {
-                _message.value = "API 키 삭제 실패: ${e.message}"
-            }
-        }
-    }
-
-    /**
-     * API 키 제거 (하위 호환성)
-     */
-    @Deprecated("Use clearClaudeApiKey or clearGeminiApiKey instead")
-    fun clearApiKey() {
-        when (_selectedProvider.value) {
-            AIProvider.CLAUDE -> clearClaudeApiKey()
-            AIProvider.GEMINI -> clearGeminiApiKey()
-        }
-    }
-
-    /**
-     * API 연결 테스트
-     */
     fun testApiConnection() {
         viewModelScope.launch {
             try {
                 _apiKeyTestState.value = ApiKeyTestState.Testing
-
                 val result = aiAnalysisRepository.testApiConnection()
-
                 _apiKeyTestState.value = if (result.isSuccess) {
                     _message.value = "${_selectedProvider.value.toDisplayName()} API 연결 성공!"
                     ApiKeyTestState.Success
                 } else {
-                    val errorMsg = result.exceptionOrNull()?.message ?: "연결 실패"
-                    ApiKeyTestState.Error(errorMsg)
+                    ApiKeyTestState.Error(result.exceptionOrNull()?.message ?: "연결 실패")
                 }
             } catch (e: Exception) {
                 _apiKeyTestState.value = ApiKeyTestState.Error(e.message ?: "알 수 없는 오류")
@@ -1295,25 +757,15 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /**
-     * API 테스트 상태 초기화
-     */
-    fun clearApiTestState() {
-        _apiKeyTestState.value = ApiKeyTestState.Idle
-    }
+    fun clearApiTestState() { _apiKeyTestState.value = ApiKeyTestState.Idle }
 
-    /**
-     * Claude 사용 가능한 모델 목록 조회
-     */
     fun loadClaudeModels() {
         viewModelScope.launch {
             try {
                 _isLoadingClaudeModels.value = true
                 val result = aiAnalysisRepository.listModels(AIProvider.CLAUDE)
-
                 if (result.isSuccess) {
                     _claudeModels.value = result.getOrNull() ?: emptyList()
-                    // 현재 선택된 모델 로드
                     _selectedClaudeModel.value = apiKeyProvider.getSelectedModel(AIProvider.CLAUDE)
                 } else {
                     _message.value = "Claude 모델 목록 조회 실패: ${result.exceptionOrNull()?.message}"
@@ -1326,18 +778,13 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Gemini 사용 가능한 모델 목록 조회
-     */
     fun loadGeminiModels() {
         viewModelScope.launch {
             try {
                 _isLoadingGeminiModels.value = true
                 val result = aiAnalysisRepository.listModels(AIProvider.GEMINI)
-
                 if (result.isSuccess) {
                     _geminiModels.value = result.getOrNull() ?: emptyList()
-                    // 현재 선택된 모델 로드
                     _selectedGeminiModel.value = apiKeyProvider.getSelectedModel(AIProvider.GEMINI)
                 } else {
                     _message.value = "Gemini 모델 목록 조회 실패: ${result.exceptionOrNull()?.message}"
@@ -1350,36 +797,16 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Claude 모델 선택
-     */
-    fun setClaudeModel(modelId: String) {
-        viewModelScope.launch {
-            try {
-                apiKeyProvider.setSelectedModel(AIProvider.CLAUDE, modelId)
-                _selectedClaudeModel.value = modelId
-                _message.value = "Claude 모델이 선택되었습니다"
-            } catch (e: Exception) {
-                _message.value = "모델 선택 실패: ${e.message}"
-            }
-        }
+    fun setClaudeModel(modelId: String) = saveSetting("Claude 모델이 선택되었습니다") {
+        apiKeyProvider.setSelectedModel(AIProvider.CLAUDE, modelId)
+        _selectedClaudeModel.value = modelId
     }
 
-    /**
-     * Gemini 모델 선택
-     */
-    fun setGeminiModel(modelId: String) {
-        viewModelScope.launch {
-            try {
-                Log.d(TAG, "Setting Gemini model: $modelId")
-                apiKeyProvider.setSelectedModel(AIProvider.GEMINI, modelId)
-                _selectedGeminiModel.value = modelId
-                _message.value = "Gemini 모델이 선택되었습니다: $modelId"
-                Log.d(TAG, "Gemini model saved successfully")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to set Gemini model", e)
-                _message.value = "모델 선택 실패: ${e.message}"
-            }
-        }
+    fun setGeminiModel(modelId: String) = saveSetting("Gemini 모델이 선택되었습니다: $modelId") {
+        Log.d(TAG, "Setting Gemini model: $modelId")
+        apiKeyProvider.setSelectedModel(AIProvider.GEMINI, modelId)
+        _selectedGeminiModel.value = modelId
     }
+
+    fun clearMessage() { _message.value = null }
 }

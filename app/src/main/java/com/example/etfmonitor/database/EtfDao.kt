@@ -115,6 +115,7 @@ interface EtfDao {
 
     /**
      * 전 종목 금액 순위 (모든 ETF 통합) - 상태별 ETF 수 포함
+     * LIMIT 500: OOM 방지 및 메모리 최적화
      */
     @Query("""
         SELECT
@@ -166,11 +167,12 @@ interface EtfDao {
         WHERE curr.date = :currentDate
         GROUP BY curr.stockTicker, curr.stockName
         ORDER BY totalAmount DESC
+        LIMIT 500
     """)
     suspend fun getStockAmountRanking(currentDate: String, previousDate: String): List<StockAmountRanking>
 
     /**
-     * 전체 신규 편입 종목
+     * 전체 신규 편입 종목 (LIMIT 300: 메모리 최적화)
      */
     @Query("""
         SELECT
@@ -192,11 +194,12 @@ interface EtfDao {
             AND prev.date = :previousDate
         )
         ORDER BY curr.amountMillion DESC
+        LIMIT 300
     """)
     suspend fun getAllNewStocks(currentDate: String, previousDate: String): List<StockChangeInfo>
 
     /**
-     * 전체 제외 종목
+     * 전체 제외 종목 (LIMIT 300: 메모리 최적화)
      */
     @Query("""
         SELECT
@@ -218,11 +221,12 @@ interface EtfDao {
             AND curr.date = :currentDate
         )
         ORDER BY prev.amountMillion DESC
+        LIMIT 300
     """)
     suspend fun getAllRemovedStocks(currentDate: String, previousDate: String): List<StockChangeInfo>
 
     /**
-     * 전체 비중 증가 종목
+     * 전체 비중 증가 종목 (LIMIT 300: 메모리 최적화)
      */
     @Query("""
         SELECT
@@ -243,6 +247,7 @@ interface EtfDao {
         AND prev.date = :previousDate
         AND curr.weightBps > prev.weightBps + 100
         ORDER BY (curr.weightBps - prev.weightBps) DESC
+        LIMIT 300
     """)
     suspend fun getAllIncreasedStocks(currentDate: String, previousDate: String): List<StockChangeInfo>
 
@@ -269,7 +274,7 @@ interface EtfDao {
     suspend fun getLatestTwoDates(): List<String>
 
     /**
-     * 전체 비중 감소 종목
+     * 전체 비중 감소 종목 (LIMIT 300: 메모리 최적화)
      */
     @Query("""
         SELECT
@@ -290,6 +295,7 @@ interface EtfDao {
         AND prev.date = :previousDate
         AND curr.weightBps < prev.weightBps - 100
         ORDER BY (curr.weightBps - prev.weightBps) ASC
+        LIMIT 300
     """)
     suspend fun getAllDecreasedStocks(currentDate: String, previousDate: String): List<StockChangeInfo>
 
