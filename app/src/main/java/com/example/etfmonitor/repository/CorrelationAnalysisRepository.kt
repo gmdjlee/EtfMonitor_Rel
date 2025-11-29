@@ -30,6 +30,7 @@ class CorrelationAnalysisRepository @Inject constructor(
     private val correlationAnalysisDao: CorrelationAnalysisDao,
     private val aiAnalysisDao: AIAnalysisDao,
     private val marketIndexDao: MarketIndexDao,
+    private val marketIndexRepository: MarketIndexRepository,
     private val dailyEtfStatisticsDao: DailyEtfStatisticsDao,
     private val aiApiClientFactory: AIApiClientFactory
 ) {
@@ -85,6 +86,19 @@ class CorrelationAnalysisRepository @Inject constructor(
             // 최신 날짜 조회
             val latestDate = dailyEtfStatisticsDao.getLatestDate()
                 ?: return@withContext Result.failure(Exception("데이터가 없습니다. ETF 데이터를 먼저 수집해주세요."))
+
+            // 시장 지수 데이터 확인 및 자동 수집
+            val hasMarketIndexData = marketIndexRepository.hasData(market)
+            if (!hasMarketIndexData) {
+                Log.d(TAG, "No market index data found for $market. Fetching data...")
+                val fetchResult = marketIndexRepository.initializeMarketIndex(periodDays + 30)
+                if (fetchResult.isFailure) {
+                    Log.w(TAG, "Failed to fetch market index data: ${fetchResult.exceptionOrNull()?.message}")
+                    // 수집 실패해도 분석 시도 (다른 데이터로라도 분석)
+                } else {
+                    Log.d(TAG, "Successfully fetched market index data: ${fetchResult.getOrNull()} records")
+                }
+            }
 
             runCorrelationAnalysis(market, latestDate, periodDays)
         } catch (e: Exception) {
