@@ -4,7 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.ai.*
 import com.etfmonitor.analysis.Backtester
+import com.etfmonitor.database.entities.StockPrediction
+import com.etfmonitor.database.entities.TrainingResult
 import com.etfmonitor.repository.AIAnalysisRepository
+import com.etfmonitor.repository.StockPredictionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -17,7 +20,8 @@ import javax.inject.Inject
 class AIAnalysisViewModel @Inject constructor(
     private val aiAnalysisRepository: AIAnalysisRepository,
     private val apiKeyProvider: ApiKeyProvider,
-    private val backtester: Backtester
+    private val backtester: Backtester,
+    private val stockPredictionRepository: StockPredictionRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<AIAnalysisState>(AIAnalysisState.Idle)
@@ -156,6 +160,58 @@ class AIAnalysisViewModel @Inject constructor(
     }
 
     /**
+     * ML 모델 기반 주가 상승 예측 실행
+     */
+    fun runStockPrediction(
+        daysAfter: Int = 5,
+        priceThreshold: Double = 3.0,
+        minConfidence: Double = 0.6
+    ) {
+        viewModelScope.launch {
+            _state.value = AIAnalysisState.LoadingPrediction
+
+            val response = stockPredictionRepository.runPrediction(
+                daysAfter = daysAfter,
+                priceThreshold = priceThreshold,
+                minConfidence = minConfidence
+            )
+
+            _state.value = if (response.success) {
+                AIAnalysisState.PredictionComplete(
+                    predictions = response.predictions,
+                    trainingResult = response.trainingResult,
+                    totalAnalyzed = response.totalAnalyzed,
+                    predictedCount = response.predictedCount
+                )
+            } else {
+                AIAnalysisState.Error(response.errorMessage ?: "예측 실패")
+            }
+        }
+    }
+
+    /**
+     * 저장된 최신 예측 결과 조회
+     */
+    fun loadLatestPredictions() {
+        viewModelScope.launch {
+            _state.value = AIAnalysisState.LoadingPrediction
+
+            val predictions = stockPredictionRepository.getLatestPredictionsSuspend()
+
+            _state.value = if (predictions.isNotEmpty()) {
+                AIAnalysisState.PredictionComplete(
+                    predictions = predictions,
+                    trainingResult = null,
+                    totalAnalyzed = predictions.size,
+                    predictedCount = predictions.size
+                )
+            } else {
+                AIAnalysisState.Error("저장된 예측 결과가 없습니다. 새로운 예측을 실행해주세요.")
+            }
+        }
+    }
+
+    /**
      * 에러 상태 초기화
      */
     fun clearError() {
@@ -178,11 +234,18 @@ sealed class AIAnalysisState {
     object Loading : AIAnalysisState()
     object LoadingQuick : AIAnalysisState()
     object LoadingBacktest : AIAnalysisState()
+    object LoadingPrediction : AIAnalysisState()
     data class Success(val response: AIAnalysisResponse) : AIAnalysisState()
     data class QuickSignal(val signal: MarketSignal) : AIAnalysisState()
     data class BacktestComplete(
         val result: BacktestResult,
         val signals: List<SignalRecord>
+    ) : AIAnalysisState()
+    data class PredictionComplete(
+        val predictions: List<StockPrediction>,
+        val trainingResult: TrainingResult?,
+        val totalAnalyzed: Int,
+        val predictedCount: Int
     ) : AIAnalysisState()
     object ApiTestSuccess : AIAnalysisState()
     data class Error(val message: String) : AIAnalysisState()

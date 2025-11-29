@@ -20,6 +20,7 @@ import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.database.entities.Setting
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.StockAnalysisData
+import com.etfmonitor.database.entities.StockPrediction
 
 @Database(
     entities = [
@@ -37,9 +38,10 @@ import com.etfmonitor.database.entities.StockAnalysisData
         CorrelationAnalysisResult::class,
         AIAnalysisResult::class,
         AIChatSession::class,
-        AIChatMessage::class
+        AIChatMessage::class,
+        StockPrediction::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -56,6 +58,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun correlationAnalysisDao(): CorrelationAnalysisDao
     abstract fun aiAnalysisDao(): AIAnalysisDao
     abstract fun aiChatDao(): AIChatDao
+    abstract fun stockPredictionDao(): StockPredictionDao
 }
 
 /**
@@ -407,5 +410,40 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
         // 인덱스 생성
         database.execSQL("CREATE INDEX IF NOT EXISTS index_ai_chat_message_sessionId ON ai_chat_message(sessionId)")
         database.execSQL("CREATE INDEX IF NOT EXISTS index_ai_chat_message_sessionId_timestamp ON ai_chat_message(sessionId, timestamp)")
+    }
+}
+
+/**
+ * Migration from version 11 to 12: Add StockPrediction table
+ * ML 모델 기반 주가 상승 예측 결과 저장
+ */
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS stock_predictions (
+                id TEXT PRIMARY KEY NOT NULL,
+                ticker TEXT NOT NULL,
+                name TEXT NOT NULL,
+                predictionDate TEXT NOT NULL,
+                status TEXT NOT NULL,
+                confidence REAL NOT NULL,
+                weightChange REAL NOT NULL,
+                etfCount INTEGER NOT NULL,
+                amountBillion REAL NOT NULL,
+                daysAfter INTEGER NOT NULL,
+                priceThreshold REAL NOT NULL,
+                modelType TEXT NOT NULL,
+                actualPriceChange REAL,
+                wasCorrect INTEGER,
+                createdAt INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // 인덱스 생성
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_stock_predictions_predictionDate ON stock_predictions(predictionDate)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_stock_predictions_ticker ON stock_predictions(ticker)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_stock_predictions_confidence ON stock_predictions(confidence)")
     }
 }

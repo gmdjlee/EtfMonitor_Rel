@@ -15,6 +15,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.etfmonitor.ai.*
+import com.etfmonitor.database.entities.StockPrediction
+import com.etfmonitor.database.entities.TrainingResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,7 +72,13 @@ fun AIAnalysisScreen(
                 AnalysisButtons(
                     onAnalyze = { viewModel.analyzeLatestMarket() },
                     onQuickSignal = { viewModel.generateQuickSignal() },
-                    onBacktest = { /* TODO: Show date picker */ }
+                    onBacktest = { /* TODO: Show date picker */ },
+                    onPrediction = { viewModel.runStockPrediction() }
+                )
+            } else {
+                // API 키가 없어도 ML 예측은 가능
+                PredictionOnlyButton(
+                    onPrediction = { viewModel.runStockPrediction() }
                 )
             }
 
@@ -85,6 +93,9 @@ fun AIAnalysisScreen(
                 is AIAnalysisState.LoadingBacktest -> {
                     LoadingCard("백테스트 실행 중...")
                 }
+                is AIAnalysisState.LoadingPrediction -> {
+                    LoadingCard("ML 모델 학습 및 예측 중...")
+                }
                 is AIAnalysisState.Success -> {
                     val response = (state as AIAnalysisState.Success).response
                     SignalResultCard(response.signal)
@@ -96,6 +107,15 @@ fun AIAnalysisScreen(
                 is AIAnalysisState.BacktestComplete -> {
                     val result = (state as AIAnalysisState.BacktestComplete).result
                     BacktestResultCard(result)
+                }
+                is AIAnalysisState.PredictionComplete -> {
+                    val predState = state as AIAnalysisState.PredictionComplete
+                    PredictionResultCard(
+                        predictions = predState.predictions,
+                        trainingResult = predState.trainingResult,
+                        totalAnalyzed = predState.totalAnalyzed,
+                        predictedCount = predState.predictedCount
+                    )
                 }
                 is AIAnalysisState.ApiTestSuccess -> {
                     SuccessCard("API 연결 성공!")
@@ -223,7 +243,8 @@ fun MarketSelector(
 fun AnalysisButtons(
     onAnalyze: () -> Unit,
     onQuickSignal: () -> Unit,
-    onBacktest: () -> Unit
+    onBacktest: () -> Unit,
+    onPrediction: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -254,6 +275,15 @@ fun AnalysisButtons(
                 Text("빠른 신호")
             }
 
+            OutlinedButton(
+                onClick = onPrediction,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.TrendingUp, null)
+                Spacer(Modifier.width(8.dp))
+                Text("ML 주가 상승 예측")
+            }
+
             /* Backtest 기능은 추후 구현
             OutlinedButton(
                 onClick = onBacktest,
@@ -264,6 +294,39 @@ fun AnalysisButtons(
                 Text("백테스트")
             }
             */
+        }
+    }
+}
+
+@Composable
+fun PredictionOnlyButton(
+    onPrediction: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "ML 예측 (API 키 불필요)",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Button(
+                onClick = onPrediction,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.TrendingUp, null)
+                Spacer(Modifier.width(8.dp))
+                Text("ML 주가 상승 예측")
+            }
+
+            Text(
+                "ETF 구성 변화 데이터로 학습하여 주가 상승 가능성이 높은 종목을 예측합니다.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -583,6 +646,182 @@ fun IdleCard() {
             Text(
                 "Claude AI를 활용하여 시장을 분석하고\n매수/매도 신호를 생성합니다.",
                 style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun PredictionResultCard(
+    predictions: List<StockPrediction>,
+    trainingResult: TrainingResult?,
+    totalAnalyzed: Int,
+    predictedCount: Int
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // 헤더
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "ML 주가 상승 예측 결과",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Icon(
+                    Icons.Default.TrendingUp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // 요약 정보
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "$totalAnalyzed",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text("분석 종목", style = MaterialTheme.typography.bodySmall)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "$predictedCount",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text("상승 예측", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+
+            // 학습 결과 (있을 경우)
+            trainingResult?.let { result ->
+                Divider()
+                Text(
+                    "모델 성능",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "${String.format("%.1f", result.accuracy * 100)}%",
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text("정확도", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "${String.format("%.1f", result.precision * 100)}%",
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text("정밀도", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "${String.format("%.1f", result.recall * 100)}%",
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text("재현율", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+
+            // 예측 목록
+            if (predictions.isNotEmpty()) {
+                Divider()
+                Text(
+                    "상승 예측 종목 (신뢰도 순)",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                predictions.take(10).forEach { prediction ->
+                    PredictionItem(prediction)
+                }
+
+                if (predictions.size > 10) {
+                    Text(
+                        "외 ${predictions.size - 10}개 종목",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PredictionItem(prediction: StockPrediction) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                prediction.name,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    prediction.ticker,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    when (prediction.status) {
+                        "NEW" -> "신규편입"
+                        "INCREASED" -> "비중증가"
+                        "DECREASED" -> "비중감소"
+                        else -> prediction.status
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = when (prediction.status) {
+                        "NEW" -> MaterialTheme.colorScheme.primary
+                        "INCREASED" -> MaterialTheme.colorScheme.tertiary
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                "${String.format("%.1f", prediction.confidence * 100)}%",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                "신뢰도",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

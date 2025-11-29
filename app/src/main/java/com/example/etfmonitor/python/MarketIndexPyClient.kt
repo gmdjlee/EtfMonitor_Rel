@@ -49,11 +49,12 @@ class MarketIndexPyClient @Inject constructor(
             Log.d(TAG, "Fetching market indices: markets=$markets, from=$startDate to=$endDate")
 
             withTimeout(TIMEOUT_MS) {
+                // Convert to array for Python iteration compatibility
                 val result = module.callAttr(
                     "fetch_all_markets",
                     startDate,
                     endDate,
-                    markets
+                    markets.toTypedArray()
                 ).toString()
 
                 val dtoList = json.decodeFromString<List<MarketIndexDto>>(result)
@@ -96,10 +97,11 @@ class MarketIndexPyClient @Inject constructor(
             Log.d(TAG, "Fetching recent $days days for markets: $markets")
 
             withTimeout(TIMEOUT_MS) {
+                // Convert to array for Python iteration compatibility
                 val result = module.callAttr(
                     "fetch_recent_days",
                     days,
-                    markets
+                    markets.toTypedArray()
                 ).toString()
 
                 val dtoList = json.decodeFromString<List<MarketIndexDto>>(result)
