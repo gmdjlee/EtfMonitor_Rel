@@ -215,7 +215,7 @@ private fun AnalysisScreen(
     ) {
         // 시장 선택
         item {
-            MarketSelector(
+            AnalysisMarketSelector(
                 selectedMarket = selectedMarket,
                 onMarketSelect = onMarketSelect
             )
@@ -266,7 +266,7 @@ private fun AnalysisScreen(
         when (state) {
             is NewAIAnalysisState.Error -> {
                 item {
-                    ErrorCard(message = state.message, onDismiss = onClearError)
+                    AnalysisErrorCard(message = state.message, onDismiss = onClearError)
                 }
             }
             else -> {}
@@ -315,7 +315,7 @@ private fun AnalysisScreen(
 }
 
 @Composable
-private fun MarketSelector(
+private fun AnalysisMarketSelector(
     selectedMarket: String,
     onMarketSelect: (String) -> Unit
 ) {
@@ -849,7 +849,7 @@ private fun SessionItem(
 }
 
 @Composable
-private fun ErrorCard(message: String, onDismiss: () -> Unit) {
+private fun AnalysisErrorCard(message: String, onDismiss: () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.errorContainer
