@@ -4,7 +4,6 @@ deposit_scraper와 stock_data_fetcher를 통합하여 사용
 """
 
 import json
-import sys
 import traceback
 from typing import Optional, List, Dict, Any
 
@@ -16,7 +15,10 @@ logger = setup_logger(__name__)
 MAX_DAYS = 3650  # 최대 10년
 MAX_PAGES = 50   # 최대 페이지 수
 
-# 명시적으로 모듈 import - 실패 시 프로그램 종료
+# 모듈 초기화 상태
+_module_error: Optional[str] = None
+
+# 명시적으로 모듈 import
 try:
     from deposit_scraper import scrape_deposit_data, get_latest_data
     from stock_data_fetcher import (
@@ -27,17 +29,20 @@ try:
     )
     logger.info("모든 모듈 import 성공")
 except ImportError as e:
-    # 치명적 오류로 처리하고 조기 종료
-    logger.critical("필수 모듈을 불러올 수 없습니다: %s", str(e))
+    _module_error = f"필수 모듈을 불러올 수 없습니다: {str(e)}"
+    logger.critical(_module_error)
     logger.error(traceback.format_exc())
-    # Android에서 Python 프로세스 실패를 감지할 수 있도록 명확한 에러 출력
-    print(json.dumps({"error": "모듈 import 실패", "details": str(e)}, ensure_ascii=False))
-    sys.exit(1)
 except Exception as e:
-    logger.critical("예상치 못한 오류: %s", str(e))
+    _module_error = f"초기화 실패: {str(e)}"
+    logger.critical(_module_error)
     logger.error(traceback.format_exc())
-    print(json.dumps({"error": "초기화 실패", "details": str(e)}, ensure_ascii=False))
-    sys.exit(1)
+
+
+def _check_module_error() -> Optional[str]:
+    """모듈 에러 상태 확인"""
+    if _module_error:
+        return json.dumps({"error": _module_error}, ensure_ascii=False)
+    return None
 
 
 def search_stock_wrapper(query: str) -> str:
@@ -50,6 +55,8 @@ def search_stock_wrapper(query: str) -> str:
     Returns:
         JSON 문자열: {"ticker": "005930", "name": "삼성전자"} or {"error": "..."}
     """
+    if error := _check_module_error():
+        return error
     try:
         # 입력 검증
         if not query or not query.strip():
@@ -84,6 +91,8 @@ def get_stock_analysis(ticker: str, days: int = 180) -> str:
     Returns:
         JSON 문자열
     """
+    if error := _check_module_error():
+        return error
     try:
         # 입력 검증
         if not ticker or not ticker.strip():
@@ -136,6 +145,8 @@ def get_market_deposit_data(num_pages: int = 5) -> str:
     Returns:
         JSON 문자열
     """
+    if error := _check_module_error():
+        return error
     try:
         # 입력 검증
         if num_pages <= 0 or num_pages > MAX_PAGES:
@@ -205,6 +216,8 @@ def get_latest_market_data() -> str:
     Returns:
         JSON 문자열
     """
+    if error := _check_module_error():
+        return error
     try:
         logger.info("최신 증시 자금 동향 수집 시작")
 
@@ -236,6 +249,8 @@ def get_all_stocks_list() -> str:
     Returns:
         JSON 문자열: [{"ticker": "005930", "name": "삼성전자"}, ...]
     """
+    if error := _check_module_error():
+        return error
     try:
         logger.info("전체 종목 리스트 수집 시작")
 
