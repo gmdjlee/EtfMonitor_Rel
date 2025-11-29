@@ -240,6 +240,91 @@ class ClaudeApiClient @Inject constructor(
     }
 
     /**
+     * 채팅 메시지 전송
+     */
+    override suspend fun chat(
+        messages: List<ChatMessage>,
+        systemPrompt: String?,
+        temperature: Double
+    ): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val apiKey = apiKeyProvider.getApiKey(AIProvider.CLAUDE)
+            if (apiKey.isNullOrBlank()) {
+                return@withContext Result.failure(Exception("Claude API 키가 설정되지 않았습니다."))
+            }
+
+            val model = apiKeyProvider.getSelectedModel(AIProvider.CLAUDE) ?: MODEL
+
+            withTimeout(TIMEOUT_SECONDS * 1000) {
+                val response = callClaudeChatApi(apiKey, messages, systemPrompt, temperature, model)
+                Result.success(response)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Chat failed", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Claude Chat API 호출
+     */
+    private suspend fun callClaudeChatApi(
+        apiKey: String,
+        messages: List<ChatMessage>,
+        systemPrompt: String?,
+        temperature: Double,
+        model: String
+    ): String = withContext(Dispatchers.IO) {
+        val requestBody = JSONObject().apply {
+            put("model", model)
+            put("max_tokens", MAX_TOKENS)
+            put("temperature", temperature)
+
+            // 시스템 프롬프트 추가 (있는 경우)
+            if (!systemPrompt.isNullOrBlank()) {
+                put("system", systemPrompt)
+            }
+
+            // 메시지 배열 구성
+            put("messages", JSONArray().apply {
+                for (msg in messages) {
+                    put(JSONObject().apply {
+                        put("role", msg.role)
+                        put("content", msg.content)
+                    })
+                }
+            })
+        }
+
+        val request = Request.Builder()
+            .url(API_URL)
+            .addHeader("x-api-key", apiKey)
+            .addHeader("anthropic-version", "2023-06-01")
+            .addHeader("content-type", "application/json")
+            .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val errorBody = response.body?.string() ?: "Unknown error"
+                Log.e(TAG, "Chat API call failed: ${response.code} - $errorBody")
+                throw Exception("Claude API 호출 실패: ${response.code}")
+            }
+
+            val responseBody = response.body?.string()
+                ?: throw Exception("Empty response from Claude API")
+
+            val jsonResponse = JSONObject(responseBody)
+            val content = jsonResponse.getJSONArray("content")
+            if (content.length() == 0) {
+                throw Exception("No content in Claude API response")
+            }
+
+            content.getJSONObject(0).getString("text")
+        }
+    }
+
+    /**
      * API 사용 가능 여부 확인
      */
     override suspend fun isApiAvailable(): Boolean = withContext(Dispatchers.IO) {
