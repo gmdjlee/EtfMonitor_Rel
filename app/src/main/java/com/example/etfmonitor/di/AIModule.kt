@@ -8,6 +8,7 @@ import com.etfmonitor.database.*
 import com.etfmonitor.repository.AIAnalysisRepository
 import com.etfmonitor.repository.AIChatRepository
 import com.etfmonitor.repository.CorrelationAnalysisRepository
+import com.etfmonitor.repository.MarketIndexRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -144,6 +145,7 @@ object AIModule {
         correlationAnalysisDao: CorrelationAnalysisDao,
         aiAnalysisDao: AIAnalysisDao,
         marketIndexDao: MarketIndexDao,
+        marketIndexRepository: MarketIndexRepository,
         dailyEtfStatisticsDao: DailyEtfStatisticsDao,
         aiApiClientFactory: AIApiClientFactory
     ): CorrelationAnalysisRepository {
@@ -152,6 +154,7 @@ object AIModule {
             correlationAnalysisDao,
             aiAnalysisDao,
             marketIndexDao,
+            marketIndexRepository,
             dailyEtfStatisticsDao,
             aiApiClientFactory
         )
