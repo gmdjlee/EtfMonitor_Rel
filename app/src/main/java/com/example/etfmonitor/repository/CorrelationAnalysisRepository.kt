@@ -174,7 +174,7 @@ class CorrelationAnalysisRepository @Inject constructor(
                 analysisDate = correlationResult.analysisDate,
                 correlationResultId = correlationResult.id,
                 aiProvider = client.provider.name,
-                aiModel = "default", // TODO: 모델 정보 추가
+                aiModel = aiApiClientFactory.getSelectedModel(client.provider),
                 signal = signal.signal.name,
                 confidence = signal.confidence,
                 upProbability = signal.upProbability,

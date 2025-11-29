@@ -21,10 +21,6 @@ import javax.inject.Singleton
 /**
  * Claude API 클라이언트
  * Anthropic Claude API를 통한 시장 분석
- *
- * 사용 전 API 키 설정 필요:
- * - Settings에서 CLAUDE_API_KEY 저장
- * - 또는 BuildConfig에 API_KEY 추가
  */
 @Singleton
 class ClaudeApiClient @Inject constructor(
@@ -37,7 +33,7 @@ class ClaudeApiClient @Inject constructor(
         private const val TAG = "ClaudeApiClient"
         private const val API_URL = "https://api.anthropic.com/v1/messages"
         private const val MODELS_API_URL = "https://api.anthropic.com/v1/models"
-        private const val MODEL = "claude-3-5-sonnet-20241022" // Latest Sonnet model
+        private const val MODEL = "claude-3-5-sonnet-20241022"
         private const val MAX_TOKENS = 2048
         private const val TIMEOUT_SECONDS = 60L
     }
@@ -74,7 +70,7 @@ class ClaudeApiClient @Inject constructor(
 
             withTimeout(TIMEOUT_SECONDS * 1000) {
                 val response = callClaudeApi(apiKey, prompt, temperature, model)
-                val signal = parseResponse(response)
+                val signal = AIResponseParser.parseToMarketSignal(response)
                 Result.success(signal)
             }
         } catch (e: Exception) {
@@ -132,110 +128,6 @@ class ClaudeApiClient @Inject constructor(
             }
 
             content.getJSONObject(0).getString("text")
-        }
-    }
-
-    /**
-     * Claude 응답을 MarketSignal로 파싱
-     */
-    private fun parseResponse(responseText: String): MarketSignal {
-        try {
-            // JSON 블록 추출 (```json ... ``` 또는 그냥 {...})
-            val jsonText = extractJsonFromResponse(responseText)
-
-            Log.d(TAG, "Parsing JSON: $jsonText")
-
-            val jsonElement = json.parseToJsonElement(jsonText).jsonObject
-
-            return MarketSignal(
-                market = jsonElement["market"]?.jsonPrimitive?.content ?: "UNKNOWN",
-                date = jsonElement["date"]?.jsonPrimitive?.content ?: "",
-                signal = parseSignalType(jsonElement["signal"]?.jsonPrimitive?.content ?: "NEUTRAL"),
-                confidence = jsonElement["confidence"]?.jsonPrimitive?.content?.toDoubleOrNull() ?: 0.5,
-                upProbability = jsonElement["upProbability"]?.jsonPrimitive?.content?.toDoubleOrNull() ?: 50.0,
-                downProbability = jsonElement["downProbability"]?.jsonPrimitive?.content?.toDoubleOrNull() ?: 50.0,
-                reasoning = jsonElement["reasoning"]?.jsonPrimitive?.content ?: "분석 데이터 부족",
-                keyFactors = parseKeyFactors(jsonElement["keyFactors"]?.toString() ?: "[]"),
-                recommendation = jsonElement["recommendation"]?.jsonPrimitive?.content ?: "추가 분석 필요",
-                riskLevel = parseRiskLevel(jsonElement["riskLevel"]?.jsonPrimitive?.content ?: "MEDIUM")
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse Claude response", e)
-            // 파싱 실패 시 기본 신호 반환
-            return MarketSignal(
-                market = "UNKNOWN",
-                date = "",
-                signal = SignalType.NEUTRAL,
-                confidence = 0.0,
-                upProbability = 50.0,
-                downProbability = 50.0,
-                reasoning = "AI 응답 파싱 실패: ${e.message}",
-                keyFactors = listOf("응답 처리 오류"),
-                recommendation = "수동 분석 필요",
-                riskLevel = RiskLevel.MEDIUM
-            )
-        }
-    }
-
-    /**
-     * 응답에서 JSON 블록 추출
-     */
-    private fun extractJsonFromResponse(text: String): String {
-        // ```json ... ``` 블록 찾기
-        val jsonBlockRegex = "```json\\s*([\\s\\S]*?)```".toRegex()
-        val match = jsonBlockRegex.find(text)
-        if (match != null) {
-            return match.groupValues[1].trim()
-        }
-
-        // {...} 블록 찾기
-        val jsonObjectRegex = "\\{[\\s\\S]*\\}".toRegex()
-        val objectMatch = jsonObjectRegex.find(text)
-        if (objectMatch != null) {
-            return objectMatch.value.trim()
-        }
-
-        throw Exception("No JSON found in response")
-    }
-
-    /**
-     * SignalType 파싱
-     */
-    private fun parseSignalType(value: String): SignalType {
-        return when (value.uppercase()) {
-            "STRONG_BUY", "강력매수", "강력 매수" -> SignalType.STRONG_BUY
-            "BUY", "매수" -> SignalType.BUY
-            "NEUTRAL", "중립" -> SignalType.NEUTRAL
-            "SELL", "매도" -> SignalType.SELL
-            "STRONG_SELL", "강력매도", "강력 매도" -> SignalType.STRONG_SELL
-            else -> SignalType.NEUTRAL
-        }
-    }
-
-    /**
-     * RiskLevel 파싱
-     */
-    private fun parseRiskLevel(value: String): RiskLevel {
-        return when (value.uppercase()) {
-            "LOW", "낮음" -> RiskLevel.LOW
-            "MEDIUM", "중간" -> RiskLevel.MEDIUM
-            "HIGH", "높음" -> RiskLevel.HIGH
-            else -> RiskLevel.MEDIUM
-        }
-    }
-
-    /**
-     * keyFactors 배열 파싱
-     */
-    private fun parseKeyFactors(jsonArray: String): List<String> {
-        return try {
-            val array = JSONArray(jsonArray)
-            List(array.length()) { i ->
-                array.getString(i)
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to parse key factors", e)
-            emptyList()
         }
     }
 
