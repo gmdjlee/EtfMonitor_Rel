@@ -135,15 +135,40 @@ class GeminiApiClient @Inject constructor(
 
             // Extract text from response
             val jsonResponse = JSONObject(responseBody)
-            val candidates = jsonResponse.getJSONArray("candidates")
-            if (candidates.length() == 0) {
+            val candidates = jsonResponse.optJSONArray("candidates")
+            if (candidates == null || candidates.length() == 0) {
+                // Check for error in response
+                val error = jsonResponse.optJSONObject("error")
+                if (error != null) {
+                    val errorMessage = error.optString("message", "Unknown error")
+                    throw Exception("Gemini API 오류: $errorMessage")
+                }
                 throw Exception("No candidates in Gemini API response")
             }
 
-            val content = candidates.getJSONObject(0).getJSONObject("content")
-            val parts = content.getJSONArray("parts")
-            if (parts.length() == 0) {
-                throw Exception("No parts in Gemini API response")
+            val candidate = candidates.getJSONObject(0)
+
+            // Check finishReason for blocked responses
+            val finishReason = candidate.optString("finishReason", "")
+            if (finishReason == "SAFETY") {
+                Log.w(TAG, "Response blocked by safety filter")
+                throw Exception("Gemini API가 안전성 정책으로 인해 응답을 차단했습니다. 프롬프트를 수정해 주세요.")
+            }
+            if (finishReason == "RECITATION") {
+                Log.w(TAG, "Response blocked due to recitation")
+                throw Exception("Gemini API가 저작권 정책으로 인해 응답을 차단했습니다.")
+            }
+
+            val content = candidate.optJSONObject("content")
+            if (content == null) {
+                Log.e(TAG, "No content in response. finishReason: $finishReason")
+                throw Exception("Gemini API 응답에 content가 없습니다. (finishReason: $finishReason)")
+            }
+
+            val parts = content.optJSONArray("parts")
+            if (parts == null || parts.length() == 0) {
+                Log.e(TAG, "No parts in content. finishReason: $finishReason")
+                throw Exception("Gemini API 응답에 parts가 없습니다. (finishReason: $finishReason)")
             }
 
             parts.getJSONObject(0).getString("text")
@@ -274,15 +299,40 @@ class GeminiApiClient @Inject constructor(
                 ?: throw Exception("Empty response from Gemini API")
 
             val jsonResponse = JSONObject(responseBody)
-            val candidates = jsonResponse.getJSONArray("candidates")
-            if (candidates.length() == 0) {
+            val candidates = jsonResponse.optJSONArray("candidates")
+            if (candidates == null || candidates.length() == 0) {
+                // Check for error in response
+                val error = jsonResponse.optJSONObject("error")
+                if (error != null) {
+                    val errorMessage = error.optString("message", "Unknown error")
+                    throw Exception("Gemini API 오류: $errorMessage")
+                }
                 throw Exception("No candidates in Gemini API response")
             }
 
-            val content = candidates.getJSONObject(0).getJSONObject("content")
-            val parts = content.getJSONArray("parts")
-            if (parts.length() == 0) {
-                throw Exception("No parts in Gemini API response")
+            val candidate = candidates.getJSONObject(0)
+
+            // Check finishReason for blocked responses
+            val finishReason = candidate.optString("finishReason", "")
+            if (finishReason == "SAFETY") {
+                Log.w(TAG, "Chat response blocked by safety filter")
+                throw Exception("Gemini API가 안전성 정책으로 인해 응답을 차단했습니다. 프롬프트를 수정해 주세요.")
+            }
+            if (finishReason == "RECITATION") {
+                Log.w(TAG, "Chat response blocked due to recitation")
+                throw Exception("Gemini API가 저작권 정책으로 인해 응답을 차단했습니다.")
+            }
+
+            val content = candidate.optJSONObject("content")
+            if (content == null) {
+                Log.e(TAG, "No content in chat response. finishReason: $finishReason")
+                throw Exception("Gemini API 응답에 content가 없습니다. (finishReason: $finishReason)")
+            }
+
+            val parts = content.optJSONArray("parts")
+            if (parts == null || parts.length() == 0) {
+                Log.e(TAG, "No parts in chat content. finishReason: $finishReason")
+                throw Exception("Gemini API 응답에 parts가 없습니다. (finishReason: $finishReason)")
             }
 
             parts.getJSONObject(0).getString("text")
