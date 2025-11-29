@@ -286,10 +286,11 @@ class SettingsViewModel @Inject constructor(
     private suspend fun loadChartColorSettings() {
         val default = ChartColorSettings()
 
-        fun loadColor(chart: String, prop: String, default: Int): Int =
-            etfDao.getSetting(Keys.chartColor(chart, prop))?.toIntOrNull() ?: default
+        // 색상 로드를 위한 suspend 헬퍼 함수
+        suspend fun loadColor(chart: String, prop: String, defaultVal: Int): Int =
+            etfDao.getSetting(Keys.chartColor(chart, prop))?.toIntOrNull() ?: defaultVal
 
-        fun loadOptionalColor(chart: String, prop: String): Int? =
+        suspend fun loadOptionalColor(chart: String, prop: String): Int? =
             etfDao.getSetting(Keys.chartColor(chart, prop))?.toIntOrNull()
 
         val settings = ChartColorSettings(
