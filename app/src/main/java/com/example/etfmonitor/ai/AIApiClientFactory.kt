@@ -45,4 +45,21 @@ class AIApiClientFactory @Inject constructor(
     fun getAvailableProviders(): List<AIProvider> {
         return AIProvider.values().toList()
     }
+
+    /**
+     * 선택된 AI 제공자의 모델명 반환
+     */
+    fun getSelectedModel(provider: AIProvider): String {
+        return apiKeyProvider.getSelectedModel(provider) ?: getDefaultModel(provider)
+    }
+
+    /**
+     * 기본 모델명 반환
+     */
+    private fun getDefaultModel(provider: AIProvider): String {
+        return when (provider) {
+            AIProvider.CLAUDE -> "claude-3-5-sonnet-20241022"
+            AIProvider.GEMINI -> "gemini-2.0-flash-exp"
+        }
+    }
 }

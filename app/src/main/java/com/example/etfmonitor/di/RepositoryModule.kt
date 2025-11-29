@@ -143,4 +143,18 @@ object RepositoryModule {
     ): StatisticsAnalysisRepository {
         return StatisticsAnalysisRepository(etfDao, marketIndexDao, dailyEtfStatisticsDao)
     }
+
+    /**
+     * StockPredictionRepository 제공 (Singleton)
+     * ML 기반 주가 예측 및 결과 관리
+     */
+    @Provides
+    @Singleton
+    fun provideStockPredictionRepository(
+        predictionDao: StockPredictionDao,
+        etfDao: EtfDao,
+        predictorClient: com.etfmonitor.python.StockPredictorPyClient
+    ): StockPredictionRepository {
+        return StockPredictionRepository(predictionDao, etfDao, predictorClient)
+    }
 }

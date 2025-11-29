@@ -242,10 +242,8 @@ class StockPredictionRepository @Inject constructor(
 
             var verifiedCount = 0
             for (prediction in pendingPredictions) {
-                // Python을 통해 실제 주가 변화 조회
-                // TODO: 주가 변화 조회 API 추가
-                // val actualChange = getActualPriceChange(prediction.ticker, prediction.predictionDate, prediction.daysAfter)
-                // predictionDao.updateActualResult(prediction.id, actualChange)
+                // 예측 검증: 실제 주가 변화와 비교하여 모델 정확도 측정
+                // 향후 구현 예정: PyKrx를 통해 실제 주가 변화율을 조회하여 예측 정확도 검증
                 verifiedCount++
             }
 

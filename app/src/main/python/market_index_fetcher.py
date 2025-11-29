@@ -11,6 +11,10 @@ from datetime import datetime, timedelta
 import json
 from typing import List, Dict, Optional
 
+from logger import setup_logger
+
+logger = setup_logger(__name__)
+
 
 def fetch_market_index(
     market: str,
@@ -58,7 +62,7 @@ def fetch_market_index(
         df = stock.get_index_ohlcv(start_date, end_date, ticker)
 
         if df is None or df.empty:
-            print(f"No data found for {market} from {start_formatted} to {end_formatted}")
+            logger.warning("No data found for %s from %s to %s", market, start_formatted, end_formatted)
             return []
 
         # 데이터 변환
@@ -88,20 +92,18 @@ def fetch_market_index(
             result.append(data)
             prev_close = close_price
 
-        print(f"Fetched {len(result)} records for {market}")
+        logger.info("Fetched %d records for %s", len(result), market)
         return result
 
     except Exception as e:
-        print(f"Error fetching market index for {market}: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error("Error fetching market index for %s: %s", market, e, exc_info=True)
         return []
 
 
 def fetch_all_markets(
     start_date: str,
     end_date: str,
-    markets = None
+    markets: Optional[List[str]] = None
 ) -> str:
     """
     여러 시장의 지수 데이터를 한번에 수집
@@ -129,7 +131,7 @@ def fetch_all_markets(
     return json.dumps(all_data, ensure_ascii=False)
 
 
-def fetch_recent_days(days: int = 30, markets = None) -> str:
+def fetch_recent_days(days: int = 30, markets: Optional[List[str]] = None) -> str:
     """
     최근 N일의 지수 데이터 수집
 
@@ -179,33 +181,5 @@ def get_latest_index(market: str) -> Optional[Dict]:
         return None
 
     except Exception as e:
-        print(f"Error getting latest index for {market}: {e}")
+        logger.error("Error getting latest index for %s: %s", market, e)
         return None
-
-
-# 테스트 코드
-if __name__ == "__main__":
-    print("=== Market Index Fetcher Test ===")
-
-    # 최근 30일 데이터 테스트
-    print("\n1. Testing recent 30 days data fetch...")
-    result = fetch_recent_days(30)
-    data = json.loads(result)
-    print(f"Total records: {len(data)}")
-
-    if data:
-        print(f"First record: {data[0]}")
-        print(f"Last record: {data[-1]}")
-
-    # 최신 지수 데이터 테스트
-    print("\n2. Testing latest index fetch...")
-    kospi_latest = get_latest_index("KOSPI")
-    kosdaq_latest = get_latest_index("KOSDAQ")
-
-    if kospi_latest:
-        print(f"KOSPI latest: {kospi_latest}")
-
-    if kosdaq_latest:
-        print(f"KOSDAQ latest: {kosdaq_latest}")
-
-    print("\nTest completed!")

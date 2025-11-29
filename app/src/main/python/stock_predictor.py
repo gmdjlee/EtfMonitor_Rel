@@ -8,7 +8,7 @@ ETF 구성 변화 기반 주가 상승 예측 모듈
 
 import json
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 import numpy as np
 from pykrx import stock
@@ -19,8 +19,14 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score
 
+from logger import setup_logger
+
+logger = setup_logger(__name__)
+
 # 전역 모델 저장소 (메모리 캐시)
-_model_cache: Dict[str, any] = {}
+# Note: 단일 스레드 환경(Android Chaquopy)에서 안전하게 사용
+# 다중 스레드 환경에서는 threading.Lock 또는 DB 저장 필요
+_model_cache: Dict[str, Any] = {}
 _scaler_cache: Dict[str, StandardScaler] = {}
 
 
@@ -64,7 +70,7 @@ def get_stock_price_change(ticker: str, start_date: str, days_after: int = 5) ->
         return round(change_rate, 2)
 
     except Exception as e:
-        print(f"Error getting price change for {ticker}: {e}")
+        logger.warning("Error getting price change for %s: %s", ticker, e)
         return None
 
 
@@ -467,33 +473,3 @@ def clear_model_cache() -> str:
         "success": True,
         "message": "모델 캐시가 초기화되었습니다."
     }, ensure_ascii=False)
-
-
-# 테스트 코드
-if __name__ == "__main__":
-    print("=== Stock Predictor Test ===")
-
-    # 테스트 데이터
-    test_historical = json.dumps([
-        {"ticker": "005930", "name": "삼성전자", "status": "INCREASED",
-         "weight_change": 0.5, "etf_count": 10, "total_amount": 5000000000000,
-         "date": "2025-01-01"},
-        {"ticker": "000660", "name": "SK하이닉스", "status": "NEW",
-         "weight_change": 1.0, "etf_count": 5, "total_amount": 2000000000000,
-         "date": "2025-01-01"},
-    ])
-
-    test_current = json.dumps([
-        {"ticker": "035420", "name": "NAVER", "status": "INCREASED",
-         "weight_change": 0.3, "etf_count": 8, "total_amount": 1000000000000,
-         "date": "2025-01-15"},
-    ])
-
-    print("\n1. Model Status:")
-    print(get_model_status())
-
-    print("\n2. Training (would need real data):")
-    # result = train_and_predict(test_historical, test_current)
-    # print(result)
-
-    print("\nTest completed!")

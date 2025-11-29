@@ -3,7 +3,7 @@ ETF 데이터 수집 모듈
 pykrx 라이브러리를 사용하여 ETF 정보 수집
 """
 from pykrx import stock
-from typing import List, Dict
+from typing import Any, Dict, List
 from datetime import datetime
 import json
 import traceback
@@ -279,7 +279,7 @@ def get_etf_holdings(ticker: str, date_str: str) -> str:
             )
             return json.dumps([])
 
-        holdings: List[Dict[str, any]] = []
+        holdings: List[Dict[str, Any]] = []
         for stock_ticker, row in df.iterrows():
             amount = float(row.get('금액', 0)) if '금액' in df.columns else 0.0
 
