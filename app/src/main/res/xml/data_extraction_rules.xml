@@ -2,6 +2,10 @@
 <!--
     Data extraction rules for EtfMonitor (Android 12+)
     See https://developer.android.com/about/versions/12/backup-restore#xml-changes
+
+    Note: MasterKey keyset (__androidx_security_crypto_master_key_keyset__)
+    is stored in "file" domain which is NOT included below, so it's
+    automatically excluded from backup/transfer. No explicit exclude needed.
 -->
 <data-extraction-rules>
     <!-- Cloud Backup Rules (Google Drive backup) -->
@@ -12,9 +16,6 @@
         <!-- SECURITY: Exclude encrypted API key storage from cloud backup -->
         <exclude domain="sharedpref" path="ai_api_prefs.xml" />
         <exclude domain="sharedpref" path="__androidx_security_crypto_encrypted_prefs__.xml" />
-
-        <!-- Exclude MasterKey files to prevent key leakage -->
-        <exclude domain="file" path="__androidx_security_crypto_master_key_keyset__" />
 
         <!-- Include database for user convenience -->
         <include domain="database" path="etf_db" />
@@ -33,7 +34,6 @@
         <!-- SECURITY: Exclude sensitive data even on device transfer -->
         <exclude domain="sharedpref" path="ai_api_prefs.xml" />
         <exclude domain="sharedpref" path="__androidx_security_crypto_encrypted_prefs__.xml" />
-        <exclude domain="file" path="__androidx_security_crypto_master_key_keyset__" />
 
         <!-- Include database -->
         <include domain="database" path="etf_db" />
