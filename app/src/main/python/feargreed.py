@@ -247,3 +247,116 @@ def run_analysis(start: str, end: str) -> Tuple[Optional[pd.DataFrame], Optional
     except Exception as e:
         log.error("Analysis error: %s", e)
         return None, None
+
+
+# Backward compatibility functions for Kotlin FearGreedRepository
+def combine(start: str, end: str) -> Optional[pd.DataFrame]:
+    """
+    Fetch and combine raw data (backward compatibility).
+
+    Args:
+        start: Start date (YYYYMMDD)
+        end: End date (YYYYMMDD)
+
+    Returns:
+        Combined DataFrame with all raw data
+    """
+    log.info("combine: %s ~ %s", start, end)
+
+    try:
+        fetcher = KRXFetcher()
+
+        # Fetch option data
+        call = fetcher.get_option(start, end, "C")
+        put = fetcher.get_option(start, end, "P")
+        if call is None or put is None:
+            log.error("Failed to fetch option data")
+            return None
+
+        # Calculate 5-day MA for options
+        call = call.sort_values("거래일").reset_index(drop=True)
+        put = put.sort_values("거래일").reset_index(drop=True)
+        call["Call"] = call["전체"].rolling(5).mean()
+        put["Put"] = put["전체"].rolling(5).mean()
+
+        # Fetch index data
+        b5y = fetcher.get_index(start, end, "5년국채")
+        b10y = fetcher.get_index(start, end, "10년국채")
+        vix = fetcher.get_index(start, end, "VKOSPI")
+        kospi = fetcher.get_index(start, end, "KOSPI")
+        kosdaq = fetcher.get_index(start, end, "KOSDAQ")
+
+        if any(d is None for d in [b5y, b10y, vix]):
+            log.error("Failed to fetch required index data")
+            return None
+
+        # Merge data
+        dfs = [
+            b5y.rename(columns={"종가": "5년국채"}),
+            b10y.rename(columns={"종가": "10년국채"}),
+            vix.rename(columns={"종가": "VIX"}),
+            call[["거래일", "Call"]],
+            put[["거래일", "Put"]],
+        ]
+        if kospi is not None:
+            dfs.append(kospi.rename(columns={"종가": "KOSPI"}))
+        if kosdaq is not None:
+            dfs.append(kosdaq.rename(columns={"종가": "KOSDAQ"}))
+
+        df = reduce(lambda l, r: l.merge(r, on="거래일", how="outer"), dfs)
+        df = df.sort_values("거래일").reset_index(drop=True)
+        df["거래일"] = pd.to_datetime(df["거래일"])
+
+        # Drop rows with missing required data
+        req = ["5년국채", "10년국채", "VIX", "Call", "Put"]
+        df = df.dropna(subset=req)
+
+        if len(df) < 15:
+            log.error("Insufficient data: %d rows", len(df))
+            return None
+
+        log.info("Combined data: %d rows", len(df))
+        return df
+
+    except Exception as e:
+        log.error("combine error: %s", e)
+        return None
+
+
+def analyze(df: pd.DataFrame) -> Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
+    """
+    Analyze combined data and calculate Fear & Greed index (backward compatibility).
+
+    Args:
+        df: Combined DataFrame from combine()
+
+    Returns:
+        Tuple of (KOSPI result, KOSDAQ result) DataFrames
+    """
+    if df is None or df.empty:
+        return None, None
+
+    try:
+        # Analyze KOSPI
+        kp_df = None
+        if "KOSPI" in df.columns and df["KOSPI"].notna().any():
+            kp_df = _calc_fg(df, "KOSPI").dropna()
+            if len(kp_df) > 0:
+                log.info("KOSPI FG: %d rows", len(kp_df))
+            else:
+                kp_df = None
+
+        # Analyze KOSDAQ
+        kq_df = None
+        if "KOSDAQ" in df.columns and df["KOSDAQ"].notna().any():
+            kq_df = _calc_fg(df, "KOSDAQ").dropna()
+            if len(kq_df) > 0:
+                log.info("KOSDAQ FG: %d rows", len(kq_df))
+            else:
+                kq_df = None
+
+        return kp_df, kq_df
+
+    except Exception as e:
+        log.error("analyze error: %s", e)
+        return None, None
