@@ -19,6 +19,7 @@ HEADERS = {
     "Accept": "application/json, text/javascript, */*; q=0.01",
     "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
     "Origin": "https://data.krx.co.kr",
+    "Referer": "https://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201",
 }
 
 # Index configuration
@@ -36,20 +37,33 @@ class KRXFetcher:
 
     def __init__(self):
         self.client = HttpClient(HEADERS)
-        # Init session
-        self.client.get("https://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd")
+        # Init session - retry if first attempt fails
+        init_resp = self.client.get(
+            "https://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201"
+        )
+        if init_resp is None:
+            log.warning("Session init failed, retrying...")
+            self.client.get(
+                "https://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201"
+            )
 
     def _post(self, payload: Dict) -> Optional[Dict]:
         resp = self.client.post(KRX_URL, data=payload)
-        if resp:
-            try:
-                return resp.json()
-            except Exception:
-                pass
-        return None
+        if resp is None:
+            log.warning("POST request failed for bld=%s", payload.get("bld", "unknown"))
+            return None
+        try:
+            data = resp.json()
+            if not data:
+                log.warning("Empty JSON response for bld=%s", payload.get("bld", "unknown"))
+            return data
+        except Exception as e:
+            log.error("JSON parse error: %s", e)
+            return None
 
     def get_option(self, start: str, end: str, opt_type: str) -> Optional[pd.DataFrame]:
         """Get option data (C=Call, P=Put)."""
+        log.info("Fetching option data: %s ~ %s, type=%s", start, end, opt_type)
         payload = {
             "bld": "dbms/MDC/STAT/standard/MDCSTAT13102",
             "inqTpCd": "2", "prtType": "QTY", "prtCheck": "SU",
@@ -59,10 +73,12 @@ class KRXFetcher:
         }
         data = self._post(payload)
         if not data:
+            log.warning("No data returned for option type %s", opt_type)
             return None
 
         rows = data.get("block1") or data.get("output", [])
         if not rows:
+            log.warning("Empty rows for option type %s (keys: %s)", opt_type, list(data.keys()))
             return None
 
         df = pd.DataFrame(rows)
