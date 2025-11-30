@@ -10,8 +10,9 @@
 - **Min SDK**: 26 (Android 8.0) | **Target SDK**: 35 (Android 15)
 - **Architecture**: MVVM + Clean Architecture
 - **Dependency Injection**: Hilt 2.54
-- **Database**: Room 2.8.3 (7 schemas with migrations)
-- **Unique Feature**: Embedded Python runtime (Chaquopy) for data collection
+- **Database**: Room 2.8.3 (12 schemas with migrations)
+- **AI Integration**: Claude & Gemini API for market analysis
+- **Unique Feature**: Embedded Python runtime (Chaquopy) for data collection & ML predictions
 
 ### Project Purpose
 Monitor Korean ETFs with features including:
@@ -20,6 +21,9 @@ Monitor Korean ETFs with features including:
 - Technical oscillators (EMA, MACD) for market timing
 - Fear & Greed Index for market sentiment
 - Market deposit trends
+- AI-powered market analysis (Claude, Gemini)
+- ML-based stock price predictions
+- Correlation analysis between ETF flows and market indices
 - Background data synchronization
 
 ---
@@ -32,22 +36,31 @@ EtfMonitor_Rel/
 │   ├── java/com/example/etfmonitor/
 │   │   ├── MainActivity.kt              # Entry point
 │   │   ├── EtfMonitorApp.kt            # Hilt application
-│   │   ├── database/                    # Room (9 entities, 8 DAOs)
+│   │   ├── database/                    # Room (16 entities, 13 DAOs)
 │   │   │   ├── AppDatabase.kt
 │   │   │   ├── entities/
 │   │   │   ├── DAOs/
-│   │   │   └── Migrations/
+│   │   │   └── Migrations (v1→v12)
 │   │   ├── di/                          # Hilt modules
 │   │   │   ├── DatabaseModule.kt
 │   │   │   ├── RepositoryModule.kt
 │   │   │   ├── PythonModule.kt
+│   │   │   ├── AIModule.kt
 │   │   │   └── WorkerModule.kt
-│   │   ├── repository/                  # Data layer (6 repos)
+│   │   ├── repository/                  # Data layer (8 repos)
 │   │   ├── python/                      # Python bridge (PyKrxClient)
 │   │   ├── oscillator/                  # Technical analysis
+│   │   ├── ai/                          # AI integration (Claude, Gemini)
+│   │   │   ├── AIApiClient.kt
+│   │   │   ├── ClaudeApiClient.kt
+│   │   │   ├── GeminiApiClient.kt
+│   │   │   └── MarketAnalysisPrompts.kt
+│   │   ├── analysis/                    # Market analysis
+│   │   │   ├── CorrelationAnalyzer.kt
+│   │   │   └── Backtester.kt
 │   │   ├── ui/                          # Compose UI layer
 │   │   │   ├── Navigation.kt
-│   │   │   ├── screens/                 # 8 feature screens
+│   │   │   ├── screens/                 # 12 feature screens
 │   │   │   ├── components/              # Reusable components
 │   │   │   └── theme/                   # Material Design 3
 │   │   ├── worker/                      # Background tasks
@@ -57,6 +70,8 @@ EtfMonitor_Rel/
 │   │   ├── etfcollector.py
 │   │   ├── stockcollector.py
 │   │   ├── stock_analyzer.py
+│   │   ├── stock_predictor.py           # ML predictions
+│   │   ├── market_index_fetcher.py
 │   │   └── ...
 │   ├── res/                             # Android resources
 │   └── AndroidManifest.xml
@@ -70,6 +85,8 @@ EtfMonitor_Rel/
 - `repository.*` - Data access abstraction
 - `di.*` - Hilt dependency injection modules
 - `python.*` - Python integration bridge
+- `ai.*` - AI API clients (Claude, Gemini)
+- `analysis.*` - Correlation analysis, backtesting
 - `worker.*` - WorkManager background tasks
 - `service.*` - Foreground services
 - `oscillator.*` - Technical analysis calculations
@@ -211,16 +228,22 @@ fun observeData() {
 | **Coroutines** | 1.10.2 | Async/concurrency |
 | **WorkManager** | 2.9.1 | Background tasks |
 | **Chaquopy** | 15.0.1 | Python runtime |
+| **OkHttp** | 4.12.0 | HTTP client (AI APIs) |
+| **Security Crypto** | 1.1.0-alpha06 | Encrypted API key storage |
 
 ### Data Visualization
 - **Vico 2.0.0-alpha.28**: Modern line/column charts (Material Design 3)
-- **MPAndroidChart 3.1.0**: Advanced technical charts (oscillators)
+
+### AI Integration
+- **Claude API**: Anthropic's Claude for market analysis
+- **Gemini API**: Google's Gemini for market analysis
+- Encrypted SharedPreferences for secure API key storage
 
 ### Python Integration
 **Embedded Python** via Chaquopy includes:
 - `pykrx`: Korean stock market API
 - `pandas`: Data manipulation
-- `scikit-learn`: Machine learning
+- `scikit-learn`: Machine learning (stock predictions)
 - `beautifulsoup4`: Web scraping
 
 ---
@@ -826,20 +849,35 @@ fun Screen(viewModel: ViewModel = hiltViewModel()) {
 - **`EtfMonitorApp.kt`**: Hilt application, Python engine initialization, WorkManager config
 
 ### Navigation
-- **`ui/Navigation.kt`**: All screen routes (8 screens), NavHost setup
+- **`ui/Navigation.kt`**: All screen routes (12 screens), NavHost setup
 
 ### Database
-- **`database/AppDatabase.kt`**: Room database (9 entities, 6 migrations v1→v7)
-- **`database/Migrations/Migrations.kt`**: Schema evolution
+- **`database/AppDatabase.kt`**: Room database (16 entities, 12 migrations v1→v12)
+- **`database/Migrations`**: Schema evolution (inline in AppDatabase.kt)
 
 ### Repositories
 - **`repository/DataRepository.kt`**: ETF data, holdings, comparisons
 - **`repository/StockRepository.kt`**: Stock ticker initialization
 - **`repository/StockAnalysisRepository.kt`**: Foreign/institutional analysis
+- **`repository/AIAnalysisRepository.kt`**: AI market analysis
+- **`repository/StatisticsAnalysisRepository.kt`**: Correlation analysis
+- **`repository/MarketIndexRepository.kt`**: Market index data
+
+### AI Integration
+- **`ai/AIApiClient.kt`**: Base AI client interface
+- **`ai/ClaudeApiClient.kt`**: Anthropic Claude API client
+- **`ai/GeminiApiClient.kt`**: Google Gemini API client
+- **`ai/MarketAnalysisPrompts.kt`**: AI prompt templates
+- **`ai/ApiKeyProvider.kt`**: Secure API key management
+
+### Analysis
+- **`analysis/CorrelationAnalyzer.kt`**: ETF flow vs market correlation
+- **`analysis/Backtester.kt`**: Strategy backtesting
 
 ### Python Bridge
 - **`python/PyKrxClient.kt`**: Main Python integration (ETF/stock data)
 - **`python/OscillatorPyClient.kt`**: Technical oscillator calculations
+- **`python/MarketIndexPyClient.kt`**: Market index data fetcher
 
 ### UI Theme
 - **`ui/theme/Theme.kt`**: Material Design 3 color schemes, typography
@@ -847,12 +885,14 @@ fun Screen(viewModel: ViewModel = hiltViewModel()) {
 
 ### Background Tasks
 - **`worker/StockUpdateWorker.kt`**: Daily stock data refresh
+- **`worker/DataArchiveWorker.kt`**: Data archiving
 - **`service/DataCollectionService.kt`**: Foreground ETF sync service
 
 ### Dependency Injection
 - **`di/DatabaseModule.kt`**: Database and DAO providers
 - **`di/RepositoryModule.kt`**: Repository providers
 - **`di/PythonModule.kt`**: Python engine provider
+- **`di/AIModule.kt`**: AI client providers
 
 ### Build Configuration
 - **`gradle/libs.versions.toml`**: Version catalog for all dependencies
@@ -962,9 +1002,6 @@ val shadowColor = if (isSystemInDarkTheme()) Color.White else Color.Black
 ---
 
 ## Git Workflow
-
-### Active Branch
-- **Development**: `claude/claude-md-mia712l47enwbphf-01QrSFjXRk52kqnoAADPawKM`
 
 ### Commit Guidelines
 
@@ -1094,6 +1131,6 @@ Before submitting changes, verify:
 
 ---
 
-**Last Updated**: 2025-11-22
-**Codebase Version**: Schema v7, ~4,200 LOC
+**Last Updated**: 2025-11-30
+**Codebase Version**: Schema v12, ~28,700 LOC
 **Maintainer**: gmdjlee
