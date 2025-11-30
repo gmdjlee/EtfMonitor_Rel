@@ -93,7 +93,9 @@ data class TrendSignalData(
     val cmf: List<Double>,          // Chaikin Money Flow
     val fearGreed: List<Double>,    // Fear & Greed Index (-1 ~ +1)
     val buySignal: List<Int>,       // 매수 시그널 (1=매수, 0=없음)
-    val sellSignal: List<Int>       // 매도 시그널 (1=매도, 0=없음)
+    val auxBuySignal: List<Int>,    // 보조매수 시그널 (1=보조매수, 0=없음)
+    val sellSignal: List<Int>,      // 매도 시그널 (1=매도, 0=없음)
+    val auxSellSignal: List<Int>    // 보조매도 시그널 (1=보조매도, 0=없음)
 )
 
 /**

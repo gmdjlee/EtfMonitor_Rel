@@ -178,7 +178,7 @@ def calc_fear_greed(df: pd.DataFrame, momentum_period: int = 5, position_period:
 
 def generate_signals(df: pd.DataFrame, ma_period: int = 20, cmf_period: int = 4) -> pd.DataFrame:
     """
-    매수/매도 시그널 생성
+    매수/매도 시그널 생성 (4가지 유형)
 
     매수 조건:
     1. 고가 > 전일 고가 (돌파)
@@ -189,6 +189,12 @@ def generate_signals(df: pd.DataFrame, ma_period: int = 20, cmf_period: int = 4)
     1. 저가 < 전일 저가 (이탈)
     2. 종가 < MA (하락 추세)
     3. CMF < 0 (자금 유출)
+
+    시그널 유형:
+    - 매수 (Primary Buy): 모든 매수 조건 충족
+    - 보조매수 (Auxiliary Buy): 2개 이상 매수 조건 충족
+    - 매도 (Primary Sell): 모든 매도 조건 충족
+    - 보조매도 (Auxiliary Sell): 2개 이상 매도 조건 충족
     """
     result = df.copy()
 
@@ -201,23 +207,30 @@ def generate_signals(df: pd.DataFrame, ma_period: int = 20, cmf_period: int = 4)
     result["PrevHigh"] = result["High"].shift(1)
     result["PrevLow"] = result["Low"].shift(1)
 
-    # 매수 조건
-    buy_cond = (
-        (result["High"] > result["PrevHigh"]) &
-        (result["Close"] > result["MA"]) &
-        (result["CMF"] > 0)
-    )
+    # 개별 매수 조건
+    buy_cond1 = (result["High"] > result["PrevHigh"])  # 고가 돌파
+    buy_cond2 = (result["Close"] > result["MA"])       # MA 상회
+    buy_cond3 = (result["CMF"] > 0)                    # 자금 유입
 
-    # 매도 조건
-    sell_cond = (
-        (result["Low"] < result["PrevLow"]) &
-        (result["Close"] < result["MA"]) &
-        (result["CMF"] < 0)
-    )
+    # 개별 매도 조건
+    sell_cond1 = (result["Low"] < result["PrevLow"])   # 저가 이탈
+    sell_cond2 = (result["Close"] < result["MA"])      # MA 하회
+    sell_cond3 = (result["CMF"] < 0)                   # 자금 유출
 
-    # 시그널 설정
-    result["BuySignal"] = buy_cond.astype(int)
-    result["SellSignal"] = sell_cond.astype(int)
+    # 조건 카운트
+    buy_count = buy_cond1.astype(int) + buy_cond2.astype(int) + buy_cond3.astype(int)
+    sell_count = sell_cond1.astype(int) + sell_cond2.astype(int) + sell_cond3.astype(int)
+
+    # 시그널 설정 (1=매수, 2=보조매수, -1=매도, -2=보조매도, 0=없음)
+    # Primary Buy: 3개 조건 모두 충족
+    result["BuySignal"] = (buy_count == 3).astype(int)
+    # Auxiliary Buy: 2개 조건 충족 (Primary 아닌 경우)
+    result["AuxBuySignal"] = ((buy_count == 2) & (buy_cond2)).astype(int)  # MA 상회 필수
+
+    # Primary Sell: 3개 조건 모두 충족
+    result["SellSignal"] = (sell_count == 3).astype(int)
+    # Auxiliary Sell: 2개 조건 충족 (Primary 아닌 경우)
+    result["AuxSellSignal"] = ((sell_count == 2) & (sell_cond2)).astype(int)  # MA 하회 필수
 
     return result
 
@@ -293,7 +306,9 @@ def get_trend_signal_analysis(ticker: str, days: int = 180, interval: str = "w",
             "cmf": result_df["CMF"].tolist(),
             "fear_greed": result_df["FearGreed"].tolist(),
             "buy_signal": result_df["BuySignal"].tolist(),
-            "sell_signal": result_df["SellSignal"].tolist()
+            "aux_buy_signal": result_df["AuxBuySignal"].tolist(),
+            "sell_signal": result_df["SellSignal"].tolist(),
+            "aux_sell_signal": result_df["AuxSellSignal"].tolist()
         }
 
         logger.info("추세 시그널 분석 완료: %s, %d개 데이터", name, len(data["dates"]))

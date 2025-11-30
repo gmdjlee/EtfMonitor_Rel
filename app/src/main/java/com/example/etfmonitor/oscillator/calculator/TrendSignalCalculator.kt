@@ -32,10 +32,12 @@ object TrendSignalCalculator {
         val cmfValue = data.cmf[lastIdx]
         val fearGreedValue = data.fearGreed[lastIdx]
 
-        // 최근 5개 기간의 시그널 카운트
+        // 최근 5개 기간의 시그널 카운트 (주 시그널 + 보조 시그널)
         val recentPeriod = minOf(5, data.dates.size)
-        val recentBuyCount = data.buySignal.takeLast(recentPeriod).sum()
-        val recentSellCount = data.sellSignal.takeLast(recentPeriod).sum()
+        val recentBuyCount = data.buySignal.takeLast(recentPeriod).sum() +
+                data.auxBuySignal.takeLast(recentPeriod).sum()
+        val recentSellCount = data.sellSignal.takeLast(recentPeriod).sum() +
+                data.auxSellSignal.takeLast(recentPeriod).sum()
 
         // 추세 신호 결정
         val signal = determineSignal(

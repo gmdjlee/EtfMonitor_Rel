@@ -324,7 +324,15 @@ class OscillatorPyClient(private val python: Python) {
                 List(arr.length()) { arr.getInt(it) }
             }
 
+            val auxBuySignal = jsonObj.getJSONArray("aux_buy_signal").let { arr ->
+                List(arr.length()) { arr.getInt(it) }
+            }
+
             val sellSignal = jsonObj.getJSONArray("sell_signal").let { arr ->
+                List(arr.length()) { arr.getInt(it) }
+            }
+
+            val auxSellSignal = jsonObj.getJSONArray("aux_sell_signal").let { arr ->
                 List(arr.length()) { arr.getInt(it) }
             }
 
@@ -342,7 +350,9 @@ class OscillatorPyClient(private val python: Python) {
                 cmf = cmf,
                 fearGreed = fearGreed,
                 buySignal = buySignal,
-                sellSignal = sellSignal
+                auxBuySignal = auxBuySignal,
+                sellSignal = sellSignal,
+                auxSellSignal = auxSellSignal
             )
 
             Log.d(TAG, "Trend signal data complete: ${trendSignalData.name}, ${dates.size} data points")
