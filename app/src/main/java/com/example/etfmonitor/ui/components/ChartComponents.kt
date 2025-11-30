@@ -802,7 +802,7 @@ fun TrendSignalChart(
                             axisDependency = YAxis.AxisDependency.LEFT
                             color = buyColor
                             setScatterShape(ScatterChart.ScatterShape.TRIANGLE)
-                            scatterShapeSize = 18f
+                            scatterShapeSize = 24f
                             setDrawValues(false)
                         }
                         scatterDataSets.add(buyDataSet)
@@ -814,7 +814,7 @@ fun TrendSignalChart(
                             axisDependency = YAxis.AxisDependency.LEFT
                             color = auxBuyColor
                             setScatterShape(ScatterChart.ScatterShape.TRIANGLE)
-                            scatterShapeSize = 14f
+                            scatterShapeSize = 18f
                             setDrawValues(false)
                         }
                         scatterDataSets.add(auxBuyDataSet)
@@ -826,7 +826,7 @@ fun TrendSignalChart(
                             axisDependency = YAxis.AxisDependency.LEFT
                             color = sellColor
                             shapeRenderer = InvertedTriangleShapeRenderer()
-                            scatterShapeSize = 18f
+                            scatterShapeSize = 24f
                             setDrawValues(false)
                         }
                         scatterDataSets.add(sellDataSet)
@@ -838,7 +838,7 @@ fun TrendSignalChart(
                             axisDependency = YAxis.AxisDependency.LEFT
                             color = auxSellColor
                             shapeRenderer = InvertedTriangleShapeRenderer()
-                            scatterShapeSize = 14f
+                            scatterShapeSize = 18f
                             setDrawValues(false)
                         }
                         scatterDataSets.add(auxSellDataSet)
