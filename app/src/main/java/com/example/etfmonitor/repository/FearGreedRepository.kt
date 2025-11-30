@@ -9,6 +9,7 @@ import com.etfmonitor.utils.DateFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -26,13 +27,13 @@ class FearGreedRepository @Inject constructor(
     }
 
     fun getAllByMarket(market: String): Flow<List<FearGreedIndex>> =
-        fearGreedDao.getAllByMarket(market)
+        fearGreedDao.getAllByMarket(market).flowOn(Dispatchers.IO)
 
     fun getRecentByMarket(market: String, limit: Int = 365): Flow<List<FearGreedIndex>> =
-        fearGreedDao.getRecentByMarket(market, limit)
+        fearGreedDao.getRecentByMarket(market, limit).flowOn(Dispatchers.IO)
 
     fun getByMarketAndDateRange(market: String, startDate: String, endDate: String): Flow<List<FearGreedIndex>> =
-        fearGreedDao.getByMarketAndDateRange(market, startDate, endDate)
+        fearGreedDao.getByMarketAndDateRange(market, startDate, endDate).flowOn(Dispatchers.IO)
 
     suspend fun getByMarketAndDate(market: String, date: String): FearGreedIndex? =
         fearGreedDao.getByMarketAndDate(market, date)

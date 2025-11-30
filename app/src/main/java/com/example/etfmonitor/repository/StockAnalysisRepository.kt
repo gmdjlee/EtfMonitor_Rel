@@ -1,7 +1,6 @@
 package com.etfmonitor.repository
 
 import android.util.Log
-import com.chaquo.python.Python
 import com.etfmonitor.database.StockAnalysisDao
 import com.etfmonitor.database.entities.StockAnalysisData
 import com.etfmonitor.oscillator.model.StockData
@@ -12,18 +11,22 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * 주식 분석 Repository
+ *
+ * Production 최적화:
+ * - @Singleton: Hilt가 단일 인스턴스 관리
+ * - @Inject: 생성자 주입으로 의존성 명확화
+ * - OscillatorPyClient를 DI로 주입받아 일관된 의존성 관리
+ */
 @Singleton
 class StockAnalysisRepository @Inject constructor(
     private val stockAnalysisDao: StockAnalysisDao,
-    private val python: Python
+    private val pyClient: OscillatorPyClient
 ) {
     companion object {
         private const val TAG = "StockAnalysisRepository"
         private const val DATA_EXPIRY_HOURS = 24 // 24시간 후 데이터 만료
-    }
-
-    private val pyClient by lazy {
-        OscillatorPyClient(python)
     }
 
     /**

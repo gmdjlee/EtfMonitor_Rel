@@ -46,21 +46,7 @@ object RepositoryModule {
     }
 
     // StockRepository는 @Inject constructor를 사용하므로 수동 제공 불필요
-    // Hilt가 자동으로 의존성을 주입합니다
-
-    /**
-     * StockAnalysisRepository 제공 (Singleton)
-     * 주식 분석 데이터를 관리
-     */
-    @Provides
-    @Singleton
-    fun provideStockAnalysisRepository(
-        stockAnalysisDao: StockAnalysisDao,
-        python: Python
-    ): StockAnalysisRepository {
-        return StockAnalysisRepository(stockAnalysisDao, python)
-    }
-
+    // StockAnalysisRepository는 @Inject constructor를 사용하므로 수동 제공 불필요
     // MarketDepositRepository는 @Inject constructor를 사용하므로 수동 제공 불필요
     // Hilt가 자동으로 의존성을 주입합니다
 
