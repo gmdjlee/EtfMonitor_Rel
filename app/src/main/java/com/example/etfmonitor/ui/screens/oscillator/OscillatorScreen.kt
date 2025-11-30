@@ -234,13 +234,7 @@ fun OscillatorScreen(
                         latestDate = currentState.stockData.dates.lastOrNull()
                     )
 
-                    // MACD 차트
-                    MacdChart(
-                        result = currentState.oscillatorResult,
-                        latestDate = currentState.stockData.dates.lastOrNull()
-                    )
-
-                    // 추세 시그널 차트 (MA/CMF/Fear&Greed)
+                    // 추세 시그널 차트 (MA/CMF/Fear&Greed) - MACD 차트 위에 배치
                     currentState.trendSignalData?.let { trendData ->
                         TrendSignalChart(
                             data = trendData,
@@ -252,6 +246,12 @@ fun OscillatorScreen(
                             TrendSignalAnalysisCard(analysis)
                         }
                     }
+
+                    // MACD 차트
+                    MacdChart(
+                        result = currentState.oscillatorResult,
+                        latestDate = currentState.stockData.dates.lastOrNull()
+                    )
 
                     // Oscillator Data Card
                     DataCard(currentState.oscillatorResult)

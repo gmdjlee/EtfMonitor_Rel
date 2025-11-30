@@ -762,49 +762,49 @@ fun TrendSignalChart(
 
                     val scatterDataSets = mutableListOf<ScatterDataSet>()
 
-                    // 매수 (빨간색, 큰 마커)
+                    // 매수 (빨간색, 큰 삼각형 마커)
                     if (buyEntries.isNotEmpty()) {
                         val buyDataSet = ScatterDataSet(buyEntries, "매수").apply {
                             axisDependency = YAxis.AxisDependency.LEFT
                             color = buyColor
-                            setScatterShape(ScatterChart.ScatterShape.CIRCLE)
-                            scatterShapeSize = 16f
+                            setScatterShape(ScatterChart.ScatterShape.TRIANGLE)
+                            scatterShapeSize = 18f
                             setDrawValues(false)
                         }
                         scatterDataSets.add(buyDataSet)
                     }
 
-                    // 보조매수 (연한 빨간색, 작은 마커)
+                    // 보조매수 (연한 빨간색, 작은 삼각형 마커)
                     if (auxBuyEntries.isNotEmpty()) {
                         val auxBuyDataSet = ScatterDataSet(auxBuyEntries, "보조매수").apply {
                             axisDependency = YAxis.AxisDependency.LEFT
                             color = auxBuyColor
-                            setScatterShape(ScatterChart.ScatterShape.CIRCLE)
-                            scatterShapeSize = 12f
+                            setScatterShape(ScatterChart.ScatterShape.TRIANGLE)
+                            scatterShapeSize = 14f
                             setDrawValues(false)
                         }
                         scatterDataSets.add(auxBuyDataSet)
                     }
 
-                    // 매도 (파란색, 큰 마커)
+                    // 매도 (파란색, 큰 삼각형 마커)
                     if (sellEntries.isNotEmpty()) {
                         val sellDataSet = ScatterDataSet(sellEntries, "매도").apply {
                             axisDependency = YAxis.AxisDependency.LEFT
                             color = sellColor
-                            setScatterShape(ScatterChart.ScatterShape.CIRCLE)
-                            scatterShapeSize = 16f
+                            setScatterShape(ScatterChart.ScatterShape.TRIANGLE)
+                            scatterShapeSize = 18f
                             setDrawValues(false)
                         }
                         scatterDataSets.add(sellDataSet)
                     }
 
-                    // 보조매도 (연한 파란색, 작은 마커)
+                    // 보조매도 (연한 파란색, 작은 삼각형 마커)
                     if (auxSellEntries.isNotEmpty()) {
                         val auxSellDataSet = ScatterDataSet(auxSellEntries, "보조매도").apply {
                             axisDependency = YAxis.AxisDependency.LEFT
                             color = auxSellColor
-                            setScatterShape(ScatterChart.ScatterShape.CIRCLE)
-                            scatterShapeSize = 12f
+                            setScatterShape(ScatterChart.ScatterShape.TRIANGLE)
+                            scatterShapeSize = 14f
                             setDrawValues(false)
                         }
                         scatterDataSets.add(auxSellDataSet)
