@@ -29,7 +29,9 @@ import com.etfmonitor.BuildConfig
  * }
  * ```
  */
-class AppLogger private constructor(private val tag: String) {
+class AppLogger @PublishedApi internal constructor(
+    @PublishedApi internal val tag: String
+) {
 
     companion object {
         private const val TAG_PREFIX = "EtfMonitor"
