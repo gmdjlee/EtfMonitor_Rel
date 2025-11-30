@@ -4,6 +4,7 @@ import android.util.Log
 import com.chaquo.python.Python
 import com.etfmonitor.oscillator.model.MarketDepositData
 import com.etfmonitor.oscillator.model.StockData
+import com.etfmonitor.oscillator.model.TrendSignalData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -22,6 +23,11 @@ class OscillatorPyClient(private val python: Python) {
     private val marketOscillatorModule by lazy {
         Log.d(TAG, "Loading market_oscillator module")
         python.getModule("market_oscillator")
+    }
+
+    private val trendSignalModule by lazy {
+        Log.d(TAG, "Loading trend_signal module")
+        python.getModule("trend_signal")
     }
 
     /**
@@ -246,6 +252,104 @@ class OscillatorPyClient(private val python: Python) {
         } catch (e: Exception) {
             Log.e(TAG, "getMarketOscillator error", e)
             """{"error": "${e.message}"}"""
+        }
+    }
+
+    /**
+     * 추세 시그널 분석 데이터 수집
+     *
+     * @param ticker 종목 코드
+     * @param days 분석 기간 (일)
+     * @param interval 주기 ("d"=일별, "w"=주별)
+     * @return TrendSignalData 또는 null
+     */
+    suspend fun getTrendSignalData(
+        ticker: String,
+        days: Int = 365,
+        interval: String = "w"
+    ): TrendSignalData? = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "getTrendSignalData: $ticker, $days days, interval: $interval")
+            val jsonStr = trendSignalModule.callAttr(
+                "get_trend_signal_analysis",
+                ticker,
+                days,
+                interval
+            ).toString()
+
+            val jsonObj = JSONObject(jsonStr)
+
+            if (jsonObj.has("error")) {
+                Log.e(TAG, "Trend signal error: ${jsonObj.getString("error")}")
+                return@withContext null
+            }
+
+            val dates = jsonObj.getJSONArray("dates").let { arr ->
+                List(arr.length()) { arr.getString(it) }
+            }
+
+            val open = jsonObj.getJSONArray("open").let { arr ->
+                List(arr.length()) { arr.getDouble(it) }
+            }
+
+            val high = jsonObj.getJSONArray("high").let { arr ->
+                List(arr.length()) { arr.getDouble(it) }
+            }
+
+            val low = jsonObj.getJSONArray("low").let { arr ->
+                List(arr.length()) { arr.getDouble(it) }
+            }
+
+            val close = jsonObj.getJSONArray("close").let { arr ->
+                List(arr.length()) { arr.getDouble(it) }
+            }
+
+            val volume = jsonObj.getJSONArray("volume").let { arr ->
+                List(arr.length()) { arr.getLong(it) }
+            }
+
+            val ma = jsonObj.getJSONArray("ma").let { arr ->
+                List(arr.length()) { arr.getDouble(it) }
+            }
+
+            val cmf = jsonObj.getJSONArray("cmf").let { arr ->
+                List(arr.length()) { arr.getDouble(it) }
+            }
+
+            val fearGreed = jsonObj.getJSONArray("fear_greed").let { arr ->
+                List(arr.length()) { arr.getDouble(it) }
+            }
+
+            val buySignal = jsonObj.getJSONArray("buy_signal").let { arr ->
+                List(arr.length()) { arr.getInt(it) }
+            }
+
+            val sellSignal = jsonObj.getJSONArray("sell_signal").let { arr ->
+                List(arr.length()) { arr.getInt(it) }
+            }
+
+            val trendSignalData = TrendSignalData(
+                ticker = jsonObj.getString("ticker"),
+                name = jsonObj.getString("name"),
+                interval = jsonObj.getString("interval"),
+                dates = dates,
+                open = open,
+                high = high,
+                low = low,
+                close = close,
+                volume = volume,
+                ma = ma,
+                cmf = cmf,
+                fearGreed = fearGreed,
+                buySignal = buySignal,
+                sellSignal = sellSignal
+            )
+
+            Log.d(TAG, "Trend signal data complete: ${trendSignalData.name}, ${dates.size} data points")
+            trendSignalData
+        } catch (e: Exception) {
+            Log.e(TAG, "getTrendSignalData error", e)
+            null
         }
     }
 }

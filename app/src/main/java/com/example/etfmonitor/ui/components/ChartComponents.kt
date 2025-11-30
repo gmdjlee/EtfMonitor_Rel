@@ -24,7 +24,11 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 import com.etfmonitor.R
 import com.etfmonitor.oscillator.model.MarketDepositData
 import com.etfmonitor.oscillator.model.OscillatorResult
+import com.etfmonitor.oscillator.model.TrendSignalData
 import com.etfmonitor.ui.theme.*
+import com.github.mikephil.charting.data.ScatterData
+import com.github.mikephil.charting.data.ScatterDataSet
+import com.github.mikephil.charting.charts.ScatterChart
 import android.util.Log
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -520,6 +524,250 @@ fun MarketDepositChart(
 
                 chart.data = combinedData
                 chart.invalidate()
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(350.dp)
+        )
+    }
+}
+
+/**
+ * 추세 시그널 차트 (가격 + MA + 매수/매도 시그널 + Fear & Greed)
+ */
+@Composable
+fun TrendSignalChart(
+    data: TrendSignalData,
+    latestDate: String? = null,
+    modifier: Modifier = Modifier,
+    chartColorViewModel: ChartColorViewModel = hiltViewModel()
+) {
+    // 데이터 검증
+    if (data.dates.isEmpty() || data.close.isEmpty()) {
+        Log.w(TAG, "Empty data for TrendSignalChart")
+        return
+    }
+
+    // 차트 색상 설정 가져오기
+    val chartColors by chartColorViewModel.chartColorSettings.collectAsState()
+    val colorSettings = chartColors.macd  // MACD 색상 재활용
+
+    // Theme colors
+    val isDark = isSystemInDarkTheme()
+    val priceColor = colorSettings.lineColor1           // 종가
+    val maColor = colorSettings.lineColor2              // MA
+    val buyColor = colorSettings.positiveColor          // 매수 시그널
+    val sellColor = colorSettings.negativeColor         // 매도 시그널
+    val fearGreedPositive = Color.rgb(76, 175, 80)      // 탐욕 (녹색)
+    val fearGreedNegative = Color.rgb(244, 67, 54)      // 공포 (빨간색)
+    val textColor = colorSettings.textColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val legendColor = colorSettings.legendColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
+
+    ChartCard(
+        title = "추세 시그널 (MA/CMF/Fear&Greed)",
+        subtitle = latestDate?.let { "최신 데이터: $it (${data.interval})" },
+        modifier = modifier
+    ) {
+        AndroidView(
+            factory = { context ->
+                CombinedChart(context).apply {
+                    description.isEnabled = false
+                    setTouchEnabled(true)
+                    isDragEnabled = true
+                    setScaleEnabled(true)
+                    setPinchZoom(true)
+                    setDrawGridBackground(false)
+                    setDrawOrder(arrayOf(
+                        CombinedChart.DrawOrder.LINE,
+                        CombinedChart.DrawOrder.BAR,
+                        CombinedChart.DrawOrder.SCATTER
+                    ))
+
+                    // 마커 뷰
+                    val markerView = CustomMarkerView(
+                        context,
+                        R.layout.marker_view,
+                        data.dates
+                    ) { value ->
+                        String.format("%,.0f", value)
+                    }
+                    marker = markerView
+
+                    // X축 설정
+                    xAxis.apply {
+                        position = XAxis.XAxisPosition.BOTTOM
+                        setDrawGridLines(true)
+                        gridLineWidth = 1f
+                        setGridColor(gridColor)
+                        enableGridDashedLine(10f, 5f, 0f)
+                        setTextColor(textColor)
+                        granularity = 1f
+                        labelRotationAngle = -45f
+                        setLabelCount(8, false)
+                        valueFormatter = object : ValueFormatter() {
+                            override fun getFormattedValue(value: Float): String {
+                                val index = value.toInt()
+                                return if (index >= 0 && index < data.dates.size) {
+                                    data.dates[index]
+                                } else {
+                                    ""
+                                }
+                            }
+                        }
+                    }
+
+                    // 왼쪽 Y축 (가격)
+                    axisLeft.apply {
+                        setDrawGridLines(true)
+                        gridLineWidth = 1f
+                        setGridColor(gridColor)
+                        enableGridDashedLine(10f, 5f, 0f)
+                        setTextColor(textColor)
+                        setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
+                        valueFormatter = object : ValueFormatter() {
+                            override fun getFormattedValue(value: Float): String {
+                                return when {
+                                    value >= 1_000_000 -> String.format("%.1f만", value / 10_000f)
+                                    value >= 10_000 -> String.format("%.0f", value)
+                                    else -> String.format("%.0f", value)
+                                }
+                            }
+                        }
+                    }
+
+                    // 오른쪽 Y축 (Fear & Greed: -1 ~ +1)
+                    axisRight.apply {
+                        isEnabled = true
+                        setDrawGridLines(false)
+                        setTextColor(textColor)
+                        setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
+                        axisMinimum = -1.2f
+                        axisMaximum = 1.2f
+                        valueFormatter = object : ValueFormatter() {
+                            override fun getFormattedValue(value: Float): String {
+                                return when {
+                                    value > 0.6f -> "탐욕"
+                                    value > 0.2f -> "+"
+                                    value > -0.2f -> "중립"
+                                    value > -0.6f -> "-"
+                                    else -> "공포"
+                                }
+                            }
+                        }
+                    }
+
+                    legend.apply {
+                        isEnabled = true
+                        textSize = 11f
+                        setTextColor(legendColor)
+                    }
+                }
+            },
+            update = { chart ->
+                try {
+                    // 1. 종가 라인
+                    val closeEntries = data.close.mapIndexed { index, value ->
+                        Entry(index.toFloat(), value.toFloat())
+                    }
+                    val closeDataSet = LineDataSet(closeEntries, "종가").apply {
+                        axisDependency = YAxis.AxisDependency.LEFT
+                        color = priceColor
+                        lineWidth = 2.5f
+                        setDrawCircles(false)
+                        setDrawValues(false)
+                        mode = LineDataSet.Mode.CUBIC_BEZIER
+                        highLightColor = priceColor
+                    }
+
+                    // 2. MA 라인
+                    val maEntries = data.ma.mapIndexed { index, value ->
+                        Entry(index.toFloat(), value.toFloat())
+                    }
+                    val maDataSet = LineDataSet(maEntries, "MA").apply {
+                        axisDependency = YAxis.AxisDependency.LEFT
+                        color = maColor
+                        lineWidth = 2f
+                        setDrawCircles(false)
+                        setDrawValues(false)
+                        enableDashedLine(10f, 5f, 0f)
+                        highLightColor = maColor
+                    }
+
+                    val lineData = LineData(closeDataSet, maDataSet)
+
+                    // 3. Fear & Greed 바 차트 (오른쪽 Y축)
+                    val fearGreedEntries = data.fearGreed.mapIndexed { index, value ->
+                        BarEntry(index.toFloat(), value.toFloat())
+                    }
+                    val fearGreedDataSet = BarDataSet(fearGreedEntries, "F&G").apply {
+                        axisDependency = YAxis.AxisDependency.RIGHT
+                        colors = data.fearGreed.map { value ->
+                            if (value >= 0) fearGreedPositive else fearGreedNegative
+                        }
+                        setDrawValues(false)
+                        isHighlightEnabled = false
+                    }
+                    val barData = BarData(fearGreedDataSet).apply {
+                        barWidth = 0.6f
+                    }
+
+                    // 4. 매수/매도 시그널 (Scatter)
+                    val buyEntries = mutableListOf<Entry>()
+                    val sellEntries = mutableListOf<Entry>()
+
+                    data.buySignal.forEachIndexed { index, signal ->
+                        if (signal == 1) {
+                            // 매수 시그널: 저가 아래에 표시
+                            buyEntries.add(Entry(index.toFloat(), (data.low[index] * 0.98).toFloat()))
+                        }
+                    }
+
+                    data.sellSignal.forEachIndexed { index, signal ->
+                        if (signal == 1) {
+                            // 매도 시그널: 고가 위에 표시
+                            sellEntries.add(Entry(index.toFloat(), (data.high[index] * 1.02).toFloat()))
+                        }
+                    }
+
+                    val scatterDataSets = mutableListOf<ScatterDataSet>()
+
+                    if (buyEntries.isNotEmpty()) {
+                        val buyDataSet = ScatterDataSet(buyEntries, "매수").apply {
+                            axisDependency = YAxis.AxisDependency.LEFT
+                            color = buyColor
+                            setScatterShape(ScatterChart.ScatterShape.TRIANGLE)
+                            scatterShapeSize = 18f
+                            setDrawValues(false)
+                        }
+                        scatterDataSets.add(buyDataSet)
+                    }
+
+                    if (sellEntries.isNotEmpty()) {
+                        val sellDataSet = ScatterDataSet(sellEntries, "매도").apply {
+                            axisDependency = YAxis.AxisDependency.LEFT
+                            color = sellColor
+                            setScatterShape(ScatterChart.ScatterShape.TRIANGLE)
+                            scatterShapeSize = 18f
+                            setDrawValues(false)
+                        }
+                        scatterDataSets.add(sellDataSet)
+                    }
+
+                    // CombinedData 조립
+                    val combinedData = CombinedData().apply {
+                        setData(lineData)
+                        setData(barData)
+                        if (scatterDataSets.isNotEmpty()) {
+                            setData(ScatterData(scatterDataSets.toList()))
+                        }
+                    }
+
+                    chart.data = combinedData
+                    chart.invalidate()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error updating TrendSignalChart", e)
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()
