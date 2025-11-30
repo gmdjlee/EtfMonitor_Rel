@@ -24,15 +24,8 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object RepositoryModule {
 
-    /**
-     * PyKrxClient 제공 (Singleton)
-     * KRX API를 호출하는 Python 클라이언트
-     */
-    @Provides
-    @Singleton
-    fun providePyKrxClient(python: Python): PyKrxClient {
-        return PyKrxClient(python)
-    }
+    // PyKrxClient는 @Inject constructor를 사용하므로 수동 제공 불필요
+    // Hilt가 자동으로 의존성을 주입합니다
 
     /**
      * DataRepository 제공 (Singleton)
@@ -52,18 +45,8 @@ object RepositoryModule {
         return DataRepository(etfDao, dailyEtfStatisticsDao, pyKrxClient)
     }
 
-    /**
-     * StockRepository 제공 (Singleton)
-     * 주식 종목 정보를 관리
-     */
-    @Provides
-    @Singleton
-    fun provideStockRepository(
-        stockDao: StockDao,
-        python: Python
-    ): StockRepository {
-        return StockRepository(stockDao, python)
-    }
+    // StockRepository는 @Inject constructor를 사용하므로 수동 제공 불필요
+    // Hilt가 자동으로 의존성을 주입합니다
 
     /**
      * StockAnalysisRepository 제공 (Singleton)
@@ -78,18 +61,8 @@ object RepositoryModule {
         return StockAnalysisRepository(stockAnalysisDao, python)
     }
 
-    /**
-     * MarketDepositRepository 제공 (Singleton)
-     * 시장 예탁금 데이터를 관리
-     */
-    @Provides
-    @Singleton
-    fun provideMarketDepositRepository(
-        marketDepositDao: MarketDepositDao,
-        python: Python
-    ): MarketDepositRepository {
-        return MarketDepositRepository(marketDepositDao, python)
-    }
+    // MarketDepositRepository는 @Inject constructor를 사용하므로 수동 제공 불필요
+    // Hilt가 자동으로 의존성을 주입합니다
 
     /**
      * FearGreedRepository 제공 (Singleton)
