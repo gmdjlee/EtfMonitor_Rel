@@ -1,29 +1,36 @@
 package com.etfmonitor.repository
 
 import android.util.Log
-import com.chaquo.python.Python
 import com.etfmonitor.database.StockDao
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.oscillator.python.OscillatorPyClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class StockRepository(
+/**
+ * 주식 종목 Repository
+ *
+ * Production 최적화:
+ * - @Singleton: Hilt가 단일 인스턴스 관리
+ * - @Inject: 생성자 주입으로 의존성 명확화
+ * - flowOn(Dispatchers.IO): Flow 메서드에 명시적 디스패처 지정
+ */
+@Singleton
+class StockRepository @Inject constructor(
     private val stockDao: StockDao,
-    private val python: Python
+    private val pyClient: OscillatorPyClient
 ) {
     companion object {
         private const val TAG = "StockRepository"
     }
 
-    private val pyClient by lazy {
-        OscillatorPyClient(python)
-    }
+    fun getAllStocks(): Flow<List<Stock>> = stockDao.getAllStocks().flowOn(Dispatchers.IO)
 
-    fun getAllStocks(): Flow<List<Stock>> = stockDao.getAllStocks()
-
-    fun searchStocks(query: String): Flow<List<Stock>> = stockDao.searchStocks(query)
+    fun searchStocks(query: String): Flow<List<Stock>> = stockDao.searchStocks(query).flowOn(Dispatchers.IO)
 
     suspend fun getStock(ticker: String): Stock? = stockDao.getStock(ticker)
 

@@ -1,7 +1,6 @@
 package com.etfmonitor.repository
 
 import android.util.Log
-import com.chaquo.python.Python
 import com.etfmonitor.database.MarketDepositDao
 import com.etfmonitor.database.entities.MarketDeposit
 import com.etfmonitor.oscillator.model.MarketDepositData
@@ -10,25 +9,34 @@ import com.etfmonitor.utils.DateFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class MarketDepositRepository(
+/**
+ * 증시 자금 동향 Repository
+ *
+ * Production 최적화:
+ * - @Singleton: Hilt가 단일 인스턴스 관리
+ * - @Inject: 생성자 주입으로 의존성 명확화
+ * - flowOn(Dispatchers.IO): Flow 메서드에 명시적 디스패처 지정
+ */
+@Singleton
+class MarketDepositRepository @Inject constructor(
     private val marketDepositDao: MarketDepositDao,
-    private val python: Python
+    private val pyClient: OscillatorPyClient
 ) {
     companion object {
         private const val TAG = "MarketDepositRepository"
         private const val DATA_EXPIRY_HOURS = 12 // 12시간 후 데이터 만료
     }
 
-    private val pyClient by lazy {
-        OscillatorPyClient(python)
-    }
-
-    fun getAllDeposits(): Flow<List<MarketDeposit>> = marketDepositDao.getAllDeposits()
+    fun getAllDeposits(): Flow<List<MarketDeposit>> =
+        marketDepositDao.getAllDeposits().flowOn(Dispatchers.IO)
 
     fun getRecentDeposits(limit: Int = 100): Flow<List<MarketDeposit>> =
-        marketDepositDao.getRecentDeposits(limit)
+        marketDepositDao.getRecentDeposits(limit).flowOn(Dispatchers.IO)
 
     suspend fun getDepositByDate(date: String): MarketDeposit? =
         marketDepositDao.getDepositByDate(date)

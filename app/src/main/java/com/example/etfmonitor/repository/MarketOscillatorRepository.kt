@@ -4,8 +4,10 @@ import android.util.Log
 import com.etfmonitor.database.MarketOscillatorDao
 import com.etfmonitor.database.entities.MarketOscillatorData
 import com.etfmonitor.oscillator.python.OscillatorPyClient
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.time.LocalDate
@@ -42,16 +44,14 @@ class MarketOscillatorRepository @Inject constructor(
     /**
      * 특정 시장의 모든 데이터 조회
      */
-    fun getMarketData(market: String): Flow<List<MarketOscillatorData>> {
-        return dao.getMarketData(market)
-    }
+    fun getMarketData(market: String): Flow<List<MarketOscillatorData>> =
+        dao.getMarketData(market).flowOn(Dispatchers.IO)
 
     /**
      * 특정 시장의 최근 N일 데이터 조회
      */
-    fun getRecentData(market: String, limit: Int = 15): Flow<List<MarketOscillatorData>> {
-        return dao.getRecentData(market, limit)
-    }
+    fun getRecentData(market: String, limit: Int = 15): Flow<List<MarketOscillatorData>> =
+        dao.getRecentData(market, limit).flowOn(Dispatchers.IO)
 
     /**
      * 특정 시장의 특정 기간 데이터 조회
@@ -60,9 +60,8 @@ class MarketOscillatorRepository @Inject constructor(
         market: String,
         startDate: String,
         endDate: String
-    ): Flow<List<MarketOscillatorData>> {
-        return dao.getDataByDateRange(market, startDate, endDate)
-    }
+    ): Flow<List<MarketOscillatorData>> =
+        dao.getDataByDateRange(market, startDate, endDate).flowOn(Dispatchers.IO)
 
     /**
      * 특정 시장의 최신 데이터 조회
