@@ -29,6 +29,11 @@ import com.etfmonitor.ui.theme.*
 import com.github.mikephil.charting.data.ScatterData
 import com.github.mikephil.charting.data.ScatterDataSet
 import com.github.mikephil.charting.charts.ScatterChart
+import com.github.mikephil.charting.interfaces.datasets.IScatterDataSet
+import com.github.mikephil.charting.renderer.scatter.IShapeRenderer
+import com.github.mikephil.charting.utils.ViewPortHandler
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.util.Log
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -36,6 +41,35 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 private const val TAG = "ChartComponents"
+
+/**
+ * 역삼각형 Shape Renderer (꼭지점이 아래를 향함)
+ * 매도 시그널 표시에 사용
+ */
+private class InvertedTriangleShapeRenderer : IShapeRenderer {
+    override fun renderShape(
+        c: Canvas,
+        dataSet: IScatterDataSet,
+        viewPortHandler: ViewPortHandler,
+        posX: Float,
+        posY: Float,
+        renderPaint: Paint
+    ) {
+        val shapeSize = dataSet.scatterShapeSize
+        val halfSize = shapeSize / 2f
+
+        renderPaint.style = Paint.Style.FILL
+
+        val path = android.graphics.Path()
+        // 역삼각형: 위쪽 두 점, 아래쪽 한 점
+        path.moveTo(posX - halfSize, posY - halfSize)  // 좌상단
+        path.lineTo(posX + halfSize, posY - halfSize)  // 우상단
+        path.lineTo(posX, posY + halfSize)              // 하단 중앙 (꼭지점)
+        path.close()
+
+        c.drawPath(path, renderPaint)
+    }
+}
 
 /**
  * 차트 색상 제공을 위한 ViewModel
@@ -786,24 +820,24 @@ fun TrendSignalChart(
                         scatterDataSets.add(auxBuyDataSet)
                     }
 
-                    // 매도 (파란색, 큰 삼각형 마커)
+                    // 매도 (파란색, 큰 역삼각형 마커)
                     if (sellEntries.isNotEmpty()) {
                         val sellDataSet = ScatterDataSet(sellEntries, "매도").apply {
                             axisDependency = YAxis.AxisDependency.LEFT
                             color = sellColor
-                            setScatterShape(ScatterChart.ScatterShape.TRIANGLE)
+                            shapeRenderer = InvertedTriangleShapeRenderer()
                             scatterShapeSize = 18f
                             setDrawValues(false)
                         }
                         scatterDataSets.add(sellDataSet)
                     }
 
-                    // 보조매도 (연한 파란색, 작은 삼각형 마커)
+                    // 보조매도 (연한 파란색, 작은 역삼각형 마커)
                     if (auxSellEntries.isNotEmpty()) {
                         val auxSellDataSet = ScatterDataSet(auxSellEntries, "보조매도").apply {
                             axisDependency = YAxis.AxisDependency.LEFT
                             color = auxSellColor
-                            setScatterShape(ScatterChart.ScatterShape.TRIANGLE)
+                            shapeRenderer = InvertedTriangleShapeRenderer()
                             scatterShapeSize = 14f
                             setDrawValues(false)
                         }
