@@ -154,12 +154,12 @@ def is_business_day(date_str: str) -> bool:
         return False
 
 
-def get_business_days(start: str, end: str) -> List[str]:
-    """Get business days in range."""
+def get_business_days(start: str, end: str) -> str:
+    """Get business days in range as JSON string."""
     try:
         s, e = parse_date(start), parse_date(end)
         if not s or not e or s > e:
-            return []
+            return to_json([])
 
         days = []
         cur = s
@@ -168,9 +168,9 @@ def get_business_days(start: str, end: str) -> List[str]:
             if is_business_day(d):
                 days.append(d)
             cur += timedelta(days=1)
-        return days
+        return to_json(days)
     except Exception:
-        return []
+        return to_json([])
 
 
 # Stock utilities

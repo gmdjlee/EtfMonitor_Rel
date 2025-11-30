@@ -149,3 +149,18 @@ def get_latest_data() -> Optional[Dict[str, List[Any]]]:
 def get_extended_data() -> Optional[Dict[str, List[Any]]]:
     """Get extended data (10 pages)."""
     return scrape_deposit_data(10)
+
+
+# Backward compatibility wrappers (for Kotlin OscillatorPyClient)
+def get_market_deposit_data(num_pages: int = 5) -> str:
+    """Get deposit data as JSON (backward compatibility)."""
+    from core import to_json, err_json
+    result = scrape_deposit_data(num_pages)
+    return to_json(result) if result else err_json("데이터를 가져올 수 없습니다")
+
+
+def get_latest_market_data() -> str:
+    """Get latest deposit data as JSON (backward compatibility)."""
+    from core import to_json, err_json
+    result = get_latest_data()
+    return to_json(result) if result else err_json("데이터를 가져올 수 없습니다")

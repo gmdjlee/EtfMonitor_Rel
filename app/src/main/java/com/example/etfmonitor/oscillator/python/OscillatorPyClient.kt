@@ -15,14 +15,19 @@ class OscillatorPyClient(private val python: Python) {
         private const val TAG = "OscillatorPyClient"
     }
 
-    private val analyzerModule by lazy {
-        Log.d(TAG, "Loading stock_analyzer module")
-        python.getModule("stock_analyzer")
+    private val stocksModule by lazy {
+        Log.d(TAG, "Loading stocks module")
+        python.getModule("stocks")
     }
 
-    private val marketOscillatorModule by lazy {
-        Log.d(TAG, "Loading market_oscillator module")
-        python.getModule("market_oscillator")
+    private val depositModule by lazy {
+        Log.d(TAG, "Loading deposit_scraper module")
+        python.getModule("deposit_scraper")
+    }
+
+    private val marketModule by lazy {
+        Log.d(TAG, "Loading market module")
+        python.getModule("market")
     }
 
     private val trendSignalModule by lazy {
@@ -36,7 +41,7 @@ class OscillatorPyClient(private val python: Python) {
     suspend fun searchStock(query: String): Pair<String, String>? = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "searchStock: $query")
-            val jsonStr = analyzerModule.callAttr("search_stock_wrapper", query).toString()
+            val jsonStr = stocksModule.callAttr("search_stock_wrapper", query).toString()
             val jsonObj = JSONObject(jsonStr)
 
             if (jsonObj.has("error")) {
@@ -62,7 +67,7 @@ class OscillatorPyClient(private val python: Python) {
         withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "getStockAnalysis: $ticker, $days days")
-            val jsonStr = analyzerModule.callAttr("get_stock_analysis", ticker, days).toString()
+            val jsonStr = stocksModule.callAttr("get_stock_analysis", ticker, days).toString()
             val jsonObj = JSONObject(jsonStr)
 
             if (jsonObj.has("error")) {
@@ -110,7 +115,7 @@ class OscillatorPyClient(private val python: Python) {
         withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "getMarketDepositData: $numPages pages")
-            val jsonStr = analyzerModule.callAttr("get_market_deposit_data", numPages).toString()
+            val jsonStr = depositModule.callAttr("get_market_deposit_data", numPages).toString()
             val jsonObj = JSONObject(jsonStr)
 
             if (jsonObj.has("error")) {
@@ -160,7 +165,7 @@ class OscillatorPyClient(private val python: Python) {
     suspend fun getLatestMarketData(): MarketDepositData? = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "getLatestMarketData")
-            val jsonStr = analyzerModule.callAttr("get_latest_market_data").toString()
+            val jsonStr = depositModule.callAttr("get_latest_market_data").toString()
             val jsonObj = JSONObject(jsonStr)
 
             if (jsonObj.has("error")) {
@@ -207,7 +212,7 @@ class OscillatorPyClient(private val python: Python) {
     suspend fun getAllStocksList(): List<Pair<String, String>> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "getAllStocksList")
-            val jsonStr = analyzerModule.callAttr("get_all_stocks_list").toString()
+            val jsonStr = stocksModule.callAttr("get_all_stocks_list").toString()
 
             if (jsonStr.contains("\"error\"")) {
                 Log.e(TAG, "Error getting stocks list")
@@ -240,7 +245,7 @@ class OscillatorPyClient(private val python: Python) {
     ): String = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "getMarketOscillator: $market, $startDate ~ $endDate")
-            val jsonStr = marketOscillatorModule.callAttr(
+            val jsonStr = marketModule.callAttr(
                 "get_market_oscillator",
                 market,
                 startDate,
