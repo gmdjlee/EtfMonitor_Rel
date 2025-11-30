@@ -665,57 +665,57 @@ private fun DaysSelectionDialog(
     )
 }
 
+/**
+ * 통합 옵션 선택 다이얼로그
+ * @param title 다이얼로그 제목
+ * @param description 설명 텍스트
+ * @param options 선택 옵션 목록
+ * @param defaultValue 기본 선택값
+ * @param infoText 하단 안내 텍스트
+ * @param onDismiss 취소 핸들러
+ * @param onConfirm 확인 핸들러
+ */
 @Composable
-private fun MarketDepositPagesSelectionDialog(
+private fun OptionsSelectionDialog(
+    title: String,
+    description: String,
+    options: List<SelectionOption>,
+    defaultValue: Int,
+    infoText: String,
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit
 ) {
-    val pagesOptions = listOf(
-        MarketDepositPagesOption(5, "5페이지", "약 최근 5일"),
-        MarketDepositPagesOption(10, "10페이지 (권장)", "약 최근 10일"),
-        MarketDepositPagesOption(15, "15페이지", "약 최근 15일"),
-        MarketDepositPagesOption(20, "20페이지", "약 최근 20일"),
-        MarketDepositPagesOption(30, "30페이지", "약 최근 30일")
-    )
-
-    var selectedPages by remember { mutableStateOf(10) }
+    var selectedValue by remember { mutableStateOf(defaultValue) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("증시 자금 동향 초기화") },
+        title = { Text(title) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    "증시 자금 동향 데이터 수집 페이지 수를 선택하세요.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
+                Text(description, style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
 
-                pagesOptions.forEach { option ->
+                options.forEach { option ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .selectable(
-                                selected = (selectedPages == option.pages),
-                                onClick = { selectedPages = option.pages }
+                                selected = (selectedValue == option.value),
+                                onClick = { selectedValue = option.value }
                             )
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(
-                            selected = (selectedPages == option.pages),
-                            onClick = { selectedPages = option.pages }
+                            selected = (selectedValue == option.value),
+                            onClick = { selectedValue = option.value }
                         )
                         Spacer(Modifier.width(8.dp))
                         Column {
-                            Text(
-                                option.label,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
+                            Text(option.label, style = MaterialTheme.typography.bodyLarge)
                             Text(
                                 option.description,
                                 style = MaterialTheme.typography.bodySmall,
@@ -732,7 +732,7 @@ private fun MarketDepositPagesSelectionDialog(
                     shape = MaterialTheme.extendedShapes.card
                 ) {
                     Text(
-                        "데이터 수집에는 약 30초-1분 정도 소요됩니다.",
+                        infoText,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(12.dp),
                         color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -742,18 +742,38 @@ private fun MarketDepositPagesSelectionDialog(
         },
         confirmButton = {
             FilledTonalButton(
-                onClick = { onConfirm(selectedPages) },
+                onClick = { onConfirm(selectedValue) },
                 shape = MaterialTheme.extendedShapes.button
-            ) {
-                Text("수집 시작")
-            }
+            ) { Text("수집 시작") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("나중에")
-            }
+            TextButton(onClick = onDismiss) { Text("나중에") }
         },
         shape = MaterialTheme.extendedShapes.cardLarge
+    )
+}
+
+private data class SelectionOption(val value: Int, val label: String, val description: String)
+
+@Composable
+private fun MarketDepositPagesSelectionDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    OptionsSelectionDialog(
+        title = "증시 자금 동향 초기화",
+        description = "증시 자금 동향 데이터 수집 페이지 수를 선택하세요.",
+        options = listOf(
+            SelectionOption(5, "5페이지", "약 최근 5일"),
+            SelectionOption(10, "10페이지 (권장)", "약 최근 10일"),
+            SelectionOption(15, "15페이지", "약 최근 15일"),
+            SelectionOption(20, "20페이지", "약 최근 20일"),
+            SelectionOption(30, "30페이지", "약 최근 30일")
+        ),
+        defaultValue = 10,
+        infoText = "데이터 수집에는 약 30초-1분 정도 소요됩니다.",
+        onDismiss = onDismiss,
+        onConfirm = onConfirm
     )
 }
 
@@ -762,89 +782,19 @@ private fun FearGreedPeriodSelectionDialog(
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit
 ) {
-    val periodOptions = listOf(
-        FearGreedPeriodOption(180, "6개월", "약 180일"),
-        FearGreedPeriodOption(365, "12개월 (권장)", "약 365일"),
-        FearGreedPeriodOption(540, "18개월", "약 540일"),
-        FearGreedPeriodOption(730, "24개월", "약 730일")
-    )
-
-    var selectedDays by remember { mutableStateOf(365) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Fear & Greed Index 초기화") },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    "Fear & Greed Index 데이터 수집 기간을 선택하세요.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                periodOptions.forEach { option ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = (selectedDays == option.days),
-                                onClick = { selectedDays = option.days }
-                            )
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = (selectedDays == option.days),
-                            onClick = { selectedDays = option.days }
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Column {
-                            Text(
-                                option.label,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Text(
-                                option.description,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(8.dp))
-
-                Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = MaterialTheme.extendedShapes.card
-                ) {
-                    Text(
-                        "데이터 수집에는 선택한 기간에 따라 1-3분 정도 소요됩니다.",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(12.dp),
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            FilledTonalButton(
-                onClick = { onConfirm(selectedDays) },
-                shape = MaterialTheme.extendedShapes.button
-            ) {
-                Text("수집 시작")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("나중에")
-            }
-        },
-        shape = MaterialTheme.extendedShapes.cardLarge
+    OptionsSelectionDialog(
+        title = "Fear & Greed Index 초기화",
+        description = "Fear & Greed Index 데이터 수집 기간을 선택하세요.",
+        options = listOf(
+            SelectionOption(180, "6개월", "약 180일"),
+            SelectionOption(365, "12개월 (권장)", "약 365일"),
+            SelectionOption(540, "18개월", "약 540일"),
+            SelectionOption(730, "24개월", "약 730일")
+        ),
+        defaultValue = 365,
+        infoText = "데이터 수집에는 선택한 기간에 따라 1-3분 정도 소요됩니다.",
+        onDismiss = onDismiss,
+        onConfirm = onConfirm
     )
 }
 
@@ -853,109 +803,21 @@ private fun MarketOscillatorPeriodSelectionDialog(
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit
 ) {
-    val periodOptions = listOf(
-        MarketOscillatorPeriodOption(180, "6개월", "약 180일"),
-        MarketOscillatorPeriodOption(365, "12개월 (권장)", "약 365일"),
-        MarketOscillatorPeriodOption(540, "18개월", "약 540일"),
-        MarketOscillatorPeriodOption(730, "24개월", "약 730일")
-    )
-
-    var selectedDays by remember { mutableStateOf(365) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("과매수/과매도 지표 초기화") },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    "과매수/과매도 지표 데이터 수집 기간을 선택하세요.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                periodOptions.forEach { option ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = (selectedDays == option.days),
-                                onClick = { selectedDays = option.days }
-                            )
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = (selectedDays == option.days),
-                            onClick = { selectedDays = option.days }
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Column {
-                            Text(
-                                option.label,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Text(
-                                option.description,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(8.dp))
-
-                Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = MaterialTheme.extendedShapes.card
-                ) {
-                    Text(
-                        "데이터 수집에는 선택한 기간에 따라 1-5분 정도 소요됩니다.",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(12.dp),
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            FilledTonalButton(
-                onClick = { onConfirm(selectedDays) },
-                shape = MaterialTheme.extendedShapes.button
-            ) {
-                Text("수집 시작")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("나중에")
-            }
-        },
-        shape = MaterialTheme.extendedShapes.cardLarge
+    OptionsSelectionDialog(
+        title = "과매수/과매도 지표 초기화",
+        description = "과매수/과매도 지표 데이터 수집 기간을 선택하세요.",
+        options = listOf(
+            SelectionOption(180, "6개월", "약 180일"),
+            SelectionOption(365, "12개월 (권장)", "약 365일"),
+            SelectionOption(540, "18개월", "약 540일"),
+            SelectionOption(730, "24개월", "약 730일")
+        ),
+        defaultValue = 365,
+        infoText = "데이터 수집에는 선택한 기간에 따라 1-5분 정도 소요됩니다.",
+        onDismiss = onDismiss,
+        onConfirm = onConfirm
     )
 }
-
-private data class MarketOscillatorPeriodOption(
-    val days: Int,
-    val label: String,
-    val description: String
-)
-
-private data class FearGreedPeriodOption(
-    val days: Int,
-    val label: String,
-    val description: String
-)
-
-private data class MarketDepositPagesOption(
-    val pages: Int,
-    val label: String,
-    val description: String
-)
 
 private data class DaysOption(
     val days: Int,

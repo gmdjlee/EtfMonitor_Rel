@@ -138,10 +138,10 @@ fun StatisticsScreen(
             } else {
                 when (selectedTab) {
                     0 -> AmountRankingTab(amountRanking, viewModel, onStockClick)
-                    1 -> NewStocksTab(newStocks, onStockClick)
-                    2 -> RemovedStocksTab(removedStocks, onStockClick)
-                    3 -> IncreasedStocksTab(increasedStocks, onStockClick)
-                    4 -> DecreasedStocksTab(decreasedStocks, onStockClick)
+                    1 -> StockChangeTab(newStocks, HoldingStatus.NEW, onStockClick)
+                    2 -> StockChangeTab(removedStocks, HoldingStatus.REMOVED, onStockClick)
+                    3 -> StockChangeTab(increasedStocks, HoldingStatus.INCREASE, onStockClick)
+                    4 -> StockChangeTab(decreasedStocks, HoldingStatus.DECREASE, onStockClick)
                     5 -> CashDepositTrendTab(cashDepositTrend)
                     6 -> StockAnalysisTab(
                         searchQuery = searchQuery,
@@ -386,9 +386,16 @@ private fun AmountRankingCard(
     }
 }
 
+/**
+ * 통합된 종목 변화 탭 컴포넌트
+ * @param stocks 종목 변화 목록
+ * @param status 보유 상태 (NEW, REMOVED, INCREASE, DECREASE)
+ * @param onStockClick 종목 클릭 핸들러
+ */
 @Composable
-private fun NewStocksTab(
+private fun StockChangeTab(
     stocks: List<StockChangeInfo>,
+    status: HoldingStatus,
     onStockClick: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -404,79 +411,7 @@ private fun NewStocksTab(
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
         ) {
             items(stocks) { stock ->
-                StockChangeCard(stock, HoldingStatus.NEW, onStockClick)
-            }
-        }
-    }
-}
-
-@Composable
-private fun RemovedStocksTab(
-    stocks: List<StockChangeInfo>,
-    onStockClick: (String) -> Unit
-) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        Text(
-            "총 ${stocks.size}개 종목",
-            modifier = Modifier.padding(MaterialTheme.spacing.medium),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-
-        LazyColumn(
-            contentPadding = PaddingValues(MaterialTheme.spacing.medium),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
-        ) {
-            items(stocks) { stock ->
-                StockChangeCard(stock, HoldingStatus.REMOVED, onStockClick)
-            }
-        }
-    }
-}
-
-@Composable
-private fun IncreasedStocksTab(
-    stocks: List<StockChangeInfo>,
-    onStockClick: (String) -> Unit
-) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        Text(
-            "총 ${stocks.size}개 종목",
-            modifier = Modifier.padding(MaterialTheme.spacing.medium),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-
-        LazyColumn(
-            contentPadding = PaddingValues(MaterialTheme.spacing.medium),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
-        ) {
-            items(stocks) { stock ->
-                StockChangeCard(stock, HoldingStatus.INCREASE, onStockClick)
-            }
-        }
-    }
-}
-
-@Composable
-private fun DecreasedStocksTab(
-    stocks: List<StockChangeInfo>,
-    onStockClick: (String) -> Unit
-) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        Text(
-            "총 ${stocks.size}개 종목",
-            modifier = Modifier.padding(MaterialTheme.spacing.medium),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-
-        LazyColumn(
-            contentPadding = PaddingValues(MaterialTheme.spacing.medium),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
-        ) {
-            items(stocks) { stock ->
-                StockChangeCard(stock, HoldingStatus.DECREASE, onStockClick)
+                StockChangeCard(stock, status, onStockClick)
             }
         }
     }
