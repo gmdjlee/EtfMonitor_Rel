@@ -29,7 +29,7 @@ class StockPredictionRepository @Inject constructor(
 ) {
     companion object {
         private const val TAG = "StockPredictionRepo"
-        private const val MIN_TRAINING_SAMPLES = 50
+        private const val MIN_TRAINING_SAMPLES = 20  // Python 스크립트와 동일
         private const val DEFAULT_DAYS_AFTER = 5
         private const val DEFAULT_PRICE_THRESHOLD = 3.0
         private const val DEFAULT_MIN_CONFIDENCE = 0.6
@@ -216,16 +216,10 @@ class StockPredictionRepository @Inject constructor(
      */
     private suspend fun getAllAvailableDates(): List<String> {
         return try {
-            // Holdings 테이블에서 날짜 목록 조회
-            val dates = mutableListOf<String>()
-            val latestDates = etfDao.getLatestTwoDates()
-
-            // 더 많은 날짜를 가져오기 위해 확장 (최대 100일)
-            // Note: 실제로는 별도 쿼리가 필요할 수 있음
-            dates.addAll(latestDates)
-
-            // 날짜 내림차순 정렬
-            dates.sortedDescending()
+            // Holdings 테이블에서 모든 날짜 목록 조회 (최대 100일)
+            val dates = etfDao.getAllDistinctDates(100)
+            Log.d(TAG, "Available dates: ${dates.size} dates found")
+            dates
         } catch (e: Exception) {
             Log.e(TAG, "Error getting available dates", e)
             emptyList()

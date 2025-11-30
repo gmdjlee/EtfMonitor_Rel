@@ -266,12 +266,23 @@ interface EtfDao {
      * 최근 2개 날짜 가져오기
      */
     @Query("""
-        SELECT DISTINCT date 
-        FROM holdings 
-        ORDER BY date DESC 
+        SELECT DISTINCT date
+        FROM holdings
+        ORDER BY date DESC
         LIMIT 2
     """)
     suspend fun getLatestTwoDates(): List<String>
+
+    /**
+     * 모든 날짜 가져오기 (최신순, 최대 limit개)
+     */
+    @Query("""
+        SELECT DISTINCT date
+        FROM holdings
+        ORDER BY date DESC
+        LIMIT :limit
+    """)
+    suspend fun getAllDistinctDates(limit: Int = 100): List<String>
 
     /**
      * 전체 비중 감소 종목 (LIMIT 300: 메모리 최적화)
