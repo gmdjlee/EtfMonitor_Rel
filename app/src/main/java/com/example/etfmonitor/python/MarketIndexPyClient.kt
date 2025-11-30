@@ -17,7 +17,7 @@ import javax.inject.Singleton
 
 /**
  * KOSPI/KOSDAQ 시장 지수 데이터 수집을 위한 Python 클라이언트
- * market_index_fetcher.py 모듈 사용
+ * market.py 모듈 사용
  */
 @Singleton
 class MarketIndexPyClient @Inject constructor(
@@ -29,7 +29,7 @@ class MarketIndexPyClient @Inject constructor(
     }
 
     private val python = Python.getInstance()
-    private val module = python.getModule("market_index_fetcher")
+    private val module = python.getModule("market")
     private val json = Json { ignoreUnknownKeys = true }
 
     /**

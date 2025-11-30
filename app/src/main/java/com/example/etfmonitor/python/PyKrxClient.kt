@@ -72,12 +72,12 @@ class PyKrxClient @Inject constructor(
         python.getModule("etfcollector")
     }
     private val stockModule by lazy {
-        //Log.d(TAG, "Loading stockcollector module")
-        python.getModule("stockcollector")
+        //Log.d(TAG, "Loading stocks module")
+        python.getModule("stocks")
     }
-    private val utilModule by lazy {
-        //Log.d(TAG, "Loading utils module")
-        python.getModule("utils")
+    private val coreModule by lazy {
+        //Log.d(TAG, "Loading core module")
+        python.getModule("core")
     }
 
     /**
@@ -274,7 +274,7 @@ class PyKrxClient @Inject constructor(
 
             Log.d(TAG, "Date range: $start to $end")
 
-            val jsonStr = utilModule.callAttr("get_business_days", start, end).toString()
+            val jsonStr = coreModule.callAttr("get_business_days", start, end).toString()
             val datesList = json.decodeFromString<List<String>>(jsonStr)
 
             val businessDays = datesList
