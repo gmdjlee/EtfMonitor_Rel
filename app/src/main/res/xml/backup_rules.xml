@@ -13,9 +13,6 @@
     <exclude domain="sharedpref" path="ai_api_prefs.xml" />
     <exclude domain="sharedpref" path="__androidx_security_crypto_encrypted_prefs__.xml" />
 
-    <!-- Exclude MasterKey files to prevent key leakage -->
-    <exclude domain="file" path="__androidx_security_crypto_master_key_keyset__" />
-
     <!-- Include database for user convenience on restore -->
     <include domain="database" path="etf_db" />
 
