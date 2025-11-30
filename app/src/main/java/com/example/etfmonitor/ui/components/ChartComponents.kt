@@ -24,7 +24,16 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 import com.etfmonitor.R
 import com.etfmonitor.oscillator.model.MarketDepositData
 import com.etfmonitor.oscillator.model.OscillatorResult
+import com.etfmonitor.oscillator.model.TrendSignalData
 import com.etfmonitor.ui.theme.*
+import com.github.mikephil.charting.data.ScatterData
+import com.github.mikephil.charting.data.ScatterDataSet
+import com.github.mikephil.charting.charts.ScatterChart
+import com.github.mikephil.charting.interfaces.datasets.IScatterDataSet
+import com.github.mikephil.charting.renderer.scatter.IShapeRenderer
+import com.github.mikephil.charting.utils.ViewPortHandler
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.util.Log
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -32,6 +41,35 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 private const val TAG = "ChartComponents"
+
+/**
+ * 역삼각형 Shape Renderer (꼭지점이 아래를 향함)
+ * 매도 시그널 표시에 사용
+ */
+private class InvertedTriangleShapeRenderer : IShapeRenderer {
+    override fun renderShape(
+        c: Canvas,
+        dataSet: IScatterDataSet,
+        viewPortHandler: ViewPortHandler,
+        posX: Float,
+        posY: Float,
+        renderPaint: Paint
+    ) {
+        val shapeSize = dataSet.scatterShapeSize
+        val halfSize = shapeSize / 2f
+
+        renderPaint.style = Paint.Style.FILL
+
+        val path = android.graphics.Path()
+        // 역삼각형: 위쪽 두 점, 아래쪽 한 점
+        path.moveTo(posX - halfSize, posY - halfSize)  // 좌상단
+        path.lineTo(posX + halfSize, posY - halfSize)  // 우상단
+        path.lineTo(posX, posY + halfSize)              // 하단 중앙 (꼭지점)
+        path.close()
+
+        c.drawPath(path, renderPaint)
+    }
+}
 
 /**
  * 차트 색상 제공을 위한 ViewModel
@@ -520,6 +558,305 @@ fun MarketDepositChart(
 
                 chart.data = combinedData
                 chart.invalidate()
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(350.dp)
+        )
+    }
+}
+
+/**
+ * 추세 시그널 차트 (가격 + MA + 매수/매도 시그널 + Fear & Greed)
+ *
+ * 시그널 색상:
+ * - 매수/보조매수: 빨간색 (한국 주식시장 관례)
+ * - 매도/보조매도: 파란색
+ *
+ * 시그널 마커: 종가 라인 위에 표시
+ */
+@Composable
+fun TrendSignalChart(
+    data: TrendSignalData,
+    latestDate: String? = null,
+    modifier: Modifier = Modifier,
+    chartColorViewModel: ChartColorViewModel = hiltViewModel()
+) {
+    // 데이터 검증
+    if (data.dates.isEmpty() || data.close.isEmpty()) {
+        Log.w(TAG, "Empty data for TrendSignalChart")
+        return
+    }
+
+    // 차트 색상 설정 가져오기
+    val chartColors by chartColorViewModel.chartColorSettings.collectAsState()
+    val colorSettings = chartColors.macd  // MACD 색상 재활용
+
+    // Theme colors
+    val isDark = isSystemInDarkTheme()
+    val priceColor = colorSettings.lineColor1           // 종가
+    val maColor = colorSettings.lineColor2              // MA
+
+    // 매수: 빨간색, 매도: 파란색 (한국 주식시장 관례)
+    val buyColor = Color.rgb(244, 67, 54)               // 매수 (빨간색)
+    val auxBuyColor = Color.rgb(255, 138, 128)          // 보조매수 (연한 빨간색)
+    val sellColor = Color.rgb(33, 150, 243)             // 매도 (파란색)
+    val auxSellColor = Color.rgb(130, 177, 255)         // 보조매도 (연한 파란색)
+
+    // Fear & Greed 라인 색상
+    val fearGreedColor = Color.rgb(156, 39, 176)        // 보라색
+
+    val textColor = colorSettings.textColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val legendColor = colorSettings.legendColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
+
+    ChartCard(
+        title = "추세 시그널 (MA/CMF/Fear&Greed)",
+        subtitle = latestDate?.let { "최신 데이터: $it (${data.interval})" },
+        modifier = modifier
+    ) {
+        AndroidView(
+            factory = { context ->
+                CombinedChart(context).apply {
+                    description.isEnabled = false
+                    setTouchEnabled(true)
+                    isDragEnabled = true
+                    setScaleEnabled(true)
+                    setPinchZoom(true)
+                    setDrawGridBackground(false)
+                    setDrawOrder(arrayOf(
+                        CombinedChart.DrawOrder.LINE,
+                        CombinedChart.DrawOrder.SCATTER
+                    ))
+
+                    // 마커 뷰
+                    val markerView = CustomMarkerView(
+                        context,
+                        R.layout.marker_view,
+                        data.dates
+                    ) { value ->
+                        String.format("%,.0f", value)
+                    }
+                    marker = markerView
+
+                    // X축 설정
+                    xAxis.apply {
+                        position = XAxis.XAxisPosition.BOTTOM
+                        setDrawGridLines(true)
+                        gridLineWidth = 1f
+                        setGridColor(gridColor)
+                        enableGridDashedLine(10f, 5f, 0f)
+                        setTextColor(textColor)
+                        granularity = 1f
+                        labelRotationAngle = -45f
+                        setLabelCount(8, false)
+                        valueFormatter = object : ValueFormatter() {
+                            override fun getFormattedValue(value: Float): String {
+                                val index = value.toInt()
+                                return if (index >= 0 && index < data.dates.size) {
+                                    data.dates[index]
+                                } else {
+                                    ""
+                                }
+                            }
+                        }
+                    }
+
+                    // 왼쪽 Y축 (가격)
+                    axisLeft.apply {
+                        setDrawGridLines(true)
+                        gridLineWidth = 1f
+                        setGridColor(gridColor)
+                        enableGridDashedLine(10f, 5f, 0f)
+                        setTextColor(textColor)
+                        setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
+                        valueFormatter = object : ValueFormatter() {
+                            override fun getFormattedValue(value: Float): String {
+                                return when {
+                                    value >= 1_000_000 -> String.format("%.1f만", value / 10_000f)
+                                    value >= 10_000 -> String.format("%.0f", value)
+                                    else -> String.format("%.0f", value)
+                                }
+                            }
+                        }
+                    }
+
+                    // 오른쪽 Y축 (Fear & Greed: -1 ~ +1)
+                    axisRight.apply {
+                        isEnabled = true
+                        setDrawGridLines(false)
+                        setTextColor(textColor)
+                        setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
+                        axisMinimum = -1.2f
+                        axisMaximum = 1.2f
+                        valueFormatter = object : ValueFormatter() {
+                            override fun getFormattedValue(value: Float): String {
+                                return when {
+                                    value > 0.6f -> "탐욕"
+                                    value > 0.2f -> "+"
+                                    value > -0.2f -> "중립"
+                                    value > -0.6f -> "-"
+                                    else -> "공포"
+                                }
+                            }
+                        }
+                    }
+
+                    legend.apply {
+                        isEnabled = true
+                        textSize = 10f
+                        setTextColor(legendColor)
+                    }
+                }
+            },
+            update = { chart ->
+                try {
+                    val lineDataSets = mutableListOf<LineDataSet>()
+
+                    // 1. 종가 라인
+                    val closeEntries = data.close.mapIndexed { index, value ->
+                        Entry(index.toFloat(), value.toFloat())
+                    }
+                    val closeDataSet = LineDataSet(closeEntries, "종가").apply {
+                        axisDependency = YAxis.AxisDependency.LEFT
+                        color = priceColor
+                        lineWidth = 2.5f
+                        setDrawCircles(false)
+                        setDrawValues(false)
+                        mode = LineDataSet.Mode.CUBIC_BEZIER
+                        highLightColor = priceColor
+                    }
+                    lineDataSets.add(closeDataSet)
+
+                    // 2. MA 라인
+                    val maEntries = data.ma.mapIndexed { index, value ->
+                        Entry(index.toFloat(), value.toFloat())
+                    }
+                    val maDataSet = LineDataSet(maEntries, "MA").apply {
+                        axisDependency = YAxis.AxisDependency.LEFT
+                        color = maColor
+                        lineWidth = 2f
+                        setDrawCircles(false)
+                        setDrawValues(false)
+                        enableDashedLine(10f, 5f, 0f)
+                        highLightColor = maColor
+                    }
+                    lineDataSets.add(maDataSet)
+
+                    // 3. Fear & Greed 라인 차트 (오른쪽 Y축)
+                    val fearGreedEntries = data.fearGreed.mapIndexed { index, value ->
+                        Entry(index.toFloat(), value.toFloat())
+                    }
+                    val fearGreedDataSet = LineDataSet(fearGreedEntries, "F&G").apply {
+                        axisDependency = YAxis.AxisDependency.RIGHT
+                        color = fearGreedColor
+                        lineWidth = 1.5f
+                        setDrawCircles(false)
+                        setDrawValues(false)
+                        mode = LineDataSet.Mode.CUBIC_BEZIER
+                        highLightColor = fearGreedColor
+                    }
+                    lineDataSets.add(fearGreedDataSet)
+
+                    val lineData = LineData(lineDataSets.toList())
+
+                    // 4. 매수/매도 시그널 (Scatter) - 종가 라인 위에 표시
+                    val buyEntries = mutableListOf<Entry>()
+                    val auxBuyEntries = mutableListOf<Entry>()
+                    val sellEntries = mutableListOf<Entry>()
+                    val auxSellEntries = mutableListOf<Entry>()
+
+                    // 매수 시그널 (종가에 표시)
+                    data.buySignal.forEachIndexed { index, signal ->
+                        if (signal == 1) {
+                            buyEntries.add(Entry(index.toFloat(), data.close[index].toFloat()))
+                        }
+                    }
+
+                    // 보조매수 시그널 (종가에 표시)
+                    data.auxBuySignal.forEachIndexed { index, signal ->
+                        if (signal == 1) {
+                            auxBuyEntries.add(Entry(index.toFloat(), data.close[index].toFloat()))
+                        }
+                    }
+
+                    // 매도 시그널 (종가에 표시)
+                    data.sellSignal.forEachIndexed { index, signal ->
+                        if (signal == 1) {
+                            sellEntries.add(Entry(index.toFloat(), data.close[index].toFloat()))
+                        }
+                    }
+
+                    // 보조매도 시그널 (종가에 표시)
+                    data.auxSellSignal.forEachIndexed { index, signal ->
+                        if (signal == 1) {
+                            auxSellEntries.add(Entry(index.toFloat(), data.close[index].toFloat()))
+                        }
+                    }
+
+                    val scatterDataSets = mutableListOf<ScatterDataSet>()
+
+                    // 매수 (빨간색, 큰 삼각형 마커)
+                    if (buyEntries.isNotEmpty()) {
+                        val buyDataSet = ScatterDataSet(buyEntries, "매수").apply {
+                            axisDependency = YAxis.AxisDependency.LEFT
+                            color = buyColor
+                            setScatterShape(ScatterChart.ScatterShape.TRIANGLE)
+                            scatterShapeSize = 24f
+                            setDrawValues(false)
+                        }
+                        scatterDataSets.add(buyDataSet)
+                    }
+
+                    // 보조매수 (연한 빨간색, 작은 삼각형 마커)
+                    if (auxBuyEntries.isNotEmpty()) {
+                        val auxBuyDataSet = ScatterDataSet(auxBuyEntries, "보조매수").apply {
+                            axisDependency = YAxis.AxisDependency.LEFT
+                            color = auxBuyColor
+                            setScatterShape(ScatterChart.ScatterShape.TRIANGLE)
+                            scatterShapeSize = 18f
+                            setDrawValues(false)
+                        }
+                        scatterDataSets.add(auxBuyDataSet)
+                    }
+
+                    // 매도 (파란색, 큰 역삼각형 마커)
+                    if (sellEntries.isNotEmpty()) {
+                        val sellDataSet = ScatterDataSet(sellEntries, "매도").apply {
+                            axisDependency = YAxis.AxisDependency.LEFT
+                            color = sellColor
+                            shapeRenderer = InvertedTriangleShapeRenderer()
+                            scatterShapeSize = 24f
+                            setDrawValues(false)
+                        }
+                        scatterDataSets.add(sellDataSet)
+                    }
+
+                    // 보조매도 (연한 파란색, 작은 역삼각형 마커)
+                    if (auxSellEntries.isNotEmpty()) {
+                        val auxSellDataSet = ScatterDataSet(auxSellEntries, "보조매도").apply {
+                            axisDependency = YAxis.AxisDependency.LEFT
+                            color = auxSellColor
+                            shapeRenderer = InvertedTriangleShapeRenderer()
+                            scatterShapeSize = 18f
+                            setDrawValues(false)
+                        }
+                        scatterDataSets.add(auxSellDataSet)
+                    }
+
+                    // CombinedData 조립
+                    val combinedData = CombinedData().apply {
+                        setData(lineData)
+                        if (scatterDataSets.isNotEmpty()) {
+                            setData(ScatterData(scatterDataSets.toList()))
+                        }
+                    }
+
+                    chart.data = combinedData
+                    chart.invalidate()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error updating TrendSignalChart", e)
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()

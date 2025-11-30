@@ -71,3 +71,76 @@ data class SignalAnalysis(
     val institutionTrend: String,   // 기관 동향
     val recommendation: String      // 투자 권고
 )
+
+// ============================================================
+// 추세 시그널 분석 (Trend Signal Analysis) 모델
+// ============================================================
+
+/**
+ * 추세 시그널 OHLCV + 지표 데이터
+ */
+data class TrendSignalData(
+    val ticker: String,
+    val name: String,
+    val interval: String,           // "d"=일별, "w"=주별
+    val dates: List<String>,
+    val open: List<Double>,
+    val high: List<Double>,
+    val low: List<Double>,
+    val close: List<Double>,
+    val volume: List<Long>,
+    val ma: List<Double>,           // 이동평균
+    val cmf: List<Double>,          // Chaikin Money Flow
+    val fearGreed: List<Double>,    // Fear & Greed Index (-1 ~ +1)
+    val buySignal: List<Int>,       // 매수 시그널 (1=매수, 0=없음)
+    val auxBuySignal: List<Int>,    // 보조매수 시그널 (1=보조매수, 0=없음)
+    val sellSignal: List<Int>,      // 매도 시그널 (1=매도, 0=없음)
+    val auxSellSignal: List<Int>    // 보조매도 시그널 (1=보조매도, 0=없음)
+)
+
+/**
+ * 추세 시그널 분석 결과
+ */
+data class TrendSignalAnalysis(
+    val signal: TrendTradeSignal,
+    val currentPrice: Double,
+    val maPrice: Double,
+    val cmfValue: Double,
+    val fearGreedValue: Double,
+    val trendDescription: String,
+    val recommendation: String,
+    val recentBuyCount: Int,        // 최근 N기간 매수 시그널 수
+    val recentSellCount: Int        // 최근 N기간 매도 시그널 수
+)
+
+/**
+ * 추세 매매 신호
+ */
+enum class TrendTradeSignal {
+    STRONG_BUY,     // 강력 매수 (모든 조건 충족)
+    BUY,            // 매수 (일부 조건 충족)
+    NEUTRAL,        // 중립
+    SELL,           // 매도 (일부 조건 충족)
+    STRONG_SELL     // 강력 매도 (모든 조건 충족)
+}
+
+/**
+ * Fear & Greed 상태
+ */
+enum class FearGreedState(val displayName: String) {
+    EXTREME_FEAR("극도의 공포"),
+    FEAR("공포"),
+    NEUTRAL("중립"),
+    GREED("탐욕"),
+    EXTREME_GREED("극도의 탐욕");
+
+    companion object {
+        fun fromValue(value: Double): FearGreedState = when {
+            value <= -0.6 -> EXTREME_FEAR
+            value <= -0.2 -> FEAR
+            value <= 0.2 -> NEUTRAL
+            value <= 0.6 -> GREED
+            else -> EXTREME_GREED
+        }
+    }
+}

@@ -21,9 +21,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.ui.components.MarketCapOscillatorChart
 import com.etfmonitor.ui.components.MacdChart
+import com.etfmonitor.ui.components.TrendSignalChart
 import com.etfmonitor.ui.components.LoadingCard
 import com.etfmonitor.ui.components.ErrorCard
 import com.etfmonitor.ui.components.IdleCard
+import com.etfmonitor.oscillator.model.TrendSignalAnalysis
+import com.etfmonitor.oscillator.model.TrendTradeSignal
+import com.etfmonitor.oscillator.model.FearGreedState
 import com.etfmonitor.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -230,6 +234,19 @@ fun OscillatorScreen(
                         latestDate = currentState.stockData.dates.lastOrNull()
                     )
 
+                    // 추세 시그널 차트 (MA/CMF/Fear&Greed) - MACD 차트 위에 배치
+                    currentState.trendSignalData?.let { trendData ->
+                        TrendSignalChart(
+                            data = trendData,
+                            latestDate = trendData.dates.lastOrNull()
+                        )
+
+                        // 추세 시그널 분석 카드
+                        currentState.trendSignalAnalysis?.let { analysis ->
+                            TrendSignalAnalysisCard(analysis)
+                        }
+                    }
+
                     // MACD 차트
                     MacdChart(
                         result = currentState.oscillatorResult,
@@ -383,5 +400,130 @@ private fun DataRow(label: String, value: String) {
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+/**
+ * 추세 시그널 분석 카드
+ */
+@Composable
+private fun TrendSignalAnalysisCard(analysis: TrendSignalAnalysis) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // 제목 + 신호
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "추세 시그널 분석",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                // 신호 배지
+                val (signalText, signalColor) = when (analysis.signal) {
+                    TrendTradeSignal.STRONG_BUY -> "강력 매수" to Color(0xFF4CAF50)
+                    TrendTradeSignal.BUY -> "매수" to Color(0xFF8BC34A)
+                    TrendTradeSignal.NEUTRAL -> "중립" to Color(0xFF9E9E9E)
+                    TrendTradeSignal.SELL -> "매도" to Color(0xFFFF9800)
+                    TrendTradeSignal.STRONG_SELL -> "강력 매도" to Color(0xFFF44336)
+                }
+
+                Surface(
+                    color = signalColor.copy(alpha = 0.15f),
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Text(
+                        text = signalText,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = signalColor
+                    )
+                }
+            }
+
+            HorizontalDivider()
+
+            // 추세 설명
+            Text(
+                analysis.trendDescription,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // 지표 값
+            DataRow("현재가", String.format("%,.0f", analysis.currentPrice))
+            DataRow("MA", String.format("%,.0f", analysis.maPrice))
+            DataRow("CMF", String.format("%.3f", analysis.cmfValue))
+
+            // Fear & Greed 상태
+            val fearGreedState = FearGreedState.fromValue(analysis.fearGreedValue)
+            val fearGreedColor = when (fearGreedState) {
+                FearGreedState.EXTREME_FEAR -> Color(0xFFF44336)
+                FearGreedState.FEAR -> Color(0xFFFF9800)
+                FearGreedState.NEUTRAL -> Color(0xFF9E9E9E)
+                FearGreedState.GREED -> Color(0xFF8BC34A)
+                FearGreedState.EXTREME_GREED -> Color(0xFF4CAF50)
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Fear & Greed",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        String.format("%.2f", analysis.fearGreedValue),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Surface(
+                        color = fearGreedColor.copy(alpha = 0.15f),
+                        shape = MaterialTheme.shapes.extraSmall
+                    ) {
+                        Text(
+                            text = fearGreedState.displayName,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = fearGreedColor
+                        )
+                    }
+                }
+            }
+
+            // 시그널 카운트
+            DataRow("최근 매수 시그널", "${analysis.recentBuyCount}회")
+            DataRow("최근 매도 시그널", "${analysis.recentSellCount}회")
+
+            HorizontalDivider()
+
+            // 투자 권고
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                )
+            ) {
+                Text(
+                    text = analysis.recommendation,
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
     }
 }

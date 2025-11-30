@@ -7,6 +7,7 @@ import com.etfmonitor.database.SearchHistoryDao
 import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.oscillator.calculator.OscillatorCalculator
+import com.etfmonitor.oscillator.calculator.TrendSignalCalculator
 import com.etfmonitor.oscillator.model.*
 import com.etfmonitor.oscillator.python.OscillatorPyClient
 import com.etfmonitor.repository.StockAnalysisRepository
@@ -29,7 +30,9 @@ sealed class OscillatorState {
     data class Success(
         val stockData: StockData,
         val oscillatorResult: OscillatorResult,
-        val signalAnalysis: SignalAnalysis
+        val signalAnalysis: SignalAnalysis,
+        val trendSignalData: TrendSignalData? = null,        // 추세 시그널 데이터
+        val trendSignalAnalysis: TrendSignalAnalysis? = null // 추세 시그널 분석
     ) : OscillatorState()
     data class Error(val message: String) : OscillatorState()
 }
@@ -192,10 +195,25 @@ class OscillatorViewModel @Inject constructor(
                 // 5. 신호 분석
                 val signalAnalysis = OscillatorCalculator.analyzeSignal(oscillatorResult)
 
+                // 6. 추세 시그널 데이터 수집 (주간 데이터, 1년)
+                val trendSignalData = try {
+                    pyClient.getTrendSignalData(ticker, days = 365, interval = "w")
+                } catch (e: Exception) {
+                    android.util.Log.e("OscillatorViewModel", "Trend signal error", e)
+                    null
+                }
+
+                // 7. 추세 시그널 분석
+                val trendSignalAnalysis = trendSignalData?.let {
+                    TrendSignalCalculator.analyze(it)
+                }
+
                 _state.value = OscillatorState.Success(
                     stockData = stockData,
                     oscillatorResult = oscillatorResult,
-                    signalAnalysis = signalAnalysis
+                    signalAnalysis = signalAnalysis,
+                    trendSignalData = trendSignalData,
+                    trendSignalAnalysis = trendSignalAnalysis
                 )
 
             } catch (e: Exception) {
@@ -231,10 +249,25 @@ class OscillatorViewModel @Inject constructor(
                 // 신호 분석
                 val signalAnalysis = OscillatorCalculator.analyzeSignal(oscillatorResult)
 
+                // 추세 시그널 데이터 수집 (주간 데이터, 1년)
+                val trendSignalData = try {
+                    pyClient.getTrendSignalData(ticker, days = 365, interval = "w")
+                } catch (e: Exception) {
+                    android.util.Log.e("OscillatorViewModel", "Trend signal error", e)
+                    null
+                }
+
+                // 추세 시그널 분석
+                val trendSignalAnalysis = trendSignalData?.let {
+                    TrendSignalCalculator.analyze(it)
+                }
+
                 _state.value = OscillatorState.Success(
                     stockData = stockData,
                     oscillatorResult = oscillatorResult,
-                    signalAnalysis = signalAnalysis
+                    signalAnalysis = signalAnalysis,
+                    trendSignalData = trendSignalData,
+                    trendSignalAnalysis = trendSignalAnalysis
                 )
 
             } catch (e: Exception) {
