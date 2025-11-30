@@ -31,6 +31,8 @@ import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
+private const val TAG = "ChartComponents"
+
 /**
  * 차트 색상 제공을 위한 ViewModel
  */
@@ -54,7 +56,7 @@ fun MarketCapOscillatorChart(
 ) {
     // 데이터 검증
     if (result.dates.isEmpty() || marketCap.isEmpty()) {
-        Log.w("ChartComponents", "Empty data for MarketCapOscillatorChart")
+        Log.w(TAG, "Empty data for MarketCapOscillatorChart")
         return
     }
 
@@ -99,7 +101,7 @@ fun MarketCapOscillatorChart(
                             )
                             marker = markerView
                         } catch (e: Exception) {
-                            Log.e("ChartComponents", "Error creating marker", e)
+                            Log.e(TAG, "Error creating marker", e)
                         }
 
                         // X축 설정
@@ -160,7 +162,7 @@ fun MarketCapOscillatorChart(
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e("ChartComponents", "Error creating chart", e)
+                    Log.e(TAG, "Error creating chart", e)
                     CombinedChart(context)
                 }
             },
@@ -206,7 +208,7 @@ fun MarketCapOscillatorChart(
                     chart.data = combinedData
                     chart.invalidate()
                 } catch (e: Exception) {
-                    Log.e("ChartComponents", "Error updating chart", e)
+                    Log.e(TAG, "Error updating chart", e)
                 }
             },
             modifier = Modifier

@@ -1,5 +1,6 @@
 package com.etfmonitor.ui.screens.list
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.database.entities.Etf
@@ -28,6 +29,10 @@ class EtfListViewModel @Inject constructor(
     private val repository: DataRepository
 ) : ViewModel() {
 
+    companion object {
+        private const val TAG = "EtfListViewModel"
+    }
+
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
@@ -50,6 +55,7 @@ class EtfListViewModel @Inject constructor(
                     }
                 }
                 .catch { e ->
+                    Log.e(TAG, "Error loading ETF list", e)
                     _state.value = ListState.Error(e.message ?: "오류 발생")
                 }
                 .collect { etfs ->

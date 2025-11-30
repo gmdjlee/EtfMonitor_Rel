@@ -112,12 +112,13 @@ class GeminiApiClient @Inject constructor(
             })
         }
 
-        val url = "$API_BASE_URL/$model:generateContent?key=$apiKey"
-        Log.d(TAG, "Calling Gemini API with URL: $API_BASE_URL/$model:generateContent")
+        val url = "$API_BASE_URL/$model:generateContent"
+        Log.d(TAG, "Calling Gemini API with model: $model")
 
         val request = Request.Builder()
             .url(url)
             .addHeader("Content-Type", "application/json")
+            .addHeader("x-goog-api-key", apiKey)
             .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
             .build()
 
@@ -280,11 +281,12 @@ class GeminiApiClient @Inject constructor(
             })
         }
 
-        val url = "$API_BASE_URL/$model:generateContent?key=$apiKey"
+        val url = "$API_BASE_URL/$model:generateContent"
 
         val request = Request.Builder()
             .url(url)
             .addHeader("Content-Type", "application/json")
+            .addHeader("x-goog-api-key", apiKey)
             .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
             .build()
 
@@ -373,9 +375,10 @@ class GeminiApiClient @Inject constructor(
             }
 
             withTimeout(TIMEOUT_SECONDS * 1000) {
-                val url = "$MODELS_API_URL?key=$apiKey"
+                val url = MODELS_API_URL
                 val request = Request.Builder()
                     .url(url)
+                    .addHeader("x-goog-api-key", apiKey)
                     .get()
                     .build()
 
