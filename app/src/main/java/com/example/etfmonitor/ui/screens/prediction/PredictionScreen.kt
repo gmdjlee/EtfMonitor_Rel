@@ -121,26 +121,27 @@ fun PredictionScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             // 예측 실행 버튼
+            val isLoading = state is PredictionState.Loading
             ExtendedFloatingActionButton(
+                text = {
+                    Text(if (isLoading) "학습 중..." else "예측 실행")
+                },
+                icon = {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    } else {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = null)
+                    }
+                },
                 onClick = { viewModel.runPrediction() },
+                expanded = !isLoading,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                expanded = state !is PredictionState.Loading
-            ) {
-                if (state is PredictionState.Loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                } else {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = null)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    if (state is PredictionState.Loading) "학습 중..." else "예측 실행"
-                )
-            }
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
