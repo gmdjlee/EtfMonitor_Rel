@@ -47,6 +47,7 @@ fun HomeScreen(
     onNavigateToFearGreed: () -> Unit,
     onNavigateToMarketOscillator: () -> Unit,
     onNavigateToAIAnalysis: () -> Unit,
+    onNavigateToPrediction: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -155,7 +156,8 @@ fun HomeScreen(
                     onNavigateToMarketDeposit = onNavigateToMarketDeposit,
                     onNavigateToFearGreed = onNavigateToFearGreed,
                     onNavigateToMarketOscillator = onNavigateToMarketOscillator,
-                    onNavigateToAIAnalysis = onNavigateToAIAnalysis
+                    onNavigateToAIAnalysis = onNavigateToAIAnalysis,
+                    onNavigateToPrediction = onNavigateToPrediction
                 )
             }
         }
@@ -283,7 +285,8 @@ private fun HomeContent(
     onNavigateToMarketDeposit: () -> Unit,
     onNavigateToFearGreed: () -> Unit,
     onNavigateToMarketOscillator: () -> Unit,
-    onNavigateToAIAnalysis: () -> Unit
+    onNavigateToAIAnalysis: () -> Unit,
+    onNavigateToPrediction: () -> Unit
 ) {
     val hasData = (state as? HomeState.Idle)?.hasData ?: false
 
@@ -354,6 +357,18 @@ private fun HomeContent(
                 onClick = onNavigateToAIAnalysis
             )
         )
+        // ML 주가 예측 (ETF 데이터 있을 때만 표시)
+        if (hasData) {
+            add(
+                MenuItem(
+                    icon = Icons.Default.Psychology,
+                    title = "ML 주가 예측",
+                    description = "ETF 변화 기반 상승 예측",
+                    color = MaterialTheme.colorScheme.primary,
+                    onClick = onNavigateToPrediction
+                )
+            )
+        }
     }
 
     Column(
