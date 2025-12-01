@@ -26,6 +26,10 @@ import com.etfmonitor.database.entities.CashDepositTrend
 import com.etfmonitor.database.entities.HoldingStatus
 import com.etfmonitor.database.entities.StockAmountRanking
 import com.etfmonitor.database.entities.StockChangeInfo
+import com.etfmonitor.oscillator.model.DemarkTDData
+import com.etfmonitor.oscillator.model.ElderImpulseData
+import com.etfmonitor.ui.components.DemarkTDChart
+import com.etfmonitor.ui.components.ElderImpulseChart
 import com.etfmonitor.ui.screens.statistics.SortColumn
 import com.etfmonitor.ui.theme.*
 import com.etfmonitor.ui.utils.AmountFormatter
@@ -68,6 +72,11 @@ fun StatisticsScreen(
     val searchResults by viewModel.searchResults.collectAsState()
     val analysisResult by viewModel.analysisResult.collectAsState()
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
+
+    // ✅ 차트 분석 데이터
+    val elderImpulseData by viewModel.elderImpulseData.collectAsState()
+    val demarkTDData by viewModel.demarkTDData.collectAsState()
+    val demarkTDInterval by viewModel.demarkTDInterval.collectAsState()
 
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("금액 순위", "신규 편입", "제외", "비중 증가", "비중 감소", "원화예금", "분석")
@@ -148,10 +157,14 @@ fun StatisticsScreen(
                         searchResults = searchResults,
                         analysisResult = analysisResult,
                         isAnalyzing = isAnalyzing,
+                        elderImpulseData = elderImpulseData,
+                        demarkTDData = demarkTDData,
+                        demarkTDInterval = demarkTDInterval,
                         onSearchQueryChange = { viewModel.updateSearchQuery(it) },
                         onSearchAndAnalyze = { viewModel.searchAndAnalyze(it) },
                         onStockSelect = { viewModel.analyzeStock(it) },
                         onClearAnalysis = { viewModel.clearAnalysis() },
+                        onDemarkTDIntervalChange = { viewModel.changeDemarkTDInterval(it) },
                         onStockClick = onStockClick
                     )
                 }
@@ -830,10 +843,14 @@ private fun StockAnalysisTab(
     searchResults: List<com.etfmonitor.database.StockSearchResult>,
     analysisResult: com.etfmonitor.database.entities.StockAnalysisResult?,
     isAnalyzing: Boolean,
+    elderImpulseData: ElderImpulseData?,
+    demarkTDData: DemarkTDData?,
+    demarkTDInterval: String,
     onSearchQueryChange: (String) -> Unit,
     onSearchAndAnalyze: (String) -> Unit,
     onStockSelect: (String) -> Unit,
     onClearAnalysis: () -> Unit,
+    onDemarkTDIntervalChange: (String) -> Unit,
     onStockClick: (String) -> Unit
 ) {
     var textFieldValue by remember { mutableStateOf("") }
@@ -1006,6 +1023,27 @@ private fun StockAnalysisTab(
 
                 item {
                     StockAnalysisStatisticsCard(result)
+                }
+
+                // ✅ Elder Impulse 차트 (주봉)
+                elderImpulseData?.let { data ->
+                    item {
+                        ElderImpulseChart(
+                            data = data,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+
+                // ✅ DeMark TD 차트 (인터벌 선택 가능)
+                demarkTDData?.let { data ->
+                    item {
+                        DemarkTDChartWithSelector(
+                            data = data,
+                            selectedInterval = demarkTDInterval,
+                            onIntervalChange = onDemarkTDIntervalChange
+                        )
+                    }
                 }
 
                 item {
@@ -1334,5 +1372,44 @@ private fun SortableHeaderText(
                 tint = MaterialTheme.colorScheme.primary
             )
         }
+    }
+}
+
+/**
+ * DeMark TD 차트 + 인터벌 선택 버튼
+ */
+@Composable
+private fun DemarkTDChartWithSelector(
+    data: DemarkTDData,
+    selectedInterval: String,
+    onIntervalChange: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // 인터벌 선택 버튼
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val intervals = listOf("d" to "일봉", "w" to "주봉", "m" to "월봉")
+
+            intervals.forEach { (code, label) ->
+                FilterChip(
+                    selected = selectedInterval == code,
+                    onClick = { onIntervalChange(code) },
+                    label = { Text(label) },
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
+        }
+
+        // DeMark TD 차트
+        DemarkTDChart(
+            data = data,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }

@@ -22,6 +22,9 @@ import com.github.mikephil.charting.components.YAxis
 import com.github.mikephil.charting.data.*
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.etfmonitor.R
+import com.etfmonitor.oscillator.model.DemarkTDData
+import com.etfmonitor.oscillator.model.ElderImpulseData
+import com.etfmonitor.oscillator.model.ImpulseState
 import com.etfmonitor.oscillator.model.MarketDepositData
 import com.etfmonitor.oscillator.model.OscillatorResult
 import com.etfmonitor.oscillator.model.TrendSignalData
@@ -911,5 +914,414 @@ private fun ChartCard(
 
             content()
         }
+    }
+}
+
+// ============================================================
+// Elder Impulse System 차트
+// ============================================================
+
+/**
+ * 시가총액 + Elder Impulse System 복합 차트 (주봉)
+ */
+@Composable
+fun ElderImpulseChart(
+    data: ElderImpulseData,
+    modifier: Modifier = Modifier,
+    chartColorViewModel: ChartColorViewModel = hiltViewModel()
+) {
+    if (data.dates.isEmpty()) {
+        Log.w(TAG, "Empty data for ElderImpulseChart")
+        return
+    }
+
+    val chartColors by chartColorViewModel.chartColorSettings.collectAsState()
+    val colorSettings = chartColors.marketCapOscillator
+
+    val isDark = isSystemInDarkTheme()
+    val marketCapColor = colorSettings.lineColor1
+    val emaColor = colorSettings.lineColor2
+    val textColor = colorSettings.textColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val legendColor = colorSettings.legendColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
+    val bullColor = ChartGreen.toArgb()
+    val bearColor = ChartRed.toArgb()
+    val neutralColor = ChartTextLight.toArgb()
+
+    // 현재 Impulse 상태
+    val currentImpulse = data.impulse.lastOrNull()?.let { ImpulseState.fromValue(it) } ?: ImpulseState.NEUTRAL
+
+    ChartCard(
+        title = "Elder Impulse System (주봉)",
+        subtitle = "현재 상태: ${currentImpulse.displayName}",
+        modifier = modifier
+    ) {
+        AndroidView(
+            factory = { context ->
+                CombinedChart(context).apply {
+                    description.isEnabled = false
+                    setTouchEnabled(true)
+                    isDragEnabled = true
+                    setScaleEnabled(true)
+                    setPinchZoom(true)
+                    setDrawGridBackground(false)
+
+                    xAxis.apply {
+                        position = XAxis.XAxisPosition.BOTTOM
+                        setDrawGridLines(true)
+                        gridLineWidth = 1f
+                        setGridColor(gridColor)
+                        setTextColor(textColor)
+                        granularity = 1f
+                        labelRotationAngle = -45f
+                        valueFormatter = object : ValueFormatter() {
+                            override fun getFormattedValue(value: Float): String {
+                                val idx = value.toInt()
+                                return if (idx in data.dates.indices) {
+                                    val date = data.dates[idx]
+                                    if (date.length >= 7) date.substring(5) else date
+                                } else ""
+                            }
+                        }
+                    }
+
+                    // 왼쪽 Y축: 시가총액
+                    axisLeft.apply {
+                        setTextColor(textColor)
+                        setDrawGridLines(true)
+                        gridLineWidth = 0.5f
+                        setGridColor(gridColor)
+                        valueFormatter = object : ValueFormatter() {
+                            override fun getFormattedValue(value: Float): String {
+                                return if (value >= 1_000_000_000_000) {
+                                    String.format("%.1f조", value / 1_000_000_000_000)
+                                } else {
+                                    String.format("%.0f억", value / 100_000_000)
+                                }
+                            }
+                        }
+                    }
+
+                    // 오른쪽 Y축: 종가/EMA
+                    axisRight.apply {
+                        isEnabled = true
+                        setTextColor(textColor)
+                        setDrawGridLines(false)
+                    }
+
+                    legend.apply {
+                        isEnabled = true
+                        textSize = 10f
+                        setTextColor(legendColor)
+                    }
+                }
+            },
+            update = { chart ->
+                try {
+                    val lineDataSets = mutableListOf<LineDataSet>()
+
+                    // 시가총액 라인
+                    val marketCapEntries = data.marketCap.mapIndexed { index, value ->
+                        Entry(index.toFloat(), value.toFloat())
+                    }
+                    val marketCapDataSet = LineDataSet(marketCapEntries, "시가총액").apply {
+                        axisDependency = YAxis.AxisDependency.LEFT
+                        color = marketCapColor
+                        lineWidth = 2f
+                        setDrawCircles(false)
+                        setDrawValues(false)
+                    }
+                    lineDataSets.add(marketCapDataSet)
+
+                    // EMA13 라인 (Impulse 색상으로 구간별 표시)
+                    val emaEntries = data.ema.mapIndexed { index, value ->
+                        Entry(index.toFloat(), value.toFloat())
+                    }
+                    val emaDataSet = LineDataSet(emaEntries, "EMA13").apply {
+                        axisDependency = YAxis.AxisDependency.RIGHT
+                        color = emaColor
+                        lineWidth = 2.5f
+                        setDrawCircles(false)
+                        setDrawValues(false)
+                    }
+                    lineDataSets.add(emaDataSet)
+
+                    val lineData = LineData(lineDataSets.toList())
+
+                    // Impulse 상태를 Scatter로 표시
+                    val bullEntries = mutableListOf<Entry>()
+                    val bearEntries = mutableListOf<Entry>()
+
+                    data.impulse.forEachIndexed { index, value ->
+                        when (value) {
+                            1 -> bullEntries.add(Entry(index.toFloat(), data.close[index].toFloat()))
+                            -1 -> bearEntries.add(Entry(index.toFloat(), data.close[index].toFloat()))
+                        }
+                    }
+
+                    val scatterDataSets = mutableListOf<ScatterDataSet>()
+
+                    if (bullEntries.isNotEmpty()) {
+                        val bullDataSet = ScatterDataSet(bullEntries, "상승").apply {
+                            axisDependency = YAxis.AxisDependency.RIGHT
+                            color = bullColor
+                            setScatterShape(ScatterChart.ScatterShape.TRIANGLE)
+                            scatterShapeSize = 16f
+                            setDrawValues(false)
+                        }
+                        scatterDataSets.add(bullDataSet)
+                    }
+
+                    if (bearEntries.isNotEmpty()) {
+                        val bearDataSet = ScatterDataSet(bearEntries, "하락").apply {
+                            axisDependency = YAxis.AxisDependency.RIGHT
+                            color = bearColor
+                            shapeRenderer = InvertedTriangleShapeRenderer()
+                            scatterShapeSize = 16f
+                            setDrawValues(false)
+                        }
+                        scatterDataSets.add(bearDataSet)
+                    }
+
+                    val combinedData = CombinedData().apply {
+                        setData(lineData)
+                        if (scatterDataSets.isNotEmpty()) {
+                            setData(ScatterData(scatterDataSets.toList()))
+                        }
+                    }
+
+                    chart.data = combinedData
+                    chart.invalidate()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error updating ElderImpulseChart", e)
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp)
+        )
+    }
+}
+
+// ============================================================
+// DeMark TD Setup 차트
+// ============================================================
+
+/**
+ * 시가총액 + DeMark TD Setup 복합 차트
+ */
+@Composable
+fun DemarkTDChart(
+    data: DemarkTDData,
+    modifier: Modifier = Modifier,
+    chartColorViewModel: ChartColorViewModel = hiltViewModel()
+) {
+    if (data.dates.isEmpty()) {
+        Log.w(TAG, "Empty data for DemarkTDChart")
+        return
+    }
+
+    val chartColors by chartColorViewModel.chartColorSettings.collectAsState()
+    val colorSettings = chartColors.marketCapOscillator
+
+    val isDark = isSystemInDarkTheme()
+    val marketCapColor = colorSettings.lineColor1
+    val closeColor = colorSettings.lineColor2
+    val textColor = colorSettings.textColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val legendColor = colorSettings.legendColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
+    val sellFatigueColor = ChartRed.toArgb()
+    val buyFatigueColor = ChartGreen.toArgb()
+
+    // 현재 TD 상태
+    val currentTdSell = data.tdSell.lastOrNull() ?: 0
+    val currentTdBuy = data.tdBuy.lastOrNull() ?: 0
+    val statusText = when {
+        currentTdSell >= 9 -> "매도 피로 ($currentTdSell) - 하락 전환 가능"
+        currentTdBuy >= 9 -> "매수 피로 ($currentTdBuy) - 상승 전환 가능"
+        currentTdSell > 0 -> "상승 지속 ($currentTdSell)"
+        currentTdBuy > 0 -> "하락 지속 ($currentTdBuy)"
+        else -> "중립"
+    }
+
+    ChartCard(
+        title = "DeMark TD Setup (${data.intervalName})",
+        subtitle = "현재 상태: $statusText",
+        modifier = modifier
+    ) {
+        AndroidView(
+            factory = { context ->
+                CombinedChart(context).apply {
+                    description.isEnabled = false
+                    setTouchEnabled(true)
+                    isDragEnabled = true
+                    setScaleEnabled(true)
+                    setPinchZoom(true)
+                    setDrawGridBackground(false)
+
+                    xAxis.apply {
+                        position = XAxis.XAxisPosition.BOTTOM
+                        setDrawGridLines(true)
+                        gridLineWidth = 1f
+                        setGridColor(gridColor)
+                        setTextColor(textColor)
+                        granularity = 1f
+                        labelRotationAngle = -45f
+                        valueFormatter = object : ValueFormatter() {
+                            override fun getFormattedValue(value: Float): String {
+                                val idx = value.toInt()
+                                return if (idx in data.dates.indices) {
+                                    val date = data.dates[idx]
+                                    if (date.length >= 7) date.substring(5) else date
+                                } else ""
+                            }
+                        }
+                    }
+
+                    // 왼쪽 Y축: 시가총액
+                    axisLeft.apply {
+                        setTextColor(textColor)
+                        setDrawGridLines(true)
+                        gridLineWidth = 0.5f
+                        setGridColor(gridColor)
+                        valueFormatter = object : ValueFormatter() {
+                            override fun getFormattedValue(value: Float): String {
+                                return if (value >= 1_000_000_000_000) {
+                                    String.format("%.1f조", value / 1_000_000_000_000)
+                                } else {
+                                    String.format("%.0f억", value / 100_000_000)
+                                }
+                            }
+                        }
+                    }
+
+                    // 오른쪽 Y축: TD 카운트
+                    axisRight.apply {
+                        isEnabled = true
+                        setTextColor(textColor)
+                        setDrawGridLines(false)
+                        axisMinimum = -15f
+                        axisMaximum = 15f
+                    }
+
+                    legend.apply {
+                        isEnabled = true
+                        textSize = 10f
+                        setTextColor(legendColor)
+                    }
+                }
+            },
+            update = { chart ->
+                try {
+                    val lineDataSets = mutableListOf<LineDataSet>()
+
+                    // 시가총액 라인
+                    val marketCapEntries = data.marketCap.mapIndexed { index, value ->
+                        Entry(index.toFloat(), value.toFloat())
+                    }
+                    val marketCapDataSet = LineDataSet(marketCapEntries, "시가총액").apply {
+                        axisDependency = YAxis.AxisDependency.LEFT
+                        color = marketCapColor
+                        lineWidth = 2f
+                        setDrawCircles(false)
+                        setDrawValues(false)
+                    }
+                    lineDataSets.add(marketCapDataSet)
+
+                    // TD Sell 라인 (양수: 상승 피로)
+                    val tdSellEntries = data.tdSell.mapIndexed { index, value ->
+                        Entry(index.toFloat(), value.toFloat())
+                    }
+                    val tdSellDataSet = LineDataSet(tdSellEntries, "매도피로").apply {
+                        axisDependency = YAxis.AxisDependency.RIGHT
+                        color = sellFatigueColor
+                        lineWidth = 1.5f
+                        setDrawCircles(false)
+                        setDrawValues(false)
+                        setDrawFilled(true)
+                        fillColor = sellFatigueColor
+                        fillAlpha = 50
+                    }
+                    lineDataSets.add(tdSellDataSet)
+
+                    // TD Buy 라인 (음수로 표시: 하락 피로)
+                    val tdBuyEntries = data.tdBuy.mapIndexed { index, value ->
+                        Entry(index.toFloat(), -value.toFloat())
+                    }
+                    val tdBuyDataSet = LineDataSet(tdBuyEntries, "매수피로").apply {
+                        axisDependency = YAxis.AxisDependency.RIGHT
+                        color = buyFatigueColor
+                        lineWidth = 1.5f
+                        setDrawCircles(false)
+                        setDrawValues(false)
+                        setDrawFilled(true)
+                        fillColor = buyFatigueColor
+                        fillAlpha = 50
+                    }
+                    lineDataSets.add(tdBuyDataSet)
+
+                    val lineData = LineData(lineDataSets.toList())
+
+                    // 9 이상 피로 구간 표시 (Scatter)
+                    val sellFatigueEntries = mutableListOf<Entry>()
+                    val buyFatigueEntries = mutableListOf<Entry>()
+
+                    data.tdSell.forEachIndexed { index, value ->
+                        if (value >= 9) {
+                            sellFatigueEntries.add(Entry(index.toFloat(), value.toFloat()))
+                        }
+                    }
+
+                    data.tdBuy.forEachIndexed { index, value ->
+                        if (value >= 9) {
+                            buyFatigueEntries.add(Entry(index.toFloat(), -value.toFloat()))
+                        }
+                    }
+
+                    val scatterDataSets = mutableListOf<ScatterDataSet>()
+
+                    if (sellFatigueEntries.isNotEmpty()) {
+                        val sellFatigueDataSet = ScatterDataSet(sellFatigueEntries, "매도피로9+").apply {
+                            axisDependency = YAxis.AxisDependency.RIGHT
+                            color = sellFatigueColor
+                            setScatterShape(ScatterChart.ScatterShape.CIRCLE)
+                            scatterShapeSize = 20f
+                            setDrawValues(true)
+                            valueTextSize = 8f
+                            valueTextColor = textColor
+                        }
+                        scatterDataSets.add(sellFatigueDataSet)
+                    }
+
+                    if (buyFatigueEntries.isNotEmpty()) {
+                        val buyFatigueDataSet = ScatterDataSet(buyFatigueEntries, "매수피로9+").apply {
+                            axisDependency = YAxis.AxisDependency.RIGHT
+                            color = buyFatigueColor
+                            setScatterShape(ScatterChart.ScatterShape.CIRCLE)
+                            scatterShapeSize = 20f
+                            setDrawValues(true)
+                            valueTextSize = 8f
+                            valueTextColor = textColor
+                        }
+                        scatterDataSets.add(buyFatigueDataSet)
+                    }
+
+                    val combinedData = CombinedData().apply {
+                        setData(lineData)
+                        if (scatterDataSets.isNotEmpty()) {
+                            setData(ScatterData(scatterDataSets.toList()))
+                        }
+                    }
+
+                    chart.data = combinedData
+                    chart.invalidate()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error updating DemarkTDChart", e)
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp)
+        )
     }
 }

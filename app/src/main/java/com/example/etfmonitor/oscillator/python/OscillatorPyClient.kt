@@ -2,6 +2,8 @@ package com.etfmonitor.oscillator.python
 
 import android.util.Log
 import com.chaquo.python.Python
+import com.etfmonitor.oscillator.model.DemarkTDData
+import com.etfmonitor.oscillator.model.ElderImpulseData
 import com.etfmonitor.oscillator.model.MarketDepositData
 import com.etfmonitor.oscillator.model.StockData
 import com.etfmonitor.oscillator.model.TrendSignalData
@@ -389,6 +391,157 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
             }
         } catch (e: Exception) {
             Log.e(TAG, "getTrendSignalData error", e)
+            null
+        }
+    }
+
+    /**
+     * Elder Impulse System 분석 데이터 수집 (주봉 기준)
+     *
+     * @param ticker 종목 코드
+     * @param days 분석 기간 (일)
+     * @return ElderImpulseData 또는 null
+     */
+    suspend fun getElderImpulseData(
+        ticker: String,
+        days: Int = 365
+    ): ElderImpulseData? = withContext(Dispatchers.IO) {
+        try {
+            withTimeout(TIMEOUT_MS) {
+                Log.d(TAG, "getElderImpulseData: $ticker, $days days")
+                val jsonStr = trendSignalModule.callAttr(
+                    "get_elder_impulse_analysis",
+                    ticker,
+                    days
+                ).toString()
+
+                val jsonObj = JSONObject(jsonStr)
+
+                if (jsonObj.has("error")) {
+                    Log.e(TAG, "Elder Impulse error: ${jsonObj.getString("error")}")
+                    return@withTimeout null
+                }
+
+                val dates = jsonObj.getJSONArray("dates").let { arr ->
+                    List(arr.length()) { arr.getString(it) }
+                }
+
+                val close = jsonObj.getJSONArray("close").let { arr ->
+                    List(arr.length()) { arr.getDouble(it) }
+                }
+
+                val marketCap = jsonObj.getJSONArray("market_cap").let { arr ->
+                    List(arr.length()) { arr.getLong(it) }
+                }
+
+                val ema = jsonObj.getJSONArray("ema").let { arr ->
+                    List(arr.length()) { arr.getDouble(it) }
+                }
+
+                val macd = jsonObj.getJSONArray("macd").let { arr ->
+                    List(arr.length()) { arr.getDouble(it) }
+                }
+
+                val macdSignal = jsonObj.getJSONArray("macd_signal").let { arr ->
+                    List(arr.length()) { arr.getDouble(it) }
+                }
+
+                val macdHist = jsonObj.getJSONArray("macd_hist").let { arr ->
+                    List(arr.length()) { arr.getDouble(it) }
+                }
+
+                val impulse = jsonObj.getJSONArray("impulse").let { arr ->
+                    List(arr.length()) { arr.getInt(it) }
+                }
+
+                ElderImpulseData(
+                    ticker = jsonObj.getString("ticker"),
+                    name = jsonObj.getString("name"),
+                    interval = jsonObj.getString("interval"),
+                    dates = dates,
+                    close = close,
+                    marketCap = marketCap,
+                    ema = ema,
+                    macd = macd,
+                    macdSignal = macdSignal,
+                    macdHist = macdHist,
+                    impulse = impulse
+                ).also {
+                    Log.d(TAG, "Elder Impulse data complete: ${it.name}, ${dates.size} data points")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getElderImpulseData error", e)
+            null
+        }
+    }
+
+    /**
+     * DeMark TD Setup 분석 데이터 수집
+     *
+     * @param ticker 종목 코드
+     * @param days 분석 기간 (일)
+     * @param interval 주기 ("d"=일별, "w"=주별, "m"=월별)
+     * @return DemarkTDData 또는 null
+     */
+    suspend fun getDemarkTDData(
+        ticker: String,
+        days: Int = 365,
+        interval: String = "w"
+    ): DemarkTDData? = withContext(Dispatchers.IO) {
+        try {
+            withTimeout(TIMEOUT_MS) {
+                Log.d(TAG, "getDemarkTDData: $ticker, $days days, interval: $interval")
+                val jsonStr = trendSignalModule.callAttr(
+                    "get_demark_td_analysis",
+                    ticker,
+                    days,
+                    interval
+                ).toString()
+
+                val jsonObj = JSONObject(jsonStr)
+
+                if (jsonObj.has("error")) {
+                    Log.e(TAG, "DeMark TD error: ${jsonObj.getString("error")}")
+                    return@withTimeout null
+                }
+
+                val dates = jsonObj.getJSONArray("dates").let { arr ->
+                    List(arr.length()) { arr.getString(it) }
+                }
+
+                val close = jsonObj.getJSONArray("close").let { arr ->
+                    List(arr.length()) { arr.getDouble(it) }
+                }
+
+                val marketCap = jsonObj.getJSONArray("market_cap").let { arr ->
+                    List(arr.length()) { arr.getLong(it) }
+                }
+
+                val tdSell = jsonObj.getJSONArray("td_sell").let { arr ->
+                    List(arr.length()) { arr.getInt(it) }
+                }
+
+                val tdBuy = jsonObj.getJSONArray("td_buy").let { arr ->
+                    List(arr.length()) { arr.getInt(it) }
+                }
+
+                DemarkTDData(
+                    ticker = jsonObj.getString("ticker"),
+                    name = jsonObj.getString("name"),
+                    interval = jsonObj.getString("interval"),
+                    intervalName = jsonObj.getString("interval_name"),
+                    dates = dates,
+                    close = close,
+                    marketCap = marketCap,
+                    tdSell = tdSell,
+                    tdBuy = tdBuy
+                ).also {
+                    Log.d(TAG, "DeMark TD data complete: ${it.name}, ${dates.size} data points, ${it.intervalName}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getDemarkTDData error", e)
             null
         }
     }
