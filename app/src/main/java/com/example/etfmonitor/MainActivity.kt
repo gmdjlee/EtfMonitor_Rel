@@ -20,8 +20,10 @@ import androidx.lifecycle.lifecycleScope
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.repository.StockRepository
 import com.etfmonitor.ui.Navigation
+import com.etfmonitor.ui.theme.ChartColorSettings
 import com.etfmonitor.ui.theme.EtfMonitorTheme
 import com.etfmonitor.ui.theme.FontScaleSettings
+import com.etfmonitor.ui.theme.SingleChartColorSettings
 import com.etfmonitor.ui.theme.ThemeManager
 import com.etfmonitor.ui.theme.createScaledTypography
 import com.etfmonitor.worker.WorkManagerHelper
@@ -143,6 +145,9 @@ class MainActivity : ComponentActivity() {
                         labelScale = labelScale
                     )
                 )
+
+                // 차트 색상 설정 로드
+                loadChartColorSettings()
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error loading theme setting", e)
             }
@@ -192,6 +197,53 @@ class MainActivity : ComponentActivity() {
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error initializing stock database", e)
             }
+        }
+    }
+
+    private suspend fun loadChartColorSettings() {
+        try {
+            val default = ChartColorSettings()
+
+            // 헬퍼 함수
+            suspend fun loadColor(chart: String, prop: String, defaultVal: Int): Int =
+                etfDao.getSetting("chart_${chart}_$prop")?.toIntOrNull() ?: defaultVal
+
+            suspend fun loadOptionalColor(chart: String, prop: String): Int? =
+                etfDao.getSetting("chart_${chart}_$prop")?.toIntOrNull()
+
+            val settings = ChartColorSettings(
+                marketCapOscillator = SingleChartColorSettings(
+                    lineColor1 = loadColor("marketcap", "line1", default.marketCapOscillator.lineColor1),
+                    lineColor2 = loadColor("marketcap", "line2", default.marketCapOscillator.lineColor2),
+                    textColor = loadOptionalColor("marketcap", "text"),
+                    legendColor = loadOptionalColor("marketcap", "legend")
+                ),
+                macd = SingleChartColorSettings(
+                    lineColor1 = loadColor("macd", "line1", default.macd.lineColor1),
+                    lineColor2 = loadColor("macd", "line2", default.macd.lineColor2),
+                    positiveColor = loadColor("macd", "positive", default.macd.positiveColor),
+                    negativeColor = loadColor("macd", "negative", default.macd.negativeColor),
+                    textColor = loadOptionalColor("macd", "text"),
+                    legendColor = loadOptionalColor("macd", "legend")
+                ),
+                marketDeposit = SingleChartColorSettings(
+                    lineColor1 = loadColor("deposit", "line1", default.marketDeposit.lineColor1),
+                    lineColor2 = loadColor("deposit", "line2", default.marketDeposit.lineColor2),
+                    textColor = loadOptionalColor("deposit", "text"),
+                    legendColor = loadOptionalColor("deposit", "legend")
+                ),
+                fearGreed = SingleChartColorSettings(
+                    lineColor1 = loadColor("feargreed", "line1", default.fearGreed.lineColor1),
+                    lineColor2 = loadColor("feargreed", "line2", default.fearGreed.lineColor2),
+                    textColor = loadOptionalColor("feargreed", "text"),
+                    legendColor = loadOptionalColor("feargreed", "legend")
+                )
+            )
+
+            themeManager.setChartColorSettings(settings)
+            Log.d("MainActivity", "Chart color settings loaded")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error loading chart color settings", e)
         }
     }
 }
