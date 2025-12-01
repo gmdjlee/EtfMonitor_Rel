@@ -6,9 +6,6 @@ import com.etfmonitor.database.entities.CashDepositTrend
 import com.etfmonitor.database.entities.StockAmountRanking
 import com.etfmonitor.database.entities.StockAnalysisResult
 import com.etfmonitor.database.entities.StockChangeInfo
-import com.etfmonitor.oscillator.model.DemarkTDData
-import com.etfmonitor.oscillator.model.ElderImpulseData
-import com.etfmonitor.oscillator.python.OscillatorPyClient
 import com.etfmonitor.repository.DataRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,8 +28,7 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class StatisticsViewModel @Inject constructor(
-    private val repository: DataRepository,
-    private val oscillatorPyClient: OscillatorPyClient
+    private val repository: DataRepository
 ) : ViewModel() {
 
     private val _dates = MutableStateFlow<Pair<String, String>?>(null)
@@ -80,18 +76,6 @@ class StatisticsViewModel @Inject constructor(
     private val _isAnalyzing = MutableStateFlow(false)
     val isAnalyzing: StateFlow<Boolean> = _isAnalyzing.asStateFlow()
 
-    // ✅ Elder Impulse 데이터
-    private val _elderImpulseData = MutableStateFlow<ElderImpulseData?>(null)
-    val elderImpulseData: StateFlow<ElderImpulseData?> = _elderImpulseData.asStateFlow()
-
-    // ✅ DeMark TD 데이터
-    private val _demarkTDData = MutableStateFlow<DemarkTDData?>(null)
-    val demarkTDData: StateFlow<DemarkTDData?> = _demarkTDData.asStateFlow()
-
-    // ✅ DeMark TD 인터벌 선택
-    private val _demarkTDInterval = MutableStateFlow("w")
-    val demarkTDInterval: StateFlow<String> = _demarkTDInterval.asStateFlow()
-
     init {
         loadStatistics()
     }
@@ -133,41 +117,9 @@ class StatisticsViewModel @Inject constructor(
                 _analysisResult.value = repository.analyzeStock(stockTicker)
                 _searchQuery.value = ""
                 _searchResults.value = emptyList()
-
-                // 차트 분석 데이터 로드 (병렬)
-                loadChartAnalysisData(stockTicker)
             } finally {
                 _isAnalyzing.value = false
             }
-        }
-    }
-
-    // ✅ 차트 분석 데이터 로드
-    private fun loadChartAnalysisData(stockTicker: String) {
-        viewModelScope.launch {
-            // Elder Impulse 데이터 로드 (주봉)
-            _elderImpulseData.value = oscillatorPyClient.getElderImpulseData(stockTicker)
-        }
-        viewModelScope.launch {
-            // DeMark TD 데이터 로드 (현재 선택된 인터벌)
-            _demarkTDData.value = oscillatorPyClient.getDemarkTDData(
-                stockTicker,
-                interval = _demarkTDInterval.value
-            )
-        }
-    }
-
-    // ✅ DeMark TD 인터벌 변경
-    fun changeDemarkTDInterval(interval: String) {
-        val currentTicker = _analysisResult.value?.stockTicker ?: return
-        if (interval == _demarkTDInterval.value) return
-
-        _demarkTDInterval.value = interval
-        viewModelScope.launch {
-            _demarkTDData.value = oscillatorPyClient.getDemarkTDData(
-                currentTicker,
-                interval = interval
-            )
         }
     }
 
@@ -200,9 +152,6 @@ class StatisticsViewModel @Inject constructor(
         _analysisResult.value = null
         _searchQuery.value = ""
         _searchResults.value = emptyList()
-        _elderImpulseData.value = null
-        _demarkTDData.value = null
-        _demarkTDInterval.value = "w"
     }
 
     // ✅ 금액순위 정렬
