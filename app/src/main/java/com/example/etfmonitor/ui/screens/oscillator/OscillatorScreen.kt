@@ -262,7 +262,7 @@ fun OscillatorScreen(
                     currentState.elderImpulseData?.let { elderData ->
                         ElderImpulseChart(
                             data = elderData,
-                            latestDate = elderData.dates.lastOrNull()
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
 
@@ -344,7 +344,7 @@ private fun DemarkTDChartWithSelector(
         // DeMark TD 차트
         DemarkTDChart(
             data = data,
-            latestDate = data.dates.lastOrNull()
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
