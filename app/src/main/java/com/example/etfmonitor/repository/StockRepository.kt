@@ -12,12 +12,12 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * 주식 종목 Repository
+ * 종목 마스터 Repository
  *
- * Production 최적화:
- * - @Singleton: Hilt가 단일 인스턴스 관리
- * - @Inject: 생성자 주입으로 의존성 명확화
- * - flowOn(Dispatchers.IO): Flow 메서드에 명시적 디스패처 지정
+ * 역할:
+ * - 전체 종목 관리 (stocks 테이블)
+ * - ETF 보유 종목 자동 동기화
+ * - 종목명 조회 (JOIN 대체용)
  */
 @Singleton
 class StockRepository @Inject constructor(
@@ -28,15 +28,58 @@ class StockRepository @Inject constructor(
         private const val TAG = "StockRepository"
     }
 
+    // ========== 조회 ==========
+
     fun getAllStocks(): Flow<List<Stock>> = stockDao.getAllStocks().flowOn(Dispatchers.IO)
 
     fun searchStocks(query: String): Flow<List<Stock>> = stockDao.searchStocks(query).flowOn(Dispatchers.IO)
 
-    suspend fun getStock(ticker: String): Stock? = stockDao.getStock(ticker)
+    fun getEtfHoldingStocks(): Flow<List<Stock>> = stockDao.getEtfHoldingStocks().flowOn(Dispatchers.IO)
+
+    fun getStocksByMarket(market: String): Flow<List<Stock>> = stockDao.getStocksByMarket(market).flowOn(Dispatchers.IO)
+
+    suspend fun getStock(ticker: String): Stock? = withContext(Dispatchers.IO) {
+        stockDao.getStock(ticker)
+    }
+
+    suspend fun getStockName(ticker: String): String = withContext(Dispatchers.IO) {
+        stockDao.getStockName(ticker) ?: ticker
+    }
 
     suspend fun getStockCount(): Int = stockDao.getCount()
 
+    suspend fun getEtfHoldingCount(): Int = stockDao.getEtfHoldingCount()
+
     suspend fun getLastUpdateTime(): Long? = stockDao.getLastUpdateTime()
+
+    // ========== ETF 보유 종목 동기화 ==========
+
+    /**
+     * 단일 종목 동기화 (ETF 보유 종목에서 호출)
+     */
+    suspend fun syncFromHolding(ticker: String, name: String) = withContext(Dispatchers.IO) {
+        try {
+            val market = Stock.inferMarket(ticker)
+            stockDao.upsertFromHolding(ticker, name, market, System.currentTimeMillis())
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to sync stock: $ticker", e)
+        }
+    }
+
+    /**
+     * 일괄 종목 동기화 (ETF 데이터 수집 후 호출)
+     */
+    suspend fun syncFromHoldings(holdings: List<Pair<String, String>>) = withContext(Dispatchers.IO) {
+        try {
+            if (holdings.isEmpty()) return@withContext
+            stockDao.syncFromHoldings(holdings)
+            Log.d(TAG, "Synced ${holdings.size} stocks from holdings")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to sync stocks from holdings", e)
+        }
+    }
+
+    // ========== 전체 종목 초기화 ==========
 
     /**
      * 종목 데이터 초기화 (Python에서 가져와서 DB에 저장)
@@ -45,7 +88,6 @@ class StockRepository @Inject constructor(
         try {
             Log.d(TAG, "Initializing stock data from Python...")
 
-            // Python에서 전체 종목 리스트 가져오기
             val stockList = pyClient.getAllStocksList()
 
             if (stockList.isEmpty()) {
@@ -53,25 +95,15 @@ class StockRepository @Inject constructor(
                 return@withContext Result.failure(Exception("Python 모듈 호출 실패"))
             }
 
-            // List<Pair<String, String>>를 Stock 엔티티로 변환
             val stocks = stockList.map { (ticker, name) ->
-                // market 정보는 ticker 번호로 추정
-                // KOSPI: 6자리 숫자가 대부분 0으로 시작
-                // KOSDAQ: 대부분 A로 시작하거나 다른 패턴
-                val market = when {
-                    ticker.startsWith("0") || ticker.startsWith("1") || ticker.startsWith("2") -> "KOSPI"
-                    else -> "KOSDAQ"
-                }
-
                 Stock(
                     ticker = ticker,
                     name = name,
-                    market = market,
+                    market = Stock.inferMarket(ticker),
                     lastUpdated = System.currentTimeMillis()
                 )
             }
 
-            // DB에 일괄 저장
             stockDao.deleteAll()
             stockDao.insertAll(stocks)
 
@@ -86,7 +118,5 @@ class StockRepository @Inject constructor(
     /**
      * 종목 데이터 업데이트
      */
-    suspend fun updateStocks(): Result<Int> {
-        return initializeStocks() // 전체 갱신
-    }
+    suspend fun updateStocks(): Result<Int> = initializeStocks()
 }

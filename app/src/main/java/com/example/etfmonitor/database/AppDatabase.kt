@@ -41,7 +41,7 @@ import com.etfmonitor.database.entities.StockPrediction
         AIChatMessage::class,
         StockPrediction::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -445,5 +445,80 @@ val MIGRATION_11_12 = object : Migration(11, 12) {
         database.execSQL("CREATE INDEX IF NOT EXISTS index_stock_predictions_predictionDate ON stock_predictions(predictionDate)")
         database.execSQL("CREATE INDEX IF NOT EXISTS index_stock_predictions_ticker ON stock_predictions(ticker)")
         database.execSQL("CREATE INDEX IF NOT EXISTS index_stock_predictions_confidence ON stock_predictions(confidence)")
+    }
+}
+
+/**
+ * Migration from version 12 to 13: Stock Master Integration
+ * 1. stocks 테이블 확장 (sector, is_etf_holding)
+ * 2. stock_analysis_data에서 name 컬럼 제거 (stocks JOIN으로 대체)
+ */
+val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // 1. stocks 테이블에 새 컬럼 추가
+        database.execSQL("ALTER TABLE stocks ADD COLUMN sector TEXT NOT NULL DEFAULT ''")
+        database.execSQL("ALTER TABLE stocks ADD COLUMN is_etf_holding INTEGER NOT NULL DEFAULT 0")
+
+        // 2. stocks 인덱스 추가
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_stocks_is_etf_holding ON stocks(is_etf_holding)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_stocks_market ON stocks(market)")
+
+        // 3. stock_analysis_data 테이블에서 name 컬럼 제거
+        // SQLite는 DROP COLUMN을 지원하지 않으므로 테이블 재생성 필요
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS stock_analysis_data_new (
+                ticker TEXT PRIMARY KEY NOT NULL,
+                dates TEXT NOT NULL,
+                marketCap TEXT NOT NULL,
+                foreign5d TEXT NOT NULL,
+                institution5d TEXT NOT NULL,
+                lastUpdated INTEGER NOT NULL,
+                dataStartDate TEXT NOT NULL,
+                dataEndDate TEXT NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // 4. 기존 데이터 복사 (name 제외)
+        database.execSQL(
+            """
+            INSERT INTO stock_analysis_data_new (ticker, dates, marketCap, foreign5d, institution5d, lastUpdated, dataStartDate, dataEndDate)
+            SELECT ticker, dates, marketCap, foreign5d, institution5d, lastUpdated, dataStartDate, dataEndDate
+            FROM stock_analysis_data
+            """.trimIndent()
+        )
+
+        // 5. 기존 테이블 삭제 및 이름 변경
+        database.execSQL("DROP TABLE stock_analysis_data")
+        database.execSQL("ALTER TABLE stock_analysis_data_new RENAME TO stock_analysis_data")
+
+        // 6. 기존 holdings 데이터를 기반으로 stocks 동기화 (is_etf_holding = 1)
+        database.execSQL(
+            """
+            INSERT OR IGNORE INTO stocks (ticker, name, market, sector, is_etf_holding, lastUpdated)
+            SELECT DISTINCT
+                h.stockTicker as ticker,
+                h.stockName as name,
+                CASE
+                    WHEN h.stockTicker LIKE '0%' OR h.stockTicker LIKE '1%'
+                         OR h.stockTicker LIKE '2%' OR h.stockTicker LIKE '3%' THEN 'KOSPI'
+                    ELSE 'KOSDAQ'
+                END as market,
+                '' as sector,
+                1 as is_etf_holding,
+                strftime('%s', 'now') * 1000 as lastUpdated
+            FROM holdings h
+            WHERE h.stockTicker NOT IN (SELECT ticker FROM stocks)
+            """.trimIndent()
+        )
+
+        // 7. 기존 stocks 데이터 중 holdings에 있는 것은 is_etf_holding = 1로 업데이트
+        database.execSQL(
+            """
+            UPDATE stocks SET is_etf_holding = 1
+            WHERE ticker IN (SELECT DISTINCT stockTicker FROM holdings)
+            """.trimIndent()
+        )
     }
 }
