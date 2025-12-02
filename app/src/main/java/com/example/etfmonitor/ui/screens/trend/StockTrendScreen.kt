@@ -10,9 +10,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.etfmonitor.ui.components.ChartCard
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
@@ -107,13 +109,13 @@ private fun TrendContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         SummaryCard(trend.timeSeries)
-        ChartCard(
+        StockTrendChartCard(
             title = "비중 추이 (%)",
             data = trend.timeSeries,
             valueExtractor = { it.weight },
             color = MaterialTheme.colorScheme.primary
         )
-        ChartCard(
+        StockTrendChartCard(
             title = "평가금액 추이 (억원)",
             data = trend.timeSeries,
             valueExtractor = { it.amount / 100_000_000 },
@@ -181,93 +183,90 @@ private fun SummaryItem(label: String, value: String) {
     }
 }
 
-// ✅ 2. ChartCard 개선 (평가금액 차트용)
+// ✅ 2. StockTrendChartCard 개선 (평가금액 차트용)
+// Uses shared ChartCard with dark mode support
 @Composable
-private fun ChartCard(
+private fun StockTrendChartCard(
     title: String,
     data: List<HoldingTimeSeries>,
     valueExtractor: (HoldingTimeSeries) -> Float,
     color: Color
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // ✅ 개선: 차트 제목에 동적 단위 추가
-            val maxValue = data.maxOfOrNull { valueExtractor(it) } ?: 0f
-            val isAmountChart = title.contains("금액")
-            val chartTitle = if (isAmountChart) {
-                val unit = AmountFormatter.getChartUnit(maxValue)
-                "평가금액 추이 ($unit)"
-            } else {
-                title
-            }
+    // ✅ 개선: 차트 제목에 동적 단위 추가
+    val maxValue = data.maxOfOrNull { valueExtractor(it) } ?: 0f
+    val isAmountChart = title.contains("금액")
+    val chartTitle = if (isAmountChart) {
+        val unit = AmountFormatter.getChartUnit(maxValue)
+        "평가금액 추이 ($unit)"
+    } else {
+        title
+    }
 
-            Text(chartTitle, style = MaterialTheme.typography.titleMedium)
+    ChartCard(
+        title = chartTitle,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        if (data.isEmpty()) {
+            Text("데이터 없음", style = MaterialTheme.typography.bodySmall)
+        } else {
+            val modelProducer = remember { CartesianChartModelProducer() }
+            val scope = rememberCoroutineScope()
+            val dateLabelsKey = remember { ExtraStore.Key<List<String>>() }
 
-            if (data.isEmpty()) {
-                Text("데이터 없음", style = MaterialTheme.typography.bodySmall)
-            } else {
-                val modelProducer = remember { CartesianChartModelProducer() }
-                val scope = rememberCoroutineScope()
-                val dateLabelsKey = remember { ExtraStore.Key<List<String>>() }
-
-                LaunchedEffect(data) {
-                    scope.launch(Dispatchers.Default) {
-                        modelProducer.runTransaction {
-                            lineSeries {
-                                // ✅ 개선: 차트 값 변환
-                                if (isAmountChart) {
-                                    series(data.map { AmountFormatter.toChartValue(valueExtractor(it)) })
-                                } else {
-                                    series(data.map { valueExtractor(it).toDouble() })
-                                }
+            LaunchedEffect(data) {
+                scope.launch(Dispatchers.Default) {
+                    modelProducer.runTransaction {
+                        lineSeries {
+                            // ✅ 개선: 차트 값 변환
+                            if (isAmountChart) {
+                                series(data.map { AmountFormatter.toChartValue(valueExtractor(it)) })
+                            } else {
+                                series(data.map { valueExtractor(it).toDouble() })
                             }
-                            extras { extraStore ->
-                                extraStore[dateLabelsKey] = data.map { formatDateForChart(it.date) }
-                            }
+                        }
+                        extras { extraStore ->
+                            extraStore[dateLabelsKey] = data.map { formatDateForChart(it.date) }
                         }
                     }
                 }
+            }
 
-                CartesianChartHost(
-                    chart = rememberCartesianChart(
-                        rememberLineCartesianLayer(),
-                        startAxis = rememberStartAxis(
-                            label = rememberTextComponent(
-                                color = MaterialTheme.colorScheme.onSurface,
-                                textSize = 10.sp
-                            )
-                        ),
-                        bottomAxis = rememberBottomAxis(
-                            label = rememberTextComponent(
-                                color = MaterialTheme.colorScheme.onSurface,
-                                textSize = 10.sp
-                            ),
-                            valueFormatter = { x, chartValues, _ ->
-                                val dateLabels = chartValues.model.extraStore.getOrNull(dateLabelsKey)
-                                val index = x.toInt()
-                                if (dateLabels != null && index >= 0 && index < dateLabels.size) {
-                                    dateLabels[index]
-                                } else {
-                                    ""
-                                }
-                            },
-                            itemPlacer = remember {
-                                HorizontalAxis.ItemPlacer.default(
-                                    spacing = 1,
-                                    addExtremeLabelPadding = true
-                                )
-                            }
+            CartesianChartHost(
+                chart = rememberCartesianChart(
+                    rememberLineCartesianLayer(),
+                    startAxis = rememberStartAxis(
+                        label = rememberTextComponent(
+                            color = ComposeColor.Black,
+                            textSize = 10.sp
                         )
                     ),
-                    modelProducer = modelProducer,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                )
-            }
+                    bottomAxis = rememberBottomAxis(
+                        label = rememberTextComponent(
+                            color = ComposeColor.Black,
+                            textSize = 10.sp
+                        ),
+                        valueFormatter = { x, chartValues, _ ->
+                            val dateLabels = chartValues.model.extraStore.getOrNull(dateLabelsKey)
+                            val index = x.toInt()
+                            if (dateLabels != null && index >= 0 && index < dateLabels.size) {
+                                dateLabels[index]
+                            } else {
+                                ""
+                            }
+                        },
+                        itemPlacer = remember {
+                            HorizontalAxis.ItemPlacer.default(
+                                spacing = 1,
+                                addExtremeLabelPadding = true
+                            )
+                        }
+                    )
+                ),
+                modelProducer = modelProducer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+            )
         }
     }
 }
@@ -309,7 +308,7 @@ private fun DataTable(timeSeries: List<HoldingTimeSeries>) {
 
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
 
-            timeSeries.reversed().forEach { item ->
+            timeSeries.reversed().take(5).forEach { item ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

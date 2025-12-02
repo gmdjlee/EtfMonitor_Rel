@@ -29,6 +29,8 @@ import com.etfmonitor.database.entities.StockChangeInfo
 import com.etfmonitor.ui.screens.statistics.SortColumn
 import com.etfmonitor.ui.theme.*
 import com.etfmonitor.ui.utils.AmountFormatter
+import com.etfmonitor.ui.components.ChartCard
+import androidx.compose.ui.graphics.Color as ComposeColor
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
@@ -501,74 +503,63 @@ private fun CashDepositSummaryCard(trend: List<CashDepositTrend>) {
 
 @Composable
 private fun CashDepositChartCard(trend: List<CashDepositTrend>) {
-    OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.extendedShapes.cardLarge
+    ChartCard(
+        title = "원화예금 추이 (억원)",
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier.padding(MaterialTheme.spacing.medium),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
-        ) {
-            Text(
-                "원화예금 추이 (억원)",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+        val modelProducer = remember { CartesianChartModelProducer() }
+        val scope = rememberCoroutineScope()
+        val dateLabelsKey = remember { ExtraStore.Key<List<String>>() }
 
-            val modelProducer = remember { CartesianChartModelProducer() }
-            val scope = rememberCoroutineScope()
-            val dateLabelsKey = remember { ExtraStore.Key<List<String>>() }
-
-            LaunchedEffect(trend) {
-                scope.launch(Dispatchers.Default) {
-                    modelProducer.runTransaction {
-                        lineSeries {
-                            series(trend.map { (it.totalAmount / 100_000_000).toDouble() })
-                        }
-                        extras { extraStore ->
-                            extraStore[dateLabelsKey] = trend.map { formatDateForChart(it.date) }
-                        }
+        LaunchedEffect(trend) {
+            scope.launch(Dispatchers.Default) {
+                modelProducer.runTransaction {
+                    lineSeries {
+                        series(trend.map { (it.totalAmount / 100_000_000).toDouble() })
+                    }
+                    extras { extraStore ->
+                        extraStore[dateLabelsKey] = trend.map { formatDateForChart(it.date) }
                     }
                 }
             }
+        }
 
-            CartesianChartHost(
-                chart = rememberCartesianChart(
-                    rememberLineCartesianLayer(),
-                    startAxis = rememberStartAxis(
-                        label = rememberTextComponent(
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textSize = 10.sp
-                        )
-                    ),
-                    bottomAxis = rememberBottomAxis(
-                        label = rememberTextComponent(
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textSize = 10.sp
-                        ),
-                        valueFormatter = { x, chartValues, _ ->
-                            val dateLabels = chartValues.model.extraStore.getOrNull(dateLabelsKey)
-                            val index = x.toInt()
-                            if (dateLabels != null && index >= 0 && index < dateLabels.size) {
-                                dateLabels[index]
-                            } else {
-                                ""
-                            }
-                        },
-                        itemPlacer = remember {
-                            HorizontalAxis.ItemPlacer.default(
-                                spacing = 2,
-                                addExtremeLabelPadding = true
-                            )
-                        }
+        CartesianChartHost(
+            chart = rememberCartesianChart(
+                rememberLineCartesianLayer(),
+                startAxis = rememberStartAxis(
+                    label = rememberTextComponent(
+                        color = ComposeColor.Black,
+                        textSize = 10.sp
                     )
                 ),
-                modelProducer = modelProducer,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-            )
-        }
+                bottomAxis = rememberBottomAxis(
+                    label = rememberTextComponent(
+                        color = ComposeColor.Black,
+                        textSize = 10.sp
+                    ),
+                    valueFormatter = { x, chartValues, _ ->
+                        val dateLabels = chartValues.model.extraStore.getOrNull(dateLabelsKey)
+                        val index = x.toInt()
+                        if (dateLabels != null && index >= 0 && index < dateLabels.size) {
+                            dateLabels[index]
+                        } else {
+                            ""
+                        }
+                    },
+                    itemPlacer = remember {
+                        HorizontalAxis.ItemPlacer.default(
+                            spacing = 2,
+                            addExtremeLabelPadding = true
+                        )
+                    }
+                )
+            ),
+            modelProducer = modelProducer,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+        )
     }
 }
 
@@ -603,7 +594,7 @@ private fun CashDepositDataTable(trend: List<CashDepositTrend>) {
                 color = MaterialTheme.colorScheme.outlineVariant
             )
 
-            trend.reversed().forEach { item ->
+            trend.reversed().take(5).forEach { item ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

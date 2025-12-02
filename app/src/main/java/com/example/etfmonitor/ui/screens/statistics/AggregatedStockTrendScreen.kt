@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -20,6 +21,7 @@ import com.etfmonitor.database.entities.StockAggregatedTimePoint
 import com.etfmonitor.database.entities.StockAggregatedTrend
 import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.ui.utils.AmountFormatter
+import com.etfmonitor.ui.components.ChartCard
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -213,91 +215,88 @@ private fun SummaryItem(label: String, value: String) {
 }
 
 // ✅ 2. AggregatedChartCard 개선
+// Uses shared ChartCard with dark mode support
 @Composable
 private fun AggregatedChartCard(
     title: String,
     data: List<StockAggregatedTimePoint>,
     valueExtractor: (StockAggregatedTimePoint) -> Float
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // ✅ 개선: 차트 제목에 동적 단위 추가
-            val maxValue = data.maxOfOrNull { valueExtractor(it) } ?: 0f
-            val isAmountChart = title.contains("금액")
-            val chartTitle = if (isAmountChart) {
-                val unit = AmountFormatter.getChartUnit(maxValue)
-                "총 평가금액 추이 ($unit)"
-            } else {
-                title
-            }
+    // ✅ 개선: 차트 제목에 동적 단위 추가
+    val maxValue = data.maxOfOrNull { valueExtractor(it) } ?: 0f
+    val isAmountChart = title.contains("금액")
+    val chartTitle = if (isAmountChart) {
+        val unit = AmountFormatter.getChartUnit(maxValue)
+        "총 평가금액 추이 ($unit)"
+    } else {
+        title
+    }
 
-            Text(chartTitle, style = MaterialTheme.typography.titleMedium)
+    ChartCard(
+        title = chartTitle,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        if (data.isEmpty()) {
+            Text("데이터 없음", style = MaterialTheme.typography.bodySmall)
+        } else {
+            val modelProducer = remember { CartesianChartModelProducer() }
+            val scope = rememberCoroutineScope()
+            val dateLabelsKey = remember { ExtraStore.Key<List<String>>() }
 
-            if (data.isEmpty()) {
-                Text("데이터 없음", style = MaterialTheme.typography.bodySmall)
-            } else {
-                val modelProducer = remember { CartesianChartModelProducer() }
-                val scope = rememberCoroutineScope()
-                val dateLabelsKey = remember { ExtraStore.Key<List<String>>() }
-
-                LaunchedEffect(data) {
-                    scope.launch(Dispatchers.Default) {
-                        modelProducer.runTransaction {
-                            lineSeries {
-                                // ✅ 개선: 차트 값 변환
-                                if (isAmountChart) {
-                                    series(data.map { AmountFormatter.toChartValue(valueExtractor(it)) })
-                                } else {
-                                    series(data.map { valueExtractor(it).toDouble() })
-                                }
+            LaunchedEffect(data) {
+                scope.launch(Dispatchers.Default) {
+                    modelProducer.runTransaction {
+                        lineSeries {
+                            // ✅ 개선: 차트 값 변환
+                            if (isAmountChart) {
+                                series(data.map { AmountFormatter.toChartValue(valueExtractor(it)) })
+                            } else {
+                                series(data.map { valueExtractor(it).toDouble() })
                             }
-                            extras { extraStore ->
-                                extraStore[dateLabelsKey] = data.map { formatDateForChart(it.date) }
-                            }
+                        }
+                        extras { extraStore ->
+                            extraStore[dateLabelsKey] = data.map { formatDateForChart(it.date) }
                         }
                     }
                 }
+            }
 
-                CartesianChartHost(
-                    chart = rememberCartesianChart(
-                        rememberLineCartesianLayer(),
-                        startAxis = rememberStartAxis(
-                            label = rememberTextComponent(
-                                color = MaterialTheme.colorScheme.onSurface,
-                                textSize = 10.sp
-                            )
-                        ),
-                        bottomAxis = rememberBottomAxis(
-                            label = rememberTextComponent(
-                                color = MaterialTheme.colorScheme.onSurface,
-                                textSize = 10.sp
-                            ),
-                            valueFormatter = { x, chartValues, _ ->
-                                val dateLabels = chartValues.model.extraStore.getOrNull(dateLabelsKey)
-                                val index = x.toInt()
-                                if (dateLabels != null && index >= 0 && index < dateLabels.size) {
-                                    dateLabels[index]
-                                } else {
-                                    ""
-                                }
-                            },
-                            itemPlacer = remember {
-                                HorizontalAxis.ItemPlacer.default(
-                                    spacing = 2,
-                                    addExtremeLabelPadding = true
-                                )
-                            }
+            CartesianChartHost(
+                chart = rememberCartesianChart(
+                    rememberLineCartesianLayer(),
+                    startAxis = rememberStartAxis(
+                        label = rememberTextComponent(
+                            color = ComposeColor.Black,
+                            textSize = 10.sp
                         )
                     ),
-                    modelProducer = modelProducer,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                )
-            }
+                    bottomAxis = rememberBottomAxis(
+                        label = rememberTextComponent(
+                            color = ComposeColor.Black,
+                            textSize = 10.sp
+                        ),
+                        valueFormatter = { x, chartValues, _ ->
+                            val dateLabels = chartValues.model.extraStore.getOrNull(dateLabelsKey)
+                            val index = x.toInt()
+                            if (dateLabels != null && index >= 0 && index < dateLabels.size) {
+                                dateLabels[index]
+                            } else {
+                                ""
+                            }
+                        },
+                        itemPlacer = remember {
+                            HorizontalAxis.ItemPlacer.default(
+                                spacing = 2,
+                                addExtremeLabelPadding = true
+                            )
+                        }
+                    )
+                ),
+                modelProducer = modelProducer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+            )
         }
     }
 }
@@ -340,7 +339,7 @@ private fun AggregatedDataTable(timeSeries: List<StockAggregatedTimePoint>) {
 
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
 
-            timeSeries.reversed().forEach { item ->
+            timeSeries.reversed().take(5).forEach { item ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

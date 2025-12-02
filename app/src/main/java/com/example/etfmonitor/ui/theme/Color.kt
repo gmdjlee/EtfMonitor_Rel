@@ -106,6 +106,11 @@ val ShimmerHighlightLight = Color(0xFFFEFCF4)  // Warm white
 val ShimmerColorDark = Color(0xFF2B2F28)  // Dark olive
 val ShimmerHighlightDark = Color(0xFF353932)  // Lighter dark olive
 
+// Chart card background colors - For better chart visibility
+// In dark mode, charts need a lighter background to be readable
+val ChartCardBackgroundLight = Color(0xFFFEFCF4)  // Warm off-white (matches surfaceLight)
+val ChartCardBackgroundDark = Color(0xFFF5F3E8)   // Light beige - readable in dark mode
+
 // Additional semantic colors for production apps - Nature palette
 val SuccessLight = Color(0xFF4C6C43)  // Success - moss green
 val SuccessDark = Color(0xFFB1D18A)  // Success - bright lime
