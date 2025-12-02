@@ -30,6 +30,7 @@ import com.etfmonitor.ui.screens.statistics.SortColumn
 import com.etfmonitor.ui.theme.*
 import com.etfmonitor.ui.utils.AmountFormatter
 import com.etfmonitor.ui.components.ChartCard
+import androidx.compose.ui.graphics.Color as ComposeColor
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
@@ -528,13 +529,13 @@ private fun CashDepositChartCard(trend: List<CashDepositTrend>) {
                 rememberLineCartesianLayer(),
                 startAxis = rememberStartAxis(
                     label = rememberTextComponent(
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = ComposeColor.Black,
                         textSize = 10.sp
                     )
                 ),
                 bottomAxis = rememberBottomAxis(
                     label = rememberTextComponent(
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = ComposeColor.Black,
                         textSize = 10.sp
                     ),
                     valueFormatter = { x, chartValues, _ ->
@@ -593,7 +594,7 @@ private fun CashDepositDataTable(trend: List<CashDepositTrend>) {
                 color = MaterialTheme.colorScheme.outlineVariant
             )
 
-            trend.reversed().forEach { item ->
+            trend.reversed().take(5).forEach { item ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

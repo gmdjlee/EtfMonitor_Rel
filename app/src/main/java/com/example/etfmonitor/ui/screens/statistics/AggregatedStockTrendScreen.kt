@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -265,13 +266,13 @@ private fun AggregatedChartCard(
                     rememberLineCartesianLayer(),
                     startAxis = rememberStartAxis(
                         label = rememberTextComponent(
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = ComposeColor.Black,
                             textSize = 10.sp
                         )
                     ),
                     bottomAxis = rememberBottomAxis(
                         label = rememberTextComponent(
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = ComposeColor.Black,
                             textSize = 10.sp
                         ),
                         valueFormatter = { x, chartValues, _ ->
@@ -338,7 +339,7 @@ private fun AggregatedDataTable(timeSeries: List<StockAggregatedTimePoint>) {
 
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
 
-            timeSeries.reversed().forEach { item ->
+            timeSeries.reversed().take(5).forEach { item ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

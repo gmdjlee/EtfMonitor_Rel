@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -235,13 +236,13 @@ private fun StockTrendChartCard(
                     rememberLineCartesianLayer(),
                     startAxis = rememberStartAxis(
                         label = rememberTextComponent(
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = ComposeColor.Black,
                             textSize = 10.sp
                         )
                     ),
                     bottomAxis = rememberBottomAxis(
                         label = rememberTextComponent(
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = ComposeColor.Black,
                             textSize = 10.sp
                         ),
                         valueFormatter = { x, chartValues, _ ->
@@ -307,7 +308,7 @@ private fun DataTable(timeSeries: List<HoldingTimeSeries>) {
 
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
 
-            timeSeries.reversed().forEach { item ->
+            timeSeries.reversed().take(5).forEach { item ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
