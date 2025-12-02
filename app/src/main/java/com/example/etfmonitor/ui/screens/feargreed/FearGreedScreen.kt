@@ -16,6 +16,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.ui.components.LoadingCard
 import com.etfmonitor.ui.components.ErrorCard
 import com.etfmonitor.ui.components.IdleCard
+import com.etfmonitor.ui.components.ChartCard
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
@@ -231,25 +232,17 @@ fun FearGreedScreen(
                 }
 
                 // Fear & Greed Oscillator Chart with Index
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            "Fear & Greed Oscillator & ${selectedMarket} 지수",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        FearGreedChart(
-                            data = fearGreedData,
-                            chartColors = chartColorSettings.fearGreed,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(350.dp)
-                        )
-                    }
+                ChartCard(
+                    title = "Fear & Greed Oscillator & ${selectedMarket} 지수",
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    FearGreedChart(
+                        data = fearGreedData,
+                        chartColors = chartColorSettings.fearGreed,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(350.dp)
+                    )
                 }
             }
         }

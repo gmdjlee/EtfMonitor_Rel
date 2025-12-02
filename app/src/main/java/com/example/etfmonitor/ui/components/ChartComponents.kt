@@ -870,20 +870,27 @@ fun TrendSignalChart(
 
 /**
  * Modern chart card container with enhanced styling
+ * Uses a lighter background in dark mode for better chart readability
  */
 @Composable
-private fun ChartCard(
+fun ChartCard(
     title: String,
     subtitle: String? = null,
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
+    val chartCardBackground = if (isDark) ChartCardBackgroundDark else ChartCardBackgroundLight
+    // In dark mode with light background, use dark text colors
+    val titleColor = if (isDark) ChartTextLight else MaterialTheme.colorScheme.onSurface
+    val subtitleColor = if (isDark) ChartTextLight.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .animateContentSize(animationSpec = tween(300)),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = chartCardBackground
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 3.dp,
@@ -900,14 +907,14 @@ private fun ChartCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = titleColor
                 )
 
                 subtitle?.let {
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = subtitleColor
                     )
                 }
             }
