@@ -144,3 +144,79 @@ enum class FearGreedState(val displayName: String) {
         }
     }
 }
+
+// ============================================================
+// Elder Impulse System 모델
+// ============================================================
+
+/**
+ * Elder Impulse System 데이터
+ * EMA13 + MACD 기반 추세 판별
+ */
+data class ElderImpulseData(
+    val ticker: String,
+    val name: String,
+    val interval: String,           // "w" (주봉)
+    val dates: List<String>,
+    val close: List<Double>,
+    val marketCap: List<Long>,      // 시가총액
+    val ema: List<Double>,          // EMA13
+    val macd: List<Double>,         // MACD
+    val macdSignal: List<Double>,   // MACD Signal
+    val macdHist: List<Double>,     // MACD Histogram
+    val impulse: List<Int>          // 1=bull, 0=neutral, -1=bear
+)
+
+/**
+ * Impulse 상태
+ */
+enum class ImpulseState(val displayName: String, val value: Int) {
+    BULL("상승", 1),
+    NEUTRAL("중립", 0),
+    BEAR("하락", -1);
+
+    companion object {
+        fun fromValue(value: Int): ImpulseState = when (value) {
+            1 -> BULL
+            -1 -> BEAR
+            else -> NEUTRAL
+        }
+    }
+}
+
+// ============================================================
+// DeMark TD Setup 모델
+// ============================================================
+
+/**
+ * DeMark TD Setup 데이터
+ * 매수/매도 피로 카운트
+ */
+data class DemarkTDData(
+    val ticker: String,
+    val name: String,
+    val interval: String,           // "d", "w", "m"
+    val intervalName: String,       // "일봉", "주봉", "월봉"
+    val dates: List<String>,
+    val close: List<Double>,
+    val marketCap: List<Long>,      // 시가총액
+    val tdSell: List<Int>,          // 매도 피로 카운트 (상승 피로)
+    val tdBuy: List<Int>            // 매수 피로 카운트 (하락 피로)
+)
+
+/**
+ * TD Setup 상태 (9 이상이면 피로 상태)
+ */
+enum class TDSetupState(val displayName: String) {
+    SELL_FATIGUE("매도 피로 (9+)"),     // 상승 지속 후 반전 가능
+    BUY_FATIGUE("매수 피로 (9+)"),      // 하락 지속 후 반전 가능
+    NONE("없음");
+
+    companion object {
+        fun fromCounts(tdSell: Int, tdBuy: Int): TDSetupState = when {
+            tdSell >= 9 -> SELL_FATIGUE
+            tdBuy >= 9 -> BUY_FATIGUE
+            else -> NONE
+        }
+    }
+}

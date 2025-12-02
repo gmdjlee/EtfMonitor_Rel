@@ -1,6 +1,6 @@
 """
 Trend signal analysis module.
-Technical indicators: MA, CMF, Fear & Greed Index with buy/sell signals.
+Technical indicators: MA, CMF, Fear & Greed Index, DeMark TD Setup, Elder Impulse System.
 """
 import json
 from datetime import datetime, timedelta
@@ -14,9 +14,97 @@ from core import get_logger, get_name, to_json, err_json
 log = get_logger(__name__)
 
 
+# ============================================================
+# OHLCV Data Fetching with Monthly Resampling
+# ============================================================
+
+def _resample_monthly(df: pd.DataFrame) -> pd.DataFrame:
+    """월봉 리샘플링."""
+    if df.empty:
+        return df
+    return df.resample("ME").agg({
+        "O": "first", "H": "max", "L": "min", "C": "last", "V": "sum"
+    }).dropna()
+
+
+# ============================================================
+# DeMark TD Setup
+# ============================================================
+
+def _calc_td_setup(df: pd.DataFrame, col: str = "C") -> pd.DataFrame:
+    """DeMark TD Setup 카운트 계산.
+
+    - Sell Setup: Close(t) > Close(t-4) 연속 시 +1
+    - Buy Setup: Close(t) < Close(t-4) 연속 시 +1
+    """
+    df = df.copy()
+    n = len(df)
+    sell = np.zeros(n)
+    buy = np.zeros(n)
+    prices = df[col].values
+
+    for i in range(4, n):
+        if prices[i] > prices[i - 4]:
+            sell[i] = sell[i - 1] + 1
+        else:
+            sell[i] = 0
+
+        if prices[i] < prices[i - 4]:
+            buy[i] = buy[i - 1] + 1
+        else:
+            buy[i] = 0
+
+    df["TD_Sell"] = sell.astype(int)
+    df["TD_Buy"] = buy.astype(int)
+    return df
+
+
+# ============================================================
+# Elder Impulse System
+# ============================================================
+
+def _calc_ema(s: pd.Series, n: int) -> pd.Series:
+    """지수이동평균."""
+    return s.ewm(span=n, adjust=False).mean()
+
+
+def _calc_elder_impulse(df: pd.DataFrame, ema_period: int = 13) -> pd.DataFrame:
+    """Elder Impulse System 계산.
+
+    - EMA 기울기와 MACD 히스토그램 기울기로 추세 판별
+    - bull: 둘 다 상승, bear: 둘 다 하락, neutral: 혼조
+    """
+    df = df.copy()
+    close = df["C"]
+
+    df["EMA"] = _calc_ema(close, ema_period)
+
+    ema12 = _calc_ema(close, 12)
+    ema26 = _calc_ema(close, 26)
+    df["MACD"] = ema12 - ema26
+    df["MACD_Signal"] = _calc_ema(df["MACD"], 9)
+    df["MACD_Hist"] = df["MACD"] - df["MACD_Signal"]
+
+    ema_slope = df["EMA"].diff()
+    hist_slope = df["MACD_Hist"].diff()
+
+    impulse = pd.Series(0, index=df.index)  # 0=neutral
+    impulse[(ema_slope > 0) & (hist_slope > 0)] = 1   # bull
+    impulse[(ema_slope < 0) & (hist_slope < 0)] = -1  # bear
+    df["Impulse"] = impulse
+
+    return df
+
+
 def _get_ohlcv(ticker: str, days: int, interval: str = "d") -> Optional[pd.DataFrame]:
-    """Get OHLCV data."""
-    extra = days * 2 if interval == "w" else days
+    """Get OHLCV data.
+
+    Args:
+        ticker: Stock code
+        days: Analysis period
+        interval: "d" (daily), "w" (weekly), "m" (monthly)
+    """
+    extra = days * 3 if interval == "m" else (days * 2 if interval == "w" else days)
     end = datetime.now()
     start = end - timedelta(days=extra)
 
@@ -30,6 +118,8 @@ def _get_ohlcv(ticker: str, days: int, interval: str = "d") -> Optional[pd.DataF
 
         if interval == "w":
             df = df.resample("W").agg({"O": "first", "H": "max", "L": "min", "C": "last", "V": "sum"}).dropna()
+        elif interval == "m":
+            df = _resample_monthly(df)
 
         return df if not df.empty else None
 
@@ -152,4 +242,143 @@ def get_trend_signal_analysis(ticker: str, days: int = 180, interval: str = "w",
     }
 
     log.info("Trend analysis complete: %s, %d records", name, len(data["dates"]))
+    return to_json(data)
+
+
+# ============================================================
+# Elder Impulse API
+# ============================================================
+
+def get_elder_impulse_analysis(ticker: str, days: int = 365) -> str:
+    """
+    Elder Impulse System 분석 (주봉 기준).
+
+    Args:
+        ticker: Stock code
+        days: Analysis period (default 1 year)
+
+    Returns: JSON with market cap, EMA13, MACD, impulse signals
+    """
+    if not ticker or not ticker.strip():
+        return err_json("종목 코드가 필요합니다")
+
+    log.info("Elder Impulse analysis: %s, %d days", ticker, days)
+
+    # 주봉 데이터 가져오기
+    df = _get_ohlcv(ticker, days, "w")
+    if df is None:
+        return err_json("데이터를 가져올 수 없습니다")
+
+    # 시가총액 데이터 가져오기
+    end = datetime.now()
+    start = end - timedelta(days=days * 2)
+    try:
+        cap_df = stock.get_market_cap(start.strftime("%Y%m%d"), end.strftime("%Y%m%d"), ticker)
+        if not cap_df.empty:
+            cap_df = cap_df.resample("W").last().dropna()
+            df = df.join(cap_df[["시가총액"]], how="left")
+            df["MarketCap"] = df["시가총액"].fillna(method="ffill")
+        else:
+            df["MarketCap"] = 0
+    except Exception as e:
+        log.warning("Market cap error: %s", e)
+        df["MarketCap"] = 0
+
+    # Elder Impulse 계산
+    df = _calc_elder_impulse(df)
+    r = df.dropna(subset=["EMA", "MACD", "Impulse"])
+
+    if r.empty:
+        return err_json("지표 계산 후 데이터가 없습니다")
+
+    name = get_name(ticker) or ticker
+
+    data = {
+        "ticker": ticker,
+        "name": name,
+        "interval": "w",
+        "dates": r.index.strftime("%Y-%m-%d").tolist(),
+        "close": r["C"].tolist(),
+        "market_cap": [int(v) for v in r["MarketCap"]],
+        "ema": r["EMA"].tolist(),
+        "macd": r["MACD"].tolist(),
+        "macd_signal": r["MACD_Signal"].tolist(),
+        "macd_hist": r["MACD_Hist"].tolist(),
+        "impulse": r["Impulse"].tolist()  # 1=bull, 0=neutral, -1=bear
+    }
+
+    log.info("Elder Impulse complete: %s, %d records", name, len(data["dates"]))
+    return to_json(data)
+
+
+# ============================================================
+# DeMark TD Setup API
+# ============================================================
+
+def get_demark_td_analysis(ticker: str, days: int = 365, interval: str = "w") -> str:
+    """
+    DeMark TD Setup 분석.
+
+    Args:
+        ticker: Stock code
+        days: Analysis period
+        interval: "d" (daily), "w" (weekly), "m" (monthly)
+
+    Returns: JSON with market cap, close prices, TD_Buy, TD_Sell counts
+    """
+    if not ticker or not ticker.strip():
+        return err_json("종목 코드가 필요합니다")
+
+    if interval not in ("d", "w", "m"):
+        return err_json("interval은 'd', 'w', 'm' 중 하나여야 합니다")
+
+    log.info("DeMark TD analysis: %s, %d days, %s", ticker, days, interval)
+
+    df = _get_ohlcv(ticker, days, interval)
+    if df is None:
+        return err_json("데이터를 가져올 수 없습니다")
+
+    # 시가총액 데이터 가져오기
+    end = datetime.now()
+    extra = days * 3 if interval == "m" else (days * 2 if interval == "w" else days)
+    start = end - timedelta(days=extra)
+
+    try:
+        cap_df = stock.get_market_cap(start.strftime("%Y%m%d"), end.strftime("%Y%m%d"), ticker)
+        if not cap_df.empty:
+            if interval == "w":
+                cap_df = cap_df.resample("W").last().dropna()
+            elif interval == "m":
+                cap_df = cap_df.resample("ME").last().dropna()
+            df = df.join(cap_df[["시가총액"]], how="left")
+            df["MarketCap"] = df["시가총액"].fillna(method="ffill")
+        else:
+            df["MarketCap"] = 0
+    except Exception as e:
+        log.warning("Market cap error: %s", e)
+        df["MarketCap"] = 0
+
+    # DeMark TD Setup 계산
+    df = _calc_td_setup(df)
+
+    if len(df) < 5:
+        return err_json("데이터가 부족합니다 (최소 5개 필요)")
+
+    name = get_name(ticker) or ticker
+
+    interval_name = {"d": "일봉", "w": "주봉", "m": "월봉"}.get(interval, interval)
+
+    data = {
+        "ticker": ticker,
+        "name": name,
+        "interval": interval,
+        "interval_name": interval_name,
+        "dates": df.index.strftime("%Y-%m-%d").tolist(),
+        "close": df["C"].tolist(),
+        "market_cap": [int(v) for v in df["MarketCap"]],
+        "td_sell": df["TD_Sell"].tolist(),  # 매도 피로 카운트
+        "td_buy": df["TD_Buy"].tolist()     # 매수 피로 카운트
+    }
+
+    log.info("DeMark TD complete: %s, %d records, %s", name, len(data["dates"]), interval_name)
     return to_json(data)

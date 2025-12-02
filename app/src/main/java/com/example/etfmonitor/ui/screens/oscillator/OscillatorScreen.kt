@@ -25,9 +25,13 @@ import com.etfmonitor.ui.components.TrendSignalChart
 import com.etfmonitor.ui.components.LoadingCard
 import com.etfmonitor.ui.components.ErrorCard
 import com.etfmonitor.ui.components.IdleCard
+import com.etfmonitor.ui.components.ElderImpulseChart
+import com.etfmonitor.ui.components.DemarkTDChart
 import com.etfmonitor.oscillator.model.TrendSignalAnalysis
 import com.etfmonitor.oscillator.model.TrendTradeSignal
 import com.etfmonitor.oscillator.model.FearGreedState
+import com.etfmonitor.oscillator.model.ElderImpulseData
+import com.etfmonitor.oscillator.model.DemarkTDData
 import com.etfmonitor.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,6 +44,7 @@ fun OscillatorScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val suggestions by viewModel.suggestions.collectAsState()
     val searchHistory by viewModel.searchHistory.collectAsState()
+    val demarkTDInterval by viewModel.demarkTDInterval.collectAsState()
 
     Scaffold(
         topBar = {
@@ -253,6 +258,23 @@ fun OscillatorScreen(
                         latestDate = currentState.stockData.dates.lastOrNull()
                     )
 
+                    // Elder Impulse 차트 (주봉)
+                    currentState.elderImpulseData?.let { elderData ->
+                        ElderImpulseChart(
+                            data = elderData,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    // DeMark TD 차트 (인터벌 선택 가능)
+                    currentState.demarkTDData?.let { demarkData ->
+                        DemarkTDChartWithSelector(
+                            data = demarkData,
+                            currentInterval = demarkTDInterval,
+                            onIntervalChange = { viewModel.changeDemarkTDInterval(it) }
+                        )
+                    }
+
                     // Oscillator Data Card
                     DataCard(currentState.oscillatorResult)
                 }
@@ -277,6 +299,82 @@ fun OscillatorScreen(
                     viewModel.analyzeStock(ticker)
                 }
             )
+        }
+    }
+}
+
+/**
+ * DeMark TD 차트 + 인터벌 선택 버튼
+ */
+@Composable
+private fun DemarkTDChartWithSelector(
+    data: DemarkTDData,
+    currentInterval: String,
+    onIntervalChange: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // 인터벌 선택 버튼
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            IntervalButton(
+                text = "일봉",
+                selected = currentInterval == "d",
+                onClick = { onIntervalChange("d") },
+                modifier = Modifier.weight(1f)
+            )
+            IntervalButton(
+                text = "주봉",
+                selected = currentInterval == "w",
+                onClick = { onIntervalChange("w") },
+                modifier = Modifier.weight(1f)
+            )
+            IntervalButton(
+                text = "월봉",
+                selected = currentInterval == "m",
+                onClick = { onIntervalChange("m") },
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        // DeMark TD 차트
+        DemarkTDChart(
+            data = data,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+/**
+ * 인터벌 선택 버튼
+ */
+@Composable
+private fun IntervalButton(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (selected) {
+        Button(
+            onClick = onClick,
+            modifier = modifier,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
+            Text(text)
+        }
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            modifier = modifier
+        ) {
+            Text(text)
         }
     }
 }
