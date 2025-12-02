@@ -3,6 +3,7 @@ package com.etfmonitor.repository
 import android.util.Log
 import com.etfmonitor.database.DailyEtfStatisticsDao
 import com.etfmonitor.database.EtfDao
+import com.etfmonitor.database.StockDao
 import com.etfmonitor.database.entities.*
 import com.etfmonitor.python.PyKrxClient
 import kotlinx.coroutines.Dispatchers
@@ -18,22 +19,17 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Production Level DataRepository
+ * ETF 데이터 Repository
  *
- * 최적화 포인트:
- * 1. @Singleton: Hilt가 단일 인스턴스 관리
- * 2. @Inject: 생성자 주입으로 의존성 명확화
- * 3. flowOn(Dispatchers.IO): 모든 Flow가 IO 스레드에서 실행되어 UI 차단 방지
- * 4. withContext(Dispatchers.IO): suspend 함수도 IO 스레드 격리
- *
- * ANR 방지:
- * - 모든 DB 쿼리와 네트워크 호출이 IO 디스패처에서 실행
- * - UI 스레드를 절대 차단하지 않음
+ * 역할:
+ * - ETF 목록 및 보유 종목 관리
+ * - 데이터 수집 시 stocks 마스터 자동 동기화
  */
 @Singleton
 class DataRepository @Inject constructor(
     private val dao: EtfDao,
     private val dailyEtfStatisticsDao: DailyEtfStatisticsDao,
+    private val stockDao: StockDao,
     private val pyKrx: PyKrxClient
 ) {
 
@@ -658,17 +654,16 @@ class DataRepository @Inject constructor(
 
     /**
      * ETF들을 병렬로 처리
-     *
-     * Production 최적화:
-     * - chunked()로 PARALLEL_LIMIT 만큼씩 병렬 처리
-     * - async/await으로 비동기 처리하여 성능 향상
+     * stocks 마스터에 종목 자동 동기화 포함
      */
     private suspend fun processEtfsInParallel(
         etfs: List<Etf>,
         dateYYYYMMDD: String,
         formattedDate: String
     ): List<EtfProcessResult> = coroutineScope {
-        etfs.chunked(PARALLEL_LIMIT).flatMap { chunk ->
+        val allStocksToSync = mutableListOf<Pair<String, String>>()
+
+        val results = etfs.chunked(PARALLEL_LIMIT).flatMap { chunk ->
             chunk.map { etf ->
                 async {
                     try {
@@ -679,14 +674,11 @@ class DataRepository @Inject constructor(
                         }
 
                         dao.insertEtf(etf)
-
                         val holdings = pyKrx.getHoldings(etf.ticker, dateYYYYMMDD)
 
                         if (holdings.isNotEmpty()) {
                             dao.insertHoldings(holdings)
                             Log.d(TAG, "✓ ${etf.ticker}: ${holdings.size} holdings")
-                        } else {
-                            Log.d(TAG, "✗ ${etf.ticker}: no holdings")
                         }
 
                         EtfProcessResult(etf.ticker, holdings)
@@ -697,6 +689,24 @@ class DataRepository @Inject constructor(
                 }
             }.awaitAll()
         }
+
+        // stocks 마스터 동기화 (일괄 처리)
+        results.flatMap { it.holdings }
+            .distinctBy { it.stockTicker }
+            .forEach { holding ->
+                allStocksToSync.add(holding.stockTicker to holding.stockName)
+            }
+
+        if (allStocksToSync.isNotEmpty()) {
+            try {
+                stockDao.syncFromHoldings(allStocksToSync)
+                Log.d(TAG, "Synced ${allStocksToSync.size} stocks to master")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to sync stocks: ${e.message}")
+            }
+        }
+
+        results
     }
 
     // ========== Settings ==========

@@ -40,9 +40,10 @@ object RepositoryModule {
     fun provideDataRepository(
         etfDao: EtfDao,
         dailyEtfStatisticsDao: DailyEtfStatisticsDao,
+        stockDao: StockDao,
         pyKrxClient: PyKrxClient
     ): DataRepository {
-        return DataRepository(etfDao, dailyEtfStatisticsDao, pyKrxClient)
+        return DataRepository(etfDao, dailyEtfStatisticsDao, stockDao, pyKrxClient)
     }
 
     // StockRepository는 @Inject constructor를 사용하므로 수동 제공 불필요
