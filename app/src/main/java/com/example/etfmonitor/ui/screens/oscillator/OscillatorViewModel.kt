@@ -339,9 +339,11 @@ class OscillatorViewModel @Inject constructor(
                 null
             }
 
-            // 현재 상태의 데이터를 유지하면서 DeMark TD 데이터만 업데이트
-            val updatedState = currentState.copy(demarkTDData = demarkTDData)
-            _state.value = updatedState
+            // 데이터 가져오기 성공한 경우에만 업데이트 (null이면 이전 데이터 유지)
+            if (demarkTDData != null) {
+                val updatedState = currentState.copy(demarkTDData = demarkTDData)
+                _state.value = updatedState
+            }
         }
     }
 }

@@ -14,6 +14,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.github.mikephil.charting.charts.CombinedChart
@@ -881,9 +882,9 @@ fun ChartCard(
 ) {
     val isDark = isSystemInDarkTheme()
     val chartCardBackground = if (isDark) ChartCardBackgroundDark else ChartCardBackgroundLight
-    // In dark mode with light background, use dark text colors
-    val titleColor = if (isDark) ChartTextLight else MaterialTheme.colorScheme.onSurface
-    val subtitleColor = if (isDark) ChartTextLight.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
+    // Always use black color for chart titles for maximum readability
+    val titleColor = ComposeColor.Black
+    val subtitleColor = ComposeColor.Black.copy(alpha = 0.7f)
 
     Card(
         modifier = modifier
@@ -1040,14 +1041,15 @@ fun ElderImpulseChart(
                     }
                     lineDataSets.add(marketCapDataSet)
 
-                    // EMA13 라인 (Impulse 색상으로 구간별 표시)
+                    // EMA13 라인 - Grey dashed line
                     val emaEntries = data.ema.mapIndexed { index, value ->
                         Entry(index.toFloat(), value.toFloat())
                     }
                     val emaDataSet = LineDataSet(emaEntries, "EMA13").apply {
                         axisDependency = YAxis.AxisDependency.RIGHT
-                        color = emaColor
-                        lineWidth = 2.5f
+                        color = Color.GRAY
+                        lineWidth = 1.5f
+                        enableDashedLine(10f, 5f, 0f)  // lineLength, spaceLength, phase
                         setDrawCircles(false)
                         setDrawValues(false)
                     }
@@ -1055,39 +1057,52 @@ fun ElderImpulseChart(
 
                     val lineData = LineData(lineDataSets.toList())
 
-                    // Impulse 상태를 Scatter로 표시
+                    // Impulse 상태를 Circle Scatter로 표시 (Bullish, Bearish, Neutral 모두)
                     val bullEntries = mutableListOf<Entry>()
                     val bearEntries = mutableListOf<Entry>()
+                    val neutralEntries = mutableListOf<Entry>()
 
                     data.impulse.forEachIndexed { index, value ->
                         when (value) {
                             1 -> bullEntries.add(Entry(index.toFloat(), data.close[index].toFloat()))
                             -1 -> bearEntries.add(Entry(index.toFloat(), data.close[index].toFloat()))
+                            else -> neutralEntries.add(Entry(index.toFloat(), data.close[index].toFloat()))
                         }
                     }
 
                     val scatterDataSets = mutableListOf<ScatterDataSet>()
 
                     if (bullEntries.isNotEmpty()) {
-                        val bullDataSet = ScatterDataSet(bullEntries, "상승").apply {
+                        val bullDataSet = ScatterDataSet(bullEntries, "Bullish").apply {
                             axisDependency = YAxis.AxisDependency.RIGHT
                             color = bullColor
-                            setScatterShape(ScatterChart.ScatterShape.TRIANGLE)
-                            scatterShapeSize = 16f
+                            setScatterShape(ScatterChart.ScatterShape.CIRCLE)
+                            scatterShapeSize = 12f
                             setDrawValues(false)
                         }
                         scatterDataSets.add(bullDataSet)
                     }
 
                     if (bearEntries.isNotEmpty()) {
-                        val bearDataSet = ScatterDataSet(bearEntries, "하락").apply {
+                        val bearDataSet = ScatterDataSet(bearEntries, "Bearish").apply {
                             axisDependency = YAxis.AxisDependency.RIGHT
                             color = bearColor
-                            shapeRenderer = InvertedTriangleShapeRenderer()
-                            scatterShapeSize = 16f
+                            setScatterShape(ScatterChart.ScatterShape.CIRCLE)
+                            scatterShapeSize = 12f
                             setDrawValues(false)
                         }
                         scatterDataSets.add(bearDataSet)
+                    }
+
+                    if (neutralEntries.isNotEmpty()) {
+                        val neutralDataSet = ScatterDataSet(neutralEntries, "Neutral").apply {
+                            axisDependency = YAxis.AxisDependency.RIGHT
+                            color = neutralColor
+                            setScatterShape(ScatterChart.ScatterShape.CIRCLE)
+                            scatterShapeSize = 12f
+                            setDrawValues(false)
+                        }
+                        scatterDataSets.add(neutralDataSet)
                     }
 
                     val combinedData = CombinedData().apply {
@@ -1269,55 +1284,9 @@ fun DemarkTDChart(
 
                     val lineData = LineData(lineDataSets.toList())
 
-                    // 9 이상 피로 구간 표시 (Scatter)
-                    val sellFatigueEntries = mutableListOf<Entry>()
-                    val buyFatigueEntries = mutableListOf<Entry>()
-
-                    data.tdSell.forEachIndexed { index, value ->
-                        if (value >= 9) {
-                            sellFatigueEntries.add(Entry(index.toFloat(), value.toFloat()))
-                        }
-                    }
-
-                    data.tdBuy.forEachIndexed { index, value ->
-                        if (value >= 9) {
-                            buyFatigueEntries.add(Entry(index.toFloat(), -value.toFloat()))
-                        }
-                    }
-
-                    val scatterDataSets = mutableListOf<ScatterDataSet>()
-
-                    if (sellFatigueEntries.isNotEmpty()) {
-                        val sellFatigueDataSet = ScatterDataSet(sellFatigueEntries, "매도피로9+").apply {
-                            axisDependency = YAxis.AxisDependency.RIGHT
-                            color = sellFatigueColor
-                            setScatterShape(ScatterChart.ScatterShape.CIRCLE)
-                            scatterShapeSize = 20f
-                            setDrawValues(true)
-                            valueTextSize = 8f
-                            valueTextColor = textColor
-                        }
-                        scatterDataSets.add(sellFatigueDataSet)
-                    }
-
-                    if (buyFatigueEntries.isNotEmpty()) {
-                        val buyFatigueDataSet = ScatterDataSet(buyFatigueEntries, "매수피로9+").apply {
-                            axisDependency = YAxis.AxisDependency.RIGHT
-                            color = buyFatigueColor
-                            setScatterShape(ScatterChart.ScatterShape.CIRCLE)
-                            scatterShapeSize = 20f
-                            setDrawValues(true)
-                            valueTextSize = 8f
-                            valueTextColor = textColor
-                        }
-                        scatterDataSets.add(buyFatigueDataSet)
-                    }
-
+                    // 마커 제거 - 라인 차트만 표시
                     val combinedData = CombinedData().apply {
                         setData(lineData)
-                        if (scatterDataSets.isNotEmpty()) {
-                            setData(ScatterData(scatterDataSets.toList()))
-                        }
                     }
 
                     chart.data = combinedData
