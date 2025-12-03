@@ -146,6 +146,11 @@ private fun DashboardContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(vertical = 16.dp)
     ) {
+        // 데이터 가용성 상태 카드
+        item {
+            DataAvailabilityCard(dataAvailability = data.dataAvailability)
+        }
+
         // 날짜 및 종합 신호
         item {
             OverallSignalCard(
@@ -386,11 +391,18 @@ private fun SectorSentimentCard(
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "섹터 심리",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "섹터 심리",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                SourceDataInfo("ETF 흐름 기반")
+            }
             Spacer(modifier = Modifier.height(12.dp))
 
             // 탐욕 섹터
@@ -510,11 +522,18 @@ private fun SectorRotationCard(signals: List<SectorRotationSignal>) {
 private fun MarketCapFlowCard(flow: MarketCapWeightedFlow) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "시총 가중 ETF 흐름",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "시총 가중 ETF 흐름",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                SourceDataInfo("ETF 보유종목 데이터 기반")
+            }
             Spacer(modifier = Modifier.height(12.dp))
 
             // 요약
@@ -546,6 +565,50 @@ private fun MarketCapFlowCard(flow: MarketCapWeightedFlow) {
                         fontWeight = FontWeight.Bold,
                         color = if (flow.netFlow >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
                     )
+                }
+            }
+
+            // 상위 유입/유출 종목 요약
+            if (flow.topInflowStocks.isNotEmpty() || flow.topOutflowStocks.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // 상위 유입 종목
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "📈 상위 유입",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF4CAF50)
+                        )
+                        flow.topInflowStocks.take(3).forEach { stock ->
+                            Text(
+                                text = "${stock.name} +${stock.flowAmount}억",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // 상위 유출 종목
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "📉 상위 유출",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFF44336)
+                        )
+                        flow.topOutflowStocks.take(3).forEach { stock ->
+                            Text(
+                                text = "${stock.name} ${stock.flowAmount}억",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
 
@@ -584,13 +647,23 @@ private fun MarketCapFlowCard(flow: MarketCapWeightedFlow) {
 
 @Composable
 private fun DivergenceCard(divergence: MarketDivergenceSummary) {
+    val totalCount = divergence.foreignBullishCount + divergence.institutionBullishCount +
+            divergence.alignedBullishCount + divergence.alignedBearishCount + divergence.neutralCount
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "외국인/기관 수급 Divergence",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "외국인/기관 수급 Divergence",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                SourceDataInfo("종목 수급분석 데이터 기반")
+            }
             Spacer(modifier = Modifier.height(12.dp))
 
             // 시장 심리
@@ -619,6 +692,62 @@ private fun DivergenceCard(divergence: MarketDivergenceSummary) {
                 DivergenceCountItem("동반↑", divergence.alignedBullishCount, Color(0xFF4CAF50))
                 DivergenceCountItem("동반↓", divergence.alignedBearishCount, Color(0xFFF44336))
             }
+
+            // 상위 종목 요약
+            if (divergence.topForeignBullish.isNotEmpty() || divergence.topInstitutionBullish.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // 외국인 강세
+                    if (divergence.topForeignBullish.isNotEmpty()) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "🔵 외국인 강세 TOP",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF2196F3)
+                            )
+                            divergence.topForeignBullish.take(3).forEach { stock ->
+                                Text(
+                                    text = stock.name,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    // 기관 강세
+                    if (divergence.topInstitutionBullish.isNotEmpty()) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "🟠 기관 강세 TOP",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFFF9800)
+                            )
+                            divergence.topInstitutionBullish.take(3).forEach { stock ->
+                                Text(
+                                    text = stock.name,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 분석 대상 종목 수
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "분석 대상: $totalCount 종목",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -655,11 +784,18 @@ private fun LiquidityCard(liquidity: LiquidityAnalysis) {
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "시장 유동성 분석",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "시장 유동성 분석",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                SourceDataInfo("예탁금/시총 데이터 기반")
+            }
             Spacer(modifier = Modifier.height(12.dp))
 
             // 핵심 지표
@@ -673,11 +809,32 @@ private fun LiquidityCard(liquidity: LiquidityAnalysis) {
                         String.format("%.1f조", liquidity.depositAmount / 10000),
                         style = MaterialTheme.typography.titleMedium
                     )
+                    if (liquidity.depositChange != 0.0) {
+                        Text(
+                            text = String.format("%+.0f억", liquidity.depositChange),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (liquidity.depositChange > 0) Color(0xFF4CAF50) else Color(0xFFF44336)
+                        )
+                    }
                 }
                 Column {
                     Text("신용잔고", style = MaterialTheme.typography.bodySmall)
                     Text(
                         String.format("%.1f조", liquidity.creditAmount / 10000),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    if (liquidity.creditChange != 0.0) {
+                        Text(
+                            text = String.format("%+.0f억", liquidity.creditChange),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (liquidity.creditChange > 0) Color(0xFFF44336) else Color(0xFF4CAF50)
+                        )
+                    }
+                }
+                Column {
+                    Text("시총", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        String.format("%.0f조", liquidity.totalMarketCap / 10000.0),
                         style = MaterialTheme.typography.titleMedium
                     )
                 }
@@ -721,10 +878,48 @@ private fun LiquidityCard(liquidity: LiquidityAnalysis) {
                 }
             }
 
+            // 비율 상세
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 비율 프로그레스
+            Text("예탁금/시총 비율: ${String.format("%.2f", liquidity.depositToMarketCapRatio)}%",
+                style = MaterialTheme.typography.bodySmall)
+            Spacer(modifier = Modifier.height(4.dp))
+            LinearProgressIndicator(
+                progress = { (liquidity.depositToMarketCapRatio / 5.0).toFloat().coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)),
+                color = Color(0xFF4CAF50),
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text("신용/예탁금 비율: ${String.format("%.1f", liquidity.creditToDepositRatio)}%",
+                style = MaterialTheme.typography.bodySmall)
+            Spacer(modifier = Modifier.height(4.dp))
+            LinearProgressIndicator(
+                progress = { (liquidity.creditToDepositRatio / 100.0).toFloat().coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)),
+                color = when {
+                    liquidity.creditToDepositRatio > 50 -> Color(0xFFF44336)
+                    liquidity.creditToDepositRatio > 30 -> Color(0xFFFF9800)
+                    else -> Color(0xFF4CAF50)
+                },
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+
             // 백분위
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "예탁금/시총 비율: 역사적 상위 ${(100 - liquidity.historicalPercentile).toInt()}%",
+                text = "역사적 백분위: 상위 ${(100 - liquidity.historicalPercentile).toInt()}%",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -777,5 +972,154 @@ private fun EtfOverlapWarningCard(overlaps: List<EtfCorrelationCache>) {
                 }
             }
         }
+    }
+}
+
+/**
+ * 데이터 가용성 상태 카드
+ */
+@Composable
+private fun DataAvailabilityCard(dataAvailability: DataAvailability) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val allAvailable = dataAvailability.holdingsData.available &&
+            dataAvailability.stockAnalysisData.available &&
+            dataAvailability.marketDepositData.available &&
+            dataAvailability.fearGreedData.available
+
+    val availableCount = listOf(
+        dataAvailability.holdingsData.available,
+        dataAvailability.stockAnalysisData.available,
+        dataAvailability.marketDepositData.available,
+        dataAvailability.fearGreedData.available,
+        dataAvailability.etfData.available
+    ).count { it }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (allAvailable)
+                Color(0xFFE8F5E9)
+            else
+                Color(0xFFFFF8E1)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (allAvailable) Icons.Default.CheckCircle else Icons.Default.Info,
+                        contentDescription = null,
+                        tint = if (allAvailable) Color(0xFF4CAF50) else Color(0xFFFF9800),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "데이터 소스 상태",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "$availableCount/5",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (allAvailable) Color(0xFF4CAF50) else Color(0xFFFF9800)
+                    )
+                    IconButton(onClick = { expanded = !expanded }) {
+                        Icon(
+                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = if (expanded) "접기" else "펼치기"
+                        )
+                    }
+                }
+            }
+
+            if (expanded) {
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(12.dp))
+
+                DataSourceRow("ETF 보유종목", dataAvailability.holdingsData)
+                DataSourceRow("종목 수급분석", dataAvailability.stockAnalysisData)
+                DataSourceRow("시장 예탁금", dataAvailability.marketDepositData)
+                DataSourceRow("Fear & Greed", dataAvailability.fearGreedData)
+                DataSourceRow("ETF 목록", dataAvailability.etfData)
+
+                if (!allAvailable) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "💡 일부 분석은 데이터가 부족하여 제한된 결과를 표시합니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF795548)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DataSourceRow(name: String, status: DataSourceStatus) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = if (status.available) Icons.Default.Check else Icons.Default.Close,
+                contentDescription = null,
+                tint = if (status.available) Color(0xFF4CAF50) else Color(0xFFF44336),
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = name,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        Text(
+            text = status.message,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * 소스 데이터 정보 표시 컴포넌트
+ */
+@Composable
+private fun SourceDataInfo(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Info,
+            contentDescription = null,
+            modifier = Modifier.size(12.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
