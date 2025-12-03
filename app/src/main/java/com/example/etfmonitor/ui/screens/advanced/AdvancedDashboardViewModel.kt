@@ -98,19 +98,28 @@ class AdvancedDashboardViewModel @Inject constructor(
             try {
                 // 날짜 설정
                 val dates = etfDao.getAllDistinctDates()
+                Log.d(TAG, "Available dates count: ${dates.size}")
                 if (dates.size < 2) {
+                    Log.w(TAG, "Insufficient date data: ${dates.size}")
                     _state.value = AdvancedDashboardState.Error("데이터가 부족합니다. ETF 데이터를 먼저 수집해 주세요.")
                     return@launch
                 }
 
                 val currentDate = dates.first()
                 val previousDate = dates[1]
+                Log.d(TAG, "Analyzing dates: current=$currentDate, previous=$previousDate")
 
                 // 병렬로 데이터 로드
+                Log.d(TAG, "Starting data analysis...")
                 val marketCapFlow = advancedRepository.calculateMarketCapWeightedFlow(currentDate, previousDate)
+                Log.d(TAG, "Market cap flow: netFlow=${marketCapFlow.netFlow}")
+
                 val divergenceSummary = advancedRepository.analyzeSupplyDemandDivergence(currentDate)
+                Log.d(TAG, "Divergence: total=${divergenceSummary.foreignBullishCount + divergenceSummary.institutionBullishCount + divergenceSummary.alignedBullishCount + divergenceSummary.alignedBearishCount + divergenceSummary.neutralCount}")
+
                 val liquidityAnalysis = advancedRepository.getLatestLiquidityAnalysis()
                     ?: advancedRepository.calculateAndSaveLiquidityAnalysis(currentDate)
+                Log.d(TAG, "Liquidity analysis: ${liquidityAnalysis?.signal ?: "null"}")
 
                 // 섹터 분석
                 var sectorAnalyses = advancedRepository.getSectorAnalysisByDate(currentDate)
