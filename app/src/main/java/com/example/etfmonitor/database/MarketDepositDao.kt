@@ -18,6 +18,9 @@ interface MarketDepositDao {
     @Query("SELECT * FROM market_deposits ORDER BY date DESC LIMIT :limit")
     fun getRecentDeposits(limit: Int): Flow<List<MarketDeposit>>
 
+    @Query("SELECT * FROM market_deposits ORDER BY date DESC LIMIT 1")
+    suspend fun getLatestDeposit(): MarketDeposit?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(deposits: List<MarketDeposit>)
 

@@ -3,7 +3,7 @@ package com.etfmonitor.ui.screens.advanced
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.database.EtfDao
+import com.etfmonitor.database.*
 import com.etfmonitor.database.entities.*
 import com.etfmonitor.repository.AdvancedAnalysisRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -37,7 +38,29 @@ data class AdvancedDashboardData(
     val topFearSectors: List<SectorAnalysis>,
     val sectorRotationSignals: List<SectorRotationSignal>,
     val highOverlapEtfs: List<EtfCorrelationCache>,
-    val overallSignal: OverallSignal
+    val overallSignal: OverallSignal,
+    val dataAvailability: DataAvailability
+)
+
+/**
+ * 데이터 가용성 상태
+ */
+data class DataAvailability(
+    val holdingsData: DataSourceStatus,
+    val stockAnalysisData: DataSourceStatus,
+    val marketDepositData: DataSourceStatus,
+    val fearGreedData: DataSourceStatus,
+    val etfData: DataSourceStatus
+)
+
+/**
+ * 개별 데이터 소스 상태
+ */
+data class DataSourceStatus(
+    val available: Boolean,
+    val count: Int = 0,
+    val latestDate: String? = null,
+    val message: String = ""
 )
 
 /**
@@ -56,7 +79,10 @@ enum class SignalDirection {
 @HiltViewModel
 class AdvancedDashboardViewModel @Inject constructor(
     private val advancedRepository: AdvancedAnalysisRepository,
-    private val etfDao: EtfDao
+    private val etfDao: EtfDao,
+    private val stockAnalysisDao: StockAnalysisDao,
+    private val marketDepositDao: MarketDepositDao,
+    private val fearGreedDao: FearGreedDao
 ) : ViewModel() {
 
     companion object {
@@ -96,21 +122,34 @@ class AdvancedDashboardViewModel @Inject constructor(
             _state.value = AdvancedDashboardState.Loading
 
             try {
+                // 1. 데이터 가용성 체크
+                val dataAvailability = checkDataAvailability()
+                Log.d(TAG, "Data availability checked: holdings=${dataAvailability.holdingsData.available}, stockAnalysis=${dataAvailability.stockAnalysisData.available}")
+
                 // 날짜 설정
-                val dates = etfDao.getAvailableDates()
+                val dates = etfDao.getAllDistinctDates()
+                Log.d(TAG, "Available dates count: ${dates.size}")
                 if (dates.size < 2) {
+                    Log.w(TAG, "Insufficient date data: ${dates.size}")
                     _state.value = AdvancedDashboardState.Error("데이터가 부족합니다. ETF 데이터를 먼저 수집해 주세요.")
                     return@launch
                 }
 
                 val currentDate = dates.first()
                 val previousDate = dates[1]
+                Log.d(TAG, "Analyzing dates: current=$currentDate, previous=$previousDate")
 
                 // 병렬로 데이터 로드
+                Log.d(TAG, "Starting data analysis...")
                 val marketCapFlow = advancedRepository.calculateMarketCapWeightedFlow(currentDate, previousDate)
+                Log.d(TAG, "Market cap flow: netFlow=${marketCapFlow.netFlow}")
+
                 val divergenceSummary = advancedRepository.analyzeSupplyDemandDivergence(currentDate)
+                Log.d(TAG, "Divergence: total=${divergenceSummary.foreignBullishCount + divergenceSummary.institutionBullishCount + divergenceSummary.alignedBullishCount + divergenceSummary.alignedBearishCount + divergenceSummary.neutralCount}")
+
                 val liquidityAnalysis = advancedRepository.getLatestLiquidityAnalysis()
                     ?: advancedRepository.calculateAndSaveLiquidityAnalysis(currentDate)
+                Log.d(TAG, "Liquidity analysis: ${liquidityAnalysis?.signal ?: "null"}")
 
                 // 섹터 분석
                 var sectorAnalyses = advancedRepository.getSectorAnalysisByDate(currentDate)
@@ -146,7 +185,8 @@ class AdvancedDashboardViewModel @Inject constructor(
                         topFearSectors = topFear,
                         sectorRotationSignals = rotationSignals,
                         highOverlapEtfs = highOverlap,
-                        overallSignal = overallSignal
+                        overallSignal = overallSignal,
+                        dataAvailability = dataAvailability
                     )
                 )
             } catch (e: Exception) {
@@ -154,6 +194,65 @@ class AdvancedDashboardViewModel @Inject constructor(
                 _state.value = AdvancedDashboardState.Error("데이터 로드 실패: ${e.message}")
             }
         }
+    }
+
+    /**
+     * 데이터 가용성 체크
+     */
+    private suspend fun checkDataAvailability(): DataAvailability {
+        // Holdings 데이터 체크
+        val holdingCount = etfDao.getTotalHoldingCount().toInt()
+        val holdingDates = etfDao.getAllDistinctDates(10)
+        val holdingsStatus = DataSourceStatus(
+            available = holdingCount > 0,
+            count = holdingCount,
+            latestDate = holdingDates.firstOrNull(),
+            message = if (holdingCount > 0) "$holdingCount 건, ${holdingDates.size}일 데이터" else "ETF 보유종목 데이터 없음"
+        )
+
+        // Stock Analysis 데이터 체크
+        val stockAnalysisCount = stockAnalysisDao.getCount()
+        val stockAnalysisStatus = DataSourceStatus(
+            available = stockAnalysisCount > 0,
+            count = stockAnalysisCount,
+            latestDate = null,
+            message = if (stockAnalysisCount > 0) "$stockAnalysisCount 종목 분석 데이터" else "종목 수급 데이터 없음 (수급 분석 필요)"
+        )
+
+        // Market Deposit 데이터 체크
+        val latestDeposit = marketDepositDao.getLatestDeposit()
+        val marketDepositStatus = DataSourceStatus(
+            available = latestDeposit != null,
+            count = if (latestDeposit != null) 1 else 0,
+            latestDate = latestDeposit?.date,
+            message = if (latestDeposit != null) "최신: ${latestDeposit.date}" else "예탁금 데이터 없음"
+        )
+
+        // Fear & Greed 데이터 체크
+        val latestFearGreedDate = fearGreedDao.getLatestDate("KOSPI")
+        val fearGreedStatus = DataSourceStatus(
+            available = latestFearGreedDate != null,
+            count = 0,
+            latestDate = latestFearGreedDate,
+            message = if (latestFearGreedDate != null) "최신: $latestFearGreedDate" else "Fear & Greed 데이터 없음"
+        )
+
+        // ETF 데이터 체크
+        val etfCount = etfDao.getEtfCount()
+        val etfStatus = DataSourceStatus(
+            available = etfCount > 0,
+            count = etfCount,
+            latestDate = null,
+            message = if (etfCount > 0) "$etfCount 개 ETF" else "ETF 데이터 없음"
+        )
+
+        return DataAvailability(
+            holdingsData = holdingsStatus,
+            stockAnalysisData = stockAnalysisStatus,
+            marketDepositData = marketDepositStatus,
+            fearGreedData = fearGreedStatus,
+            etfData = etfStatus
+        )
     }
 
     /**
@@ -173,7 +272,7 @@ class AdvancedDashboardViewModel @Inject constructor(
     fun recalculateAnalysis(type: AnalysisType) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val dates = etfDao.getAvailableDates()
+                val dates = etfDao.getAllDistinctDates()
                 if (dates.size < 2) return@launch
 
                 val currentDate = dates.first()
@@ -313,4 +412,15 @@ enum class AnalysisType {
     LIQUIDITY,
     SECTOR,
     ETF_CORRELATION
+}
+
+/**
+ * 분석에 필요한 데이터 소스별 요구사항
+ */
+object AnalysisDataRequirements {
+    val MARKET_CAP_FLOW = listOf("holdings")
+    val DIVERGENCE = listOf("holdings", "stock_analysis")
+    val LIQUIDITY = listOf("market_deposits", "stock_analysis")
+    val SECTOR = listOf("holdings", "fear_greed")
+    val ETF_CORRELATION = listOf("holdings", "etfs")
 }
