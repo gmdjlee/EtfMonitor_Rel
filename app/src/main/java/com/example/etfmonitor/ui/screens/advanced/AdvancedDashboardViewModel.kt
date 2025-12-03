@@ -97,7 +97,7 @@ class AdvancedDashboardViewModel @Inject constructor(
 
             try {
                 // 날짜 설정
-                val dates = etfDao.getAvailableDates()
+                val dates = etfDao.getAllDistinctDates()
                 if (dates.size < 2) {
                     _state.value = AdvancedDashboardState.Error("데이터가 부족합니다. ETF 데이터를 먼저 수집해 주세요.")
                     return@launch
@@ -173,7 +173,7 @@ class AdvancedDashboardViewModel @Inject constructor(
     fun recalculateAnalysis(type: AnalysisType) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val dates = etfDao.getAvailableDates()
+                val dates = etfDao.getAllDistinctDates()
                 if (dates.size < 2) return@launch
 
                 val currentDate = dates.first()

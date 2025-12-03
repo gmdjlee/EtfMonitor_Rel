@@ -5,6 +5,7 @@ import com.etfmonitor.database.*
 import com.etfmonitor.database.entities.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
@@ -69,7 +70,7 @@ class AdvancedAnalysisRepository @Inject constructor(
         try {
             // 1. 비중 변화 종목 조회
             val stockChanges = etfDao.getStockAmountRanking(currentDate, previousDate)
-                .filter { market == "ALL" || getStockMarket(it.ticker) == market }
+                .filter { market == "ALL" || getStockMarket(it.stockTicker) == market }
 
             // 2. 시가총액 데이터 조회
             val marketCapMap = getMarketCapMap(currentDate)
@@ -86,14 +87,14 @@ class AdvancedAnalysisRepository @Inject constructor(
             }
 
             for (stock in stockChanges) {
-                val marketCap = marketCapMap[stock.ticker] ?: continue
+                val marketCap = marketCapMap[stock.stockTicker] ?: continue
                 val weightChange = calculateWeightChange(stock)
                 val flowAmount = (marketCap * weightChange / 100).toLong()
 
                 val stockFlow = StockFlow(
-                    ticker = stock.ticker,
-                    name = stock.name,
-                    market = getStockMarket(stock.ticker),
+                    ticker = stock.stockTicker,
+                    name = stock.stockName,
+                    market = getStockMarket(stock.stockTicker),
                     marketCap = marketCap / 100_000_000,  // 억원
                     weightChange = weightChange,
                     flowAmount = flowAmount / 100_000_000,  // 억원
@@ -140,7 +141,7 @@ class AdvancedAnalysisRepository @Inject constructor(
         days: Int = 30,
         market: String = "ALL"
     ): Flow<List<MarketCapWeightedFlow>> = flow {
-        val dates = etfDao.getAvailableDates().take(days + 1)
+        val dates = etfDao.getAllDistinctDates(days + 1)
         val results = mutableListOf<MarketCapWeightedFlow>()
 
         for (i in 0 until minOf(days, dates.size - 1)) {
@@ -177,7 +178,7 @@ class AdvancedAnalysisRepository @Inject constructor(
 
                 if (marketCap == 0L) continue
 
-                val stockName = stockDao.getStockByTicker(data.ticker)?.name ?: data.ticker
+                val stockName = stockDao.getStock(data.ticker)?.name ?: data.ticker
                 val divergenceScore = calculateDivergenceScore(foreign5d, institution5d, marketCap)
                 val divergenceType = DivergenceType.classify(foreign5d, institution5d, DIVERGENCE_THRESHOLD * 1_000_000)
 
@@ -241,7 +242,7 @@ class AdvancedAnalysisRepository @Inject constructor(
     suspend fun calculateAndSaveLiquidityAnalysis(date: String): LiquidityAnalysis? = withContext(Dispatchers.IO) {
         try {
             // 1. 예탁금 데이터 조회
-            val deposit = marketDepositDao.getByDate(date) ?: return@withContext null
+            val deposit = marketDepositDao.getDepositByDate(date) ?: return@withContext null
 
             // 2. 시가총액 계산
             val (kospiCap, kosdaqCap) = calculateTotalMarketCap(date)
@@ -349,12 +350,15 @@ class AdvancedAnalysisRepository @Inject constructor(
             val sectorMap = mutableMapOf<String, MutableList<StockAmountRanking>>()
 
             for (stock in stockChanges) {
-                val sector = inferSectorFromStock(stock.ticker, stock.name)
+                val sector = inferSectorFromStock(stock.stockTicker, stock.stockName)
                 sectorMap.getOrPut(sector) { mutableListOf() }.add(stock)
             }
 
             // 3. 시장 전체 Fear & Greed 조회 (기준값)
-            val marketFearGreed = fearGreedDao.getLatestByMarket("KOSPI")?.fearGreedValue ?: 0.5
+            val latestFearGreedDate = fearGreedDao.getLatestDate("KOSPI")
+            val marketFearGreed = if (latestFearGreedDate != null) {
+                fearGreedDao.getByMarketAndDate("KOSPI", latestFearGreedDate)?.fearGreedValue ?: 0.5
+            } else 0.5
 
             // 4. 섹터별 분석 계산
             val results = mutableListOf<SectorAnalysis>()
@@ -362,8 +366,8 @@ class AdvancedAnalysisRepository @Inject constructor(
             for ((sector, stocks) in sectorMap) {
                 if (stocks.isEmpty()) continue
 
-                val newEntries = stocks.count { it.newCount > 0 }
-                val removals = stocks.count { it.removedCount > 0 }
+                val newEntries = stocks.count { it.newEtfCount > 0 }
+                val removals = stocks.count { it.removedEtfCount > 0 }
                 val avgWeightChange = stocks.map {
                     calculateWeightChange(it)
                 }.average()
@@ -486,12 +490,12 @@ class AdvancedAnalysisRepository @Inject constructor(
     ): EtfCorrelationCache? = withContext(Dispatchers.IO) {
         try {
             // 1. ETF 정보 조회
-            val etf1 = etfDao.getEtfByTicker(etf1Ticker) ?: return@withContext null
-            val etf2 = etfDao.getEtfByTicker(etf2Ticker) ?: return@withContext null
+            val etf1 = etfDao.getEtf(etf1Ticker) ?: return@withContext null
+            val etf2 = etfDao.getEtf(etf2Ticker) ?: return@withContext null
 
             // 2. 보유 종목 조회
-            val holdings1 = etfDao.getHoldingsByEtfAndDate(etf1Ticker, date)
-            val holdings2 = etfDao.getHoldingsByEtfAndDate(etf2Ticker, date)
+            val holdings1 = etfDao.getHoldings(etf1Ticker, date)
+            val holdings2 = etfDao.getHoldings(etf2Ticker, date)
 
             if (holdings1.isEmpty() || holdings2.isEmpty()) return@withContext null
 
@@ -557,7 +561,7 @@ class AdvancedAnalysisRepository @Inject constructor(
      */
     suspend fun calculateAllEtfCorrelations(date: String): List<EtfCorrelationCache> = withContext(Dispatchers.IO) {
         try {
-            val etfs = etfDao.getAllEtfsSync()
+            val etfs = etfDao.getAllEtfs().first()
             val results = mutableListOf<EtfCorrelationCache>()
 
             for (i in etfs.indices) {
@@ -697,20 +701,20 @@ class AdvancedAnalysisRepository @Inject constructor(
     private fun calculateWeightChange(stock: StockAmountRanking): Double {
         // 신규/제외의 경우 비중 변화 추정
         return when {
-            stock.newCount > 0 -> stock.currentWeight / 100.0
-            stock.removedCount > 0 -> -stock.currentWeight / 100.0
-            stock.increasedCount > 0 -> stock.currentWeight / 200.0  // 추정
-            stock.decreasedCount > 0 -> -stock.currentWeight / 200.0
+            stock.newEtfCount > 0 -> stock.maxWeight / 100.0
+            stock.removedEtfCount > 0 -> -stock.maxWeight / 100.0
+            stock.increasedEtfCount > 0 -> stock.maxWeight / 200.0  // 추정
+            stock.decreasedEtfCount > 0 -> -stock.maxWeight / 200.0
             else -> 0.0
         }
     }
 
     private fun determineStatus(stock: StockAmountRanking): String {
         return when {
-            stock.newCount > 0 -> "NEW"
-            stock.removedCount > 0 -> "REMOVED"
-            stock.increasedCount > 0 -> "INCREASED"
-            stock.decreasedCount > 0 -> "DECREASED"
+            stock.newEtfCount > 0 -> "NEW"
+            stock.removedEtfCount > 0 -> "REMOVED"
+            stock.increasedEtfCount > 0 -> "INCREASED"
+            stock.decreasedEtfCount > 0 -> "DECREASED"
             else -> "UNCHANGED"
         }
     }
