@@ -19,6 +19,7 @@ import com.etfmonitor.ui.screens.feargreed.FearGreedScreen
 import com.etfmonitor.ui.screens.marketoscillator.MarketOscillatorScreen
 import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisScreen
 import com.etfmonitor.ui.screens.prediction.PredictionScreen
+import com.etfmonitor.ui.screens.advanced.AdvancedDashboardScreen
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -48,6 +49,8 @@ sealed class Screen(val route: String) {
     object AIAnalysis : Screen("ai_analysis")
     // ✅ ML 주가 예측
     object Prediction : Screen("prediction")
+    // ✅ 고급 분석 대시보드
+    object AdvancedDashboard : Screen("advanced_dashboard")
 }
 
 @Composable
@@ -68,7 +71,8 @@ fun Navigation() {
                 onNavigateToFearGreed = { navController.navigate(Screen.FearGreed.route) },
                 onNavigateToMarketOscillator = { navController.navigate(Screen.MarketOscillator.route) },
                 onNavigateToAIAnalysis = { navController.navigate(Screen.AIAnalysis.route) },
-                onNavigateToPrediction = { navController.navigate(Screen.Prediction.route) }
+                onNavigateToPrediction = { navController.navigate(Screen.Prediction.route) },
+                onNavigateToAdvancedDashboard = { navController.navigate(Screen.AdvancedDashboard.route) }
             )
         }
 
@@ -179,6 +183,13 @@ fun Navigation() {
         composable(Screen.Prediction.route) {
             PredictionScreen(
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // ✅ 고급 분석 대시보드 화면
+        composable(Screen.AdvancedDashboard.route) {
+            AdvancedDashboardScreen(
+                navController = navController
             )
         }
     }

@@ -21,6 +21,9 @@ import com.etfmonitor.database.entities.Setting
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.StockAnalysisData
 import com.etfmonitor.database.entities.StockPrediction
+import com.etfmonitor.database.entities.SectorAnalysis
+import com.etfmonitor.database.entities.EtfCorrelationCache
+import com.etfmonitor.database.entities.LiquidityAnalysis
 
 @Database(
     entities = [
@@ -39,9 +42,12 @@ import com.etfmonitor.database.entities.StockPrediction
         AIAnalysisResult::class,
         AIChatSession::class,
         AIChatMessage::class,
-        StockPrediction::class
+        StockPrediction::class,
+        SectorAnalysis::class,
+        EtfCorrelationCache::class,
+        LiquidityAnalysis::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -59,6 +65,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun aiAnalysisDao(): AIAnalysisDao
     abstract fun aiChatDao(): AIChatDao
     abstract fun stockPredictionDao(): StockPredictionDao
+    abstract fun sectorAnalysisDao(): SectorAnalysisDao
+    abstract fun etfCorrelationDao(): EtfCorrelationDao
+    abstract fun liquidityAnalysisDao(): LiquidityAnalysisDao
 }
 
 /**
@@ -518,6 +527,88 @@ val MIGRATION_12_13 = object : Migration(12, 13) {
             """
             UPDATE stocks SET is_etf_holding = 1
             WHERE ticker IN (SELECT DISTINCT stockTicker FROM holdings)
+            """.trimIndent()
+        )
+    }
+}
+
+/**
+ * Migration from version 13 to 14: Add Advanced Analysis tables
+ * - SectorAnalysis: 섹터별 Fear & Greed 분석
+ * - EtfCorrelationCache: ETF 간 상관관계 캐시
+ * - LiquidityAnalysis: 시장 유동성 분석
+ */
+val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // 1. SectorAnalysis 테이블 생성
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS sector_analysis (
+                id TEXT PRIMARY KEY NOT NULL,
+                sector TEXT NOT NULL,
+                sectorName TEXT NOT NULL,
+                date TEXT NOT NULL,
+                fearGreedValue REAL NOT NULL,
+                etfFlowScore REAL NOT NULL,
+                momentumScore REAL NOT NULL,
+                volatilityScore REAL NOT NULL,
+                stockCount INTEGER NOT NULL,
+                newEntries INTEGER NOT NULL,
+                removals INTEGER NOT NULL,
+                avgWeightChange REAL NOT NULL,
+                sentiment TEXT NOT NULL,
+                lastUpdated INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_sector_analysis_date ON sector_analysis(date)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_sector_analysis_sector ON sector_analysis(sector)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_sector_analysis_sector_date ON sector_analysis(sector, date)")
+
+        // 2. EtfCorrelationCache 테이블 생성
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS etf_correlation_cache (
+                id TEXT PRIMARY KEY NOT NULL,
+                etf1Ticker TEXT NOT NULL,
+                etf1Name TEXT NOT NULL,
+                etf2Ticker TEXT NOT NULL,
+                etf2Name TEXT NOT NULL,
+                date TEXT NOT NULL,
+                overlapRatio REAL NOT NULL,
+                weightCorrelation REAL NOT NULL,
+                commonStockCount INTEGER NOT NULL,
+                etf1StockCount INTEGER NOT NULL,
+                etf2StockCount INTEGER NOT NULL,
+                topCommonStocks TEXT NOT NULL,
+                lastUpdated INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_etf_correlation_cache_date ON etf_correlation_cache(date)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_etf_correlation_cache_etf1_etf2 ON etf_correlation_cache(etf1Ticker, etf2Ticker)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_etf_correlation_cache_etf1 ON etf_correlation_cache(etf1Ticker)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_etf_correlation_cache_etf2 ON etf_correlation_cache(etf2Ticker)")
+
+        // 3. LiquidityAnalysis 테이블 생성
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS liquidity_analysis (
+                date TEXT PRIMARY KEY NOT NULL,
+                depositAmount REAL NOT NULL,
+                creditAmount REAL NOT NULL,
+                totalMarketCap INTEGER NOT NULL,
+                kospiMarketCap INTEGER NOT NULL,
+                kosdaqMarketCap INTEGER NOT NULL,
+                depositToMarketCapRatio REAL NOT NULL,
+                creditToDepositRatio REAL NOT NULL,
+                depositChange REAL NOT NULL,
+                creditChange REAL NOT NULL,
+                riskLevel TEXT NOT NULL,
+                signal TEXT NOT NULL,
+                historicalPercentile REAL NOT NULL,
+                lastUpdated INTEGER NOT NULL
+            )
             """.trimIndent()
         )
     }

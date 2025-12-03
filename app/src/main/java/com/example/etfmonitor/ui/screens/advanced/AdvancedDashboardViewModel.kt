@@ -1,0 +1,316 @@
+package com.etfmonitor.ui.screens.advanced
+
+import android.util.Log
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.etfmonitor.database.EtfDao
+import com.etfmonitor.database.entities.*
+import com.etfmonitor.repository.AdvancedAnalysisRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import javax.inject.Inject
+
+/**
+ * 고급 분석 대시보드 상태
+ */
+sealed class AdvancedDashboardState {
+    object Loading : AdvancedDashboardState()
+    data class Success(val data: AdvancedDashboardData) : AdvancedDashboardState()
+    data class Error(val message: String) : AdvancedDashboardState()
+}
+
+/**
+ * 대시보드 통합 데이터
+ */
+data class AdvancedDashboardData(
+    val date: String,
+    val marketCapFlow: MarketCapWeightedFlow?,
+    val divergenceSummary: MarketDivergenceSummary?,
+    val liquidityAnalysis: LiquidityAnalysis?,
+    val topGreedSectors: List<SectorAnalysis>,
+    val topFearSectors: List<SectorAnalysis>,
+    val sectorRotationSignals: List<SectorRotationSignal>,
+    val highOverlapEtfs: List<EtfCorrelationCache>,
+    val overallSignal: OverallSignal
+)
+
+/**
+ * 종합 신호
+ */
+data class OverallSignal(
+    val direction: SignalDirection,
+    val strength: Double,  // 0.0 ~ 1.0
+    val factors: List<String>
+)
+
+enum class SignalDirection {
+    STRONG_BUY, BUY, NEUTRAL, SELL, STRONG_SELL
+}
+
+@HiltViewModel
+class AdvancedDashboardViewModel @Inject constructor(
+    private val advancedRepository: AdvancedAnalysisRepository,
+    private val etfDao: EtfDao
+) : ViewModel() {
+
+    companion object {
+        private const val TAG = "AdvancedDashboardVM"
+    }
+
+    private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+
+    private val _state = MutableStateFlow<AdvancedDashboardState>(AdvancedDashboardState.Loading)
+    val state: StateFlow<AdvancedDashboardState> = _state.asStateFlow()
+
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    // 개별 분석 결과 캐시
+    private val _marketCapFlow = MutableStateFlow<MarketCapWeightedFlow?>(null)
+    val marketCapFlow: StateFlow<MarketCapWeightedFlow?> = _marketCapFlow.asStateFlow()
+
+    private val _divergenceSummary = MutableStateFlow<MarketDivergenceSummary?>(null)
+    val divergenceSummary: StateFlow<MarketDivergenceSummary?> = _divergenceSummary.asStateFlow()
+
+    private val _liquidityAnalysis = MutableStateFlow<LiquidityAnalysis?>(null)
+    val liquidityAnalysis: StateFlow<LiquidityAnalysis?> = _liquidityAnalysis.asStateFlow()
+
+    private val _sectorAnalyses = MutableStateFlow<List<SectorAnalysis>>(emptyList())
+    val sectorAnalyses: StateFlow<List<SectorAnalysis>> = _sectorAnalyses.asStateFlow()
+
+    init {
+        loadDashboard()
+    }
+
+    /**
+     * 대시보드 데이터 로드
+     */
+    fun loadDashboard() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _state.value = AdvancedDashboardState.Loading
+
+            try {
+                // 날짜 설정
+                val dates = etfDao.getAvailableDates()
+                if (dates.size < 2) {
+                    _state.value = AdvancedDashboardState.Error("데이터가 부족합니다. ETF 데이터를 먼저 수집해 주세요.")
+                    return@launch
+                }
+
+                val currentDate = dates.first()
+                val previousDate = dates[1]
+
+                // 병렬로 데이터 로드
+                val marketCapFlow = advancedRepository.calculateMarketCapWeightedFlow(currentDate, previousDate)
+                val divergenceSummary = advancedRepository.analyzeSupplyDemandDivergence(currentDate)
+                val liquidityAnalysis = advancedRepository.getLatestLiquidityAnalysis()
+                    ?: advancedRepository.calculateAndSaveLiquidityAnalysis(currentDate)
+
+                // 섹터 분석
+                var sectorAnalyses = advancedRepository.getSectorAnalysisByDate(currentDate)
+                if (sectorAnalyses.isEmpty()) {
+                    sectorAnalyses = advancedRepository.calculateAndSaveSectorAnalysis(currentDate, previousDate)
+                }
+
+                val topGreed = sectorAnalyses.filter { it.fearGreedValue > 0.6 }.take(3)
+                val topFear = sectorAnalyses.filter { it.fearGreedValue < 0.4 }.take(3)
+
+                // 섹터 로테이션
+                val rotationSignals = advancedRepository.detectSectorRotation(currentDate, previousDate)
+
+                // ETF 상관관계
+                val highOverlap = advancedRepository.getHighOverlapEtfPairs(currentDate)
+
+                // 종합 신호 계산
+                val overallSignal = calculateOverallSignal(marketCapFlow, divergenceSummary, liquidityAnalysis, sectorAnalyses)
+
+                // 캐시 업데이트
+                _marketCapFlow.value = marketCapFlow
+                _divergenceSummary.value = divergenceSummary
+                _liquidityAnalysis.value = liquidityAnalysis
+                _sectorAnalyses.value = sectorAnalyses
+
+                _state.value = AdvancedDashboardState.Success(
+                    AdvancedDashboardData(
+                        date = currentDate,
+                        marketCapFlow = marketCapFlow,
+                        divergenceSummary = divergenceSummary,
+                        liquidityAnalysis = liquidityAnalysis,
+                        topGreedSectors = topGreed,
+                        topFearSectors = topFear,
+                        sectorRotationSignals = rotationSignals,
+                        highOverlapEtfs = highOverlap,
+                        overallSignal = overallSignal
+                    )
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading dashboard", e)
+                _state.value = AdvancedDashboardState.Error("데이터 로드 실패: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * 새로고침
+     */
+    fun refresh() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            loadDashboard()
+            _isRefreshing.value = false
+        }
+    }
+
+    /**
+     * 특정 분석 강제 재계산
+     */
+    fun recalculateAnalysis(type: AnalysisType) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val dates = etfDao.getAvailableDates()
+                if (dates.size < 2) return@launch
+
+                val currentDate = dates.first()
+                val previousDate = dates[1]
+
+                when (type) {
+                    AnalysisType.MARKET_CAP_FLOW -> {
+                        val result = advancedRepository.calculateMarketCapWeightedFlow(currentDate, previousDate)
+                        _marketCapFlow.value = result
+                    }
+                    AnalysisType.DIVERGENCE -> {
+                        val result = advancedRepository.analyzeSupplyDemandDivergence(currentDate)
+                        _divergenceSummary.value = result
+                    }
+                    AnalysisType.LIQUIDITY -> {
+                        val result = advancedRepository.calculateAndSaveLiquidityAnalysis(currentDate)
+                        _liquidityAnalysis.value = result
+                    }
+                    AnalysisType.SECTOR -> {
+                        val result = advancedRepository.calculateAndSaveSectorAnalysis(currentDate, previousDate)
+                        _sectorAnalyses.value = result
+                    }
+                    AnalysisType.ETF_CORRELATION -> {
+                        advancedRepository.calculateAllEtfCorrelations(currentDate)
+                    }
+                }
+
+                // 대시보드 갱신
+                loadDashboard()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error recalculating analysis", e)
+            }
+        }
+    }
+
+    /**
+     * 종합 신호 계산
+     */
+    private fun calculateOverallSignal(
+        flow: MarketCapWeightedFlow?,
+        divergence: MarketDivergenceSummary?,
+        liquidity: LiquidityAnalysis?,
+        sectors: List<SectorAnalysis>
+    ): OverallSignal {
+        val factors = mutableListOf<String>()
+        var score = 0.0
+        var count = 0
+
+        // 1. 시총 가중 흐름 신호 (40%)
+        flow?.let {
+            val flowScore = when {
+                it.netFlow > 1000 -> 1.0
+                it.netFlow > 500 -> 0.75
+                it.netFlow > 0 -> 0.6
+                it.netFlow > -500 -> 0.4
+                it.netFlow > -1000 -> 0.25
+                else -> 0.0
+            }
+            score += flowScore * 0.4
+            count++
+
+            if (it.netFlow > 500) factors.add("시총흐름(+)")
+            else if (it.netFlow < -500) factors.add("시총흐름(-)")
+        }
+
+        // 2. 수급 Divergence 신호 (25%)
+        divergence?.let {
+            val divergenceScore = when (it.marketSentiment) {
+                MarketSentimentType.CONSENSUS_BULLISH -> 0.9
+                MarketSentimentType.STRONG_FOREIGN_LED -> 0.8
+                MarketSentimentType.STRONG_INSTITUTION_LED -> 0.7
+                MarketSentimentType.MIXED -> 0.5
+                MarketSentimentType.CONSENSUS_BEARISH -> 0.2
+            }
+            score += divergenceScore * 0.25
+            count++
+
+            when (it.marketSentiment) {
+                MarketSentimentType.CONSENSUS_BULLISH -> factors.add("컨센서스상승")
+                MarketSentimentType.STRONG_FOREIGN_LED -> factors.add("외국인주도")
+                MarketSentimentType.STRONG_INSTITUTION_LED -> factors.add("기관주도")
+                MarketSentimentType.CONSENSUS_BEARISH -> factors.add("컨센서스하락")
+                else -> {}
+            }
+        }
+
+        // 3. 유동성 신호 (20%)
+        liquidity?.let {
+            val liquidityScore = when (LiquiditySignal.valueOf(it.signal)) {
+                LiquiditySignal.BULLISH_LIQUIDITY -> 0.9
+                LiquiditySignal.NEUTRAL -> 0.5
+                LiquiditySignal.DELEVERAGING -> 0.4
+                LiquiditySignal.BEARISH_LEVERAGE -> 0.2
+            }
+            score += liquidityScore * 0.2
+            count++
+
+            if (it.signal == LiquiditySignal.BULLISH_LIQUIDITY.name) factors.add("유동성(+)")
+            else if (it.signal == LiquiditySignal.BEARISH_LEVERAGE.name) factors.add("레버리지위험")
+        }
+
+        // 4. 섹터 심리 신호 (15%)
+        if (sectors.isNotEmpty()) {
+            val avgFearGreed = sectors.map { it.fearGreedValue }.average()
+            val sectorScore = avgFearGreed.coerceIn(0.0, 1.0)
+            score += sectorScore * 0.15
+            count++
+
+            val greedSectors = sectors.filter { it.fearGreedValue > 0.7 }
+            if (greedSectors.isNotEmpty()) {
+                factors.add("${greedSectors.first().sectorName}탐욕")
+            }
+        }
+
+        // 최종 점수 정규화
+        val finalScore = if (count > 0) score / (count * 0.25 + 0.4 + 0.2 + 0.15) * count else 0.5
+
+        val direction = when {
+            finalScore >= 0.8 -> SignalDirection.STRONG_BUY
+            finalScore >= 0.6 -> SignalDirection.BUY
+            finalScore >= 0.4 -> SignalDirection.NEUTRAL
+            finalScore >= 0.2 -> SignalDirection.SELL
+            else -> SignalDirection.STRONG_SELL
+        }
+
+        return OverallSignal(
+            direction = direction,
+            strength = finalScore,
+            factors = factors
+        )
+    }
+}
+
+enum class AnalysisType {
+    MARKET_CAP_FLOW,
+    DIVERGENCE,
+    LIQUIDITY,
+    SECTOR,
+    ETF_CORRELATION
+}

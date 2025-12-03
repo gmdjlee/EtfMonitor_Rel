@@ -48,6 +48,7 @@ fun HomeScreen(
     onNavigateToMarketOscillator: () -> Unit,
     onNavigateToAIAnalysis: () -> Unit,
     onNavigateToPrediction: () -> Unit,
+    onNavigateToAdvancedDashboard: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -164,7 +165,8 @@ fun HomeScreen(
                     onNavigateToFearGreed = onNavigateToFearGreed,
                     onNavigateToMarketOscillator = onNavigateToMarketOscillator,
                     onNavigateToAIAnalysis = onNavigateToAIAnalysis,
-                    onNavigateToPrediction = onNavigateToPrediction
+                    onNavigateToPrediction = onNavigateToPrediction,
+                    onNavigateToAdvancedDashboard = onNavigateToAdvancedDashboard
                 )
             }
         }
@@ -307,7 +309,8 @@ private fun HomeContent(
     onNavigateToFearGreed: () -> Unit,
     onNavigateToMarketOscillator: () -> Unit,
     onNavigateToAIAnalysis: () -> Unit,
-    onNavigateToPrediction: () -> Unit
+    onNavigateToPrediction: () -> Unit,
+    onNavigateToAdvancedDashboard: () -> Unit
 ) {
     val hasData = (state as? HomeState.Idle)?.hasData ?: false
 
@@ -387,6 +390,16 @@ private fun HomeContent(
                     description = "ETF 변화 기반 상승 예측",
                     color = MaterialTheme.colorScheme.primary,
                     onClick = onNavigateToPrediction
+                )
+            )
+            // 고급 분석 대시보드
+            add(
+                MenuItem(
+                    icon = Icons.Default.Dashboard,
+                    title = "고급 분석",
+                    description = "시총가중/수급/섹터 종합분석",
+                    color = MaterialTheme.colorScheme.secondary,
+                    onClick = onNavigateToAdvancedDashboard
                 )
             )
         }

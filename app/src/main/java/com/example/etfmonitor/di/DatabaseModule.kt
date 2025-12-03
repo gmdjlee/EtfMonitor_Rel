@@ -52,7 +52,8 @@ object DatabaseModule {
                 MIGRATION_9_10,
                 MIGRATION_10_11,
                 MIGRATION_11_12,
-                MIGRATION_12_13
+                MIGRATION_12_13,
+                MIGRATION_13_14
             )
             .build()
     }
@@ -185,5 +186,35 @@ object DatabaseModule {
     @Singleton
     fun provideStockPredictionDao(database: AppDatabase): StockPredictionDao {
         return database.stockPredictionDao()
+    }
+
+    /**
+     * Sector Analysis DAO 제공
+     * 섹터별 Fear & Greed 분석 결과를 관리하는 DAO
+     */
+    @Provides
+    @Singleton
+    fun provideSectorAnalysisDao(database: AppDatabase): SectorAnalysisDao {
+        return database.sectorAnalysisDao()
+    }
+
+    /**
+     * ETF Correlation DAO 제공
+     * ETF 간 상관관계 캐시 데이터를 관리하는 DAO
+     */
+    @Provides
+    @Singleton
+    fun provideEtfCorrelationDao(database: AppDatabase): EtfCorrelationDao {
+        return database.etfCorrelationDao()
+    }
+
+    /**
+     * Liquidity Analysis DAO 제공
+     * 시장 유동성 분석 결과를 관리하는 DAO
+     */
+    @Provides
+    @Singleton
+    fun provideLiquidityAnalysisDao(database: AppDatabase): LiquidityAnalysisDao {
+        return database.liquidityAnalysisDao()
     }
 }
