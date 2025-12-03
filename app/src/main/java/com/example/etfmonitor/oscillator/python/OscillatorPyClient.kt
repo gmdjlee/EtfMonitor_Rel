@@ -29,6 +29,7 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
     companion object {
         private const val TAG = "OscillatorPyClient"
         private const val TIMEOUT_MS = 30_000L
+        private const val MARKET_OSCILLATOR_TIMEOUT_MS = 180_000L  // 3분 - 시장 전체 종목 분석에 필요
     }
 
     private val stocksModule by lazy {
@@ -268,8 +269,9 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         endDate: String
     ): String = withContext(Dispatchers.IO) {
         try {
-            withTimeout(TIMEOUT_MS) {
-                Log.d(TAG, "getMarketOscillator: $market, $startDate ~ $endDate")
+            // 시장 오실레이터는 전체 구성종목 데이터를 수집해야 하므로 더 긴 타임아웃 사용
+            withTimeout(MARKET_OSCILLATOR_TIMEOUT_MS) {
+                Log.d(TAG, "getMarketOscillator: $market, $startDate ~ $endDate (timeout: ${MARKET_OSCILLATOR_TIMEOUT_MS}ms)")
                 val jsonStr = marketModule.callAttr(
                     "get_market_oscillator",
                     market,

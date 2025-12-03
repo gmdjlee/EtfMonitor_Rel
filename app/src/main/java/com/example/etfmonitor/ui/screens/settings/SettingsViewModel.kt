@@ -297,28 +297,28 @@ class SettingsViewModel @Inject constructor(
             marketCapOscillator = SingleChartColorSettings(
                 lineColor1 = loadColor("marketcap", "line1", default.marketCapOscillator.lineColor1),
                 lineColor2 = loadColor("marketcap", "line2", default.marketCapOscillator.lineColor2),
-                textColor = loadOptionalColor("marketcap", "text"),
-                legendColor = loadOptionalColor("marketcap", "legend")
+                textColor = loadColor("marketcap", "text", default.marketCapOscillator.textColor),
+                legendColor = loadColor("marketcap", "legend", default.marketCapOscillator.legendColor)
             ),
             macd = SingleChartColorSettings(
                 lineColor1 = loadColor("macd", "line1", default.macd.lineColor1),
                 lineColor2 = loadColor("macd", "line2", default.macd.lineColor2),
                 positiveColor = loadColor("macd", "positive", default.macd.positiveColor),
                 negativeColor = loadColor("macd", "negative", default.macd.negativeColor),
-                textColor = loadOptionalColor("macd", "text"),
-                legendColor = loadOptionalColor("macd", "legend")
+                textColor = loadColor("macd", "text", default.macd.textColor),
+                legendColor = loadColor("macd", "legend", default.macd.legendColor)
             ),
             marketDeposit = SingleChartColorSettings(
                 lineColor1 = loadColor("deposit", "line1", default.marketDeposit.lineColor1),
                 lineColor2 = loadColor("deposit", "line2", default.marketDeposit.lineColor2),
-                textColor = loadOptionalColor("deposit", "text"),
-                legendColor = loadOptionalColor("deposit", "legend")
+                textColor = loadColor("deposit", "text", default.marketDeposit.textColor),
+                legendColor = loadColor("deposit", "legend", default.marketDeposit.legendColor)
             ),
             fearGreed = SingleChartColorSettings(
                 lineColor1 = loadColor("feargreed", "line1", default.fearGreed.lineColor1),
                 lineColor2 = loadColor("feargreed", "line2", default.fearGreed.lineColor2),
-                textColor = loadOptionalColor("feargreed", "text"),
-                legendColor = loadOptionalColor("feargreed", "legend")
+                textColor = loadColor("feargreed", "text", default.fearGreed.textColor),
+                legendColor = loadColor("feargreed", "legend", default.fearGreed.legendColor)
             )
         )
 
@@ -645,8 +645,8 @@ class SettingsViewModel @Inject constructor(
     private fun SingleChartColorSettings.updateProperty(property: ColorProperty, color: Int?): SingleChartColorSettings = when (property) {
         ColorProperty.LINE1 -> copy(lineColor1 = color ?: lineColor1)
         ColorProperty.LINE2 -> copy(lineColor2 = color ?: lineColor2)
-        ColorProperty.TEXT -> copy(textColor = color)
-        ColorProperty.LEGEND -> copy(legendColor = color)
+        ColorProperty.TEXT -> copy(textColor = color ?: textColor)
+        ColorProperty.LEGEND -> copy(legendColor = color ?: legendColor)
         ColorProperty.POSITIVE -> copy(positiveColor = color ?: positiveColor)
         ColorProperty.NEGATIVE -> copy(negativeColor = color ?: negativeColor)
     }

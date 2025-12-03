@@ -48,6 +48,7 @@ fun HomeScreen(
     onNavigateToMarketOscillator: () -> Unit,
     onNavigateToAIAnalysis: () -> Unit,
     onNavigateToPrediction: () -> Unit,
+    onNavigateToAdvancedDashboard: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -55,6 +56,7 @@ fun HomeScreen(
     val showMarketDepositDialog by viewModel.showMarketDepositDialog.collectAsState()
     val showFearGreedDialog by viewModel.showFearGreedDialog.collectAsState()
     val showMarketOscillatorDialog by viewModel.showMarketOscillatorDialog.collectAsState()
+    val showUnifiedInitDialog by viewModel.showUnifiedInitDialog.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val lastDate = (state as? HomeState.Idle)?.lastDate
 
@@ -62,8 +64,14 @@ fun HomeScreen(
     var showMarketDepositPagesDialog by remember { mutableStateOf(false) }
     var showFearGreedPeriodDialog by remember { mutableStateOf(false) }
     var showMarketOscillatorPeriodDialog by remember { mutableStateOf(false) }
+    var showUnifiedDialog by remember { mutableStateOf(false) }
 
-    // Dialog handlers
+    // 통합 다이얼로그 핸들러
+    LaunchedEffect(showUnifiedInitDialog) {
+        if (showUnifiedInitDialog) showUnifiedDialog = true
+    }
+
+    // 기존 개별 다이얼로그 핸들러 (호환성 유지)
     LaunchedEffect(showFirstRunDialog) {
         if (showFirstRunDialog) showDaysDialog = true
     }
@@ -157,7 +165,8 @@ fun HomeScreen(
                     onNavigateToFearGreed = onNavigateToFearGreed,
                     onNavigateToMarketOscillator = onNavigateToMarketOscillator,
                     onNavigateToAIAnalysis = onNavigateToAIAnalysis,
-                    onNavigateToPrediction = onNavigateToPrediction
+                    onNavigateToPrediction = onNavigateToPrediction,
+                    onNavigateToAdvancedDashboard = onNavigateToAdvancedDashboard
                 )
             }
         }
@@ -213,6 +222,20 @@ fun HomeScreen(
             onConfirm = { days ->
                 viewModel.initializeMarketOscillator(days)
                 showMarketOscillatorPeriodDialog = false
+            }
+        )
+    }
+
+    // 통합 초기화 다이얼로그
+    if (showUnifiedDialog) {
+        UnifiedInitializationDialog(
+            onDismiss = {
+                showUnifiedDialog = false
+                viewModel.onUnifiedInitDialogDismiss()
+            },
+            onConfirm = { etfDays, depositPages, fearGreedDays, oscillatorDays ->
+                showUnifiedDialog = false
+                viewModel.initializeAll(etfDays, depositPages, fearGreedDays, oscillatorDays)
             }
         )
     }
@@ -286,7 +309,8 @@ private fun HomeContent(
     onNavigateToFearGreed: () -> Unit,
     onNavigateToMarketOscillator: () -> Unit,
     onNavigateToAIAnalysis: () -> Unit,
-    onNavigateToPrediction: () -> Unit
+    onNavigateToPrediction: () -> Unit,
+    onNavigateToAdvancedDashboard: () -> Unit
 ) {
     val hasData = (state as? HomeState.Idle)?.hasData ?: false
 
@@ -366,6 +390,16 @@ private fun HomeContent(
                     description = "ETF 변화 기반 상승 예측",
                     color = MaterialTheme.colorScheme.primary,
                     onClick = onNavigateToPrediction
+                )
+            )
+            // 고급 분석 대시보드
+            add(
+                MenuItem(
+                    icon = Icons.Default.Dashboard,
+                    title = "고급 분석",
+                    description = "시총가중/수급/섹터 종합분석",
+                    color = MaterialTheme.colorScheme.secondary,
+                    onClick = onNavigateToAdvancedDashboard
                 )
             )
         }
@@ -817,6 +851,240 @@ private fun MarketOscillatorPeriodSelectionDialog(
         onDismiss = onDismiss,
         onConfirm = onConfirm
     )
+}
+
+/**
+ * 통합 초기화 다이얼로그
+ * 앱 첫 실행 시 모든 데이터 수집 옵션을 한 번에 선택
+ */
+@Composable
+private fun UnifiedInitializationDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (etfDays: Int, depositPages: Int?, fearGreedDays: Int?, oscillatorDays: Int?) -> Unit
+) {
+    // ETF 수집 기간
+    val etfOptions = listOf(
+        DaysOption(5, "5일", "빠른 테스트"),
+        DaysOption(10, "10일", "약 2주"),
+        DaysOption(15, "15일", "약 3주"),
+        DaysOption(20, "20일", "약 1개월"),
+        DaysOption(25, "25일 (권장)", "약 1.5개월")
+    )
+    var selectedEtfDays by remember { mutableStateOf(25) }
+
+    // 증시 자금 동향 수집 여부
+    var collectDeposit by remember { mutableStateOf(true) }
+    var selectedDepositPages by remember { mutableStateOf(10) }
+
+    // Fear & Greed Index 수집 여부
+    var collectFearGreed by remember { mutableStateOf(true) }
+    var selectedFearGreedDays by remember { mutableStateOf(365) }
+
+    // 과매수/과매도 수집 여부
+    var collectOscillator by remember { mutableStateOf(true) }
+    var selectedOscillatorDays by remember { mutableStateOf(365) }
+
+    val scrollState = rememberScrollState()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "초기 데이터 수집",
+                style = MaterialTheme.typography.headlineSmall
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    "수집할 데이터를 선택하세요.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // 1. ETF 데이터 수집 기간 (필수)
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    shape = MaterialTheme.extendedShapes.card
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "ETF 데이터 (필수)",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        etfOptions.forEach { option ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = (selectedEtfDays == option.days),
+                                        onClick = { selectedEtfDays = option.days }
+                                    )
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = (selectedEtfDays == option.days),
+                                    onClick = { selectedEtfDays = option.days }
+                                )
+                                Text(
+                                    "${option.label} - ${option.description}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(start = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 2. 증시 자금 동향 (선택)
+                UnifiedOptionSection(
+                    title = "증시 자금 동향",
+                    enabled = collectDeposit,
+                    onEnabledChange = { collectDeposit = it },
+                    options = listOf(
+                        "5페이지 (약 5일)" to 5,
+                        "10페이지 (권장)" to 10,
+                        "20페이지 (약 20일)" to 20
+                    ),
+                    selectedValue = selectedDepositPages,
+                    onValueChange = { selectedDepositPages = it }
+                )
+
+                // 3. Fear & Greed Index (선택)
+                UnifiedOptionSection(
+                    title = "Fear & Greed Index",
+                    enabled = collectFearGreed,
+                    onEnabledChange = { collectFearGreed = it },
+                    options = listOf(
+                        "6개월" to 180,
+                        "12개월 (권장)" to 365,
+                        "18개월" to 540
+                    ),
+                    selectedValue = selectedFearGreedDays,
+                    onValueChange = { selectedFearGreedDays = it }
+                )
+
+                // 4. 과매수/과매도 지표 (선택)
+                UnifiedOptionSection(
+                    title = "시장 과매수/과매도",
+                    enabled = collectOscillator,
+                    onEnabledChange = { collectOscillator = it },
+                    options = listOf(
+                        "6개월" to 180,
+                        "12개월 (권장)" to 365,
+                        "18개월" to 540
+                    ),
+                    selectedValue = selectedOscillatorDays,
+                    onValueChange = { selectedOscillatorDays = it }
+                )
+
+                // 안내 문구
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = MaterialTheme.extendedShapes.card
+                ) {
+                    Text(
+                        "• ETF 데이터: 약 1-2분\n• 증시 자금 동향: 약 30초\n• Fear & Greed: 약 1-2분\n• 과매수/과매도: 약 3-5분",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(12.dp),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            FilledTonalButton(
+                onClick = {
+                    onConfirm(
+                        selectedEtfDays,
+                        if (collectDeposit) selectedDepositPages else null,
+                        if (collectFearGreed) selectedFearGreedDays else null,
+                        if (collectOscillator) selectedOscillatorDays else null
+                    )
+                },
+                shape = MaterialTheme.extendedShapes.button
+            ) {
+                Text("수집 시작")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("나중에")
+            }
+        },
+        shape = MaterialTheme.extendedShapes.cardLarge
+    )
+}
+
+/**
+ * 통합 다이얼로그의 선택 옵션 섹션
+ */
+@Composable
+private fun UnifiedOptionSection(
+    title: String,
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    options: List<Pair<String, Int>>,
+    selectedValue: Int,
+    onValueChange: (Int) -> Unit
+) {
+    Surface(
+        color = if (enabled)
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        else
+            MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.extendedShapes.card
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (enabled)
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    else
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                Switch(
+                    checked = enabled,
+                    onCheckedChange = onEnabledChange
+                )
+            }
+
+            if (enabled) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    options.forEach { (label, value) ->
+                        FilterChip(
+                            selected = selectedValue == value,
+                            onClick = { onValueChange(value) },
+                            label = { Text(label, style = MaterialTheme.typography.bodySmall) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 private data class DaysOption(

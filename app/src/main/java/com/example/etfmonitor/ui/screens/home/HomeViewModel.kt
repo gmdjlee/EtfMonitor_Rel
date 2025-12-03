@@ -62,6 +62,10 @@ class HomeViewModel @Inject constructor(
     private val _showMarketOscillatorDialog = MutableStateFlow(false)
     val showMarketOscillatorDialog: StateFlow<Boolean> = _showMarketOscillatorDialog.asStateFlow()
 
+    // 통합 초기화 다이얼로그용 상태
+    private val _showUnifiedInitDialog = MutableStateFlow(false)
+    val showUnifiedInitDialog: StateFlow<Boolean> = _showUnifiedInitDialog.asStateFlow()
+
     private val _etfInitializationCompleted = MutableStateFlow(false)
 
     init {
@@ -73,11 +77,16 @@ class HomeViewModel @Inject constructor(
     private fun checkFirstRun() {
         viewModelScope.launch {
             val isFirstRun = etfDao.getSetting("is_first_run")
-            val hasData = repository.hasData()
+            val hasEtfData = repository.hasData()
+            val hasDepositData = marketDepositRepository.getDepositCount() > 0
+            val hasFearGreedData = fearGreedRepository.getCountByMarket("KOSPI") > 0 ||
+                                   fearGreedRepository.getCountByMarket("KOSDAQ") > 0
+            val hasOscillatorData = marketOscillatorRepository.getDataCount("KOSPI") > 0 ||
+                                    marketOscillatorRepository.getDataCount("KOSDAQ") > 0
 
-            // 첫 실행이고 데이터가 없으면 다이얼로그 표시
-            if ((isFirstRun == null || isFirstRun == "true") && !hasData) {
-                _showFirstRunDialog.value = true
+            // 첫 실행이거나 ETF 데이터가 없으면 통합 다이얼로그 표시
+            if ((isFirstRun == null || isFirstRun == "true") && !hasEtfData) {
+                _showUnifiedInitDialog.value = true
             }
         }
     }
@@ -248,12 +257,19 @@ class HomeViewModel @Inject constructor(
                     val wasUpdating = _state.value is HomeState.Updating
 
                     if (wasInitializing || wasUpdating) {
-                        checkData()
-
-                        // ETF 초기화가 완료된 경우 증시 자금 동향 다이얼로그 표시
+                        // ETF 초기화가 완료된 경우 나머지 통합 초기화 진행
                         if (wasInitializing && _etfInitializationCompleted.value) {
                             _etfInitializationCompleted.value = false  // 리셋
-                            checkMarketDepositFirstRun()
+                            // 대기 중인 초기화가 있으면 계속 진행
+                            if (_pendingDepositPages.value != null ||
+                                _pendingFearGreedDays.value != null ||
+                                _pendingOscillatorDays.value != null) {
+                                continueUnifiedInitialization()
+                            } else {
+                                checkData()
+                            }
+                        } else {
+                            checkData()
                         }
                     }
                 }
@@ -339,6 +355,123 @@ class HomeViewModel @Inject constructor(
     fun clearMessage() {
         if (_state.value is HomeState.Success || _state.value is HomeState.Error) {
             checkData()
+        }
+    }
+
+    /**
+     * 통합 초기화 - 모든 데이터 타입을 한 번에 초기화
+     */
+    fun initializeAll(
+        etfDays: Int,
+        depositPages: Int?,
+        fearGreedDays: Int?,
+        oscillatorDays: Int?
+    ) {
+        viewModelScope.launch {
+            // 모든 다이얼로그 설정 플래그 저장 (다시 보이지 않도록)
+            etfDao.saveSetting(com.etfmonitor.database.entities.Setting("is_first_run", "false"))
+            etfDao.saveSetting(com.etfmonitor.database.entities.Setting("market_deposit_dialog_dismissed", "true"))
+            etfDao.saveSetting(com.etfmonitor.database.entities.Setting("fear_greed_dialog_dismissed", "true"))
+            etfDao.saveSetting(com.etfmonitor.database.entities.Setting("market_oscillator_dialog_dismissed", "true"))
+
+            _showUnifiedInitDialog.value = false
+
+            // 1. ETF 데이터 초기화
+            _state.value = HomeState.Initializing("ETF 데이터 수집 시작...", 0)
+            DataCollectionService.startInitialize(context, etfDays)
+
+            // ETF 완료 후 나머지 초기화를 진행하기 위해 플래그 설정
+            // (observeCollectionState에서 ETF 완료 감지 후 나머지 초기화 실행)
+            _pendingDepositPages.value = depositPages
+            _pendingFearGreedDays.value = fearGreedDays
+            _pendingOscillatorDays.value = oscillatorDays
+            _etfInitializationCompleted.value = true
+        }
+    }
+
+    // 통합 초기화에서 ETF 완료 후 실행할 대기중인 초기화 파라미터
+    private val _pendingDepositPages = MutableStateFlow<Int?>(null)
+    private val _pendingFearGreedDays = MutableStateFlow<Int?>(null)
+    private val _pendingOscillatorDays = MutableStateFlow<Int?>(null)
+
+    /**
+     * ETF 초기화 완료 후 나머지 데이터 초기화 실행
+     */
+    private fun continueUnifiedInitialization() {
+        viewModelScope.launch {
+            val depositPages = _pendingDepositPages.value
+            val fearGreedDays = _pendingFearGreedDays.value
+            val oscillatorDays = _pendingOscillatorDays.value
+
+            // 대기 값 초기화
+            _pendingDepositPages.value = null
+            _pendingFearGreedDays.value = null
+            _pendingOscillatorDays.value = null
+
+            var totalSteps = 0
+            var currentStep = 0
+            if (depositPages != null) totalSteps++
+            if (fearGreedDays != null) totalSteps++
+            if (oscillatorDays != null) totalSteps++
+
+            if (totalSteps == 0) {
+                checkData()
+                return@launch
+            }
+
+            // 2. 증시 자금 동향 초기화
+            if (depositPages != null) {
+                currentStep++
+                _state.value = HomeState.Initializing("증시 자금 동향 수집 중... ($currentStep/$totalSteps)", 0)
+                val result = marketDepositRepository.initializeDeposits(depositPages) { message, progress ->
+                    _state.value = HomeState.Initializing(message, progress)
+                }
+                if (result.isFailure) {
+                    android.util.Log.e("HomeViewModel", "Market deposit init failed: ${result.exceptionOrNull()?.message}")
+                }
+            }
+
+            // 3. Fear & Greed 초기화
+            if (fearGreedDays != null) {
+                currentStep++
+                _state.value = HomeState.Initializing("Fear & Greed Index 수집 중... ($currentStep/$totalSteps)", 0)
+                val result = fearGreedRepository.initializeFearGreed(fearGreedDays) { message, progress ->
+                    _state.value = HomeState.Initializing(message, progress)
+                }
+                if (result.isFailure) {
+                    android.util.Log.e("HomeViewModel", "Fear & Greed init failed: ${result.exceptionOrNull()?.message}")
+                }
+            }
+
+            // 4. 과매수/과매도 초기화
+            if (oscillatorDays != null) {
+                currentStep++
+                _state.value = HomeState.Initializing("과매수/과매도 지표 수집 중... ($currentStep/$totalSteps)", 0)
+
+                val kospiResult = marketOscillatorRepository.initializeMarketData("KOSPI", oscillatorDays) { message, progress ->
+                    _state.value = HomeState.Initializing("KOSPI $message", progress / 2)
+                }
+                val kosdaqResult = marketOscillatorRepository.initializeMarketData("KOSDAQ", oscillatorDays) { message, progress ->
+                    _state.value = HomeState.Initializing("KOSDAQ $message", 50 + progress / 2)
+                }
+
+                if (kospiResult.isFailure) {
+                    android.util.Log.e("HomeViewModel", "KOSPI oscillator init failed: ${kospiResult.exceptionOrNull()?.message}")
+                }
+                if (kosdaqResult.isFailure) {
+                    android.util.Log.e("HomeViewModel", "KOSDAQ oscillator init failed: ${kosdaqResult.exceptionOrNull()?.message}")
+                }
+            }
+
+            _state.value = HomeState.Success("모든 데이터 초기화 완료")
+            checkData()
+        }
+    }
+
+    fun onUnifiedInitDialogDismiss() {
+        viewModelScope.launch {
+            etfDao.saveSetting(com.etfmonitor.database.entities.Setting("is_first_run", "false"))
+            _showUnifiedInitDialog.value = false
         }
     }
 }

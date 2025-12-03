@@ -108,10 +108,10 @@ fun MarketCapOscillatorChart(
 
     // Modern theme colors
     val isDark = isSystemInDarkTheme()
-    val primaryColor = colorSettings.lineColor1  // 시가총액
+    val primaryColor = colorSettings.lineColor1  // 시가총액 (기본값: Black)
     val tertiaryColor = colorSettings.lineColor2  // 오실레이터
-    val textColor = colorSettings.textColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
-    val legendColor = colorSettings.legendColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val textColor = colorSettings.textColor      // 축 라벨/틱 색상 (기본값: Black)
+    val legendColor = colorSettings.legendColor  // 범례 색상 (기본값: Black)
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
     ChartCard(
@@ -276,12 +276,12 @@ fun MacdChart(
 
     // Modern theme colors
     val isDark = isSystemInDarkTheme()
-    val macdColor = colorSettings.lineColor1      // MACD 라인
+    val macdColor = colorSettings.lineColor1      // MACD 라인 (기본값: Black)
     val signalColor = colorSettings.lineColor2    // Signal 라인
     val positiveColor = colorSettings.positiveColor   // Histogram 양수
     val negativeColor = colorSettings.negativeColor     // Histogram 음수
-    val textColor = colorSettings.textColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
-    val legendColor = colorSettings.legendColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val textColor = colorSettings.textColor       // 축 라벨/틱 색상 (기본값: Black)
+    val legendColor = colorSettings.legendColor   // 범례 색상 (기본값: Black)
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
     ChartCard(
@@ -433,10 +433,10 @@ fun MarketDepositChart(
 
     // Modern theme colors
     val isDark = isSystemInDarkTheme()
-    val depositColor = colorSettings.lineColor1   // 고객예탁금
-    val creditColor = colorSettings.lineColor2      // 신용잔고
-    val textColor = colorSettings.textColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
-    val legendColor = colorSettings.legendColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val depositColor = colorSettings.lineColor1   // 고객예탁금 (기본값: Black)
+    val creditColor = colorSettings.lineColor2    // 신용잔고
+    val textColor = colorSettings.textColor       // 축 라벨/틱 색상 (기본값: Black)
+    val legendColor = colorSettings.legendColor   // 범례 색상 (기본값: Black)
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
     ChartCard(
@@ -610,8 +610,8 @@ fun TrendSignalChart(
     // Fear & Greed 라인 색상
     val fearGreedColor = Color.rgb(156, 39, 176)        // 보라색
 
-    val textColor = colorSettings.textColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
-    val legendColor = colorSettings.legendColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val textColor = colorSettings.textColor       // 축 라벨/틱 색상 (기본값: Black)
+    val legendColor = colorSettings.legendColor   // 범례 색상 (기본값: Black)
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
     ChartCard(
@@ -947,10 +947,10 @@ fun ElderImpulseChart(
     val colorSettings = chartColors.marketCapOscillator
 
     val isDark = isSystemInDarkTheme()
-    val marketCapColor = colorSettings.lineColor1
+    val marketCapColor = colorSettings.lineColor1  // 시가총액 (기본값: Black)
     val emaColor = colorSettings.lineColor2
-    val textColor = colorSettings.textColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
-    val legendColor = colorSettings.legendColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val textColor = colorSettings.textColor        // 축 라벨/틱 색상 (기본값: Black)
+    val legendColor = colorSettings.legendColor    // 범례 색상 (기본값: Black)
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
     val bullColor = ChartGreen.toArgb()
     val bearColor = ChartRed.toArgb()
@@ -1147,10 +1147,10 @@ fun DemarkTDChart(
     val colorSettings = chartColors.marketCapOscillator
 
     val isDark = isSystemInDarkTheme()
-    val marketCapColor = colorSettings.lineColor1
+    val marketCapColor = colorSettings.lineColor1   // 시가총액 (기본값: Black)
     val closeColor = colorSettings.lineColor2
-    val textColor = colorSettings.textColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
-    val legendColor = colorSettings.legendColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val textColor = colorSettings.textColor         // 축 라벨/틱 색상 (기본값: Black)
+    val legendColor = colorSettings.legendColor     // 범례 색상 (기본값: Black)
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
     val sellFatigueColor = ChartRed.toArgb()
     val buyFatigueColor = ChartGreen.toArgb()

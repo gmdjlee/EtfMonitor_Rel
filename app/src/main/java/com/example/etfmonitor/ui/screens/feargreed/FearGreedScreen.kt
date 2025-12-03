@@ -258,7 +258,8 @@ fun FearGreedChart(
     val isDark = isSystemInDarkTheme()
     val fearGreedColor = chartColors.lineColor1  // Fear & Greed Oscillator
     val indexColor = chartColors.lineColor2      // KOSPI/KOSDAQ 지수
-    val textColor = chartColors.textColor ?: if (isDark) ChartTextDark.toArgb() else ChartTextLight.toArgb()
+    val textColor = chartColors.textColor        // 축 라벨/틱 색상 (기본값: Black)
+    val legendColor = chartColors.legendColor    // 범례 색상 (기본값: Black)
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
     AndroidView(
@@ -331,7 +332,7 @@ fun FearGreedChart(
                 legend.apply {
                     isEnabled = true
                     textSize = 12f
-                    setTextColor(chartColors.legendColor ?: textColor)
+                    setTextColor(legendColor)
                 }
             }
         },
