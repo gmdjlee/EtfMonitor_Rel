@@ -49,5 +49,13 @@ class EtfMonitorApp : Application(), Configuration.Provider {
             hour = 20,
             minute = 0
         )
+
+        // Schedule Advanced Analysis at 6:30 PM every day (after market close)
+        // 고급 분석: 시총가중 ETF흐름, 수급Divergence, 유동성, 섹터분석, ETF상관관계
+        WorkManagerHelper.scheduleAdvancedAnalysis(
+            context = this,
+            hour = 18,
+            minute = 30
+        )
     }
 }

@@ -778,28 +778,56 @@ class AdvancedAnalysisRepository @Inject constructor(
         return maxCount.toDouble() / total
     }
 
+    /**
+     * 시장 전체 시가총액 계산
+     *
+     * 우선순위:
+     * 1. 요청 날짜와 정확히 일치하는 데이터 사용
+     * 2. 일치하는 날짜가 없으면 가장 최근 날짜 데이터 사용
+     * 3. 데이터가 없으면 (0, 0) 반환 (호출측에서 기본값 처리)
+     */
     private suspend fun calculateTotalMarketCap(date: String): Pair<Long, Long> {
         val allData = stockAnalysisDao.getAllAnalysisData()
         Log.d(TAG, "calculateTotalMarketCap: ${allData.size} stocks in stock_analysis_data")
 
+        if (allData.isEmpty()) {
+            Log.w(TAG, "No stock analysis data available for market cap calculation")
+            return 0L to 0L
+        }
+
         var kospiCap = 0L
         var kosdaqCap = 0L
         var matchedCount = 0
+        var usedFallback = false
 
         for (data in allData) {
-            val dateIndex = data.dates.indexOf(date)
-            if (dateIndex >= 0 && dateIndex < data.marketCap.size) {
+            // 1. 정확한 날짜 매칭 시도
+            var dateIndex = data.dates.indexOf(date)
+
+            // 2. 정확한 매칭이 없으면 가장 최근 날짜 사용
+            if (dateIndex < 0 || dateIndex >= data.marketCap.size) {
+                // 최근 날짜 순으로 정렬된 데이터에서 첫 번째 유효한 인덱스 사용
+                dateIndex = 0  // 가장 최근 데이터
+                usedFallback = true
+            }
+
+            if (dateIndex < data.marketCap.size) {
                 val cap = data.marketCap[dateIndex]
-                matchedCount++
-                if (getStockMarket(data.ticker) == "KOSPI") {
-                    kospiCap += cap
-                } else {
-                    kosdaqCap += cap
+                if (cap > 0) {
+                    matchedCount++
+                    if (getStockMarket(data.ticker) == "KOSPI") {
+                        kospiCap += cap
+                    } else {
+                        kosdaqCap += cap
+                    }
                 }
             }
         }
 
-        Log.d(TAG, "calculateTotalMarketCap: $matchedCount stocks matched for date $date")
+        if (usedFallback && matchedCount > 0) {
+            Log.d(TAG, "calculateTotalMarketCap: Using latest available data (not exact date match)")
+        }
+        Log.d(TAG, "calculateTotalMarketCap: $matchedCount stocks, kospi=$kospiCap, kosdaq=$kosdaqCap")
         return kospiCap to kosdaqCap
     }
 
@@ -816,16 +844,10 @@ class AdvancedAnalysisRepository @Inject constructor(
     }
 
     private fun inferSectorFromStock(ticker: String, name: String): String {
-        // 종목명 기반 섹터 추론 (간략화)
-        return when {
-            name.contains("반도체") || name.contains("하이닉스") || name.contains("삼성전자") -> "SEMICONDUCTOR"
-            name.contains("배터리") || name.contains("2차전지") || name.contains("LG에너지") -> "BATTERY"
-            name.contains("바이오") || name.contains("제약") || name.contains("셀트리온") -> "BIO"
-            name.contains("자동차") || name.contains("현대차") || name.contains("기아") -> "AUTO"
-            name.contains("은행") || name.contains("금융") || name.contains("보험") -> "FINANCE"
-            name.contains("카카오") || name.contains("네이버") || name.contains("게임") -> "IT"
-            else -> "OTHER"
-        }
+        // SectorMapping의 개선된 섹터 분류 사용
+        // 1. 종목 티커 기반 직접 매핑 (100+ 대형주)
+        // 2. 종목명 키워드 패턴 매칭 (16개 섹터)
+        return SectorMapping.inferSectorFromStock(ticker, name)
     }
 
     private fun calculateWeightCorrelation(
