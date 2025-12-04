@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 // ==================== Data Classes ====================
@@ -455,15 +456,17 @@ class SettingsViewModel @Inject constructor(
 
     fun updateStocksNow() {
         viewModelScope.launch {
+            _stockUpdateSettings.value = _stockUpdateSettings.value.copy(isUpdating = true)
+            _message.value = "종목 데이터 업데이트 중..."
             try {
-                _stockUpdateSettings.value = _stockUpdateSettings.value.copy(isUpdating = true)
-                _message.value = "종목 데이터 업데이트 중..."
-                val result = stockRepository.updateStocks()
-                if (result.isSuccess) {
-                    loadDataInfo()
-                    _message.value = "업데이트 완료: ${result.getOrNull() ?: 0}개 종목"
-                } else {
-                    _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
+                val result = withTimeoutOrNull(90_000L) { stockRepository.updateStocks() }
+                when {
+                    result == null -> _message.value = "업데이트 시간 초과 (90초)"
+                    result.isSuccess -> {
+                        loadDataInfo()
+                        _message.value = "업데이트 완료: ${result.getOrNull() ?: 0}개 종목"
+                    }
+                    else -> _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
                 }
             } catch (e: Exception) {
                 _message.value = "오류 발생: ${e.message}"
@@ -475,15 +478,17 @@ class SettingsViewModel @Inject constructor(
 
     fun updateMarketDepositsNow() {
         viewModelScope.launch {
+            _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(isUpdating = true)
+            _message.value = "증시 자금 데이터 업데이트 중..."
             try {
-                _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(isUpdating = true)
-                _message.value = "증시 자금 데이터 업데이트 중..."
-                val result = marketDepositRepository.updateDeposits(numPages = 10)
-                if (result.isSuccess) {
-                    loadDataInfo()
-                    _message.value = "업데이트 완료: ${result.getOrNull() ?: 0}개 데이터"
-                } else {
-                    _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
+                val result = withTimeoutOrNull(90_000L) { marketDepositRepository.updateDeposits(numPages = 10) }
+                when {
+                    result == null -> _message.value = "업데이트 시간 초과 (90초)"
+                    result.isSuccess -> {
+                        loadDataInfo()
+                        _message.value = "업데이트 완료: ${result.getOrNull() ?: 0}개 데이터"
+                    }
+                    else -> _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
                 }
             } catch (e: Exception) {
                 _message.value = "오류 발생: ${e.message}"
@@ -495,15 +500,17 @@ class SettingsViewModel @Inject constructor(
 
     fun updateFearGreedNow() {
         viewModelScope.launch {
+            _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(isUpdating = true)
+            _message.value = "Fear & Greed Index 업데이트 중..."
             try {
-                _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(isUpdating = true)
-                _message.value = "Fear & Greed Index 업데이트 중..."
-                val result = fearGreedRepository.updateFearGreed()
-                if (result.isSuccess) {
-                    loadDataInfo()
-                    _message.value = "업데이트 완료: ${result.getOrNull() ?: 0}개 데이터"
-                } else {
-                    _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
+                val result = withTimeoutOrNull(90_000L) { fearGreedRepository.updateFearGreed() }
+                when {
+                    result == null -> _message.value = "업데이트 시간 초과 (90초)"
+                    result.isSuccess -> {
+                        loadDataInfo()
+                        _message.value = "업데이트 완료: ${result.getOrNull() ?: 0}개 데이터"
+                    }
+                    else -> _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
                 }
             } catch (e: Exception) {
                 _message.value = "오류 발생: ${e.message}"
@@ -515,22 +522,28 @@ class SettingsViewModel @Inject constructor(
 
     fun updateMarketOscillatorsNow() {
         viewModelScope.launch {
+            _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(isUpdating = true)
+            _message.value = "과매수/과매도 데이터 업데이트 중..."
             try {
-                _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(isUpdating = true)
-                _message.value = "과매수/과매도 데이터 업데이트 중..."
-
-                val kospiResult = marketOscillatorRepository.updateMarketData("KOSPI")
-                val kosdaqResult = marketOscillatorRepository.updateMarketData("KOSDAQ")
-
-                if (kospiResult.isSuccess && kosdaqResult.isSuccess) {
-                    loadDataInfo()
-                    _message.value = "업데이트 완료: KOSPI ${kospiResult.getOrNull() ?: 0}개, KOSDAQ ${kosdaqResult.getOrNull() ?: 0}개"
-                } else {
-                    val errors = listOfNotNull(
-                        kospiResult.exceptionOrNull()?.let { "KOSPI: ${it.message}" },
-                        kosdaqResult.exceptionOrNull()?.let { "KOSDAQ: ${it.message}" }
-                    )
-                    _message.value = "업데이트 실패: ${errors.joinToString(", ")}"
+                // 시장 오실레이터는 전체 종목 데이터 수집으로 오래 걸림 (5분 타임아웃)
+                val results = withTimeoutOrNull(300_000L) {
+                    val kospiResult = marketOscillatorRepository.updateMarketData("KOSPI")
+                    val kosdaqResult = marketOscillatorRepository.updateMarketData("KOSDAQ")
+                    Pair(kospiResult, kosdaqResult)
+                }
+                when {
+                    results == null -> _message.value = "업데이트 시간 초과 (5분)"
+                    results.first.isSuccess && results.second.isSuccess -> {
+                        loadDataInfo()
+                        _message.value = "업데이트 완료: KOSPI ${results.first.getOrNull() ?: 0}개, KOSDAQ ${results.second.getOrNull() ?: 0}개"
+                    }
+                    else -> {
+                        val errors = listOfNotNull(
+                            results.first.exceptionOrNull()?.let { "KOSPI: ${it.message}" },
+                            results.second.exceptionOrNull()?.let { "KOSDAQ: ${it.message}" }
+                        )
+                        _message.value = "업데이트 실패: ${errors.joinToString(", ")}"
+                    }
                 }
             } catch (e: Exception) {
                 _message.value = "오류 발생: ${e.message}"
