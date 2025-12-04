@@ -1822,13 +1822,6 @@ private fun SectorHistoryRow(sectorCode: String, history: List<SectorAnalysis>) 
     }
 }
 
-private fun getFearGreedColor(value: Double): Color = when {
-    value >= 0.7 -> Color(0xFF4CAF50)  // 탐욕 - 초록
-    value >= 0.5 -> Color(0xFF8BC34A)  // 약한 탐욕
-    value >= 0.3 -> Color(0xFFFF9800)  // 약한 공포
-    else -> Color(0xFFF44336)           // 공포 - 빨강
-}
-
 // ==================== 예측 정확도 UI 컴포넌트 ====================
 
 /**
@@ -2156,7 +2149,7 @@ fun MarketCapFlowAccuracySummary(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Row(verticalAlignment = Alignment.Baseline) {
+                Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         "${hitRatePercent}%",
                         style = MaterialTheme.typography.titleLarge,

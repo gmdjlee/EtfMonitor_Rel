@@ -235,9 +235,9 @@ class AdvancedDashboardViewModel @Inject constructor(
                 historyItems.add(
                     MarketCapFlowHistoryItem(
                         date = currentDate,
-                        netFlow = flow.netFlow,
-                        inflow = flow.inflow,
-                        outflow = flow.outflow
+                        netFlow = flow.netFlow.toDouble(),
+                        inflow = flow.totalInflow.toDouble(),
+                        outflow = flow.totalOutflow.toDouble()
                     )
                 )
             }
