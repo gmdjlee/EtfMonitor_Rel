@@ -83,11 +83,14 @@ class AdvancedDashboardViewModel @Inject constructor(
     private val etfDao: EtfDao,
     private val stockAnalysisDao: StockAnalysisDao,
     private val marketDepositDao: MarketDepositDao,
-    private val fearGreedDao: FearGreedDao
+    private val fearGreedDao: FearGreedDao,
+    private val liquidityAnalysisDao: LiquidityAnalysisDao,
+    private val sectorAnalysisDao: SectorAnalysisDao
 ) : ViewModel() {
 
     companion object {
         private const val TAG = "AdvancedDashboardVM"
+        private const val HISTORY_DAYS = 30
     }
 
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -111,8 +114,80 @@ class AdvancedDashboardViewModel @Inject constructor(
     private val _sectorAnalyses = MutableStateFlow<List<SectorAnalysis>>(emptyList())
     val sectorAnalyses: StateFlow<List<SectorAnalysis>> = _sectorAnalyses.asStateFlow()
 
+    // 히스토리 데이터
+    private val _liquidityHistory = MutableStateFlow<List<LiquidityAnalysis>>(emptyList())
+    val liquidityHistory: StateFlow<List<LiquidityAnalysis>> = _liquidityHistory.asStateFlow()
+
+    private val _sectorHistory = MutableStateFlow<Map<String, List<SectorAnalysis>>>(emptyMap())
+    val sectorHistory: StateFlow<Map<String, List<SectorAnalysis>>> = _sectorHistory.asStateFlow()
+
+    private val _marketCapFlowHistory = MutableStateFlow<List<MarketCapFlowHistoryItem>>(emptyList())
+    val marketCapFlowHistory: StateFlow<List<MarketCapFlowHistoryItem>> = _marketCapFlowHistory.asStateFlow()
+
     init {
         loadDashboard()
+        loadHistoryData()
+    }
+
+    /**
+     * 히스토리 데이터 로드
+     */
+    private fun loadHistoryData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // 유동성 히스토리 로드
+                val liquidityHistoryData = liquidityAnalysisDao.getRecentHistory(HISTORY_DAYS)
+                _liquidityHistory.value = liquidityHistoryData
+                Log.d(TAG, "Loaded ${liquidityHistoryData.size} liquidity history records")
+
+                // 섹터별 히스토리 로드
+                val allSectors = sectorAnalysisDao.getAllSectors()
+                val sectorHistoryMap = mutableMapOf<String, List<SectorAnalysis>>()
+                for (sector in allSectors) {
+                    val history = sectorAnalysisDao.getBySector(sector, HISTORY_DAYS)
+                    if (history.isNotEmpty()) {
+                        sectorHistoryMap[sector] = history
+                    }
+                }
+                _sectorHistory.value = sectorHistoryMap
+                Log.d(TAG, "Loaded sector history for ${sectorHistoryMap.size} sectors")
+
+                // 시총가중 흐름 히스토리 계산
+                loadMarketCapFlowHistory()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading history data", e)
+            }
+        }
+    }
+
+    /**
+     * 시총 가중 흐름 히스토리 로드
+     */
+    private suspend fun loadMarketCapFlowHistory() {
+        try {
+            val dates = etfDao.getAllDistinctDates(HISTORY_DAYS + 1)
+            if (dates.size < 2) return
+
+            val historyItems = mutableListOf<MarketCapFlowHistoryItem>()
+            for (i in 0 until minOf(dates.size - 1, HISTORY_DAYS)) {
+                val currentDate = dates[i]
+                val previousDate = dates[i + 1]
+
+                val flow = advancedRepository.calculateMarketCapWeightedFlow(currentDate, previousDate)
+                historyItems.add(
+                    MarketCapFlowHistoryItem(
+                        date = currentDate,
+                        netFlow = flow.netFlow,
+                        inflow = flow.inflow,
+                        outflow = flow.outflow
+                    )
+                )
+            }
+            _marketCapFlowHistory.value = historyItems.reversed()  // 오래된 순으로 정렬
+            Log.d(TAG, "Loaded ${historyItems.size} market cap flow history records")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading market cap flow history", e)
+        }
     }
 
     /**
@@ -426,3 +501,13 @@ object AnalysisDataRequirements {
     val SECTOR = listOf("holdings", "fear_greed")
     val ETF_CORRELATION = listOf("holdings", "etfs")
 }
+
+/**
+ * 시총 가중 흐름 히스토리 아이템
+ */
+data class MarketCapFlowHistoryItem(
+    val date: String,
+    val netFlow: Double,
+    val inflow: Double,
+    val outflow: Double
+)
