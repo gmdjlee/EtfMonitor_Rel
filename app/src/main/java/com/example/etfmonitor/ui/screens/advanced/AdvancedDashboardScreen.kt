@@ -100,16 +100,33 @@ fun AdvancedDashboardScreen(
                     is AdvancedDashboardState.Loading -> LoadingContent()
                     is AdvancedDashboardState.Error -> ErrorContent(currentState.message) { viewModel.loadDashboard() }
                     is AdvancedDashboardState.Success -> {
+                        // 히스토리 데이터 수집
+                        val marketCapFlowHistory by viewModel.marketCapFlowHistory.collectAsState()
+                        val liquidityHistory by viewModel.liquidityHistory.collectAsState()
+                        val sectorHistory by viewModel.sectorHistory.collectAsState()
+
+                        // 예측 정확도 데이터 수집
+                        val marketCapFlowAccuracy by viewModel.marketCapFlowAccuracy.collectAsState()
+                        val liquidityAccuracy by viewModel.liquidityAccuracy.collectAsState()
+
                         HorizontalPager(
                             state = pagerState,
                             modifier = Modifier.fillMaxSize()
                         ) { page ->
                             when (AdvancedTab.entries[page]) {
                                 AdvancedTab.DASHBOARD -> DashboardTab(currentState.data)
-                                AdvancedTab.MARKET_CAP_FLOW -> MarketCapFlowTab(currentState.data)
+                                AdvancedTab.MARKET_CAP_FLOW -> MarketCapFlowTab(
+                                    data = currentState.data,
+                                    history = marketCapFlowHistory,
+                                    accuracy = marketCapFlowAccuracy
+                                )
                                 AdvancedTab.DIVERGENCE -> DivergenceTab(currentState.data)
-                                AdvancedTab.LIQUIDITY -> LiquidityTab(currentState.data)
-                                AdvancedTab.SECTOR_FG -> SectorFearGreedTab(currentState.data)
+                                AdvancedTab.LIQUIDITY -> LiquidityTab(
+                                    data = currentState.data,
+                                    history = liquidityHistory,
+                                    accuracy = liquidityAccuracy
+                                )
+                                AdvancedTab.SECTOR_FG -> SectorFearGreedTab(currentState.data, sectorHistory)
                                 AdvancedTab.ETF_CORRELATION -> EtfCorrelationTab(currentState.data)
                             }
                         }
@@ -170,7 +187,11 @@ private fun DashboardTab(data: AdvancedDashboardData) {
 // ==================== 탭 2: 시총 가중 ETF 흐름 ====================
 
 @Composable
-private fun MarketCapFlowTab(data: AdvancedDashboardData) {
+private fun MarketCapFlowTab(
+    data: AdvancedDashboardData,
+    history: List<MarketCapFlowHistoryItem> = emptyList(),
+    accuracy: PredictionAccuracy? = null
+) {
     val flow = data.marketCapFlow
 
     if (flow == null) {
@@ -183,6 +204,19 @@ private fun MarketCapFlowTab(data: AdvancedDashboardData) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(vertical = 16.dp)
     ) {
+        // 예측 정확도 카드 (데이터가 있을 경우)
+        if (accuracy != null) {
+            item {
+                PredictionAccuracyCard("시총가중 흐름", accuracy)
+            }
+        }
+
+        // 히스토리 차트 (데이터가 있을 경우)
+        if (history.isNotEmpty()) {
+            item {
+                MarketCapFlowHistoryCard(history)
+            }
+        }
         // 핵심 지표 카드
         item {
             Card(
@@ -498,7 +532,11 @@ private fun DivergenceStockRow(stock: SupplyDemandDivergence) {
 // ==================== 탭 4: 유동성 분석 ====================
 
 @Composable
-private fun LiquidityTab(data: AdvancedDashboardData) {
+private fun LiquidityTab(
+    data: AdvancedDashboardData,
+    history: List<LiquidityAnalysis> = emptyList(),
+    accuracy: PredictionAccuracy? = null
+) {
     val liquidity = data.liquidityAnalysis
 
     if (liquidity == null) {
@@ -514,6 +552,13 @@ private fun LiquidityTab(data: AdvancedDashboardData) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(vertical = 16.dp)
     ) {
+        // 예측 정확도 카드 (데이터가 있을 경우)
+        if (accuracy != null) {
+            item {
+                PredictionAccuracyCard("유동성 신호", accuracy)
+            }
+        }
+
         // 핵심 지표 카드
         item {
             Row(
@@ -656,6 +701,13 @@ private fun LiquidityTab(data: AdvancedDashboardData) {
                 }
             }
         }
+
+        // 히스토리 데이터 (데이터가 있을 경우)
+        if (history.isNotEmpty()) {
+            item {
+                LiquidityHistoryCard(history)
+            }
+        }
     }
 }
 
@@ -735,7 +787,10 @@ private fun RatioProgressItem(
 // ==================== 탭 5: 섹터별 Fear & Greed ====================
 
 @Composable
-private fun SectorFearGreedTab(data: AdvancedDashboardData) {
+private fun SectorFearGreedTab(
+    data: AdvancedDashboardData,
+    sectorHistory: Map<String, List<SectorAnalysis>> = emptyMap()
+) {
     val allSectors = data.allSectorAnalyses.sortedByDescending { it.fearGreedValue }
 
     if (allSectors.isEmpty()) {
@@ -748,6 +803,12 @@ private fun SectorFearGreedTab(data: AdvancedDashboardData) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(vertical = 16.dp)
     ) {
+        // 섹터 히스토리 (데이터가 있을 경우)
+        if (sectorHistory.isNotEmpty()) {
+            item {
+                SectorHistoryCard(sectorHistory)
+            }
+        }
         // 전체 시장 심리
         item {
             val avgFearGreed = allSectors.map { it.fearGreedValue }.average()
@@ -1400,3 +1461,721 @@ private fun formatMarketCap(cap: Long): String = when {
 }
 
 private fun formatTrillion(amount: Double): String = String.format("%.1f조", amount / 10000)
+
+// ==================== 히스토리 차트 컴포넌트 ====================
+
+/**
+ * 시총 가중 흐름 히스토리 차트 (막대그래프)
+ */
+@Composable
+fun MarketCapFlowHistoryCard(history: List<MarketCapFlowHistoryItem>) {
+    if (history.isEmpty()) return
+
+    SectionCard("시총가중 흐름 추이 (최근 ${history.size}일)") {
+        // 최대값 계산
+        val maxValue = history.maxOfOrNull { maxOf(kotlin.math.abs(it.netFlow), it.inflow, it.outflow) } ?: 1.0
+
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // 차트 헤더
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                LegendItem("유입", GreenPositive)
+                LegendItem("유출", RedNegative)
+                LegendItem("순흐름", BlueAccent)
+            }
+
+            // 막대 차트
+            history.takeLast(15).forEach { item ->
+                HistoryBarRow(
+                    date = item.date.takeLast(5),  // MM-DD
+                    netFlow = item.netFlow,
+                    maxValue = maxValue
+                )
+            }
+
+            // 요약 통계
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(8.dp))
+
+            val avgNetFlow = history.map { it.netFlow }.average()
+            val positiveCount = history.count { it.netFlow > 0 }
+            val totalInflow = history.sumOf { it.inflow }
+            val totalOutflow = history.sumOf { it.outflow }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                StatItem("평균 순흐름", "${String.format("%+.0f", avgNetFlow)}억")
+                StatItem("양수일", "$positiveCount/${history.size}일")
+                StatItem("총유입", "${String.format("%.0f", totalInflow)}억")
+                StatItem("총유출", "${String.format("%.0f", totalOutflow)}억")
+            }
+        }
+    }
+}
+
+@Composable
+private fun LegendItem(label: String, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(color)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+@Composable
+private fun HistoryBarRow(date: String, netFlow: Double, maxValue: Double) {
+    val barMaxWidth = 0.7f
+    val normalizedValue = (kotlin.math.abs(netFlow) / maxValue).coerceIn(0.0, 1.0).toFloat() * barMaxWidth
+    val isPositive = netFlow >= 0
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            date,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.width(40.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Box(modifier = Modifier.weight(1f).height(16.dp)) {
+            // 중앙선
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .fillMaxHeight()
+                    .width(1.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant)
+            )
+
+            // 막대
+            Box(
+                modifier = Modifier
+                    .align(if (isPositive) Alignment.CenterStart else Alignment.CenterEnd)
+                    .fillMaxHeight(0.8f)
+                    .fillMaxWidth(normalizedValue)
+                    .offset(x = if (isPositive) 0.dp else 0.dp)
+                    .padding(start = if (isPositive) (0.5f - normalizedValue / 2).coerceIn(0f, 0.5f).let { it * 100 }.dp else 0.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(if (isPositive) GreenPositive else RedNegative)
+            )
+        }
+
+        Text(
+            String.format("%+.0f", netFlow),
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.width(50.dp),
+            textAlign = TextAlign.End,
+            color = if (isPositive) GreenPositive else RedNegative
+        )
+    }
+}
+
+@Composable
+private fun StatItem(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/**
+ * 유동성 분석 히스토리 차트
+ */
+@Composable
+fun LiquidityHistoryCard(history: List<LiquidityAnalysis>) {
+    if (history.isEmpty()) return
+
+    SectionCard("유동성 분석 추이 (최근 ${history.size}일)") {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // 테이블 헤더
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .padding(vertical = 6.dp, horizontal = 4.dp)
+            ) {
+                Text("날짜", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.width(70.dp))
+                Text("예탁금", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                Text("신용", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                Text("신호", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.width(60.dp), textAlign = TextAlign.Center)
+            }
+
+            // 데이터 행
+            history.take(10).forEachIndexed { index, item ->
+                val backgroundColor = if (index % 2 == 0) Color.Transparent else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                val signal = try { LiquiditySignal.valueOf(item.signal) } catch (e: Exception) { LiquiditySignal.NEUTRAL }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(backgroundColor)
+                        .padding(vertical = 6.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        item.date.takeLast(5),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.width(70.dp)
+                    )
+                    Text(
+                        formatTrillion(item.depositAmount),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        formatTrillion(item.creditAmount),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        signal.displayName,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.width(60.dp),
+                        textAlign = TextAlign.Center,
+                        color = when (signal) {
+                            LiquiditySignal.BULLISH_LIQUIDITY -> GreenPositive
+                            LiquiditySignal.BEARISH_LEVERAGE -> RedNegative
+                            else -> MaterialTheme.colorScheme.onSurface
+                        }
+                    )
+                }
+            }
+
+            // 예탁금 추이 그래프 (간단한 스파크라인)
+            if (history.size >= 3) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("예탁금 추이", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                SimpleLiquiditySparkline(
+                    data = history.reversed().map { it.depositAmount },
+                    modifier = Modifier.fillMaxWidth().height(60.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SimpleLiquiditySparkline(data: List<Double>, modifier: Modifier) {
+    if (data.isEmpty()) return
+
+    val minValue = data.minOrNull() ?: 0.0
+    val maxValue = data.maxOrNull() ?: 1.0
+    val range = (maxValue - minValue).coerceAtLeast(1.0)
+
+    Row(
+        modifier = modifier.clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        data.forEach { value ->
+            val height = ((value - minValue) / range).coerceIn(0.1, 1.0).toFloat()
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(height)
+                    .padding(horizontal = 1.dp)
+                    .clip(RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp))
+                    .background(BlueAccent.copy(alpha = 0.7f))
+            )
+        }
+    }
+}
+
+/**
+ * 섹터 Fear & Greed 히스토리 차트
+ */
+@Composable
+fun SectorHistoryCard(sectorHistory: Map<String, List<SectorAnalysis>>) {
+    if (sectorHistory.isEmpty()) return
+
+    SectionCard("섹터별 심리 추이") {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // 섹터별 히스토리 표시 (상위 6개 섹터만)
+            sectorHistory.entries
+                .filter { it.value.size >= 2 }
+                .sortedByDescending { it.value.firstOrNull()?.fearGreedValue ?: 0.0 }
+                .take(6)
+                .forEach { (sector, history) ->
+                    SectorHistoryRow(sector, history)
+                }
+
+            // 전체 평균 추이
+            if (sectorHistory.values.any { it.size >= 2 }) {
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val dates = sectorHistory.values.flatten().map { it.date }.distinct().sorted().takeLast(7)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("날짜별 평균", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    dates.forEach { date ->
+                        val avgValue = sectorHistory.values.flatten()
+                            .filter { it.date == date }
+                            .map { it.fearGreedValue }
+                            .takeIf { it.isNotEmpty() }
+                            ?.average() ?: 0.5
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(getFearGreedColor(avgValue)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "${(avgValue * 100).toInt()}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Text(
+                                date.takeLast(2),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectorHistoryRow(sectorCode: String, history: List<SectorAnalysis>) {
+    val sectorName = SectorMapping.getSectorDisplayName(sectorCode)
+    val latestValue = history.firstOrNull()?.fearGreedValue ?: 0.5
+    val previousValue = history.getOrNull(1)?.fearGreedValue ?: latestValue
+    val change = latestValue - previousValue
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            sectorName,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.width(80.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        // 미니 히스토리 바
+        Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            history.reversed().takeLast(7).forEach { analysis ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(16.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(getFearGreedColor(analysis.fearGreedValue))
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // 현재값 및 변화
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                "${(latestValue * 100).toInt()}",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold,
+                color = getFearGreedColor(latestValue)
+            )
+            if (kotlin.math.abs(change) > 0.01) {
+                Text(
+                    String.format("%+.0f", change * 100),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (change > 0) GreenPositive else RedNegative
+                )
+            }
+        }
+    }
+}
+
+// ==================== 예측 정확도 UI 컴포넌트 ====================
+
+/**
+ * 예측 정확도 카드 (공통)
+ */
+@Composable
+fun PredictionAccuracyCard(
+    title: String,
+    accuracy: PredictionAccuracy?,
+    modifier: Modifier = Modifier
+) {
+    if (accuracy == null) return
+
+    var expanded by remember { mutableStateOf(false) }
+    val hitRatePercent = (accuracy.hitRate * 100).toInt()
+    val hitRateColor = when {
+        hitRatePercent >= 70 -> GreenPositive
+        hitRatePercent >= 50 -> OrangeAccent
+        else -> RedNegative
+    }
+
+    SectionCard("$title 예측 정확도") {
+        Column(modifier = modifier.fillMaxWidth()) {
+            // 요약 정보
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "적중률",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "${hitRatePercent}%",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = hitRateColor
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = GreenPositive,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            "${accuracy.correctPredictions}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = GreenPositive
+                        )
+                        Text(
+                            "/",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "${accuracy.totalPredictions}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        "정확/전체",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // 적중률 게이지
+                Box(
+                    modifier = Modifier.size(50.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        progress = { accuracy.hitRate.toFloat() },
+                        modifier = Modifier.fillMaxSize(),
+                        color = hitRateColor,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        strokeWidth = 6.dp
+                    )
+                    Text(
+                        "${hitRatePercent}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            // 상세 보기 버튼
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                TextButton(onClick = { expanded = !expanded }) {
+                    Text(if (expanded) "접기" else "상세 보기")
+                    Icon(
+                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // 상세 내역
+            if (expanded && accuracy.details.isNotEmpty()) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                // 테이블 헤더
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .padding(vertical = 6.dp, horizontal = 4.dp)
+                ) {
+                    Text(
+                        "날짜",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.width(60.dp)
+                    )
+                    Text(
+                        "예측",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        "실제",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        "변동률",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.width(60.dp),
+                        textAlign = TextAlign.End
+                    )
+                    Text(
+                        "결과",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.width(40.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                // 상세 내역 (최근 10건)
+                accuracy.details.take(10).forEachIndexed { index, detail ->
+                    val backgroundColor = if (index % 2 == 0) Color.Transparent
+                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(backgroundColor)
+                            .padding(vertical = 6.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            detail.date.takeLast(5),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.width(60.dp)
+                        )
+                        Text(
+                            getPredictionDisplayName(detail.prediction),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center,
+                            color = getPredictionColor(detail.prediction)
+                        )
+                        Text(
+                            getResultDisplayName(detail.actualResult),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center,
+                            color = getResultColor(detail.actualResult)
+                        )
+                        Text(
+                            String.format("%+.2f%%", detail.actualChangeRate),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.width(60.dp),
+                            textAlign = TextAlign.End,
+                            color = if (detail.actualChangeRate >= 0) GreenPositive else RedNegative
+                        )
+                        Icon(
+                            if (detail.isCorrect) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                            contentDescription = null,
+                            tint = if (detail.isCorrect) GreenPositive else RedNegative,
+                            modifier = Modifier
+                                .width(40.dp)
+                                .size(16.dp)
+                        )
+                    }
+                }
+
+                // 정확도 해석
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = hitRateColor.copy(alpha = 0.1f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = null,
+                            tint = hitRateColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            getAccuracyInterpretation(hitRatePercent),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 예측 표시명 반환
+ */
+private fun getPredictionDisplayName(prediction: String): String = when (prediction) {
+    "BUY" -> "매수"
+    "SELL" -> "매도"
+    "NEUTRAL" -> "중립"
+    else -> prediction
+}
+
+/**
+ * 결과 표시명 반환
+ */
+private fun getResultDisplayName(result: String): String = when (result) {
+    "UP" -> "상승"
+    "DOWN" -> "하락"
+    "FLAT" -> "보합"
+    else -> result
+}
+
+/**
+ * 예측 색상
+ */
+private fun getPredictionColor(prediction: String): Color = when (prediction) {
+    "BUY" -> GreenPositive
+    "SELL" -> RedNegative
+    else -> OrangeAccent
+}
+
+/**
+ * 결과 색상
+ */
+private fun getResultColor(result: String): Color = when (result) {
+    "UP" -> GreenPositive
+    "DOWN" -> RedNegative
+    else -> OrangeAccent
+}
+
+/**
+ * 정확도 해석 메시지
+ */
+private fun getAccuracyInterpretation(hitRate: Int): String = when {
+    hitRate >= 70 -> "높은 적중률입니다. 이 지표를 신뢰할 수 있습니다."
+    hitRate >= 60 -> "양호한 적중률입니다. 다른 지표와 함께 참고하세요."
+    hitRate >= 50 -> "보통 수준입니다. 단독 사용보다 종합 분석을 권장합니다."
+    else -> "적중률이 낮습니다. 이 지표는 참고용으로만 활용하세요."
+}
+
+/**
+ * 시총 가중 흐름 정확도 요약 카드 (간단 버전)
+ */
+@Composable
+fun MarketCapFlowAccuracySummary(
+    accuracy: PredictionAccuracy?,
+    modifier: Modifier = Modifier
+) {
+    if (accuracy == null) return
+
+    val hitRatePercent = (accuracy.hitRate * 100).toInt()
+    val hitRateColor = when {
+        hitRatePercent >= 70 -> GreenPositive
+        hitRatePercent >= 50 -> OrangeAccent
+        else -> RedNegative
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = hitRateColor.copy(alpha = 0.1f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    "예측 적중률",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        "${hitRatePercent}%",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = hitRateColor
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        "(${accuracy.correctPredictions}/${accuracy.totalPredictions})",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // 최근 5일 결과 아이콘
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                accuracy.details.take(5).forEach { detail ->
+                    Icon(
+                        if (detail.isCorrect) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                        contentDescription = null,
+                        tint = if (detail.isCorrect) GreenPositive else RedNegative,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}

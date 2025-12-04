@@ -63,6 +63,13 @@ data class MarketOscillatorUpdateSettings(
     val isUpdating: Boolean = false
 )
 
+data class AdvancedAnalysisSettings(
+    val updateHour: Int = 18,
+    val updateMinute: Int = 30,
+    val lastUpdateTime: Long? = null,
+    val isUpdating: Boolean = false
+)
+
 sealed class ApiKeyTestState {
     object Idle : ApiKeyTestState()
     object Testing : ApiKeyTestState()
@@ -138,6 +145,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _marketOscillatorUpdateSettings = MutableStateFlow(MarketOscillatorUpdateSettings())
     val marketOscillatorUpdateSettings: StateFlow<MarketOscillatorUpdateSettings> = _marketOscillatorUpdateSettings.asStateFlow()
+
+    private val _advancedAnalysisSettings = MutableStateFlow(AdvancedAnalysisSettings())
+    val advancedAnalysisSettings: StateFlow<AdvancedAnalysisSettings> = _advancedAnalysisSettings.asStateFlow()
 
     private val _searchHistoryLimit = MutableStateFlow(15)
     val searchHistoryLimit: StateFlow<Int> = _searchHistoryLimit.asStateFlow()
@@ -266,6 +276,14 @@ class SettingsViewModel @Inject constructor(
             updateHour = oscHour, updateMinute = oscMinute
         )
         WorkManagerHelper.scheduleMarketOscillatorUpdate(context, oscHour, oscMinute)
+
+        // Advanced analysis update (default 18:30)
+        val advHour = etfDao.getSetting(Keys.updateHour("advanced_analysis"))?.toIntOrNull() ?: 18
+        val advMinute = etfDao.getSetting(Keys.updateMinute("advanced_analysis"))?.toIntOrNull() ?: 30
+        _advancedAnalysisSettings.value = _advancedAnalysisSettings.value.copy(
+            updateHour = advHour, updateMinute = advMinute
+        )
+        WorkManagerHelper.scheduleAdvancedAnalysis(context, advHour, advMinute)
     }
 
     private suspend fun loadThemeSettings() {
@@ -444,6 +462,11 @@ class SettingsViewModel @Inject constructor(
         WorkManagerHelper.scheduleMarketOscillatorUpdate(context, hour, minute)
     }
 
+    fun setAdvancedAnalysisUpdateTime(hour: Int, minute: Int) = setSchedule("advanced_analysis", hour, minute, "고급 분석 업데이트") {
+        _advancedAnalysisSettings.value = _advancedAnalysisSettings.value.copy(updateHour = hour, updateMinute = minute)
+        WorkManagerHelper.scheduleAdvancedAnalysis(context, hour, minute)
+    }
+
     private inline fun setSchedule(type: String, hour: Int, minute: Int, name: String, crossinline onSchedule: () -> Unit) {
         saveSetting("$name 시간이 ${hour}:${String.format("%02d", minute)}로 설정되었습니다") {
             etfDao.saveSetting(Setting(Keys.updateHour(type), hour.toString()))
@@ -549,6 +572,31 @@ class SettingsViewModel @Inject constructor(
                 _message.value = "오류 발생: ${e.message}"
             } finally {
                 _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(isUpdating = false)
+            }
+        }
+    }
+
+    /**
+     * 고급 분석 수동 실행
+     * - 시총 가중 ETF 흐름 분석
+     * - 외국인/기관 수급 Divergence 분석
+     * - 유동성 분석 (예탁금/시총 비율)
+     * - 섹터별 Fear & Greed 분석
+     * - ETF 간 상관관계 분석
+     */
+    fun runAdvancedAnalysisNow() {
+        viewModelScope.launch {
+            _advancedAnalysisSettings.value = _advancedAnalysisSettings.value.copy(isUpdating = true)
+            _message.value = "고급 분석 실행 중..."
+            try {
+                // WorkManager를 통해 백그라운드에서 실행
+                WorkManagerHelper.runAdvancedAnalysisNow(context)
+                _message.value = "고급 분석이 백그라운드에서 시작되었습니다"
+            } catch (e: Exception) {
+                _message.value = "오류 발생: ${e.message}"
+            } finally {
+                // 백그라운드 작업이므로 바로 isUpdating을 false로
+                _advancedAnalysisSettings.value = _advancedAnalysisSettings.value.copy(isUpdating = false)
             }
         }
     }

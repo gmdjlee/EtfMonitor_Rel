@@ -307,4 +307,68 @@ object WorkManagerHelper {
 
         WorkManager.getInstance(context).enqueue(workRequest)
     }
+
+    // ==================== 고급 분석 Worker ====================
+
+    /**
+     * 매일 지정된 시간에 고급 분석 작업 스케줄링
+     *
+     * 수행 작업:
+     * - 시총 가중 ETF 흐름 분석
+     * - 외국인/기관 수급 Divergence 분석
+     * - 유동성 분석 (예탁금/시총 비율)
+     * - 섹터별 Fear & Greed 분석
+     * - ETF 간 상관관계 분석
+     *
+     * @param context Context
+     * @param hour 업데이트할 시간 (0-23), 기본값: 18 (장 마감 후)
+     * @param minute 업데이트할 분 (0-59), 기본값: 30
+     */
+    fun scheduleAdvancedAnalysis(context: Context, hour: Int = 18, minute: Int = 30) {
+        scheduleDailyUpdate<AdvancedAnalysisWorker>(
+            context = context,
+            hour = hour,
+            minute = minute,
+            workName = AdvancedAnalysisWorker.WORK_NAME,
+            taskName = "advanced analysis"
+        )
+    }
+
+    /**
+     * 고급 분석 스케줄링 취소
+     */
+    fun cancelAdvancedAnalysis(context: Context) {
+        cancelUpdate(context, AdvancedAnalysisWorker.WORK_NAME, "advanced analysis")
+    }
+
+    /**
+     * 즉시 고급 분석 수동 실행
+     */
+    fun runAdvancedAnalysisNow(context: Context) {
+        runUpdateNow<AdvancedAnalysisWorker>(context, "advanced analysis")
+    }
+
+    /**
+     * ETF 데이터 수집 완료 후 고급 분석 체인 실행
+     *
+     * ETF 수집 → 고급 분석 순서로 실행
+     * 수집이 완료된 후 자동으로 분석 시작
+     */
+    fun runEtfCollectionThenAdvancedAnalysis(context: Context) {
+        Log.d(TAG, "Scheduling ETF collection followed by advanced analysis")
+
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        // 고급 분석 작업 (ETF 수집 후 실행)
+        val analysisRequest = OneTimeWorkRequestBuilder<AdvancedAnalysisWorker>()
+            .setConstraints(constraints)
+            .build()
+
+        WorkManager.getInstance(context)
+            .enqueue(analysisRequest)
+
+        Log.d(TAG, "Advanced analysis chained after ETF collection")
+    }
 }

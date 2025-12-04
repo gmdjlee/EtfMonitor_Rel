@@ -18,6 +18,49 @@ import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 /**
+ * 예측 정확도 데이터
+ */
+data class PredictionAccuracy(
+    val totalPredictions: Int,
+    val correctPredictions: Int,
+    val hitRate: Double,  // 0.0 ~ 1.0
+    val details: List<PredictionDetail>
+)
+
+/**
+ * 개별 예측 상세
+ */
+data class PredictionDetail(
+    val date: String,
+    val prediction: String,      // 예측 신호 (BUY, SELL, NEUTRAL 등)
+    val actualResult: String,    // 실제 결과 (UP, DOWN, FLAT)
+    val actualChangeRate: Double,  // 실제 변동률 %
+    val isCorrect: Boolean
+)
+
+/**
+ * 신호-결과 매칭 결과
+ */
+data class SignalPerformance(
+    val signalType: String,
+    val totalCount: Int,
+    val avgNextDayReturn: Double,
+    val avgNext3DayReturn: Double,
+    val positiveCount: Int,
+    val negativeCount: Int
+)
+
+/**
+ * 종합 분석 정확도 데이터
+ */
+data class OverallAccuracyData(
+    val marketCapFlowAccuracy: PredictionAccuracy?,
+    val liquidityAccuracy: PredictionAccuracy?,
+    val overallSignalAccuracy: PredictionAccuracy?,
+    val sectorAccuracyMap: Map<String, PredictionAccuracy>
+)
+
+/**
  * 고급 분석 대시보드 상태
  */
 sealed class AdvancedDashboardState {
@@ -83,11 +126,15 @@ class AdvancedDashboardViewModel @Inject constructor(
     private val etfDao: EtfDao,
     private val stockAnalysisDao: StockAnalysisDao,
     private val marketDepositDao: MarketDepositDao,
-    private val fearGreedDao: FearGreedDao
+    private val fearGreedDao: FearGreedDao,
+    private val liquidityAnalysisDao: LiquidityAnalysisDao,
+    private val sectorAnalysisDao: SectorAnalysisDao,
+    private val marketIndexDao: MarketIndexDao
 ) : ViewModel() {
 
     companion object {
         private const val TAG = "AdvancedDashboardVM"
+        private const val HISTORY_DAYS = 30
     }
 
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -111,8 +158,275 @@ class AdvancedDashboardViewModel @Inject constructor(
     private val _sectorAnalyses = MutableStateFlow<List<SectorAnalysis>>(emptyList())
     val sectorAnalyses: StateFlow<List<SectorAnalysis>> = _sectorAnalyses.asStateFlow()
 
+    // 히스토리 데이터
+    private val _liquidityHistory = MutableStateFlow<List<LiquidityAnalysis>>(emptyList())
+    val liquidityHistory: StateFlow<List<LiquidityAnalysis>> = _liquidityHistory.asStateFlow()
+
+    private val _sectorHistory = MutableStateFlow<Map<String, List<SectorAnalysis>>>(emptyMap())
+    val sectorHistory: StateFlow<Map<String, List<SectorAnalysis>>> = _sectorHistory.asStateFlow()
+
+    private val _marketCapFlowHistory = MutableStateFlow<List<MarketCapFlowHistoryItem>>(emptyList())
+    val marketCapFlowHistory: StateFlow<List<MarketCapFlowHistoryItem>> = _marketCapFlowHistory.asStateFlow()
+
+    // 예측 정확도 데이터
+    private val _accuracyData = MutableStateFlow<OverallAccuracyData?>(null)
+    val accuracyData: StateFlow<OverallAccuracyData?> = _accuracyData.asStateFlow()
+
+    private val _marketCapFlowAccuracy = MutableStateFlow<PredictionAccuracy?>(null)
+    val marketCapFlowAccuracy: StateFlow<PredictionAccuracy?> = _marketCapFlowAccuracy.asStateFlow()
+
+    private val _liquidityAccuracy = MutableStateFlow<PredictionAccuracy?>(null)
+    val liquidityAccuracy: StateFlow<PredictionAccuracy?> = _liquidityAccuracy.asStateFlow()
+
+    private val _sectorAccuracy = MutableStateFlow<Map<String, PredictionAccuracy>>(emptyMap())
+    val sectorAccuracy: StateFlow<Map<String, PredictionAccuracy>> = _sectorAccuracy.asStateFlow()
+
     init {
         loadDashboard()
+        loadHistoryData()
+        loadAccuracyData()
+    }
+
+    /**
+     * 히스토리 데이터 로드
+     */
+    private fun loadHistoryData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // 유동성 히스토리 로드
+                val liquidityHistoryData = liquidityAnalysisDao.getRecentHistory(HISTORY_DAYS)
+                _liquidityHistory.value = liquidityHistoryData
+                Log.d(TAG, "Loaded ${liquidityHistoryData.size} liquidity history records")
+
+                // 섹터별 히스토리 로드
+                val allSectors = sectorAnalysisDao.getAllSectors()
+                val sectorHistoryMap = mutableMapOf<String, List<SectorAnalysis>>()
+                for (sector in allSectors) {
+                    val history = sectorAnalysisDao.getBySector(sector, HISTORY_DAYS)
+                    if (history.isNotEmpty()) {
+                        sectorHistoryMap[sector] = history
+                    }
+                }
+                _sectorHistory.value = sectorHistoryMap
+                Log.d(TAG, "Loaded sector history for ${sectorHistoryMap.size} sectors")
+
+                // 시총가중 흐름 히스토리 계산
+                loadMarketCapFlowHistory()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading history data", e)
+            }
+        }
+    }
+
+    /**
+     * 시총 가중 흐름 히스토리 로드
+     */
+    private suspend fun loadMarketCapFlowHistory() {
+        try {
+            val dates = etfDao.getAllDistinctDates(HISTORY_DAYS + 1)
+            if (dates.size < 2) return
+
+            val historyItems = mutableListOf<MarketCapFlowHistoryItem>()
+            for (i in 0 until minOf(dates.size - 1, HISTORY_DAYS)) {
+                val currentDate = dates[i]
+                val previousDate = dates[i + 1]
+
+                val flow = advancedRepository.calculateMarketCapWeightedFlow(currentDate, previousDate)
+                historyItems.add(
+                    MarketCapFlowHistoryItem(
+                        date = currentDate,
+                        netFlow = flow.netFlow.toDouble(),
+                        inflow = flow.totalInflow.toDouble(),
+                        outflow = flow.totalOutflow.toDouble()
+                    )
+                )
+            }
+            _marketCapFlowHistory.value = historyItems.reversed()  // 오래된 순으로 정렬
+            Log.d(TAG, "Loaded ${historyItems.size} market cap flow history records")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading market cap flow history", e)
+        }
+    }
+
+    /**
+     * 예측 정확도 데이터 로드
+     */
+    private fun loadAccuracyData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // 시장 지수 데이터 로드 (KOSPI)
+                val marketIndexes = marketIndexDao.getByMarketAndDateRangeSuspend(
+                    "KOSPI",
+                    LocalDate.now().minusDays(HISTORY_DAYS.toLong() + 5).format(dateFormatter),
+                    LocalDate.now().format(dateFormatter)
+                ).sortedBy { it.date }
+
+                if (marketIndexes.size < 2) {
+                    Log.w(TAG, "Insufficient market index data for accuracy calculation")
+                    return@launch
+                }
+
+                // 시총 가중 흐름 정확도 계산
+                calculateMarketCapFlowAccuracy(marketIndexes)
+
+                // 유동성 신호 정확도 계산
+                calculateLiquidityAccuracy(marketIndexes)
+
+                Log.d(TAG, "Accuracy data loaded successfully")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading accuracy data", e)
+            }
+        }
+    }
+
+    /**
+     * 시총 가중 흐름 예측 정확도 계산
+     *
+     * 예측 규칙:
+     * - 순유입(netFlow > 0) -> 다음날 시장 상승 예측
+     * - 순유출(netFlow < 0) -> 다음날 시장 하락 예측
+     */
+    private suspend fun calculateMarketCapFlowAccuracy(marketIndexes: List<com.etfmonitor.database.entities.MarketIndex>) {
+        try {
+            val flowHistory = _marketCapFlowHistory.value
+            if (flowHistory.isEmpty()) return
+
+            val details = mutableListOf<PredictionDetail>()
+            val indexByDate = marketIndexes.associateBy { it.date }
+
+            for (flow in flowHistory) {
+                val predictionDate = flow.date
+                // 다음 거래일 찾기
+                val nextDayIndex = findNextTradingDay(predictionDate, marketIndexes)
+                    ?: continue
+
+                val actualChangeRate = nextDayIndex.changeRate
+                val prediction = when {
+                    flow.netFlow > 100 -> "BUY"
+                    flow.netFlow < -100 -> "SELL"
+                    else -> "NEUTRAL"
+                }
+                val actualResult = when {
+                    actualChangeRate > 0.3 -> "UP"
+                    actualChangeRate < -0.3 -> "DOWN"
+                    else -> "FLAT"
+                }
+
+                // 정확도 판정: 예측과 결과 방향이 일치하면 정확
+                val isCorrect = when (prediction) {
+                    "BUY" -> actualResult == "UP" || actualResult == "FLAT"
+                    "SELL" -> actualResult == "DOWN" || actualResult == "FLAT"
+                    "NEUTRAL" -> actualResult == "FLAT"
+                    else -> false
+                }
+
+                details.add(
+                    PredictionDetail(
+                        date = predictionDate,
+                        prediction = prediction,
+                        actualResult = actualResult,
+                        actualChangeRate = actualChangeRate,
+                        isCorrect = isCorrect
+                    )
+                )
+            }
+
+            if (details.isNotEmpty()) {
+                val correctCount = details.count { it.isCorrect }
+                _marketCapFlowAccuracy.value = PredictionAccuracy(
+                    totalPredictions = details.size,
+                    correctPredictions = correctCount,
+                    hitRate = correctCount.toDouble() / details.size,
+                    details = details.sortedByDescending { it.date }
+                )
+                Log.d(TAG, "Market cap flow accuracy: ${correctCount}/${details.size} (${String.format("%.1f", correctCount.toDouble() / details.size * 100)}%)")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error calculating market cap flow accuracy", e)
+        }
+    }
+
+    /**
+     * 유동성 신호 예측 정확도 계산
+     *
+     * 예측 규칙:
+     * - BULLISH_LIQUIDITY -> 시장 상승 예측
+     * - BEARISH_LEVERAGE -> 시장 하락 예측
+     */
+    private suspend fun calculateLiquidityAccuracy(marketIndexes: List<com.etfmonitor.database.entities.MarketIndex>) {
+        try {
+            val liquidityHistory = _liquidityHistory.value
+            if (liquidityHistory.isEmpty()) return
+
+            val details = mutableListOf<PredictionDetail>()
+
+            for (liquidity in liquidityHistory) {
+                val predictionDate = liquidity.date
+                // 다음 거래일 찾기
+                val nextDayIndex = findNextTradingDay(predictionDate, marketIndexes)
+                    ?: continue
+
+                val actualChangeRate = nextDayIndex.changeRate
+                val signal = try { LiquiditySignal.valueOf(liquidity.signal) } catch (e: Exception) { LiquiditySignal.NEUTRAL }
+
+                val prediction = when (signal) {
+                    LiquiditySignal.BULLISH_LIQUIDITY -> "BUY"
+                    LiquiditySignal.BEARISH_LEVERAGE -> "SELL"
+                    else -> "NEUTRAL"
+                }
+                val actualResult = when {
+                    actualChangeRate > 0.3 -> "UP"
+                    actualChangeRate < -0.3 -> "DOWN"
+                    else -> "FLAT"
+                }
+
+                val isCorrect = when (prediction) {
+                    "BUY" -> actualResult == "UP" || actualResult == "FLAT"
+                    "SELL" -> actualResult == "DOWN" || actualResult == "FLAT"
+                    "NEUTRAL" -> true  // 중립은 항상 정확으로 처리
+                    else -> false
+                }
+
+                details.add(
+                    PredictionDetail(
+                        date = predictionDate,
+                        prediction = prediction,
+                        actualResult = actualResult,
+                        actualChangeRate = actualChangeRate,
+                        isCorrect = isCorrect
+                    )
+                )
+            }
+
+            if (details.isNotEmpty()) {
+                val correctCount = details.count { it.isCorrect }
+                _liquidityAccuracy.value = PredictionAccuracy(
+                    totalPredictions = details.size,
+                    correctPredictions = correctCount,
+                    hitRate = correctCount.toDouble() / details.size,
+                    details = details.sortedByDescending { it.date }
+                )
+                Log.d(TAG, "Liquidity accuracy: ${correctCount}/${details.size} (${String.format("%.1f", correctCount.toDouble() / details.size * 100)}%)")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error calculating liquidity accuracy", e)
+        }
+    }
+
+    /**
+     * 다음 거래일 찾기
+     */
+    private fun findNextTradingDay(
+        date: String,
+        marketIndexes: List<com.etfmonitor.database.entities.MarketIndex>
+    ): com.etfmonitor.database.entities.MarketIndex? {
+        val sortedIndexes = marketIndexes.sortedBy { it.date }
+        val currentIndex = sortedIndexes.indexOfFirst { it.date == date }
+        return if (currentIndex >= 0 && currentIndex < sortedIndexes.size - 1) {
+            sortedIndexes[currentIndex + 1]
+        } else {
+            null
+        }
     }
 
     /**
@@ -426,3 +740,13 @@ object AnalysisDataRequirements {
     val SECTOR = listOf("holdings", "fear_greed")
     val ETF_CORRELATION = listOf("holdings", "etfs")
 }
+
+/**
+ * 시총 가중 흐름 히스토리 아이템
+ */
+data class MarketCapFlowHistoryItem(
+    val date: String,
+    val netFlow: Double,
+    val inflow: Double,
+    val outflow: Double
+)
