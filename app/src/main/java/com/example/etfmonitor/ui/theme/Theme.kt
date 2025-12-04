@@ -9,13 +9,13 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 
 /**
- * Modern ETF Monitor Theme
- * Professional financial app design with Material Design 3
+ * Forest Green Theme - Material Design 3
+ * Clean, professional design with forest green accents
  * Features:
  * - Material You dynamic color support (Android 12+)
  * - Custom professional color palette fallback
  * - Enhanced surface elevation system
- * - Montserrat typography
+ * - Full surface container colors support
  */
 
 private val LightColorScheme = lightColorScheme(
@@ -42,7 +42,20 @@ private val LightColorScheme = lightColorScheme(
     surfaceVariant = surfaceVariantLight,
     onSurfaceVariant = onSurfaceVariantLight,
     outline = outlineLight,
-    outlineVariant = outlineVariantLight
+    outlineVariant = outlineVariantLight,
+    // Surface container colors
+    surfaceDim = surfaceDimLight,
+    surfaceBright = surfaceBrightLight,
+    surfaceContainerLowest = surfaceContainerLowestLight,
+    surfaceContainerLow = surfaceContainerLowLight,
+    surfaceContainer = surfaceContainerLight,
+    surfaceContainerHigh = surfaceContainerHighLight,
+    surfaceContainerHighest = surfaceContainerHighestLight,
+    // Inverse colors
+    inverseSurface = inverseSurfaceLight,
+    inverseOnSurface = inverseOnSurfaceLight,
+    inversePrimary = inversePrimaryLight,
+    scrim = scrimLight
 )
 
 private val DarkColorScheme = darkColorScheme(
@@ -69,7 +82,20 @@ private val DarkColorScheme = darkColorScheme(
     surfaceVariant = surfaceVariantDark,
     onSurfaceVariant = onSurfaceVariantDark,
     outline = outlineDark,
-    outlineVariant = outlineVariantDark
+    outlineVariant = outlineVariantDark,
+    // Surface container colors
+    surfaceDim = surfaceDimDark,
+    surfaceBright = surfaceBrightDark,
+    surfaceContainerLowest = surfaceContainerLowestDark,
+    surfaceContainerLow = surfaceContainerLowDark,
+    surfaceContainer = surfaceContainerDark,
+    surfaceContainerHigh = surfaceContainerHighDark,
+    surfaceContainerHighest = surfaceContainerHighestDark,
+    // Inverse colors
+    inverseSurface = inverseSurfaceDark,
+    inverseOnSurface = inverseOnSurfaceDark,
+    inversePrimary = inversePrimaryDark,
+    scrim = scrimDark
 )
 
 /**
@@ -89,7 +115,14 @@ data class ExtendedColors(
     val chartBlue: androidx.compose.ui.graphics.Color,
     val surfaceElevation1: androidx.compose.ui.graphics.Color,
     val surfaceElevation2: androidx.compose.ui.graphics.Color,
-    val surfaceElevation3: androidx.compose.ui.graphics.Color
+    val surfaceElevation3: androidx.compose.ui.graphics.Color,
+    // Additional colors for the new design
+    val success: androidx.compose.ui.graphics.Color,
+    val warning: androidx.compose.ui.graphics.Color,
+    val info: androidx.compose.ui.graphics.Color,
+    val accentStar: androidx.compose.ui.graphics.Color,
+    val accentBadge: androidx.compose.ui.graphics.Color,
+    val accentHighlight: androidx.compose.ui.graphics.Color
 )
 
 val LocalExtendedColors = staticCompositionLocalOf {
@@ -107,14 +140,20 @@ val LocalExtendedColors = staticCompositionLocalOf {
         chartBlue = ChartBlue,
         surfaceElevation1 = SurfaceElevation1Light,
         surfaceElevation2 = SurfaceElevation2Light,
-        surfaceElevation3 = SurfaceElevation3Light
+        surfaceElevation3 = SurfaceElevation3Light,
+        success = SuccessLight,
+        warning = WarningLight,
+        info = InfoLight,
+        accentStar = AccentStar,
+        accentBadge = AccentBadge,
+        accentHighlight = AccentHighlight
     )
 }
 
 @Composable
 fun EtfMonitorTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Disable dynamic color by default to use custom Moss Green Nature theme
+    // Disable dynamic color by default to use custom Forest Green theme
     dynamicColor: Boolean = false,
     typography: androidx.compose.material3.Typography = Typography,
     content: @Composable () -> Unit
@@ -143,7 +182,13 @@ fun EtfMonitorTheme(
         chartBlue = ChartBlue,
         surfaceElevation1 = if (darkTheme) SurfaceElevation1Dark else SurfaceElevation1Light,
         surfaceElevation2 = if (darkTheme) SurfaceElevation2Dark else SurfaceElevation2Light,
-        surfaceElevation3 = if (darkTheme) SurfaceElevation3Dark else SurfaceElevation3Light
+        surfaceElevation3 = if (darkTheme) SurfaceElevation3Dark else SurfaceElevation3Light,
+        success = if (darkTheme) SuccessDark else SuccessLight,
+        warning = if (darkTheme) WarningDark else WarningLight,
+        info = if (darkTheme) InfoDark else InfoLight,
+        accentStar = AccentStar,
+        accentBadge = AccentBadge,
+        accentHighlight = AccentHighlight
     )
 
     CompositionLocalProvider(
