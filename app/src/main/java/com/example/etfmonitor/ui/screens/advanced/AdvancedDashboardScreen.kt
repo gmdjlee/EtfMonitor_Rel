@@ -105,15 +105,27 @@ fun AdvancedDashboardScreen(
                         val liquidityHistory by viewModel.liquidityHistory.collectAsState()
                         val sectorHistory by viewModel.sectorHistory.collectAsState()
 
+                        // 예측 정확도 데이터 수집
+                        val marketCapFlowAccuracy by viewModel.marketCapFlowAccuracy.collectAsState()
+                        val liquidityAccuracy by viewModel.liquidityAccuracy.collectAsState()
+
                         HorizontalPager(
                             state = pagerState,
                             modifier = Modifier.fillMaxSize()
                         ) { page ->
                             when (AdvancedTab.entries[page]) {
                                 AdvancedTab.DASHBOARD -> DashboardTab(currentState.data)
-                                AdvancedTab.MARKET_CAP_FLOW -> MarketCapFlowTab(currentState.data, marketCapFlowHistory)
+                                AdvancedTab.MARKET_CAP_FLOW -> MarketCapFlowTab(
+                                    data = currentState.data,
+                                    history = marketCapFlowHistory,
+                                    accuracy = marketCapFlowAccuracy
+                                )
                                 AdvancedTab.DIVERGENCE -> DivergenceTab(currentState.data)
-                                AdvancedTab.LIQUIDITY -> LiquidityTab(currentState.data, liquidityHistory)
+                                AdvancedTab.LIQUIDITY -> LiquidityTab(
+                                    data = currentState.data,
+                                    history = liquidityHistory,
+                                    accuracy = liquidityAccuracy
+                                )
                                 AdvancedTab.SECTOR_FG -> SectorFearGreedTab(currentState.data, sectorHistory)
                                 AdvancedTab.ETF_CORRELATION -> EtfCorrelationTab(currentState.data)
                             }
@@ -177,7 +189,8 @@ private fun DashboardTab(data: AdvancedDashboardData) {
 @Composable
 private fun MarketCapFlowTab(
     data: AdvancedDashboardData,
-    history: List<MarketCapFlowHistoryItem> = emptyList()
+    history: List<MarketCapFlowHistoryItem> = emptyList(),
+    accuracy: PredictionAccuracy? = null
 ) {
     val flow = data.marketCapFlow
 
@@ -191,6 +204,13 @@ private fun MarketCapFlowTab(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(vertical = 16.dp)
     ) {
+        // 예측 정확도 카드 (데이터가 있을 경우)
+        if (accuracy != null) {
+            item {
+                PredictionAccuracyCard("시총가중 흐름", accuracy)
+            }
+        }
+
         // 히스토리 차트 (데이터가 있을 경우)
         if (history.isNotEmpty()) {
             item {
@@ -514,7 +534,8 @@ private fun DivergenceStockRow(stock: SupplyDemandDivergence) {
 @Composable
 private fun LiquidityTab(
     data: AdvancedDashboardData,
-    history: List<LiquidityAnalysis> = emptyList()
+    history: List<LiquidityAnalysis> = emptyList(),
+    accuracy: PredictionAccuracy? = null
 ) {
     val liquidity = data.liquidityAnalysis
 
@@ -531,6 +552,13 @@ private fun LiquidityTab(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(vertical = 16.dp)
     ) {
+        // 예측 정확도 카드 (데이터가 있을 경우)
+        if (accuracy != null) {
+            item {
+                PredictionAccuracyCard("유동성 신호", accuracy)
+            }
+        }
+
         // 핵심 지표 카드
         item {
             Row(
@@ -1799,4 +1827,362 @@ private fun getFearGreedColor(value: Double): Color = when {
     value >= 0.5 -> Color(0xFF8BC34A)  // 약한 탐욕
     value >= 0.3 -> Color(0xFFFF9800)  // 약한 공포
     else -> Color(0xFFF44336)           // 공포 - 빨강
+}
+
+// ==================== 예측 정확도 UI 컴포넌트 ====================
+
+/**
+ * 예측 정확도 카드 (공통)
+ */
+@Composable
+fun PredictionAccuracyCard(
+    title: String,
+    accuracy: PredictionAccuracy?,
+    modifier: Modifier = Modifier
+) {
+    if (accuracy == null) return
+
+    var expanded by remember { mutableStateOf(false) }
+    val hitRatePercent = (accuracy.hitRate * 100).toInt()
+    val hitRateColor = when {
+        hitRatePercent >= 70 -> GreenPositive
+        hitRatePercent >= 50 -> OrangeAccent
+        else -> RedNegative
+    }
+
+    SectionCard("$title 예측 정확도") {
+        Column(modifier = modifier.fillMaxWidth()) {
+            // 요약 정보
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "적중률",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "${hitRatePercent}%",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = hitRateColor
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = GreenPositive,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            "${accuracy.correctPredictions}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = GreenPositive
+                        )
+                        Text(
+                            "/",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "${accuracy.totalPredictions}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        "정확/전체",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // 적중률 게이지
+                Box(
+                    modifier = Modifier.size(50.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        progress = { accuracy.hitRate.toFloat() },
+                        modifier = Modifier.fillMaxSize(),
+                        color = hitRateColor,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        strokeWidth = 6.dp
+                    )
+                    Text(
+                        "${hitRatePercent}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            // 상세 보기 버튼
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                TextButton(onClick = { expanded = !expanded }) {
+                    Text(if (expanded) "접기" else "상세 보기")
+                    Icon(
+                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // 상세 내역
+            if (expanded && accuracy.details.isNotEmpty()) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                // 테이블 헤더
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .padding(vertical = 6.dp, horizontal = 4.dp)
+                ) {
+                    Text(
+                        "날짜",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.width(60.dp)
+                    )
+                    Text(
+                        "예측",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        "실제",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        "변동률",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.width(60.dp),
+                        textAlign = TextAlign.End
+                    )
+                    Text(
+                        "결과",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.width(40.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                // 상세 내역 (최근 10건)
+                accuracy.details.take(10).forEachIndexed { index, detail ->
+                    val backgroundColor = if (index % 2 == 0) Color.Transparent
+                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(backgroundColor)
+                            .padding(vertical = 6.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            detail.date.takeLast(5),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.width(60.dp)
+                        )
+                        Text(
+                            getPredictionDisplayName(detail.prediction),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center,
+                            color = getPredictionColor(detail.prediction)
+                        )
+                        Text(
+                            getResultDisplayName(detail.actualResult),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center,
+                            color = getResultColor(detail.actualResult)
+                        )
+                        Text(
+                            String.format("%+.2f%%", detail.actualChangeRate),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.width(60.dp),
+                            textAlign = TextAlign.End,
+                            color = if (detail.actualChangeRate >= 0) GreenPositive else RedNegative
+                        )
+                        Icon(
+                            if (detail.isCorrect) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                            contentDescription = null,
+                            tint = if (detail.isCorrect) GreenPositive else RedNegative,
+                            modifier = Modifier
+                                .width(40.dp)
+                                .size(16.dp)
+                        )
+                    }
+                }
+
+                // 정확도 해석
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = hitRateColor.copy(alpha = 0.1f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = null,
+                            tint = hitRateColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            getAccuracyInterpretation(hitRatePercent),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 예측 표시명 반환
+ */
+private fun getPredictionDisplayName(prediction: String): String = when (prediction) {
+    "BUY" -> "매수"
+    "SELL" -> "매도"
+    "NEUTRAL" -> "중립"
+    else -> prediction
+}
+
+/**
+ * 결과 표시명 반환
+ */
+private fun getResultDisplayName(result: String): String = when (result) {
+    "UP" -> "상승"
+    "DOWN" -> "하락"
+    "FLAT" -> "보합"
+    else -> result
+}
+
+/**
+ * 예측 색상
+ */
+private fun getPredictionColor(prediction: String): Color = when (prediction) {
+    "BUY" -> GreenPositive
+    "SELL" -> RedNegative
+    else -> OrangeAccent
+}
+
+/**
+ * 결과 색상
+ */
+private fun getResultColor(result: String): Color = when (result) {
+    "UP" -> GreenPositive
+    "DOWN" -> RedNegative
+    else -> OrangeAccent
+}
+
+/**
+ * 정확도 해석 메시지
+ */
+private fun getAccuracyInterpretation(hitRate: Int): String = when {
+    hitRate >= 70 -> "높은 적중률입니다. 이 지표를 신뢰할 수 있습니다."
+    hitRate >= 60 -> "양호한 적중률입니다. 다른 지표와 함께 참고하세요."
+    hitRate >= 50 -> "보통 수준입니다. 단독 사용보다 종합 분석을 권장합니다."
+    else -> "적중률이 낮습니다. 이 지표는 참고용으로만 활용하세요."
+}
+
+/**
+ * 시총 가중 흐름 정확도 요약 카드 (간단 버전)
+ */
+@Composable
+fun MarketCapFlowAccuracySummary(
+    accuracy: PredictionAccuracy?,
+    modifier: Modifier = Modifier
+) {
+    if (accuracy == null) return
+
+    val hitRatePercent = (accuracy.hitRate * 100).toInt()
+    val hitRateColor = when {
+        hitRatePercent >= 70 -> GreenPositive
+        hitRatePercent >= 50 -> OrangeAccent
+        else -> RedNegative
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = hitRateColor.copy(alpha = 0.1f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    "예측 적중률",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(verticalAlignment = Alignment.Baseline) {
+                    Text(
+                        "${hitRatePercent}%",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = hitRateColor
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        "(${accuracy.correctPredictions}/${accuracy.totalPredictions})",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // 최근 5일 결과 아이콘
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                accuracy.details.take(5).forEach { detail ->
+                    Icon(
+                        if (detail.isCorrect) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                        contentDescription = null,
+                        tint = if (detail.isCorrect) GreenPositive else RedNegative,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
 }
