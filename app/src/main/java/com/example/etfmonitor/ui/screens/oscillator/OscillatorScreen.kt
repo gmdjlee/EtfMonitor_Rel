@@ -220,7 +220,16 @@ fun OscillatorScreen(
                         latestDate = currentState.stockData.dates.lastOrNull()
                     )
 
-                    // 추세 시그널 차트 (MA/CMF/Fear&Greed) - MACD 차트 위에 배치
+                    // DeMark TD 차트 (인터벌 선택 가능) - 2번째 위치
+                    currentState.demarkTDData?.let { demarkData ->
+                        DemarkTDChartWithSelector(
+                            data = demarkData,
+                            currentInterval = demarkTDInterval,
+                            onIntervalChange = { viewModel.changeDemarkTDInterval(it) }
+                        )
+                    }
+
+                    // 추세 시그널 차트 (MA/CMF/Fear&Greed)
                     currentState.trendSignalData?.let { trendData ->
                         TrendSignalChart(
                             data = trendData,
@@ -244,15 +253,6 @@ fun OscillatorScreen(
                         ElderImpulseChart(
                             data = elderData,
                             modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    // DeMark TD 차트 (인터벌 선택 가능)
-                    currentState.demarkTDData?.let { demarkData ->
-                        DemarkTDChartWithSelector(
-                            data = demarkData,
-                            currentInterval = demarkTDInterval,
-                            onIntervalChange = { viewModel.changeDemarkTDInterval(it) }
                         )
                     }
 
