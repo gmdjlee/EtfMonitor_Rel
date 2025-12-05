@@ -222,20 +222,47 @@ fun OscillatorScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
                         ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    currentState.stockData.name,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    currentState.stockData.ticker,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                // 종목명 & 종목코드 (왼쪽)
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        currentState.stockData.name,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        currentState.stockData.ticker,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                // 최근 데이터 날짜 & 데이터 포인트 (오른쪽)
+                                Column(
+                                    horizontalAlignment = Alignment.End,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    if (currentState.oscillatorResult.dates.isNotEmpty()) {
+                                        Text(
+                                            currentState.oscillatorResult.dates.last(),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            "${currentState.oscillatorResult.dates.size}개 데이터",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
                             }
                         }
 
@@ -412,19 +439,7 @@ private fun buildChartPages(
         )
     }
 
-    // 4. MACD 차트
-    pages.add(
-        ChartPage(
-            title = "MACD"
-        ) {
-            MacdChart(
-                result = currentState.oscillatorResult,
-                latestDate = currentState.stockData.dates.lastOrNull()
-            )
-        }
-    )
-
-    // 5. Elder Impulse 차트
+    // 4. Elder Impulse 차트
     currentState.elderImpulseData?.let { elderData ->
         pages.add(
             ChartPage(
@@ -438,12 +453,15 @@ private fun buildChartPages(
         )
     }
 
-    // 6. Oscillator Data Card
+    // 5. MACD 차트
     pages.add(
         ChartPage(
-            title = "오실레이터 데이터"
+            title = "MACD"
         ) {
-            DataCard(currentState.oscillatorResult)
+            MacdChart(
+                result = currentState.oscillatorResult,
+                latestDate = currentState.stockData.dates.lastOrNull()
+            )
         }
     )
 
@@ -593,40 +611,6 @@ private fun SearchHistoryDialog(
             }
         }
     )
-}
-
-@Composable
-private fun DataCard(result: com.etfmonitor.oscillator.model.OscillatorResult) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                "최근 데이터",
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            if (result.dates.isNotEmpty()) {
-                val lastIdx = result.dates.size - 1
-
-                DataRow("날짜", result.dates.last())
-                DataRow("오실레이터", String.format("%.4f", result.oscillator.last()))
-                DataRow("EMA(12)", String.format("%.4f", result.ema.last()))
-                DataRow("MACD", String.format("%.4f", result.macd.last()))
-                DataRow("Signal", String.format("%.4f", result.signal.last()))
-                DataRow("Histogram", String.format("%.4f", result.histogram.last()))
-
-                HorizontalDivider()
-
-                Text(
-                    "데이터 포인트: ${result.dates.size}개",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
 }
 
 @Composable
