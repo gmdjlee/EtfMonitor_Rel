@@ -1,10 +1,14 @@
 package com.etfmonitor.ui.screens.oscillator
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -69,109 +73,88 @@ fun OscillatorScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Search Card with Autocomplete - Wrapped in Box for overlay
+            // Search field with Autocomplete - Wrapped in Box for overlay
             Box(modifier = Modifier.fillMaxWidth()) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(MaterialTheme.spacing.medium),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Search TextField - Matches EtfListScreen design
+                    OutlinedTextField(
+                        value = textFieldValue,
+                        onValueChange = {
+                            textFieldValue = it
+                            viewModel.updateSearchQuery(it)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
                             Text(
-                                "종목 검색",
-                                style = MaterialTheme.typography.titleMedium
+                                "종목명 또는 티커 검색...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-
-                            // History 버튼
-                            if (searchHistory.isNotEmpty()) {
-                                TextButton(onClick = { showHistoryDialog = true }) {
-                                    Icon(
-                                        Icons.Default.History,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("History")
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        trailingIcon = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // History 버튼
+                                if (searchHistory.isNotEmpty() && textFieldValue.isEmpty()) {
+                                    IconButton(onClick = { showHistoryDialog = true }) {
+                                        Icon(
+                                            Icons.Default.History,
+                                            contentDescription = "검색 기록",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
-                            }
-                        }
-
-                        // TextField
-                        OutlinedTextField(
-                            value = textFieldValue,
-                            onValueChange = {
-                                textFieldValue = it
-                                viewModel.updateSearchQuery(it)
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = {
-                                Text(
-                                    "종목명 또는 코드",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            placeholder = {
-                                Text(
-                                    "예: 삼성전자",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            singleLine = true,
-                            trailingIcon = {
-                                if (textFieldValue.isNotBlank()) {
+                                // Clear 버튼
+                                if (textFieldValue.isNotEmpty()) {
                                     IconButton(onClick = {
                                         textFieldValue = ""
                                         viewModel.clearSuggestions()
                                     }) {
                                         Icon(
                                             Icons.Default.Clear,
-                                            "지우기",
+                                            contentDescription = "지우기",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
-                            },
-                            shape = MaterialTheme.extendedShapes.searchBar,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                focusedBorderColor = MaterialTheme.colorScheme.outline,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                            )
+                            }
+                        },
+                        singleLine = true,
+                        shape = MaterialTheme.extendedShapes.searchBar,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         )
-
-                        Button(
-                            onClick = {
-                                if (textFieldValue.isNotBlank()) {
-                                    viewModel.searchAndAnalyze(textFieldValue)
-                                    viewModel.clearSuggestions()
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = textFieldValue.isNotBlank() && state !is OscillatorState.Loading
-                        ) {
-                            Icon(Icons.Default.Search, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("분석")
-                        }
-                    }
+                    )
                 }
 
-                // Autocomplete Dropdown - Overlay outside Card
+                // Autocomplete Dropdown - Overlay below TextField
                 if (suggestions.isNotEmpty() && textFieldValue.isNotBlank()) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 16.dp, end = 16.dp, top = 120.dp) // Position below TextField
-                            .heightIn(max = 300.dp), // Limit max height
+                            .padding(
+                                start = MaterialTheme.spacing.medium,
+                                end = MaterialTheme.spacing.medium,
+                                top = 72.dp
+                            )
+                            .heightIn(max = 300.dp),
                         elevation = CardDefaults.cardElevation(
                             defaultElevation = 8.dp
                         ),
@@ -209,82 +192,167 @@ fun OscillatorScreen(
             // State Content
             when (val currentState = state) {
                 is OscillatorState.Loading -> {
-                    LoadingCard(message = "데이터 분석 중...")
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        LoadingCard(message = "데이터 분석 중...")
+                    }
                 }
 
                 is OscillatorState.Success -> {
-                    // Stock Info Card
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                    // 차트 페이지 목록 구성
+                    val chartPages = buildChartPages(
+                        currentState = currentState,
+                        demarkTDInterval = demarkTDInterval,
+                        onDemarkIntervalChange = { viewModel.changeDemarkTDInterval(it) }
+                    )
+
+                    val pagerState = rememberPagerState(
+                        initialPage = 0,
+                        pageCount = { chartPages.size }
+                    )
+
+                    Column(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        // Stock Info Card (고정)
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // 종목명 & 종목코드 (왼쪽)
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        currentState.stockData.name,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        currentState.stockData.ticker,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                // 최근 데이터 날짜 & 데이터 포인트 (오른쪽)
+                                Column(
+                                    horizontalAlignment = Alignment.End,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    if (currentState.oscillatorResult.dates.isNotEmpty()) {
+                                        Text(
+                                            currentState.oscillatorResult.dates.last(),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            "${currentState.oscillatorResult.dates.size}개 데이터",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Page Indicators + Chart Title
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                currentState.stockData.name,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
+                                text = chartPages.getOrNull(pagerState.currentPage)?.title ?: "",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
-                            Text(
-                                currentState.stockData.ticker,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+
+                            // Page Indicators
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                chartPages.forEachIndexed { index, _ ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(if (index == pagerState.currentPage) 10.dp else 8.dp)
+                                            .background(
+                                                color = if (index == pagerState.currentPage)
+                                                    MaterialTheme.colorScheme.primary
+                                                else
+                                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                                shape = CircleShape
+                                            )
+                                    )
+                                }
+                            }
                         }
-                    }
 
-                    // 시가총액 & 수급 오실레이터 차트
-                    MarketCapOscillatorChart(
-                        result = currentState.oscillatorResult,
-                        marketCap = currentState.stockData.marketCap,
-                        latestDate = currentState.stockData.dates.lastOrNull()
-                    )
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    // 추세 시그널 차트 (MA/CMF/Fear&Greed) - MACD 차트 위에 배치
-                    currentState.trendSignalData?.let { trendData ->
-                        TrendSignalChart(
-                            data = trendData,
-                            latestDate = trendData.dates.lastOrNull()
-                        )
-
-                        // 추세 시그널 분석 카드
-                        currentState.trendSignalAnalysis?.let { analysis ->
-                            TrendSignalAnalysisCard(analysis)
+                        // Horizontal Pager for Charts
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            pageSpacing = 16.dp
+                        ) { page ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                chartPages[page].content()
+                            }
                         }
-                    }
 
-                    // MACD 차트
-                    MacdChart(
-                        result = currentState.oscillatorResult,
-                        latestDate = currentState.stockData.dates.lastOrNull()
-                    )
-
-                    // Elder Impulse 차트 (주봉)
-                    currentState.elderImpulseData?.let { elderData ->
-                        ElderImpulseChart(
-                            data = elderData,
-                            modifier = Modifier.fillMaxWidth()
+                        // Swipe hint
+                        Text(
+                            text = "◀ 좌우로 스와이프하여 다른 차트 보기 ▶",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     }
-
-                    // DeMark TD 차트 (인터벌 선택 가능)
-                    currentState.demarkTDData?.let { demarkData ->
-                        DemarkTDChartWithSelector(
-                            data = demarkData,
-                            currentInterval = demarkTDInterval,
-                            onIntervalChange = { viewModel.changeDemarkTDInterval(it) }
-                        )
-                    }
-
-                    // Oscillator Data Card
-                    DataCard(currentState.oscillatorResult)
                 }
 
                 is OscillatorState.Error -> {
-                    ErrorCard(message = currentState.message)
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ErrorCard(message = currentState.message)
+                    }
                 }
 
                 is OscillatorState.Idle -> {
-                    IdleCard(message = "종목을 검색하여 수급 오실레이터를 분석하세요")
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        IdleCard(message = "종목을 검색하여 수급 오실레이터를 분석하세요")
+                    }
                 }
             }
         }
@@ -301,6 +369,103 @@ fun OscillatorScreen(
             )
         }
     }
+}
+
+/**
+ * 차트 페이지 데이터 클래스
+ */
+private data class ChartPage(
+    val title: String,
+    val content: @Composable () -> Unit
+)
+
+/**
+ * 차트 페이지 목록 빌드
+ */
+@Composable
+private fun buildChartPages(
+    currentState: OscillatorState.Success,
+    demarkTDInterval: String,
+    onDemarkIntervalChange: (String) -> Unit
+): List<ChartPage> {
+    val pages = mutableListOf<ChartPage>()
+
+    // 1. 시가총액 & 수급 오실레이터 차트
+    pages.add(
+        ChartPage(
+            title = "시가총액 & 수급 오실레이터"
+        ) {
+            MarketCapOscillatorChart(
+                result = currentState.oscillatorResult,
+                marketCap = currentState.stockData.marketCap,
+                latestDate = currentState.stockData.dates.lastOrNull()
+            )
+        }
+    )
+
+    // 2. DeMark TD 차트
+    currentState.demarkTDData?.let { demarkData ->
+        pages.add(
+            ChartPage(
+                title = "DeMark TD Setup"
+            ) {
+                DemarkTDChartWithSelector(
+                    data = demarkData,
+                    currentInterval = demarkTDInterval,
+                    onIntervalChange = onDemarkIntervalChange
+                )
+            }
+        )
+    }
+
+    // 3. 추세 시그널 차트 + 분석 카드
+    currentState.trendSignalData?.let { trendData ->
+        pages.add(
+            ChartPage(
+                title = "추세 시그널"
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    TrendSignalChart(
+                        data = trendData,
+                        latestDate = trendData.dates.lastOrNull()
+                    )
+                    currentState.trendSignalAnalysis?.let { analysis ->
+                        TrendSignalAnalysisCard(analysis)
+                    }
+                }
+            }
+        )
+    }
+
+    // 4. Elder Impulse 차트
+    currentState.elderImpulseData?.let { elderData ->
+        pages.add(
+            ChartPage(
+                title = "Elder Impulse (주봉)"
+            ) {
+                ElderImpulseChart(
+                    data = elderData,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        )
+    }
+
+    // 5. MACD 차트
+    pages.add(
+        ChartPage(
+            title = "MACD"
+        ) {
+            MacdChart(
+                result = currentState.oscillatorResult,
+                latestDate = currentState.stockData.dates.lastOrNull()
+            )
+        }
+    )
+
+    return pages
 }
 
 /**
@@ -446,40 +611,6 @@ private fun SearchHistoryDialog(
             }
         }
     )
-}
-
-@Composable
-private fun DataCard(result: com.etfmonitor.oscillator.model.OscillatorResult) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                "최근 데이터",
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            if (result.dates.isNotEmpty()) {
-                val lastIdx = result.dates.size - 1
-
-                DataRow("날짜", result.dates.last())
-                DataRow("오실레이터", String.format("%.4f", result.oscillator.last()))
-                DataRow("EMA(12)", String.format("%.4f", result.ema.last()))
-                DataRow("MACD", String.format("%.4f", result.macd.last()))
-                DataRow("Signal", String.format("%.4f", result.signal.last()))
-                DataRow("Histogram", String.format("%.4f", result.histogram.last()))
-
-                HorizontalDivider()
-
-                Text(
-                    "데이터 포인트: ${result.dates.size}개",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
 }
 
 @Composable

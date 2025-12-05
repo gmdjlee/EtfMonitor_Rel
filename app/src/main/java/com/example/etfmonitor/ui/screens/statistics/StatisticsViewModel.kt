@@ -37,11 +37,12 @@ class StatisticsViewModel @Inject constructor(
     private val _amountRanking = MutableStateFlow<List<StockAmountRanking>>(emptyList())
     val amountRanking: StateFlow<List<StockAmountRanking>> = _amountRanking.asStateFlow()
 
-    private val _sortColumn = MutableStateFlow(SortColumn.TOTAL_AMOUNT)
-    val sortColumn: StateFlow<SortColumn> = _sortColumn.asStateFlow()
+    // 원본 데이터 보관 (기본 정렬 복원용)
+    private var originalAmountRanking: List<StockAmountRanking> = emptyList()
 
-    private val _sortAscending = MutableStateFlow(false)
-    val sortAscending: StateFlow<Boolean> = _sortAscending.asStateFlow()
+    // 다중 컬럼 정렬 지원
+    private val _sortCriteria = MutableStateFlow<List<SortCriteria>>(emptyList())
+    val sortCriteria: StateFlow<List<SortCriteria>> = _sortCriteria.asStateFlow()
 
     private val _newStocks = MutableStateFlow<List<StockChangeInfo>>(emptyList())
     val newStocks: StateFlow<List<StockChangeInfo>> = _newStocks.asStateFlow()
@@ -52,18 +53,18 @@ class StatisticsViewModel @Inject constructor(
     private val _increasedStocks = MutableStateFlow<List<StockChangeInfo>>(emptyList())
     val increasedStocks: StateFlow<List<StockChangeInfo>> = _increasedStocks.asStateFlow()
 
-    // ✅ 비중 감소 종목 추가
+    // 비중 감소 종목
     private val _decreasedStocks = MutableStateFlow<List<StockChangeInfo>>(emptyList())
     val decreasedStocks: StateFlow<List<StockChangeInfo>> = _decreasedStocks.asStateFlow()
 
-    // ✅ 원화예금 추이 추가
+    // 원화예금 추이
     private val _cashDepositTrend = MutableStateFlow<List<CashDepositTrend>>(emptyList())
     val cashDepositTrend: StateFlow<List<CashDepositTrend>> = _cashDepositTrend.asStateFlow()
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    // ✅ 종목 분석 상태
+    // 종목 분석 상태
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
@@ -85,19 +86,21 @@ class StatisticsViewModel @Inject constructor(
             _isLoading.value = true
             try {
                 _dates.value = repository.getStatisticsDates()
-                _amountRanking.value = repository.getStockAmountRanking()
+                val ranking = repository.getStockAmountRanking()
+                originalAmountRanking = ranking
+                _amountRanking.value = ranking
                 _newStocks.value = repository.getAllNewStocks()
                 _removedStocks.value = repository.getAllRemovedStocks()
                 _increasedStocks.value = repository.getAllIncreasedStocks()
-                _decreasedStocks.value = repository.getAllDecreasedStocks()  // ✅ 추가
-                _cashDepositTrend.value = repository.getCashDepositTrend()  // ✅ 추가
+                _decreasedStocks.value = repository.getAllDecreasedStocks()
+                _cashDepositTrend.value = repository.getCashDepositTrend()
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    // ✅ 종목 검색
+    // 종목 검색
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
         if (query.length >= 2) {
@@ -109,7 +112,7 @@ class StatisticsViewModel @Inject constructor(
         }
     }
 
-    // ✅ 종목 분석
+    // 종목 분석
     fun analyzeStock(stockTicker: String) {
         viewModelScope.launch {
             _isAnalyzing.value = true
@@ -123,7 +126,7 @@ class StatisticsViewModel @Inject constructor(
         }
     }
 
-    // ✅ 검색 후 분석 (종목명 또는 티커로 검색하여 분석)
+    // 검색 후 분석 (종목명 또는 티커로 검색하여 분석)
     fun searchAndAnalyze(query: String) {
         viewModelScope.launch {
             _isAnalyzing.value = true
@@ -147,59 +150,137 @@ class StatisticsViewModel @Inject constructor(
         }
     }
 
-    // ✅ 분석 결과 초기화
+    // 분석 결과 초기화
     fun clearAnalysis() {
         _analysisResult.value = null
         _searchQuery.value = ""
         _searchResults.value = emptyList()
     }
 
-    // ✅ 금액순위 정렬
+    /**
+     * 다중 컬럼 정렬 - 3가지 상태 (기본 → 내림차순 → 오름차순 → 기본)
+     * 여러 컬럼에 대해 순차적으로 정렬 적용 가능
+     */
     fun sortAmountRankingBy(column: SortColumn) {
-        // 같은 컬럼을 클릭하면 정렬 방향 토글, 다른 컬럼이면 내림차순으로 시작
-        val ascending = if (_sortColumn.value == column) !_sortAscending.value else false
-        _sortColumn.value = column
-        _sortAscending.value = ascending
+        val currentCriteria = _sortCriteria.value.toMutableList()
+        val existingIndex = currentCriteria.indexOfFirst { it.column == column }
 
-        _amountRanking.value = when (column) {
-            SortColumn.STOCK_NAME -> if (ascending) {
-                _amountRanking.value.sortedBy { it.stockName }
-            } else {
-                _amountRanking.value.sortedByDescending { it.stockName }
+        if (existingIndex >= 0) {
+            // 이미 정렬 중인 컬럼 - 상태 순환: 내림차순 → 오름차순 → 기본(제거)
+            val existing = currentCriteria[existingIndex]
+            when (existing.order) {
+                SortOrder.DESCENDING -> {
+                    // 내림차순 → 오름차순
+                    currentCriteria[existingIndex] = existing.copy(order = SortOrder.ASCENDING)
+                }
+                SortOrder.ASCENDING -> {
+                    // 오름차순 → 기본 (정렬 기준에서 제거)
+                    currentCriteria.removeAt(existingIndex)
+                }
+                else -> {
+                    // 기본 → 내림차순 (일반적으로 여기 도달하지 않음)
+                    currentCriteria[existingIndex] = existing.copy(order = SortOrder.DESCENDING)
+                }
             }
-            SortColumn.TOTAL_AMOUNT -> if (ascending) {
-                _amountRanking.value.sortedBy { it.totalAmount }
+        } else {
+            // 새 컬럼 추가 - 내림차순으로 시작
+            currentCriteria.add(SortCriteria(column, SortOrder.DESCENDING))
+        }
+
+        _sortCriteria.value = currentCriteria
+        applySorting()
+    }
+
+    /**
+     * 모든 정렬 초기화
+     */
+    fun clearAllSorting() {
+        _sortCriteria.value = emptyList()
+        _amountRanking.value = originalAmountRanking
+    }
+
+    /**
+     * 현재 정렬 기준에 따라 데이터 정렬 적용
+     */
+    private fun applySorting() {
+        val criteria = _sortCriteria.value
+
+        if (criteria.isEmpty()) {
+            // 정렬 기준 없으면 원본 데이터로 복원
+            _amountRanking.value = originalAmountRanking
+            return
+        }
+
+        // 다중 컬럼 정렬을 위한 Comparator 체인 생성
+        val comparator = criteria.fold<SortCriteria, Comparator<StockAmountRanking>?>(null) { acc, sortCriteria ->
+            val columnComparator = createComparator(sortCriteria.column, sortCriteria.order)
+            if (acc == null) {
+                columnComparator
             } else {
-                _amountRanking.value.sortedByDescending { it.totalAmount }
-            }
-            SortColumn.ETF_COUNT -> if (ascending) {
-                _amountRanking.value.sortedBy { it.etfCount }
-            } else {
-                _amountRanking.value.sortedByDescending { it.etfCount }
-            }
-            SortColumn.NEW_ETF_COUNT -> if (ascending) {
-                _amountRanking.value.sortedBy { it.newEtfCount }
-            } else {
-                _amountRanking.value.sortedByDescending { it.newEtfCount }
-            }
-            SortColumn.INCREASED_ETF_COUNT -> if (ascending) {
-                _amountRanking.value.sortedBy { it.increasedEtfCount }
-            } else {
-                _amountRanking.value.sortedByDescending { it.increasedEtfCount }
-            }
-            SortColumn.DECREASED_ETF_COUNT -> if (ascending) {
-                _amountRanking.value.sortedBy { it.decreasedEtfCount }
-            } else {
-                _amountRanking.value.sortedByDescending { it.decreasedEtfCount }
-            }
-            SortColumn.REMOVED_ETF_COUNT -> if (ascending) {
-                _amountRanking.value.sortedBy { it.removedEtfCount }
-            } else {
-                _amountRanking.value.sortedByDescending { it.removedEtfCount }
+                acc.then(columnComparator)
             }
         }
+
+        _amountRanking.value = if (comparator != null) {
+            originalAmountRanking.sortedWith(comparator)
+        } else {
+            originalAmountRanking
+        }
+    }
+
+    /**
+     * 컬럼과 정렬 순서에 따른 Comparator 생성
+     */
+    private fun createComparator(column: SortColumn, order: SortOrder): Comparator<StockAmountRanking> {
+        val baseComparator: Comparator<StockAmountRanking> = when (column) {
+            SortColumn.STOCK_NAME -> compareBy { it.stockName }
+            SortColumn.TOTAL_AMOUNT -> compareBy { it.totalAmount }
+            SortColumn.ETF_COUNT -> compareBy { it.etfCount }
+            SortColumn.NEW_ETF_COUNT -> compareBy { it.newEtfCount }
+            SortColumn.INCREASED_ETF_COUNT -> compareBy { it.increasedEtfCount }
+            SortColumn.DECREASED_ETF_COUNT -> compareBy { it.decreasedEtfCount }
+            SortColumn.REMOVED_ETF_COUNT -> compareBy { it.removedEtfCount }
+        }
+
+        return when (order) {
+            SortOrder.ASCENDING -> baseComparator
+            SortOrder.DESCENDING -> baseComparator.reversed()
+            SortOrder.NONE -> baseComparator // 실제로는 사용되지 않음
+        }
+    }
+
+    /**
+     * 특정 컬럼의 현재 정렬 순서 가져오기
+     */
+    fun getSortOrder(column: SortColumn): SortOrder {
+        return _sortCriteria.value.find { it.column == column }?.order ?: SortOrder.NONE
+    }
+
+    /**
+     * 특정 컬럼의 정렬 우선순위 가져오기 (1부터 시작, 0이면 정렬 안 됨)
+     */
+    fun getSortPriority(column: SortColumn): Int {
+        val index = _sortCriteria.value.indexOfFirst { it.column == column }
+        return if (index >= 0) index + 1 else 0
     }
 }
+
+/**
+ * 정렬 순서
+ */
+enum class SortOrder {
+    NONE,       // 기본 정렬 (정렬 없음)
+    ASCENDING,  // 오름차순
+    DESCENDING  // 내림차순
+}
+
+/**
+ * 정렬 기준 (컬럼 + 순서)
+ */
+data class SortCriteria(
+    val column: SortColumn,
+    val order: SortOrder
+)
 
 /**
  * 금액순위 정렬 기준 열

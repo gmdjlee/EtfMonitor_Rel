@@ -168,8 +168,7 @@ private fun AmountRankingTab(
     viewModel: StatisticsViewModel,
     onStockClick: (String) -> Unit
 ) {
-    val sortColumn by viewModel.sortColumn.collectAsState()
-    val sortAscending by viewModel.sortAscending.collectAsState()
+    val sortCriteria by viewModel.sortCriteria.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -184,11 +183,34 @@ private fun AmountRankingTab(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Text(
-                "열 클릭으로 정렬",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (sortCriteria.isNotEmpty()) {
+                    // 정렬 초기화 버튼
+                    TextButton(
+                        onClick = { viewModel.clearAllSorting() },
+                        contentPadding = PaddingValues(horizontal = MaterialTheme.spacing.small)
+                    ) {
+                        Icon(
+                            Icons.Default.Clear,
+                            contentDescription = "정렬 초기화",
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            "초기화",
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+                Text(
+                    if (sortCriteria.isEmpty()) "열 클릭으로 정렬" else "정렬: ${sortCriteria.size}개 열",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         // Header card
@@ -210,8 +232,8 @@ private fun AmountRankingTab(
                 SortableHeaderText(
                     text = "종목명",
                     column = SortColumn.STOCK_NAME,
-                    currentColumn = sortColumn,
-                    ascending = sortAscending,
+                    sortOrder = viewModel.getSortOrder(SortColumn.STOCK_NAME),
+                    priority = viewModel.getSortPriority(SortColumn.STOCK_NAME),
                     modifier = Modifier.weight(2f),
                     onClick = { viewModel.sortAmountRankingBy(SortColumn.STOCK_NAME) }
                 )
@@ -219,8 +241,8 @@ private fun AmountRankingTab(
                 SortableHeaderText(
                     text = "금액",
                     column = SortColumn.TOTAL_AMOUNT,
-                    currentColumn = sortColumn,
-                    ascending = sortAscending,
+                    sortOrder = viewModel.getSortOrder(SortColumn.TOTAL_AMOUNT),
+                    priority = viewModel.getSortPriority(SortColumn.TOTAL_AMOUNT),
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.End,
                     onClick = { viewModel.sortAmountRankingBy(SortColumn.TOTAL_AMOUNT) }
@@ -229,8 +251,8 @@ private fun AmountRankingTab(
                 SortableHeaderText(
                     text = "ETF수",
                     column = SortColumn.ETF_COUNT,
-                    currentColumn = sortColumn,
-                    ascending = sortAscending,
+                    sortOrder = viewModel.getSortOrder(SortColumn.ETF_COUNT),
+                    priority = viewModel.getSortPriority(SortColumn.ETF_COUNT),
                     modifier = Modifier.weight(0.6f),
                     textAlign = TextAlign.Center,
                     onClick = { viewModel.sortAmountRankingBy(SortColumn.ETF_COUNT) }
@@ -239,8 +261,8 @@ private fun AmountRankingTab(
                 SortableHeaderText(
                     text = "신규",
                     column = SortColumn.NEW_ETF_COUNT,
-                    currentColumn = sortColumn,
-                    ascending = sortAscending,
+                    sortOrder = viewModel.getSortOrder(SortColumn.NEW_ETF_COUNT),
+                    priority = viewModel.getSortPriority(SortColumn.NEW_ETF_COUNT),
                     modifier = Modifier.weight(0.5f),
                     textAlign = TextAlign.Center,
                     onClick = { viewModel.sortAmountRankingBy(SortColumn.NEW_ETF_COUNT) }
@@ -249,8 +271,8 @@ private fun AmountRankingTab(
                 SortableHeaderText(
                     text = "증가",
                     column = SortColumn.INCREASED_ETF_COUNT,
-                    currentColumn = sortColumn,
-                    ascending = sortAscending,
+                    sortOrder = viewModel.getSortOrder(SortColumn.INCREASED_ETF_COUNT),
+                    priority = viewModel.getSortPriority(SortColumn.INCREASED_ETF_COUNT),
                     modifier = Modifier.weight(0.5f),
                     textAlign = TextAlign.Center,
                     onClick = { viewModel.sortAmountRankingBy(SortColumn.INCREASED_ETF_COUNT) }
@@ -259,8 +281,8 @@ private fun AmountRankingTab(
                 SortableHeaderText(
                     text = "감소",
                     column = SortColumn.DECREASED_ETF_COUNT,
-                    currentColumn = sortColumn,
-                    ascending = sortAscending,
+                    sortOrder = viewModel.getSortOrder(SortColumn.DECREASED_ETF_COUNT),
+                    priority = viewModel.getSortPriority(SortColumn.DECREASED_ETF_COUNT),
                     modifier = Modifier.weight(0.5f),
                     textAlign = TextAlign.Center,
                     onClick = { viewModel.sortAmountRankingBy(SortColumn.DECREASED_ETF_COUNT) }
@@ -269,8 +291,8 @@ private fun AmountRankingTab(
                 SortableHeaderText(
                     text = "제외",
                     column = SortColumn.REMOVED_ETF_COUNT,
-                    currentColumn = sortColumn,
-                    ascending = sortAscending,
+                    sortOrder = viewModel.getSortOrder(SortColumn.REMOVED_ETF_COUNT),
+                    priority = viewModel.getSortPriority(SortColumn.REMOVED_ETF_COUNT),
                     modifier = Modifier.weight(0.5f),
                     textAlign = TextAlign.Center,
                     onClick = { viewModel.sortAmountRankingBy(SortColumn.REMOVED_ETF_COUNT) }
@@ -837,104 +859,58 @@ private fun StockAnalysisTab(
     ) {
         // 검색 입력 - Box로 감싸서 드롭다운 오버레이
         Box(modifier = Modifier.fillMaxWidth()) {
-            Card(
+            // 검색 필드 - EtfListScreen 스타일
+            OutlinedTextField(
+                value = textFieldValue,
+                onValueChange = {
+                    textFieldValue = it
+                    onSearchQueryChange(it)
+                },
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.extendedShapes.cardLarge
-            ) {
-                Column(
-                    modifier = Modifier.padding(MaterialTheme.spacing.medium),
-                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
-                ) {
+                placeholder = {
                     Text(
-                        "종목 분석",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
+                        "종목명 또는 티커 검색...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-
-                    OutlinedTextField(
-                        value = textFieldValue,
-                        onValueChange = {
-                            textFieldValue = it
-                            onSearchQueryChange(it)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = {
-                            Text(
-                                "종목명 또는 티커",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        placeholder = {
-                            Text(
-                                "예: 삼성전자, 005930",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        singleLine = true,
-                        trailingIcon = {
-                            Row(
-                                horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                if (textFieldValue.isNotBlank()) {
-                                    IconButton(onClick = {
-                                        textFieldValue = ""
-                                        onSearchQueryChange("")
-                                    }) {
-                                        Icon(
-                                            Icons.Default.Close,
-                                            "지우기",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                                IconButton(
-                                    onClick = {
-                                        if (textFieldValue.isNotBlank() && !isAnalyzing) {
-                                            onSearchAndAnalyze(textFieldValue)
-                                        }
-                                    },
-                                    enabled = textFieldValue.isNotBlank() && !isAnalyzing
-                                ) {
-                                    Icon(
-                                        Icons.Default.Search,
-                                        "검색",
-                                        tint = if (textFieldValue.isNotBlank() && !isAnalyzing) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                                        }
-                                    )
-                                }
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(
-                            imeAction = ImeAction.Search
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onSearch = {
-                                if (textFieldValue.isNotBlank() && !isAnalyzing) {
-                                    onSearchAndAnalyze(textFieldValue)
-                                }
-                            }
-                        ),
-                        shape = MaterialTheme.extendedShapes.searchBar,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            focusedBorderColor = MaterialTheme.colorScheme.outline,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        )
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-            }
+                },
+                trailingIcon = {
+                    if (textFieldValue.isNotEmpty()) {
+                        IconButton(onClick = {
+                            textFieldValue = ""
+                            onSearchQueryChange("")
+                        }) {
+                            Icon(
+                                Icons.Default.Clear,
+                                contentDescription = "지우기",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = MaterialTheme.extendedShapes.searchBar,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    focusedBorderColor = MaterialTheme.colorScheme.outline,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                )
+            )
 
             // 자동완성 드롭다운 - 오버레이
             if (searchResults.isNotEmpty() && textFieldValue.isNotBlank()) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 140.dp)
+                        .padding(top = 60.dp)
                         .heightIn(max = 300.dp),
                     elevation = CardDefaults.cardElevation(
                         defaultElevation = 8.dp
@@ -1288,17 +1264,21 @@ private fun StockAnalysisDetailItem(
 
 /**
  * 정렬 가능한 헤더 텍스트 컴포넌트
+ * - 3가지 상태 지원: 기본(정렬 없음), 내림차순, 오름차순
+ * - 다중 컬럼 정렬 시 우선순위 표시
  */
 @Composable
 private fun SortableHeaderText(
     text: String,
     column: SortColumn,
-    currentColumn: SortColumn,
-    ascending: Boolean,
+    sortOrder: SortOrder,
+    priority: Int,
     modifier: Modifier = Modifier,
     textAlign: TextAlign? = null,
     onClick: () -> Unit
 ) {
+    val isSorted = sortOrder != SortOrder.NONE
+
     Row(
         modifier = modifier.clickable(onClick = onClick),
         horizontalArrangement = when (textAlign) {
@@ -1308,22 +1288,53 @@ private fun SortableHeaderText(
         },
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // 정렬 우선순위 번호 (다중 컬럼 정렬 시)
+        if (priority > 0) {
+            Text(
+                text = "$priority",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(end = 2.dp)
+            )
+        }
+
         Text(
             text,
             style = MaterialTheme.typography.labelSmall,
-            color = if (column == currentColumn) {
+            color = if (isSorted) {
                 MaterialTheme.colorScheme.primary
             } else {
                 MaterialTheme.colorScheme.onPrimaryContainer
             }
         )
-        if (column == currentColumn) {
-            Icon(
-                imageVector = if (ascending) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                contentDescription = if (ascending) "오름차순" else "내림차순",
-                modifier = Modifier.size(12.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
+
+        // 정렬 상태 아이콘
+        when (sortOrder) {
+            SortOrder.DESCENDING -> {
+                Icon(
+                    imageVector = Icons.Default.ArrowDownward,
+                    contentDescription = "내림차순",
+                    modifier = Modifier.size(12.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            SortOrder.ASCENDING -> {
+                Icon(
+                    imageVector = Icons.Default.ArrowUpward,
+                    contentDescription = "오름차순",
+                    modifier = Modifier.size(12.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            SortOrder.NONE -> {
+                // 정렬 없음 - 아이콘 표시 안 함 (또는 옅은 UnfoldMore 아이콘)
+                Icon(
+                    imageVector = Icons.Default.UnfoldMore,
+                    contentDescription = "정렬 가능",
+                    modifier = Modifier.size(12.dp),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
+                )
+            }
         }
     }
 }
