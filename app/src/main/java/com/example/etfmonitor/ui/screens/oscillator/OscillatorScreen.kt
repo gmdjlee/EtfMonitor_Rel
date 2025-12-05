@@ -69,109 +69,90 @@ fun OscillatorScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Search Card with Autocomplete - Wrapped in Box for overlay
+            // Search field with Autocomplete - Wrapped in Box for overlay
             Box(modifier = Modifier.fillMaxWidth()) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(MaterialTheme.spacing.medium),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Search TextField - Matches EtfListScreen design
+                    OutlinedTextField(
+                        value = textFieldValue,
+                        onValueChange = {
+                            textFieldValue = it
+                            viewModel.updateSearchQuery(it)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
                             Text(
-                                "종목 검색",
-                                style = MaterialTheme.typography.titleMedium
+                                "종목명 또는 티커 검색...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-
-                            // History 버튼
-                            if (searchHistory.isNotEmpty()) {
-                                TextButton(onClick = { showHistoryDialog = true }) {
-                                    Icon(
-                                        Icons.Default.History,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("History")
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        trailingIcon = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // History 버튼
+                                if (searchHistory.isNotEmpty() && textFieldValue.isEmpty()) {
+                                    IconButton(onClick = { showHistoryDialog = true }) {
+                                        Icon(
+                                            Icons.Default.History,
+                                            contentDescription = "검색 기록",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
-                            }
-                        }
-
-                        // TextField
-                        OutlinedTextField(
-                            value = textFieldValue,
-                            onValueChange = {
-                                textFieldValue = it
-                                viewModel.updateSearchQuery(it)
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = {
-                                Text(
-                                    "종목명 또는 코드",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            placeholder = {
-                                Text(
-                                    "예: 삼성전자",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            singleLine = true,
-                            trailingIcon = {
-                                if (textFieldValue.isNotBlank()) {
+                                // Clear 버튼
+                                if (textFieldValue.isNotEmpty()) {
                                     IconButton(onClick = {
                                         textFieldValue = ""
                                         viewModel.clearSuggestions()
                                     }) {
                                         Icon(
                                             Icons.Default.Clear,
-                                            "지우기",
+                                            contentDescription = "지우기",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
-                            },
-                            shape = MaterialTheme.extendedShapes.searchBar,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                focusedBorderColor = MaterialTheme.colorScheme.outline,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                            )
+                            }
+                        },
+                        singleLine = true,
+                        shape = MaterialTheme.extendedShapes.searchBar,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         )
-
-                        Button(
-                            onClick = {
-                                if (textFieldValue.isNotBlank()) {
-                                    viewModel.searchAndAnalyze(textFieldValue)
-                                    viewModel.clearSuggestions()
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = textFieldValue.isNotBlank() && state !is OscillatorState.Loading
-                        ) {
-                            Icon(Icons.Default.Search, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("분석")
-                        }
-                    }
+                    )
                 }
 
-                // Autocomplete Dropdown - Overlay outside Card
+                // Autocomplete Dropdown - Overlay below TextField
                 if (suggestions.isNotEmpty() && textFieldValue.isNotBlank()) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 16.dp, end = 16.dp, top = 120.dp) // Position below TextField
-                            .heightIn(max = 300.dp), // Limit max height
+                            .padding(
+                                start = MaterialTheme.spacing.medium,
+                                end = MaterialTheme.spacing.medium,
+                                top = 72.dp
+                            )
+                            .heightIn(max = 300.dp),
                         elevation = CardDefaults.cardElevation(
                             defaultElevation = 8.dp
                         ),
