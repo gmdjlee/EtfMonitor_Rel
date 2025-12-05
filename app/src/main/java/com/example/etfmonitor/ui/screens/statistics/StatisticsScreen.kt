@@ -859,104 +859,58 @@ private fun StockAnalysisTab(
     ) {
         // 검색 입력 - Box로 감싸서 드롭다운 오버레이
         Box(modifier = Modifier.fillMaxWidth()) {
-            Card(
+            // 검색 필드 - EtfListScreen 스타일
+            OutlinedTextField(
+                value = textFieldValue,
+                onValueChange = {
+                    textFieldValue = it
+                    onSearchQueryChange(it)
+                },
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.extendedShapes.cardLarge
-            ) {
-                Column(
-                    modifier = Modifier.padding(MaterialTheme.spacing.medium),
-                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
-                ) {
+                placeholder = {
                     Text(
-                        "종목 분석",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
+                        "종목명 또는 티커 검색...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-
-                    OutlinedTextField(
-                        value = textFieldValue,
-                        onValueChange = {
-                            textFieldValue = it
-                            onSearchQueryChange(it)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = {
-                            Text(
-                                "종목명 또는 티커",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        placeholder = {
-                            Text(
-                                "예: 삼성전자, 005930",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        singleLine = true,
-                        trailingIcon = {
-                            Row(
-                                horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                if (textFieldValue.isNotBlank()) {
-                                    IconButton(onClick = {
-                                        textFieldValue = ""
-                                        onSearchQueryChange("")
-                                    }) {
-                                        Icon(
-                                            Icons.Default.Close,
-                                            "지우기",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                                IconButton(
-                                    onClick = {
-                                        if (textFieldValue.isNotBlank() && !isAnalyzing) {
-                                            onSearchAndAnalyze(textFieldValue)
-                                        }
-                                    },
-                                    enabled = textFieldValue.isNotBlank() && !isAnalyzing
-                                ) {
-                                    Icon(
-                                        Icons.Default.Search,
-                                        "검색",
-                                        tint = if (textFieldValue.isNotBlank() && !isAnalyzing) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                                        }
-                                    )
-                                }
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(
-                            imeAction = ImeAction.Search
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onSearch = {
-                                if (textFieldValue.isNotBlank() && !isAnalyzing) {
-                                    onSearchAndAnalyze(textFieldValue)
-                                }
-                            }
-                        ),
-                        shape = MaterialTheme.extendedShapes.searchBar,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            focusedBorderColor = MaterialTheme.colorScheme.outline,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        )
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-            }
+                },
+                trailingIcon = {
+                    if (textFieldValue.isNotEmpty()) {
+                        IconButton(onClick = {
+                            textFieldValue = ""
+                            onSearchQueryChange("")
+                        }) {
+                            Icon(
+                                Icons.Default.Clear,
+                                contentDescription = "지우기",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = MaterialTheme.extendedShapes.searchBar,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    focusedBorderColor = MaterialTheme.colorScheme.outline,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                )
+            )
 
             // 자동완성 드롭다운 - 오버레이
             if (searchResults.isNotEmpty() && textFieldValue.isNotBlank()) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 140.dp)
+                        .padding(top = 60.dp)
                         .heightIn(max = 300.dp),
                     elevation = CardDefaults.cardElevation(
                         defaultElevation = 8.dp
