@@ -1,10 +1,14 @@
 package com.etfmonitor.ui.screens.oscillator
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -69,8 +73,6 @@ fun OscillatorScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Search field with Autocomplete - Wrapped in Box for overlay
             Box(modifier = Modifier.fillMaxWidth()) {
@@ -190,82 +192,140 @@ fun OscillatorScreen(
             // State Content
             when (val currentState = state) {
                 is OscillatorState.Loading -> {
-                    LoadingCard(message = "데이터 분석 중...")
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        LoadingCard(message = "데이터 분석 중...")
+                    }
                 }
 
                 is OscillatorState.Success -> {
-                    // Stock Info Card
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                    // 차트 페이지 목록 구성
+                    val chartPages = buildChartPages(
+                        currentState = currentState,
+                        demarkTDInterval = demarkTDInterval,
+                        onDemarkIntervalChange = { viewModel.changeDemarkTDInterval(it) }
+                    )
+
+                    val pagerState = rememberPagerState(
+                        initialPage = 0,
+                        pageCount = { chartPages.size }
+                    )
+
+                    Column(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        // Stock Info Card (고정)
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    currentState.stockData.name,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    currentState.stockData.ticker,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Page Indicators + Chart Title
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                currentState.stockData.name,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
+                                text = chartPages.getOrNull(pagerState.currentPage)?.title ?: "",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
-                            Text(
-                                currentState.stockData.ticker,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+
+                            // Page Indicators
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                chartPages.forEachIndexed { index, _ ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(if (index == pagerState.currentPage) 10.dp else 8.dp)
+                                            .background(
+                                                color = if (index == pagerState.currentPage)
+                                                    MaterialTheme.colorScheme.primary
+                                                else
+                                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                                shape = CircleShape
+                                            )
+                                    )
+                                }
+                            }
                         }
-                    }
 
-                    // 시가총액 & 수급 오실레이터 차트
-                    MarketCapOscillatorChart(
-                        result = currentState.oscillatorResult,
-                        marketCap = currentState.stockData.marketCap,
-                        latestDate = currentState.stockData.dates.lastOrNull()
-                    )
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    // DeMark TD 차트 (인터벌 선택 가능) - 2번째 위치
-                    currentState.demarkTDData?.let { demarkData ->
-                        DemarkTDChartWithSelector(
-                            data = demarkData,
-                            currentInterval = demarkTDInterval,
-                            onIntervalChange = { viewModel.changeDemarkTDInterval(it) }
-                        )
-                    }
-
-                    // 추세 시그널 차트 (MA/CMF/Fear&Greed)
-                    currentState.trendSignalData?.let { trendData ->
-                        TrendSignalChart(
-                            data = trendData,
-                            latestDate = trendData.dates.lastOrNull()
-                        )
-
-                        // 추세 시그널 분석 카드
-                        currentState.trendSignalAnalysis?.let { analysis ->
-                            TrendSignalAnalysisCard(analysis)
+                        // Horizontal Pager for Charts
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            pageSpacing = 16.dp
+                        ) { page ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                chartPages[page].content()
+                            }
                         }
-                    }
 
-                    // MACD 차트
-                    MacdChart(
-                        result = currentState.oscillatorResult,
-                        latestDate = currentState.stockData.dates.lastOrNull()
-                    )
-
-                    // Elder Impulse 차트 (주봉)
-                    currentState.elderImpulseData?.let { elderData ->
-                        ElderImpulseChart(
-                            data = elderData,
-                            modifier = Modifier.fillMaxWidth()
+                        // Swipe hint
+                        Text(
+                            text = "◀ 좌우로 스와이프하여 다른 차트 보기 ▶",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     }
-
-                    // Oscillator Data Card
-                    DataCard(currentState.oscillatorResult)
                 }
 
                 is OscillatorState.Error -> {
-                    ErrorCard(message = currentState.message)
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ErrorCard(message = currentState.message)
+                    }
                 }
 
                 is OscillatorState.Idle -> {
-                    IdleCard(message = "종목을 검색하여 수급 오실레이터를 분석하세요")
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        IdleCard(message = "종목을 검색하여 수급 오실레이터를 분석하세요")
+                    }
                 }
             }
         }
@@ -282,6 +342,112 @@ fun OscillatorScreen(
             )
         }
     }
+}
+
+/**
+ * 차트 페이지 데이터 클래스
+ */
+private data class ChartPage(
+    val title: String,
+    val content: @Composable () -> Unit
+)
+
+/**
+ * 차트 페이지 목록 빌드
+ */
+@Composable
+private fun buildChartPages(
+    currentState: OscillatorState.Success,
+    demarkTDInterval: String,
+    onDemarkIntervalChange: (String) -> Unit
+): List<ChartPage> {
+    val pages = mutableListOf<ChartPage>()
+
+    // 1. 시가총액 & 수급 오실레이터 차트
+    pages.add(
+        ChartPage(
+            title = "시가총액 & 수급 오실레이터"
+        ) {
+            MarketCapOscillatorChart(
+                result = currentState.oscillatorResult,
+                marketCap = currentState.stockData.marketCap,
+                latestDate = currentState.stockData.dates.lastOrNull()
+            )
+        }
+    )
+
+    // 2. DeMark TD 차트
+    currentState.demarkTDData?.let { demarkData ->
+        pages.add(
+            ChartPage(
+                title = "DeMark TD Setup"
+            ) {
+                DemarkTDChartWithSelector(
+                    data = demarkData,
+                    currentInterval = demarkTDInterval,
+                    onIntervalChange = onDemarkIntervalChange
+                )
+            }
+        )
+    }
+
+    // 3. 추세 시그널 차트 + 분석 카드
+    currentState.trendSignalData?.let { trendData ->
+        pages.add(
+            ChartPage(
+                title = "추세 시그널"
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    TrendSignalChart(
+                        data = trendData,
+                        latestDate = trendData.dates.lastOrNull()
+                    )
+                    currentState.trendSignalAnalysis?.let { analysis ->
+                        TrendSignalAnalysisCard(analysis)
+                    }
+                }
+            }
+        )
+    }
+
+    // 4. MACD 차트
+    pages.add(
+        ChartPage(
+            title = "MACD"
+        ) {
+            MacdChart(
+                result = currentState.oscillatorResult,
+                latestDate = currentState.stockData.dates.lastOrNull()
+            )
+        }
+    )
+
+    // 5. Elder Impulse 차트
+    currentState.elderImpulseData?.let { elderData ->
+        pages.add(
+            ChartPage(
+                title = "Elder Impulse (주봉)"
+            ) {
+                ElderImpulseChart(
+                    data = elderData,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        )
+    }
+
+    // 6. Oscillator Data Card
+    pages.add(
+        ChartPage(
+            title = "오실레이터 데이터"
+        ) {
+            DataCard(currentState.oscillatorResult)
+        }
+    )
+
+    return pages
 }
 
 /**
