@@ -1,7 +1,7 @@
 package com.etfmonitor.repository
 
-import android.util.Log
 import com.etfmonitor.ai.*
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.analysis.AnalysisContext
 import com.etfmonitor.analysis.CorrelationAnalyzer
 import com.etfmonitor.analysis.SignalType
@@ -36,7 +36,7 @@ class CorrelationAnalysisRepository @Inject constructor(
     private val aiApiClientFactory: AIApiClientFactory
 ) {
     companion object {
-        private const val TAG = "CorrelationAnalysisRepo"
+        private val logger = AppLogger.getLogger("CorrelationRepo")
         private const val DEFAULT_PERIOD_DAYS = 30
     }
 
@@ -57,7 +57,7 @@ class CorrelationAnalysisRepository @Inject constructor(
         periodDays: Int = DEFAULT_PERIOD_DAYS
     ): Result<CorrelationAnalysisResult> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Running correlation analysis for $market on $endDate")
+            logger.d( "Running correlation analysis for $market on $endDate")
 
             // 상관관계 분석 실행
             val result = correlationAnalyzer.analyze(market, endDate, periodDays)
@@ -66,12 +66,12 @@ class CorrelationAnalysisRepository @Inject constructor(
                 val analysisResult = result.getOrThrow()
                 // 결과 저장
                 correlationAnalysisDao.insert(analysisResult)
-                Log.d(TAG, "Correlation analysis saved: ${analysisResult.id}")
+                logger.d( "Correlation analysis saved: ${analysisResult.id}")
             }
 
             result
         } catch (e: Exception) {
-            Log.e(TAG, "Correlation analysis failed", e)
+            logger.e( "Correlation analysis failed", e)
             Result.failure(e)
         }
     }
@@ -91,19 +91,19 @@ class CorrelationAnalysisRepository @Inject constructor(
             // 시장 지수 데이터 확인 및 자동 수집
             val hasMarketIndexData = marketIndexRepository.hasData(market)
             if (!hasMarketIndexData) {
-                Log.d(TAG, "No market index data found for $market. Fetching data...")
+                logger.d( "No market index data found for $market. Fetching data...")
                 val fetchResult = marketIndexRepository.initializeMarketIndex(periodDays + 30)
                 if (fetchResult.isFailure) {
                     Log.w(TAG, "Failed to fetch market index data: ${fetchResult.exceptionOrNull()?.message}")
                     // 수집 실패해도 분석 시도 (다른 데이터로라도 분석)
                 } else {
-                    Log.d(TAG, "Successfully fetched market index data: ${fetchResult.getOrNull()} records")
+                    logger.d( "Successfully fetched market index data: ${fetchResult.getOrNull()} records")
                 }
             }
 
             runCorrelationAnalysis(market, latestDate, periodDays)
         } catch (e: Exception) {
-            Log.e(TAG, "Latest correlation analysis failed", e)
+            logger.e( "Latest correlation analysis failed", e)
             Result.failure(e)
         }
     }
@@ -141,7 +141,7 @@ class CorrelationAnalysisRepository @Inject constructor(
         correlationResult: CorrelationAnalysisResult
     ): Result<AIAnalysisResult> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Interpreting correlation with AI for ${correlationResult.id}")
+            logger.d( "Interpreting correlation with AI for ${correlationResult.id}")
 
             val startTime = System.currentTimeMillis()
             val client = aiApiClientFactory.getClient()
@@ -193,11 +193,11 @@ class CorrelationAnalysisRepository @Inject constructor(
 
             // 결과 저장
             aiAnalysisDao.insert(aiResult)
-            Log.d(TAG, "AI analysis saved: ${aiResult.id}")
+            logger.d( "AI analysis saved: ${aiResult.id}")
 
             Result.success(aiResult)
         } catch (e: Exception) {
-            Log.e(TAG, "AI interpretation failed", e)
+            logger.e( "AI interpretation failed", e)
             Result.failure(e)
         }
     }
@@ -249,7 +249,7 @@ class CorrelationAnalysisRepository @Inject constructor(
                 )
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Full analysis failed", e)
+            logger.e( "Full analysis failed", e)
             Result.failure(e)
         }
     }

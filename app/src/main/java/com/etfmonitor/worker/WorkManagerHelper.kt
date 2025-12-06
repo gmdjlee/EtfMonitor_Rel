@@ -1,13 +1,13 @@
 package com.etfmonitor.worker
 
 import android.content.Context
-import android.util.Log
 import androidx.work.*
+import com.etfmonitor.utils.AppLogger
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 object WorkManagerHelper {
-    private const val TAG = "WorkManagerHelper"
+    private val logger = AppLogger.getLogger("WorkManagerHelper")
 
     /**
      * 매일 지정된 시간에 작업 스케줄링 (Generic)
@@ -25,7 +25,7 @@ object WorkManagerHelper {
         workName: String,
         taskName: String
     ) {
-        Log.d(TAG, "Scheduling $taskName update for ${hour}:${minute}")
+        logger.d("Scheduling $taskName update for ${hour}:${minute}")
 
         // 다음 실행 시간 계산
         val currentTime = Calendar.getInstance()
@@ -42,7 +42,7 @@ object WorkManagerHelper {
 
         val initialDelay = scheduledTime.timeInMillis - currentTime.timeInMillis
 
-        Log.d(TAG, "Initial delay: ${initialDelay / 1000 / 60} minutes")
+        logger.d("Initial delay: ${initialDelay / 1000 / 60} minutes")
 
         // Constraints 설정 (네트워크 필요)
         val constraints = Constraints.Builder()
@@ -69,7 +69,7 @@ object WorkManagerHelper {
             )
         }
 
-        Log.d(TAG, "$taskName update scheduled successfully")
+        logger.d("$taskName update scheduled successfully")
     }
 
     /**
@@ -93,7 +93,7 @@ object WorkManagerHelper {
      * 작업 취소 (Generic)
      */
     private fun cancelUpdate(context: Context, workName: String, taskName: String) {
-        Log.d(TAG, "Cancelling $taskName update schedule")
+        logger.d("Cancelling $taskName update schedule")
         WorkManager.getInstance(context).cancelUniqueWork(workName)
     }
 
@@ -104,7 +104,7 @@ object WorkManagerHelper {
         context: Context,
         taskName: String
     ) {
-        Log.d(TAG, "Running $taskName update immediately")
+        logger.d("Running $taskName update immediately")
 
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -234,7 +234,7 @@ object WorkManagerHelper {
      * @param context Context
      */
     fun scheduleDataArchiving(context: Context) {
-        Log.d(TAG, "Scheduling data archiving (monthly at 3:00 AM)")
+        logger.d("Scheduling data archiving (monthly at 3:00 AM)")
 
         // Constraints 설정 (배터리 충전 중, 네트워크 연결 시에만 실행)
         val constraints = Constraints.Builder()
@@ -261,7 +261,7 @@ object WorkManagerHelper {
             )
         }
 
-        Log.d(TAG, "Data archiving scheduled successfully")
+        logger.d("Data archiving scheduled successfully")
     }
 
     /**
@@ -295,7 +295,7 @@ object WorkManagerHelper {
      * 즉시 데이터 아카이빙 실행
      */
     fun runDataArchivingNow(context: Context) {
-        Log.d(TAG, "Running data archiving immediately")
+        logger.d("Running data archiving immediately")
 
         val constraints = Constraints.Builder()
             .setRequiresBatteryNotLow(true)
@@ -355,7 +355,7 @@ object WorkManagerHelper {
      * 수집이 완료된 후 자동으로 분석 시작
      */
     fun runEtfCollectionThenAdvancedAnalysis(context: Context) {
-        Log.d(TAG, "Scheduling ETF collection followed by advanced analysis")
+        logger.d("Scheduling ETF collection followed by advanced analysis")
 
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -369,6 +369,6 @@ object WorkManagerHelper {
         WorkManager.getInstance(context)
             .enqueue(analysisRequest)
 
-        Log.d(TAG, "Advanced analysis chained after ETF collection")
+        logger.d("Advanced analysis chained after ETF collection")
     }
 }

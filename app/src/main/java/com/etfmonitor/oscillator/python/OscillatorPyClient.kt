@@ -1,7 +1,7 @@
 package com.etfmonitor.oscillator.python
 
-import android.util.Log
 import com.chaquo.python.Python
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.oscillator.model.DemarkTDData
 import com.etfmonitor.oscillator.model.ElderImpulseData
 import com.etfmonitor.oscillator.model.MarketDepositData
@@ -68,7 +68,7 @@ import javax.inject.Singleton
 class OscillatorPyClient @Inject constructor(private val python: Python) {
 
     companion object {
-        private const val TAG = "OscillatorPyClient"
+        private val logger = AppLogger.getLogger("OscillatorPy")
         private const val TIMEOUT_MS = 30_000L
         private const val MARKET_OSCILLATOR_TIMEOUT_MS = 180_000L  // 3분 - 시장 전체 종목 분석에 필요
     }
@@ -167,22 +167,22 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
     )
 
     private val stocksModule by lazy {
-        Log.d(TAG, "Loading stocks module")
+        logger.d( "Loading stocks module")
         python.getModule("stocks")
     }
 
     private val depositModule by lazy {
-        Log.d(TAG, "Loading deposit_scraper module")
+        logger.d( "Loading deposit_scraper module")
         python.getModule("deposit_scraper")
     }
 
     private val marketModule by lazy {
-        Log.d(TAG, "Loading market module")
+        logger.d( "Loading market module")
         python.getModule("market")
     }
 
     private val trendSignalModule by lazy {
-        Log.d(TAG, "Loading trend_signal module")
+        logger.d( "Loading trend_signal module")
         python.getModule("trend_signal")
     }
 
@@ -192,26 +192,26 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
     suspend fun searchStock(query: String): Pair<String, String>? = withContext(Dispatchers.IO) {
         try {
             withTimeout(TIMEOUT_MS) {
-                Log.d(TAG, "searchStock: $query")
+                logger.d( "searchStock: $query")
                 val jsonStr = stocksModule.callAttr("search_stock_wrapper", query).toString()
                 val response = json.decodeFromString<SearchStockResponse>(jsonStr)
 
                 if (response.error != null) {
-                    Log.e(TAG, "Search error: ${response.error}")
+                    logger.e( "Search error: ${response.error}")
                     return@withTimeout null
                 }
 
-                Log.d(TAG, "Found stock: ${response.ticker} - ${response.name}")
+                logger.d( "Found stock: ${response.ticker} - ${response.name}")
                 Pair(response.ticker, response.name)
             }
         } catch (e: TimeoutCancellationException) {
-            Log.e(TAG, "searchStock timeout", PythonTimeoutException(TIMEOUT_MS, "stocks", "search_stock_wrapper"))
+            logger.e( "searchStock timeout", PythonTimeoutException(TIMEOUT_MS, "stocks", "search_stock_wrapper"))
             null
         } catch (e: SerializationException) {
-            Log.e(TAG, "searchStock parse error", DataParsingException("종목 검색 JSON 파싱 실패", cause = e))
+            logger.e( "searchStock parse error", DataParsingException("종목 검색 JSON 파싱 실패", cause = e))
             null
         } catch (e: Exception) {
-            Log.e(TAG, "searchStock error", PythonRuntimeException("종목 검색 실패: $query", "stocks", "search_stock_wrapper", cause = e))
+            logger.e( "searchStock error", PythonRuntimeException("종목 검색 실패: $query", "stocks", "search_stock_wrapper", cause = e))
             null
         }
     }
@@ -223,12 +223,12 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         withContext(Dispatchers.IO) {
             try {
                 withTimeout(TIMEOUT_MS) {
-                    Log.d(TAG, "getStockAnalysis: $ticker, $days days")
+                    logger.d( "getStockAnalysis: $ticker, $days days")
                     val jsonStr = stocksModule.callAttr("get_stock_analysis", ticker, days).toString()
                     val response = json.decodeFromString<StockAnalysisResponse>(jsonStr)
 
                     if (response.error != null) {
-                        Log.e(TAG, "Analysis error: ${response.error}")
+                        logger.e( "Analysis error: ${response.error}")
                         return@withTimeout null
                     }
 
@@ -240,17 +240,17 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                         foreign5d = response.foreign5d,
                         institution5d = response.institution5d
                     ).also {
-                        Log.d(TAG, "Stock analysis complete: ${it.name}, ${response.dates.size} data points")
+                        logger.d( "Stock analysis complete: ${it.name}, ${response.dates.size} data points")
                     }
                 }
             } catch (e: TimeoutCancellationException) {
-                Log.e(TAG, "getStockAnalysis timeout", PythonTimeoutException(TIMEOUT_MS, "stocks", "get_stock_analysis"))
+                logger.e( "getStockAnalysis timeout", PythonTimeoutException(TIMEOUT_MS, "stocks", "get_stock_analysis"))
                 null
             } catch (e: SerializationException) {
-                Log.e(TAG, "getStockAnalysis parse error", DataParsingException("종목 분석 JSON 파싱 실패: $ticker", cause = e))
+                logger.e( "getStockAnalysis parse error", DataParsingException("종목 분석 JSON 파싱 실패: $ticker", cause = e))
                 null
             } catch (e: Exception) {
-                Log.e(TAG, "getStockAnalysis error", PythonRuntimeException("종목 분석 실패: $ticker", "stocks", "get_stock_analysis", cause = e))
+                logger.e( "getStockAnalysis error", PythonRuntimeException("종목 분석 실패: $ticker", "stocks", "get_stock_analysis", cause = e))
                 null
             }
         }
@@ -262,12 +262,12 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         withContext(Dispatchers.IO) {
             try {
                 withTimeout(TIMEOUT_MS) {
-                    Log.d(TAG, "getMarketDepositData: $numPages pages")
+                    logger.d( "getMarketDepositData: $numPages pages")
                     val jsonStr = depositModule.callAttr("get_market_deposit_data", numPages).toString()
                     val response = json.decodeFromString<MarketDepositResponse>(jsonStr)
 
                     if (response.error != null) {
-                        Log.e(TAG, "Market data error: ${response.error}")
+                        logger.e( "Market data error: ${response.error}")
                         return@withTimeout null
                     }
 
@@ -278,11 +278,11 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                         creditAmounts = response.creditAmounts,
                         creditChanges = response.creditChanges
                     ).also {
-                        Log.d(TAG, "Market deposit data complete: ${response.dates.size} data points")
+                        logger.d( "Market deposit data complete: ${response.dates.size} data points")
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "getMarketDepositData error", e)
+                logger.e( "getMarketDepositData error", e)
                 null
             }
         }
@@ -293,12 +293,12 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
     suspend fun getLatestMarketData(): MarketDepositData? = withContext(Dispatchers.IO) {
         try {
             withTimeout(TIMEOUT_MS) {
-                Log.d(TAG, "getLatestMarketData")
+                logger.d( "getLatestMarketData")
                 val jsonStr = depositModule.callAttr("get_latest_market_data").toString()
                 val response = json.decodeFromString<MarketDepositResponse>(jsonStr)
 
                 if (response.error != null) {
-                    Log.e(TAG, "Latest market data error: ${response.error}")
+                    logger.e( "Latest market data error: ${response.error}")
                     return@withTimeout null
                 }
 
@@ -311,7 +311,7 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "getLatestMarketData error", e)
+            logger.e( "getLatestMarketData error", e)
             null
         }
     }
@@ -322,11 +322,11 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
     suspend fun getAllStocksList(): List<Pair<String, String>> = withContext(Dispatchers.IO) {
         try {
             withTimeout(TIMEOUT_MS) {
-                Log.d(TAG, "getAllStocksList")
+                logger.d( "getAllStocksList")
                 val jsonStr = stocksModule.callAttr("get_all_stocks_list").toString()
 
                 if (jsonStr.contains("\"error\"")) {
-                    Log.e(TAG, "Error getting stocks list")
+                    logger.e( "Error getting stocks list")
                     return@withTimeout emptyList()
                 }
 
@@ -334,7 +334,7 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                 stockList.map { Pair(it.ticker, it.name) }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "getAllStocksList error", e)
+            logger.e( "getAllStocksList error", e)
             emptyList()
         }
     }
@@ -355,7 +355,7 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         try {
             // 시장 오실레이터는 전체 구성종목 데이터를 수집해야 하므로 더 긴 타임아웃 사용
             withTimeout(MARKET_OSCILLATOR_TIMEOUT_MS) {
-                Log.d(TAG, "getMarketOscillator: $market, $startDate ~ $endDate (timeout: ${MARKET_OSCILLATOR_TIMEOUT_MS}ms)")
+                logger.d( "getMarketOscillator: $market, $startDate ~ $endDate (timeout: ${MARKET_OSCILLATOR_TIMEOUT_MS}ms)")
                 val jsonStr = marketModule.callAttr(
                     "get_market_oscillator",
                     market,
@@ -363,11 +363,11 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                     endDate
                 ).toString()
 
-                Log.d(TAG, "Market oscillator data retrieved for $market")
+                logger.d( "Market oscillator data retrieved for $market")
                 jsonStr
             }
         } catch (e: Exception) {
-            Log.e(TAG, "getMarketOscillator error", e)
+            logger.e( "getMarketOscillator error", e)
             """{"error": "${e.message}"}"""
         }
     }
@@ -387,7 +387,7 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
     ): TrendSignalData? = withContext(Dispatchers.IO) {
         try {
             withTimeout(TIMEOUT_MS) {
-                Log.d(TAG, "getTrendSignalData: $ticker, $days days, interval: $interval")
+                logger.d( "getTrendSignalData: $ticker, $days days, interval: $interval")
                 val jsonStr = trendSignalModule.callAttr(
                     "get_trend_signal_analysis",
                     ticker,
@@ -398,7 +398,7 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                 val response = json.decodeFromString<TrendSignalResponse>(jsonStr)
 
                 if (response.error != null) {
-                    Log.e(TAG, "Trend signal error: ${response.error}")
+                    logger.e( "Trend signal error: ${response.error}")
                     return@withTimeout null
                 }
 
@@ -420,11 +420,11 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                     sellSignal = response.sellSignal,
                     auxSellSignal = response.auxSellSignal
                 ).also {
-                    Log.d(TAG, "Trend signal data complete: ${it.name}, ${response.dates.size} data points")
+                    logger.d( "Trend signal data complete: ${it.name}, ${response.dates.size} data points")
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "getTrendSignalData error", e)
+            logger.e( "getTrendSignalData error", e)
             null
         }
     }
@@ -442,7 +442,7 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
     ): ElderImpulseData? = withContext(Dispatchers.IO) {
         try {
             withTimeout(TIMEOUT_MS) {
-                Log.d(TAG, "getElderImpulseData: $ticker, $days days")
+                logger.d( "getElderImpulseData: $ticker, $days days")
                 val jsonStr = trendSignalModule.callAttr(
                     "get_elder_impulse_analysis",
                     ticker,
@@ -452,7 +452,7 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                 val response = json.decodeFromString<ElderImpulseResponse>(jsonStr)
 
                 if (response.error != null) {
-                    Log.e(TAG, "Elder Impulse error: ${response.error}")
+                    logger.e( "Elder Impulse error: ${response.error}")
                     return@withTimeout null
                 }
 
@@ -469,11 +469,11 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                     macdHist = response.macdHist,
                     impulse = response.impulse
                 ).also {
-                    Log.d(TAG, "Elder Impulse data complete: ${it.name}, ${response.dates.size} data points")
+                    logger.d( "Elder Impulse data complete: ${it.name}, ${response.dates.size} data points")
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "getElderImpulseData error", e)
+            logger.e( "getElderImpulseData error", e)
             null
         }
     }
@@ -493,7 +493,7 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
     ): DemarkTDData? = withContext(Dispatchers.IO) {
         try {
             withTimeout(TIMEOUT_MS) {
-                Log.d(TAG, "getDemarkTDData: $ticker, $days days, interval: $interval")
+                logger.d( "getDemarkTDData: $ticker, $days days, interval: $interval")
                 val jsonStr = trendSignalModule.callAttr(
                     "get_demark_td_analysis",
                     ticker,
@@ -504,7 +504,7 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                 val response = json.decodeFromString<DemarkTDResponse>(jsonStr)
 
                 if (response.error != null) {
-                    Log.e(TAG, "DeMark TD error: ${response.error}")
+                    logger.e( "DeMark TD error: ${response.error}")
                     return@withTimeout null
                 }
 
@@ -519,11 +519,11 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                     tdSell = response.tdSell,
                     tdBuy = response.tdBuy
                 ).also {
-                    Log.d(TAG, "DeMark TD data complete: ${it.name}, ${response.dates.size} data points, ${it.intervalName}")
+                    logger.d( "DeMark TD data complete: ${it.name}, ${response.dates.size} data points, ${it.intervalName}")
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "getDemarkTDData error", e)
+            logger.e( "getDemarkTDData error", e)
             null
         }
     }

@@ -1,9 +1,9 @@
 package com.etfmonitor.repository
 
-import android.util.Log
 import com.etfmonitor.database.StockDao
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.oscillator.python.OscillatorPyClient
+import com.etfmonitor.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -25,7 +25,7 @@ class StockRepository @Inject constructor(
     private val pyClient: OscillatorPyClient
 ) {
     companion object {
-        private const val TAG = "StockRepository"
+        private val logger = AppLogger.getLogger("StockRepository")
     }
 
     // ========== 조회 ==========
@@ -62,7 +62,7 @@ class StockRepository @Inject constructor(
             val market = Stock.inferMarket(ticker)
             stockDao.upsertFromHolding(ticker, name, market, System.currentTimeMillis())
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to sync stock: $ticker", e)
+            logger.e( "Failed to sync stock: $ticker", e)
         }
     }
 
@@ -73,9 +73,9 @@ class StockRepository @Inject constructor(
         try {
             if (holdings.isEmpty()) return@withContext
             stockDao.syncFromHoldings(holdings)
-            Log.d(TAG, "Synced ${holdings.size} stocks from holdings")
+            logger.d( "Synced ${holdings.size} stocks from holdings")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to sync stocks from holdings", e)
+            logger.e( "Failed to sync stocks from holdings", e)
         }
     }
 
@@ -92,12 +92,12 @@ class StockRepository @Inject constructor(
      */
     suspend fun initializeStocks(): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Initializing stock data from Python...")
+            logger.d( "Initializing stock data from Python...")
 
             val stockList = pyClient.getAllStocksList()
 
             if (stockList.isEmpty()) {
-                Log.e(TAG, "Failed to get stocks list from Python (empty result - possible network issue)")
+                logger.e( "Failed to get stocks list from Python (empty result - possible network issue)")
                 return@withContext Result.failure(
                     NetworkException("종목 데이터를 가져올 수 없습니다. 네트워크 연결을 확인해 주세요.")
                 )
@@ -115,10 +115,10 @@ class StockRepository @Inject constructor(
             stockDao.deleteAll()
             stockDao.insertAll(stocks)
 
-            Log.d(TAG, "Successfully initialized ${stocks.size} stocks")
+            logger.d( "Successfully initialized ${stocks.size} stocks")
             Result.success(stocks.size)
         } catch (e: Exception) {
-            Log.e(TAG, "Error initializing stocks", e)
+            logger.e( "Error initializing stocks", e)
             Result.failure(e)
         }
     }

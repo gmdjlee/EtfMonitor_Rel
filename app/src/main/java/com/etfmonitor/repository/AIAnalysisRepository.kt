@@ -1,7 +1,7 @@
 package com.etfmonitor.repository
 
-import android.util.Log
 import com.etfmonitor.ai.*
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.database.DailyEtfStatisticsDao
 import com.etfmonitor.database.FearGreedDao
 import com.etfmonitor.database.MarketDepositDao
@@ -26,7 +26,7 @@ class AIAnalysisRepository @Inject constructor(
     private val marketDepositDao: MarketDepositDao
 ) {
     companion object {
-        private const val TAG = "AIAnalysisRepository"
+        private val logger = AppLogger.getLogger("AIAnalysisRepo")
     }
 
     /**
@@ -43,14 +43,14 @@ class AIAnalysisRepository @Inject constructor(
         analysisType: AnalysisType = AnalysisType.COMPREHENSIVE
     ): Result<AIAnalysisResponse> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Starting market analysis for $market on $date")
+            logger.d( "Starting market analysis for $market on $date")
 
             val startTime = System.currentTimeMillis()
 
             // 1. 데이터 수집
             val analysisData = collectAnalysisData(market, date)
             if (analysisData == null) {
-                Log.e(TAG, "Failed to collect analysis data for $market on $date")
+                logger.e( "Failed to collect analysis data for $market on $date")
                 return@withContext Result.failure(
                     Exception("$date 날짜의 데이터를 찾을 수 없습니다.\n\n시장 지수 또는 ETF 통계 데이터가 누락되었습니다.\n홈 화면에서 데이터를 수집해주세요.")
                 )
@@ -78,7 +78,7 @@ class AIAnalysisRepository @Inject constructor(
 
             val processingTime = System.currentTimeMillis() - startTime
 
-            Log.d(TAG, "Market analysis completed: signal=${signal.signal}, confidence=${signal.confidence}")
+            logger.d( "Market analysis completed: signal=${signal.signal}, confidence=${signal.confidence}")
 
             Result.success(
                 AIAnalysisResponse(
@@ -89,7 +89,7 @@ class AIAnalysisRepository @Inject constructor(
                 )
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Market analysis error", e)
+            logger.e( "Market analysis error", e)
             Result.failure(e)
         }
     }
@@ -99,22 +99,22 @@ class AIAnalysisRepository @Inject constructor(
      */
     suspend fun analyzeLatestMarket(market: String): Result<AIAnalysisResponse> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Analyzing latest market data for: $market")
+            logger.d( "Analyzing latest market data for: $market")
 
             // 최신 날짜 조회
             val latestDate = dailyEtfStatisticsDao.getLatestDate()
 
             if (latestDate == null) {
-                Log.e(TAG, "No ETF statistics data found in database")
+                logger.e( "No ETF statistics data found in database")
                 return@withContext Result.failure(
                     Exception("데이터가 없습니다.\n\n홈 화면에서 'ETF 데이터 수집'을 먼저 실행해주세요.")
                 )
             }
 
-            Log.d(TAG, "Latest date found: $latestDate")
+            logger.d( "Latest date found: $latestDate")
             analyzeMarket(market, latestDate)
         } catch (e: Exception) {
-            Log.e(TAG, "Latest market analysis error", e)
+            logger.e( "Latest market analysis error", e)
             Result.failure(e)
         }
     }
@@ -127,23 +127,23 @@ class AIAnalysisRepository @Inject constructor(
         date: String
     ): MarketAnalysisData? = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Collecting analysis data for market=$market, date=$date")
+            logger.d( "Collecting analysis data for market=$market, date=$date")
 
             // 시장 지수
             val marketIndex = marketIndexDao.getByMarketAndDate(market, date)
             if (marketIndex == null) {
-                Log.e(TAG, "Market index not found for $market on $date")
+                logger.e( "Market index not found for $market on $date")
                 return@withContext null
             }
-            Log.d(TAG, "Market index found: closePrice=${marketIndex.closePrice}, changeRate=${marketIndex.changeRate}")
+            logger.d( "Market index found: closePrice=${marketIndex.closePrice}, changeRate=${marketIndex.changeRate}")
 
             // ETF 통계
             val etfStats = dailyEtfStatisticsDao.getByDate(date)
             if (etfStats == null) {
-                Log.e(TAG, "ETF statistics not found for $date")
+                logger.e( "ETF statistics not found for $date")
                 return@withContext null
             }
-            Log.d(TAG, "ETF stats found: newStocks=${etfStats.newStockCount}, removed=${etfStats.removedStockCount}")
+            logger.d( "ETF stats found: newStocks=${etfStats.newStockCount}, removed=${etfStats.removedStockCount}")
 
             // Fear & Greed (optional)
             val fearGreed = try {
@@ -199,7 +199,7 @@ class AIAnalysisRepository @Inject constructor(
                 marketOscillator = oscillator?.oscillator
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Error collecting analysis data", e)
+            logger.e( "Error collecting analysis data", e)
             null
         }
     }
@@ -240,7 +240,7 @@ class AIAnalysisRepository @Inject constructor(
             val client = aiApiClientFactory.getClient(provider)
             client.listModels()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to list models for $provider", e)
+            logger.e( "Failed to list models for $provider", e)
             Result.failure(e)
         }
     }
@@ -259,7 +259,7 @@ class AIAnalysisRepository @Inject constructor(
             val prompt = MarketAnalysisPrompts.createQuickSignalPrompt(analysisData)
             getClient().analyzeMarket(prompt, temperature = 0.3) // 낮은 temperature로 일관성 향상
         } catch (e: Exception) {
-            Log.e(TAG, "Quick signal generation error", e)
+            logger.e( "Quick signal generation error", e)
             Result.failure(e)
         }
     }
@@ -281,7 +281,7 @@ class AIAnalysisRepository @Inject constructor(
                 return@withContext Result.failure(Exception("지정된 기간에 데이터가 없습니다"))
             }
 
-            Log.d(TAG, "Generating batch signals for ${dates.size} dates")
+            logger.d( "Generating batch signals for ${dates.size} dates")
 
             val records = mutableListOf<SignalRecord>()
 
@@ -310,10 +310,10 @@ class AIAnalysisRepository @Inject constructor(
                 }
             }
 
-            Log.d(TAG, "Batch signal generation completed: ${records.size} signals")
+            logger.d( "Batch signal generation completed: ${records.size} signals")
             Result.success(records)
         } catch (e: Exception) {
-            Log.e(TAG, "Batch signal generation error", e)
+            logger.e( "Batch signal generation error", e)
             Result.failure(e)
         }
     }

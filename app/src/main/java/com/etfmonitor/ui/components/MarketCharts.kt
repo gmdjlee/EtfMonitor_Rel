@@ -1,7 +1,7 @@
 package com.etfmonitor.ui.components
 
-import android.util.Log
 import androidx.compose.foundation.isSystemInDarkTheme
+import com.etfmonitor.utils.AppLogger
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -27,6 +27,8 @@ import com.github.mikephil.charting.formatter.ValueFormatter
  * - MarketDepositChart: 증시 자금 동향 차트
  */
 
+private val logger = AppLogger.getLogger("MarketCharts")
+
 /**
  * 시가총액 + 수급 오실레이터 복합 차트
  */
@@ -40,7 +42,7 @@ fun MarketCapOscillatorChart(
 ) {
     // 데이터 검증
     if (result.dates.isEmpty() || marketCap.isEmpty()) {
-        Log.w(CHART_TAG, "Empty data for MarketCapOscillatorChart")
+        logger.w("Empty data for MarketCapOscillatorChart")
         return
     }
 
@@ -85,7 +87,7 @@ fun MarketCapOscillatorChart(
                             )
                             marker = markerView
                         } catch (e: Exception) {
-                            Log.e(CHART_TAG, "Error creating marker", e)
+                            logger.e("Error creating marker", e)
                         }
 
                         // X축 설정
@@ -146,7 +148,7 @@ fun MarketCapOscillatorChart(
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e(CHART_TAG, "Error creating chart", e)
+                    logger.e("Error creating chart", e)
                     CombinedChart(context)
                 }
             },
@@ -192,7 +194,7 @@ fun MarketCapOscillatorChart(
                     chart.data = combinedData
                     chart.invalidate()
                 } catch (e: Exception) {
-                    Log.e(CHART_TAG, "Error updating chart", e)
+                    logger.e("Error updating chart", e)
                 }
             },
             modifier = Modifier

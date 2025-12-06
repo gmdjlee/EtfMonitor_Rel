@@ -1,11 +1,11 @@
 package com.etfmonitor.repository
 
-import android.util.Log
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.StockPredictionDao
 import com.etfmonitor.database.entities.StockChangeData
 import com.etfmonitor.database.entities.StockChangeInfo
 import com.etfmonitor.database.entities.StockPrediction
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.database.entities.TrainingResult
 import com.etfmonitor.python.PredictionResponse
 import com.etfmonitor.python.StockPredictorPyClient
@@ -28,7 +28,7 @@ class StockPredictionRepository @Inject constructor(
     private val predictorClient: StockPredictorPyClient
 ) {
     companion object {
-        private const val TAG = "StockPredictionRepo"
+        private val logger = AppLogger.getLogger("StockPredictionRepo")
         private const val MIN_TRAINING_SAMPLES = 20  // Python 스크립트와 동일
         private const val DEFAULT_DAYS_AFTER = 5
         private const val DEFAULT_PRICE_THRESHOLD = 3.0
@@ -70,12 +70,12 @@ class StockPredictionRepository @Inject constructor(
         minConfidence: Double = DEFAULT_MIN_CONFIDENCE
     ): PredictionResponse = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Starting prediction with daysAfter=$daysAfter, threshold=$priceThreshold")
+            logger.d( "Starting prediction with daysAfter=$daysAfter, threshold=$priceThreshold")
 
             // 1. 날짜 정보 수집
             val dates = etfDao.getLatestTwoDates()
             if (dates.size < 2) {
-                Log.e(TAG, "Not enough dates for prediction")
+                logger.e( "Not enough dates for prediction")
                 return@withContext PredictionResponse(
                     success = false,
                     errorMessage = "데이터가 부족합니다. 최소 2일 이상의 ETF 데이터가 필요합니다.",
@@ -86,12 +86,12 @@ class StockPredictionRepository @Inject constructor(
             val currentDate = dates[0]
             val previousDate = dates[1]
 
-            Log.d(TAG, "Dates: current=$currentDate, previous=$previousDate")
+            logger.d( "Dates: current=$currentDate, previous=$previousDate")
 
             // 2. 과거 학습 데이터 수집 (최근 60일 데이터)
             val historicalChanges = collectHistoricalChanges(60)
             if (historicalChanges.size < MIN_TRAINING_SAMPLES) {
-                Log.w(TAG, "Not enough training data: ${historicalChanges.size}")
+                logger.w( "Not enough training data: ${historicalChanges.size}")
                 return@withContext PredictionResponse(
                     success = false,
                     errorMessage = "학습 데이터가 부족합니다. ${historicalChanges.size}개 샘플 (최소 ${MIN_TRAINING_SAMPLES}개 필요)",
@@ -102,7 +102,7 @@ class StockPredictionRepository @Inject constructor(
             // 3. 현재 예측 대상 데이터 수집
             val currentChanges = collectCurrentChanges(currentDate, previousDate)
             if (currentChanges.isEmpty()) {
-                Log.w(TAG, "No current changes to predict")
+                logger.w( "No current changes to predict")
                 return@withContext PredictionResponse(
                     success = false,
                     errorMessage = "예측할 종목 변화 데이터가 없습니다.",
@@ -110,7 +110,7 @@ class StockPredictionRepository @Inject constructor(
                 )
             }
 
-            Log.d(TAG, "Historical samples: ${historicalChanges.size}, Current changes: ${currentChanges.size}")
+            logger.d( "Historical samples: ${historicalChanges.size}, Current changes: ${currentChanges.size}")
 
             // 4. ML 모델 학습 및 예측
             val response = predictorClient.trainAndPredict(
@@ -124,12 +124,12 @@ class StockPredictionRepository @Inject constructor(
             // 5. 예측 결과 저장
             if (response.success && response.predictions.isNotEmpty()) {
                 predictionDao.insertPredictions(response.predictions)
-                Log.d(TAG, "Saved ${response.predictions.size} predictions")
+                logger.d( "Saved ${response.predictions.size} predictions")
             }
 
             response
         } catch (e: Exception) {
-            Log.e(TAG, "Error running prediction", e)
+            logger.e( "Error running prediction", e)
             PredictionResponse(
                 success = false,
                 errorMessage = "예측 실행 중 오류: ${e.message}",
@@ -173,9 +173,9 @@ class StockPredictionRepository @Inject constructor(
                 changes.addAll(removedStocks.map { it.toStockChangeData("REMOVED", currentDate) })
             }
 
-            Log.d(TAG, "Collected ${changes.size} historical changes from $days days")
+            logger.d( "Collected ${changes.size} historical changes from $days days")
         } catch (e: Exception) {
-            Log.e(TAG, "Error collecting historical changes", e)
+            logger.e( "Error collecting historical changes", e)
         }
 
         return changes.distinctBy { "${it.ticker}-${it.date}-${it.status}" }
@@ -203,9 +203,9 @@ class StockPredictionRepository @Inject constructor(
             val decreasedStocks = etfDao.getAllDecreasedStocks(currentDate, previousDate)
             changes.addAll(decreasedStocks.map { it.toStockChangeData("DECREASED", currentDate) })
 
-            Log.d(TAG, "Collected ${changes.size} current changes for prediction")
+            logger.d( "Collected ${changes.size} current changes for prediction")
         } catch (e: Exception) {
-            Log.e(TAG, "Error collecting current changes", e)
+            logger.e( "Error collecting current changes", e)
         }
 
         return changes.distinctBy { "${it.ticker}-${it.status}" }
@@ -218,10 +218,10 @@ class StockPredictionRepository @Inject constructor(
         return try {
             // Holdings 테이블에서 모든 날짜 목록 조회 (최대 100일)
             val dates = etfDao.getAllDistinctDates(100)
-            Log.d(TAG, "Available dates: ${dates.size} dates found")
+            logger.d( "Available dates: ${dates.size} dates found")
             dates
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting available dates", e)
+            logger.e( "Error getting available dates", e)
             emptyList()
         }
     }
@@ -232,7 +232,7 @@ class StockPredictionRepository @Inject constructor(
     suspend fun verifyPredictions(): Int = withContext(Dispatchers.IO) {
         try {
             val pendingPredictions = predictionDao.getPendingVerification()
-            Log.d(TAG, "Verifying ${pendingPredictions.size} predictions")
+            logger.d( "Verifying ${pendingPredictions.size} predictions")
 
             var verifiedCount = 0
             for (prediction in pendingPredictions) {
@@ -243,7 +243,7 @@ class StockPredictionRepository @Inject constructor(
 
             verifiedCount
         } catch (e: Exception) {
-            Log.e(TAG, "Error verifying predictions", e)
+            logger.e( "Error verifying predictions", e)
             0
         }
     }
@@ -284,9 +284,9 @@ class StockPredictionRepository @Inject constructor(
             val cutoffDate = LocalDate.now().minusDays(keepDays.toLong())
                 .format(DateTimeFormatter.ISO_LOCAL_DATE)
             predictionDao.deletePredictionsBeforeDate(cutoffDate)
-            Log.d(TAG, "Cleaned up predictions before $cutoffDate")
+            logger.d( "Cleaned up predictions before $cutoffDate")
         } catch (e: Exception) {
-            Log.e(TAG, "Error cleaning up predictions", e)
+            logger.e( "Error cleaning up predictions", e)
         }
     }
 

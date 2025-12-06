@@ -1,11 +1,11 @@
 package com.etfmonitor.worker
 
 import android.content.Context
-import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.etfmonitor.repository.MarketOscillatorRepository
+import com.etfmonitor.utils.AppLogger
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -27,13 +27,13 @@ class MarketOscillatorUpdateWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     companion object {
-        private const val TAG = "MarketOscillatorWorker"
+        private val logger = AppLogger.getLogger("MarketOscillatorWorker")
         const val WORK_NAME = "market_oscillator_update_work"
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Starting market oscillator database update...")
+            logger.d("Starting market oscillator database update...")
 
             // Update both KOSPI and KOSDAQ
             val kospiResult = marketOscillatorRepository.updateMarketData("KOSPI")
@@ -42,15 +42,15 @@ class MarketOscillatorUpdateWorker @AssistedInject constructor(
             if (kospiResult.isSuccess && kosdaqResult.isSuccess) {
                 val kospiCount = kospiResult.getOrNull() ?: 0
                 val kosdaqCount = kosdaqResult.getOrNull() ?: 0
-                Log.d(TAG, "Successfully updated KOSPI: $kospiCount, KOSDAQ: $kosdaqCount records")
+                logger.d("Successfully updated KOSPI: $kospiCount, KOSDAQ: $kosdaqCount records")
                 Result.success()
             } else {
                 val error = kospiResult.exceptionOrNull() ?: kosdaqResult.exceptionOrNull()
-                Log.e(TAG, "Failed to update market oscillator data: ${error?.message}", error)
+                logger.e("Failed to update market oscillator data: ${error?.message}", error)
                 Result.retry()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error in MarketOscillatorUpdateWorker", e)
+            logger.e("Error in MarketOscillatorUpdateWorker", e)
             Result.failure()
         }
     }

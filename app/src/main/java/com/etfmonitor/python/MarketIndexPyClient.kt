@@ -1,8 +1,8 @@
 package com.etfmonitor.python
 
 import android.content.Context
-import android.util.Log
 import com.chaquo.python.Python
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.database.entities.MarketIndex
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +24,7 @@ class MarketIndexPyClient @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     companion object {
-        private const val TAG = "MarketIndexPyClient"
+        private val logger = AppLogger.getLogger("MarketIndexPy")
         private const val TIMEOUT_MS = 30_000L
     }
 
@@ -46,7 +46,7 @@ class MarketIndexPyClient @Inject constructor(
         markets: List<String> = listOf("KOSPI", "KOSDAQ")
     ): List<MarketIndex> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Fetching market indices: markets=$markets, from=$startDate to=$endDate")
+            logger.d( "Fetching market indices: markets=$markets, from=$startDate to=$endDate")
 
             withTimeout(TIMEOUT_MS) {
                 // Convert to array for Python iteration compatibility
@@ -73,11 +73,11 @@ class MarketIndexPyClient @Inject constructor(
                         lastUpdated = System.currentTimeMillis()
                     )
                 }.also {
-                    Log.d(TAG, "Successfully fetched ${it.size} market index records")
+                    logger.d( "Successfully fetched ${it.size} market index records")
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error fetching market indices", e)
+            logger.e( "Error fetching market indices", e)
             emptyList()
         }
     }
@@ -94,7 +94,7 @@ class MarketIndexPyClient @Inject constructor(
         markets: List<String> = listOf("KOSPI", "KOSDAQ")
     ): List<MarketIndex> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Fetching recent $days days for markets: $markets")
+            logger.d( "Fetching recent $days days for markets: $markets")
 
             withTimeout(TIMEOUT_MS) {
                 // Convert to array for Python iteration compatibility
@@ -120,11 +120,11 @@ class MarketIndexPyClient @Inject constructor(
                         lastUpdated = System.currentTimeMillis()
                     )
                 }.also {
-                    Log.d(TAG, "Successfully fetched ${it.size} recent market index records")
+                    logger.d( "Successfully fetched ${it.size} recent market index records")
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error fetching recent market indices", e)
+            logger.e( "Error fetching recent market indices", e)
             emptyList()
         }
     }
@@ -137,7 +137,7 @@ class MarketIndexPyClient @Inject constructor(
      */
     suspend fun getLatestIndex(market: String): MarketIndex? = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Getting latest index for market: $market")
+            logger.d( "Getting latest index for market: $market")
 
             withTimeout(TIMEOUT_MS) {
                 val result = module.callAttr("get_latest_index", market)
@@ -162,11 +162,11 @@ class MarketIndexPyClient @Inject constructor(
                     changeRate = dto.changeRate,
                     lastUpdated = System.currentTimeMillis()
                 ).also {
-                    Log.d(TAG, "Successfully fetched latest index for $market: date=${it.date}, close=${it.closePrice}")
+                    logger.d( "Successfully fetched latest index for $market: date=${it.date}, close=${it.closePrice}")
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting latest index for $market", e)
+            logger.e( "Error getting latest index for $market", e)
             null
         }
     }

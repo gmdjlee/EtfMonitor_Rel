@@ -1,8 +1,8 @@
 package com.etfmonitor.ui.components
 
 import android.graphics.Color
-import android.util.Log
 import androidx.compose.foundation.isSystemInDarkTheme
+import com.etfmonitor.utils.AppLogger
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -33,6 +33,8 @@ import com.github.mikephil.charting.formatter.ValueFormatter
  * - ElderImpulseChart: Elder Impulse System 차트
  * - DemarkTDChart: DeMark TD Setup 차트
  */
+
+private val logger = AppLogger.getLogger("TechnicalCharts")
 
 /**
  * MACD 차트
@@ -209,7 +211,7 @@ fun TrendSignalChart(
 ) {
     // 데이터 검증
     if (data.dates.isEmpty() || data.close.isEmpty()) {
-        Log.w(CHART_TAG, "Empty data for TrendSignalChart")
+        logger.w("Empty data for TrendSignalChart")
         return
     }
 
@@ -480,7 +482,7 @@ fun TrendSignalChart(
                     chart.data = combinedData
                     chart.invalidate()
                 } catch (e: Exception) {
-                    Log.e(CHART_TAG, "Error updating TrendSignalChart", e)
+                    logger.e("Error updating TrendSignalChart", e)
                 }
             },
             modifier = Modifier
@@ -500,7 +502,7 @@ fun ElderImpulseChart(
     chartColorViewModel: ChartColorViewModel = hiltViewModel()
 ) {
     if (data.dates.isEmpty()) {
-        Log.w(CHART_TAG, "Empty data for ElderImpulseChart")
+        logger.w("Empty data for ElderImpulseChart")
         return
     }
 
@@ -676,7 +678,7 @@ fun ElderImpulseChart(
                     chart.data = combinedData
                     chart.invalidate()
                 } catch (e: Exception) {
-                    Log.e(CHART_TAG, "Error updating ElderImpulseChart", e)
+                    logger.e("Error updating ElderImpulseChart", e)
                 }
             },
             modifier = Modifier
@@ -696,7 +698,7 @@ fun DemarkTDChart(
     chartColorViewModel: ChartColorViewModel = hiltViewModel()
 ) {
     if (data.dates.isEmpty()) {
-        Log.w(CHART_TAG, "Empty data for DemarkTDChart")
+        logger.w("Empty data for DemarkTDChart")
         return
     }
 
@@ -849,7 +851,7 @@ fun DemarkTDChart(
                     chart.data = combinedData
                     chart.invalidate()
                 } catch (e: Exception) {
-                    Log.e(CHART_TAG, "Error updating DemarkTDChart", e)
+                    logger.e("Error updating DemarkTDChart", e)
                 }
             },
             modifier = Modifier

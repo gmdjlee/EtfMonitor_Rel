@@ -1,13 +1,13 @@
 package com.etfmonitor.worker
 
 import android.content.Context
-import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.repository.AdvancedAnalysisRepository
+import com.etfmonitor.utils.AppLogger
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -37,7 +37,7 @@ class AdvancedAnalysisWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     companion object {
-        private const val TAG = "AdvancedAnalysisWorker"
+        private val logger = AppLogger.getLogger("AdvancedAnalysisWorker")
         const val WORK_NAME = "advanced_analysis_work"
 
         // Output keys
@@ -50,7 +50,7 @@ class AdvancedAnalysisWorker @AssistedInject constructor(
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        Log.d(TAG, "Starting advanced analysis...")
+        logger.d("Starting advanced analysis...")
 
         val results = mutableMapOf<String, Boolean>()
         val errors = mutableListOf<String>()
@@ -59,7 +59,7 @@ class AdvancedAnalysisWorker @AssistedInject constructor(
             // 날짜 조회
             val dates = etfDao.getAllDistinctDates(10)
             if (dates.size < 2) {
-                Log.w(TAG, "Insufficient date data for analysis: ${dates.size} dates")
+                logger.w("Insufficient date data for analysis: ${dates.size} dates")
                 return@withContext Result.failure(
                     workDataOf(KEY_ERROR_MESSAGE to "분석에 필요한 날짜 데이터가 부족합니다.")
                 )
@@ -67,14 +67,14 @@ class AdvancedAnalysisWorker @AssistedInject constructor(
 
             val currentDate = dates.first()
             val previousDate = dates[1]
-            Log.d(TAG, "Analyzing dates: current=$currentDate, previous=$previousDate")
+            logger.d("Analyzing dates: current=$currentDate, previous=$previousDate")
 
             // 1. 시총 가중 ETF 흐름 분석
             results[KEY_MARKET_CAP_FLOW_SUCCESS] = runAnalysis("Market Cap Flow") {
                 val flow = advancedAnalysisRepository.calculateMarketCapWeightedFlow(
                     currentDate, previousDate
                 )
-                Log.d(TAG, "Market cap flow: netFlow=${flow.netFlow}억원")
+                logger.d("Market cap flow: netFlow=${flow.netFlow}억원")
             }
 
             // 2. 외국인/기관 수급 Divergence 분석
@@ -83,16 +83,16 @@ class AdvancedAnalysisWorker @AssistedInject constructor(
                 val total = divergence.foreignBullishCount + divergence.institutionBullishCount +
                         divergence.alignedBullishCount + divergence.alignedBearishCount +
                         divergence.neutralCount
-                Log.d(TAG, "Divergence: $total stocks analyzed, sentiment=${divergence.marketSentiment}")
+                logger.d("Divergence: $total stocks analyzed, sentiment=${divergence.marketSentiment}")
             }
 
             // 3. 유동성 분석
             results[KEY_LIQUIDITY_SUCCESS] = runAnalysis("Liquidity Analysis") {
                 val liquidity = advancedAnalysisRepository.calculateAndSaveLiquidityAnalysis(currentDate)
                 if (liquidity != null) {
-                    Log.d(TAG, "Liquidity: signal=${liquidity.signal}, ratio=${liquidity.depositToMarketCapRatio}%")
+                    logger.d("Liquidity: signal=${liquidity.signal}, ratio=${liquidity.depositToMarketCapRatio}%")
                 } else {
-                    Log.w(TAG, "Liquidity analysis returned null (missing deposit data?)")
+                    logger.w("Liquidity analysis returned null (missing deposit data?)")
                 }
             }
 
@@ -101,12 +101,12 @@ class AdvancedAnalysisWorker @AssistedInject constructor(
                 val sectors = advancedAnalysisRepository.calculateAndSaveSectorAnalysis(
                     currentDate, previousDate
                 )
-                Log.d(TAG, "Sector analysis: ${sectors.size} sectors analyzed")
+                logger.d("Sector analysis: ${sectors.size} sectors analyzed")
 
                 // 섹터 로테이션 감지
                 val rotations = advancedAnalysisRepository.detectSectorRotation(currentDate, previousDate)
                 if (rotations.isNotEmpty()) {
-                    Log.d(TAG, "Sector rotation signals detected: ${rotations.size}")
+                    logger.d("Sector rotation signals detected: ${rotations.size}")
                 }
             }
 
@@ -117,11 +117,11 @@ class AdvancedAnalysisWorker @AssistedInject constructor(
 
                 if (existingCorrelations.isEmpty()) {
                     // 캐시가 없으면 새로 계산
-                    Log.d(TAG, "No cached correlations found, calculating...")
+                    logger.d("No cached correlations found, calculating...")
                     val correlations = advancedAnalysisRepository.calculateAllEtfCorrelations(currentDate)
-                    Log.d(TAG, "ETF correlations: ${correlations.size} pairs calculated")
+                    logger.d("ETF correlations: ${correlations.size} pairs calculated")
                 } else {
-                    Log.d(TAG, "Using cached correlations: ${existingCorrelations.size} pairs")
+                    logger.d("Using cached correlations: ${existingCorrelations.size} pairs")
                 }
             }
 
@@ -129,7 +129,7 @@ class AdvancedAnalysisWorker @AssistedInject constructor(
             val successCount = results.values.count { it }
             val totalCount = results.size
 
-            Log.d(TAG, "Advanced analysis completed: $successCount/$totalCount succeeded")
+            logger.d("Advanced analysis completed: $successCount/$totalCount succeeded")
 
             if (successCount == totalCount) {
                 Result.success(workDataOf(
@@ -154,7 +154,7 @@ class AdvancedAnalysisWorker @AssistedInject constructor(
                 Result.failure(workDataOf(KEY_ERROR_MESSAGE to "모든 분석이 실패했습니다."))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error in AdvancedAnalysisWorker", e)
+            logger.e("Error in AdvancedAnalysisWorker", e)
             Result.failure(workDataOf(KEY_ERROR_MESSAGE to (e.message ?: "Unknown error")))
         }
     }
@@ -164,12 +164,12 @@ class AdvancedAnalysisWorker @AssistedInject constructor(
      */
     private inline fun runAnalysis(name: String, block: () -> Unit): Boolean {
         return try {
-            Log.d(TAG, "Running $name analysis...")
+            logger.d("Running $name analysis...")
             block()
-            Log.d(TAG, "$name analysis completed successfully")
+            logger.d("$name analysis completed successfully")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Error in $name analysis", e)
+            logger.e("Error in $name analysis", e)
             false
         }
     }

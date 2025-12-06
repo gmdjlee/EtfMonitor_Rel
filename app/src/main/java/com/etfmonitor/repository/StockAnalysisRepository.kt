@@ -1,11 +1,11 @@
 package com.etfmonitor.repository
 
-import android.util.Log
 import com.etfmonitor.database.StockAnalysisDao
 import com.etfmonitor.database.StockDao
 import com.etfmonitor.database.entities.StockAnalysisData
 import com.etfmonitor.database.entities.StockAnalysisWithName
 import com.etfmonitor.oscillator.model.StockData
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.oscillator.python.OscillatorPyClient
 import com.etfmonitor.utils.DateFormatter
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +25,7 @@ class StockAnalysisRepository @Inject constructor(
     private val pyClient: OscillatorPyClient
 ) {
     companion object {
-        private const val TAG = "StockAnalysisRepository"
+        private val logger = AppLogger.getLogger("StockAnalysisRepo")
         private const val DATA_EXPIRY_HOURS = 24
     }
 
@@ -42,16 +42,16 @@ class StockAnalysisRepository @Inject constructor(
             val shouldUpdate = shouldUpdateData(cachedData, today, days)
 
             if (!shouldUpdate && cachedData != null) {
-                Log.d(TAG, "Using cached data for $ticker")
+                logger.d( "Using cached data for $ticker")
                 return@withContext convertToStockData(cachedData)
             }
 
             // 2. Python에서 새 데이터 가져오기
-            Log.d(TAG, "Fetching new data for $ticker (days: $days)")
+            logger.d( "Fetching new data for $ticker (days: $days)")
             val stockData = pyClient.getStockAnalysis(ticker, days)
 
             if (stockData == null) {
-                Log.e(TAG, "Failed to fetch data from Python for $ticker")
+                logger.e( "Failed to fetch data from Python for $ticker")
                 return@withContext cachedData?.let { convertToStockData(it) }
             }
 
@@ -77,10 +77,10 @@ class StockAnalysisRepository @Inject constructor(
                 lastUpdated = System.currentTimeMillis()
             )
 
-            Log.d(TAG, "Saved analysis data for $ticker")
+            logger.d( "Saved analysis data for $ticker")
             stockData
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting stock analysis for $ticker", e)
+            logger.e( "Error getting stock analysis for $ticker", e)
             null
         }
     }
@@ -109,11 +109,11 @@ class StockAnalysisRepository @Inject constructor(
 
     suspend fun clearCache(ticker: String) {
         stockAnalysisDao.deleteAnalysisData(ticker)
-        Log.d(TAG, "Cleared cache for $ticker")
+        logger.d( "Cleared cache for $ticker")
     }
 
     suspend fun clearAllCache() {
         stockAnalysisDao.deleteAll()
-        Log.d(TAG, "Cleared all cache")
+        logger.d( "Cleared all cache")
     }
 }

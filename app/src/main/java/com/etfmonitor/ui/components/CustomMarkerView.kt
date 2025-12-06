@@ -1,15 +1,15 @@
 package com.etfmonitor.ui.components
 
 import android.content.Context
-import android.util.Log
 import android.widget.TextView
 import com.github.mikephil.charting.components.MarkerView
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.highlight.Highlight
 import com.github.mikephil.charting.utils.MPPointF
 import com.etfmonitor.R
+import com.etfmonitor.utils.AppLogger
 
-private const val TAG = "CustomMarkerView"
+private val logger = AppLogger.getLogger("CustomMarkerView")
 
 /**
  * 차트 값의 타입
@@ -37,17 +37,17 @@ class CustomMarkerView(
         try {
             tvContent = findViewById(R.id.tvContent)
             if (tvContent == null) {
-                Log.e(TAG, "CustomMarkerView: TextView not found in layout")
+                logger.e("CustomMarkerView: TextView not found in layout")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "CustomMarkerView init error", e)
+            logger.e("CustomMarkerView init error", e)
         }
     }
 
     override fun refreshContent(e: Entry?, highlight: Highlight?) {
         try {
             if (e == null) {
-                Log.w(TAG, "CustomMarkerView: Entry is null")
+                logger.w("CustomMarkerView: Entry is null")
                 return
             }
 
@@ -57,14 +57,14 @@ class CustomMarkerView(
             val formattedValue = try {
                 formatter(e.y)
             } catch (ex: Exception) {
-                Log.e(TAG, "CustomMarkerView: Formatter error", ex)
+                logger.e("CustomMarkerView: Formatter error", ex)
                 "Error"
             }
 
             tvContent?.text = "$date\n$formattedValue"
             super.refreshContent(e, highlight)
         } catch (e: Exception) {
-            Log.e(TAG, "CustomMarkerView refreshContent error", e)
+            logger.e("CustomMarkerView refreshContent error", e)
         }
     }
 
@@ -89,17 +89,17 @@ class MarketCapMarkerView(
         try {
             tvContent = findViewById(R.id.tvContent)
             if (tvContent == null) {
-                Log.e(TAG, "MarketCapMarkerView: TextView not found in layout")
+                logger.e("MarketCapMarkerView: TextView not found in layout")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "MarketCapMarkerView init error", e)
+            logger.e("MarketCapMarkerView init error", e)
         }
     }
 
     override fun refreshContent(e: Entry?, highlight: Highlight?) {
         try {
             if (e == null) {
-                Log.w(TAG, "MarketCapMarkerView: Entry is null")
+                logger.w("MarketCapMarkerView: Entry is null")
                 return
             }
 
@@ -115,14 +115,14 @@ class MarketCapMarkerView(
                     else -> formatCurrency(value)
                 }
             } catch (ex: Exception) {
-                Log.e(TAG, "MarketCapMarkerView: Format error", ex)
+                logger.e("MarketCapMarkerView: Format error", ex)
                 "Error"
             }
 
             tvContent?.text = "$date\n$formattedValue"
             super.refreshContent(e, highlight)
         } catch (e: Exception) {
-            Log.e(TAG, "MarketCapMarkerView refreshContent error", e)
+            logger.e("MarketCapMarkerView refreshContent error", e)
         }
     }
 
@@ -150,7 +150,7 @@ class MarketCapMarkerView(
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "formatCurrency error", e)
+            logger.e("formatCurrency error", e)
             "Error"
         }
     }
@@ -168,7 +168,7 @@ class MarketCapMarkerView(
                 else -> String.format("%.0f", value)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "formatRatio error", e)
+            logger.e("formatRatio error", e)
             "Error"
         }
     }
@@ -195,17 +195,17 @@ class MacdMarkerView(
         try {
             tvContent = findViewById(R.id.tvContent)
             if (tvContent == null) {
-                Log.e(TAG, "MacdMarkerView: TextView not found in layout")
+                logger.e("MacdMarkerView: TextView not found in layout")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "MacdMarkerView init error", e)
+            logger.e("MacdMarkerView init error", e)
         }
     }
 
     override fun refreshContent(e: Entry?, highlight: Highlight?) {
         try {
             if (e == null) {
-                Log.w(TAG, "MacdMarkerView: Entry is null")
+                logger.w("MacdMarkerView: Entry is null")
                 return
             }
 
@@ -219,18 +219,18 @@ class MacdMarkerView(
                     val signal = signalValues[index]
                     "MACD: ${String.format("%.3f", macd)}\nSignal: ${String.format("%.3f", signal)}"
                 } else {
-                    Log.w(TAG, "MacdMarkerView: Index out of range - index=$index, macd.size=${macdValues.size}, signal.size=${signalValues.size}")
+                    logger.w("MacdMarkerView: Index out of range - index=$index, macd.size=${macdValues.size}, signal.size=${signalValues.size}")
                     "N/A"
                 }
             } catch (ex: Exception) {
-                Log.e(TAG, "MacdMarkerView: Format error", ex)
+                logger.e("MacdMarkerView: Format error", ex)
                 "Error"
             }
 
             tvContent?.text = "$date\n$macdText"
             super.refreshContent(e, highlight)
         } catch (e: Exception) {
-            Log.e(TAG, "MacdMarkerView refreshContent error", e)
+            logger.e("MacdMarkerView refreshContent error", e)
         }
     }
 

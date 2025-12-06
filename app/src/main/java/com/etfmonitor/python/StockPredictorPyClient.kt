@@ -1,8 +1,8 @@
 package com.etfmonitor.python
 
 import android.content.Context
-import android.util.Log
 import com.chaquo.python.Python
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.database.entities.StockChangeData
 import com.etfmonitor.database.entities.StockPrediction
 import com.etfmonitor.database.entities.TrainingResult
@@ -26,7 +26,7 @@ class StockPredictorPyClient @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     companion object {
-        private const val TAG = "StockPredictorPyClient"
+        private val logger = AppLogger.getLogger("StockPredictorPy")
         private const val TIMEOUT_MS = 120_000L  // ML 학습은 오래 걸릴 수 있음
     }
 
@@ -57,8 +57,8 @@ class StockPredictorPyClient @Inject constructor(
         minConfidence: Double = 0.6
     ): PredictionResponse = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Training model with ${historicalChanges.size} historical samples")
-            Log.d(TAG, "Predicting for ${currentChanges.size} current changes")
+            logger.d( "Training model with ${historicalChanges.size} historical samples")
+            logger.d( "Predicting for ${currentChanges.size} current changes")
 
             withTimeout(TIMEOUT_MS) {
                 val historicalJson = json.encodeToString(
@@ -83,7 +83,7 @@ class StockPredictorPyClient @Inject constructor(
                 val response = json.decodeFromString<PredictionResponseDto>(result)
 
                 if (!response.success) {
-                    Log.e(TAG, "Prediction failed: ${response.error}")
+                    logger.e( "Prediction failed: ${response.error}")
                     return@withTimeout PredictionResponse(
                         success = false,
                         errorMessage = response.error,
@@ -108,7 +108,7 @@ class StockPredictorPyClient @Inject constructor(
                     )
                 }
 
-                Log.d(TAG, "Successfully predicted ${predictions.size} rising stocks")
+                logger.d( "Successfully predicted ${predictions.size} rising stocks")
 
                 PredictionResponse(
                     success = true,
@@ -129,7 +129,7 @@ class StockPredictorPyClient @Inject constructor(
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error in trainAndPredict", e)
+            logger.e( "Error in trainAndPredict", e)
             PredictionResponse(
                 success = false,
                 errorMessage = e.message ?: "Unknown error",
@@ -148,7 +148,7 @@ class StockPredictorPyClient @Inject constructor(
         modelType: String = "random_forest"
     ): TrainingResult = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Training model with ${historicalChanges.size} samples")
+            logger.d( "Training model with ${historicalChanges.size} samples")
 
             withTimeout(TIMEOUT_MS) {
                 val historicalJson = json.encodeToString(
@@ -167,7 +167,7 @@ class StockPredictorPyClient @Inject constructor(
                 val response = json.decodeFromString<TrainResultDto>(result)
 
                 if (!response.success) {
-                    Log.e(TAG, "Training failed: ${response.error}")
+                    logger.e( "Training failed: ${response.error}")
                     return@withTimeout TrainingResult(
                         success = false,
                         modelType = modelType,
@@ -180,7 +180,7 @@ class StockPredictorPyClient @Inject constructor(
                     )
                 }
 
-                Log.d(TAG, "Model trained successfully. Accuracy: ${response.accuracy}")
+                logger.d( "Model trained successfully. Accuracy: ${response.accuracy}")
 
                 TrainingResult(
                     success = true,
@@ -193,7 +193,7 @@ class StockPredictorPyClient @Inject constructor(
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error training model", e)
+            logger.e( "Error training model", e)
             TrainingResult(
                 success = false,
                 modelType = modelType,
@@ -218,7 +218,7 @@ class StockPredictorPyClient @Inject constructor(
         minConfidence: Double = 0.6
     ): List<StockPrediction> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Predicting for ${currentChanges.size} changes")
+            logger.d( "Predicting for ${currentChanges.size} changes")
 
             withTimeout(TIMEOUT_MS) {
                 val currentJson = json.encodeToString(
@@ -238,7 +238,7 @@ class StockPredictorPyClient @Inject constructor(
                 val response = json.decodeFromString<PredictResultDto>(result)
 
                 if (!response.success) {
-                    Log.e(TAG, "Prediction failed: ${response.error}")
+                    logger.e( "Prediction failed: ${response.error}")
                     return@withTimeout emptyList()
                 }
 
@@ -260,7 +260,7 @@ class StockPredictorPyClient @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error predicting", e)
+            logger.e( "Error predicting", e)
             emptyList()
         }
     }
@@ -277,7 +277,7 @@ class StockPredictorPyClient @Inject constructor(
                 modelCount = status.model_count
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting model status", e)
+            logger.e( "Error getting model status", e)
             ModelStatus(emptyList(), 0)
         }
     }
@@ -290,7 +290,7 @@ class StockPredictorPyClient @Inject constructor(
             module.callAttr("clear_model_cache")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Error clearing model cache", e)
+            logger.e( "Error clearing model cache", e)
             false
         }
     }

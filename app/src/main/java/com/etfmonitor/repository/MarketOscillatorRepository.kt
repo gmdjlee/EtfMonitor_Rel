@@ -1,9 +1,9 @@
 package com.etfmonitor.repository
 
-import android.util.Log
 import com.etfmonitor.database.MarketOscillatorDao
 import com.etfmonitor.database.entities.MarketOscillatorData
 import com.etfmonitor.oscillator.python.OscillatorPyClient
+import com.etfmonitor.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -25,7 +25,7 @@ class MarketOscillatorRepository @Inject constructor(
     private val pyClient: OscillatorPyClient
 ) {
     companion object {
-        private const val TAG = "MarketOscillatorRepo"
+        private val logger = AppLogger.getLogger("MarketOscillatorRepo")
         private const val DEFAULT_KEEP_DAYS = 365 // 기본 1년치 데이터 유지
     }
 
@@ -87,7 +87,7 @@ class MarketOscillatorRepository @Inject constructor(
         onProgress: ((String, Int) -> Unit)? = null
     ): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Initializing $market data for $days days")
+            logger.d( "Initializing $market data for $days days")
             onProgress?.invoke("$market 데이터 수집 준비 중...", 0)
 
             // 종료일: 오늘
@@ -105,7 +105,7 @@ class MarketOscillatorRepository @Inject constructor(
             val response = json.decodeFromString<MarketOscillatorResponse>(jsonStr)
 
             if (response.error != null) {
-                Log.e(TAG, "Error fetching market data: ${response.error}")
+                logger.e( "Error fetching market data: ${response.error}")
                 return@withContext Result.failure(Exception(response.error))
             }
 
@@ -113,7 +113,7 @@ class MarketOscillatorRepository @Inject constructor(
 
             // 데이터 검증
             if (response.dates.isEmpty() || response.index.isEmpty() || response.oscillator.isEmpty()) {
-                Log.e(TAG, "Empty data received from Python")
+                logger.e( "Empty data received from Python")
                 return@withContext Result.failure(Exception("데이터를 가져오지 못했습니다"))
             }
 
@@ -136,12 +136,12 @@ class MarketOscillatorRepository @Inject constructor(
             onProgress?.invoke("$market 데이터베이스 저장 중...", 90)
             dao.insertAll(dataList)
 
-            Log.d(TAG, "Initialized $market with ${dataList.size} data points")
+            logger.d( "Initialized $market with ${dataList.size} data points")
             onProgress?.invoke("$market 완료", 100)
             Result.success(dataList.size)
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error initializing market data", e)
+            logger.e( "Error initializing market data", e)
             Result.failure(e)
         }
     }
@@ -151,7 +151,7 @@ class MarketOscillatorRepository @Inject constructor(
      */
     suspend fun updateMarketData(market: String): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Updating $market data")
+            logger.d( "Updating $market data")
 
             // 최근 30일 데이터 수집
             val endDate = LocalDate.now()
@@ -166,13 +166,13 @@ class MarketOscillatorRepository @Inject constructor(
             val response = json.decodeFromString<MarketOscillatorResponse>(jsonStr)
 
             if (response.error != null) {
-                Log.e(TAG, "Error updating market data: ${response.error}")
+                logger.e( "Error updating market data: ${response.error}")
                 return@withContext Result.failure(Exception(response.error))
             }
 
             // 데이터 검증
             if (response.dates.isEmpty() || response.index.isEmpty() || response.oscillator.isEmpty()) {
-                Log.e(TAG, "Empty data received from Python")
+                logger.e( "Empty data received from Python")
                 return@withContext Result.failure(Exception("데이터를 가져오지 못했습니다"))
             }
 
@@ -197,11 +197,11 @@ class MarketOscillatorRepository @Inject constructor(
             // 오래된 데이터 삭제 (1년치만 유지)
             dao.deleteOldData(market, DEFAULT_KEEP_DAYS)
 
-            Log.d(TAG, "Updated $market with ${dataList.size} data points")
+            logger.d( "Updated $market with ${dataList.size} data points")
             Result.success(dataList.size)
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error updating market data", e)
+            logger.e( "Error updating market data", e)
             Result.failure(e)
         }
     }

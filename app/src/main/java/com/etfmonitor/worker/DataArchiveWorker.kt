@@ -1,10 +1,10 @@
 package com.etfmonitor.worker
 
 import android.content.Context
-import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.utils.DataArchiver
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -28,34 +28,34 @@ class DataArchiveWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     companion object {
-        private const val TAG = "DataArchiveWorker"
+        private val logger = AppLogger.getLogger("DataArchiveWorker")
         const val WORK_NAME = "data_archive_work"
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Starting data archiving...")
+            logger.d("Starting data archiving...")
 
             // 아카이빙 실행
             val result = archiver.archiveData()
 
             if (result.success) {
-                Log.d(TAG, "Archiving completed successfully")
-                Log.d(TAG, "- Deleted: ${result.deletedRecords} records")
-                Log.d(TAG, "- Weekly compressed: ${result.weeklyCompressed} records")
-                Log.d(TAG, "- Monthly compressed: ${result.monthlyCompressed} records")
-                Log.d(TAG, "- Total records: ${result.totalRecords}")
+                logger.d("Archiving completed successfully")
+                logger.d("- Deleted: ${result.deletedRecords} records")
+                logger.d("- Weekly compressed: ${result.weeklyCompressed} records")
+                logger.d("- Monthly compressed: ${result.monthlyCompressed} records")
+                logger.d("- Total records: ${result.totalRecords}")
 
                 Result.success()
             } else {
-                Log.e(TAG, "Archiving failed: ${result.error}")
+                logger.e("Archiving failed: ${result.error}")
                 Result.failure()
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error during archiving", e)
+            logger.e("Error during archiving", e)
             if (runAttemptCount < 3) {
-                Log.d(TAG, "Retrying... (attempt ${runAttemptCount + 1}/3)")
+                logger.d("Retrying... (attempt ${runAttemptCount + 1}/3)")
                 Result.retry()
             } else {
                 Result.failure()
