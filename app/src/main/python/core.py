@@ -139,13 +139,20 @@ def market_date() -> str:
     """Get latest market date (most recent business day)."""
     log = get_logger("core")
 
-    # Test network connectivity first
+    # Check pykrx version
     try:
-        import requests
-        resp = requests.get("https://www.google.com", timeout=5)
-        log.info("market_date: network test OK (status=%d)", resp.status_code)
+        import pykrx
+        log.info("market_date: pykrx version=%s", getattr(pykrx, '__version__', 'unknown'))
     except Exception as e:
-        log.error("market_date: network test FAILED: %s", e)
+        log.error("market_date: pykrx version check failed: %s", e)
+
+    # Test with ETF ticker list (alternative API)
+    try:
+        test_date = days_ago(1)
+        etf_tickers = stock.get_etf_ticker_list(test_date)
+        log.info("market_date: ETF tickers for %s: %d", test_date, len(list(etf_tickers)) if etf_tickers else 0)
+    except Exception as e:
+        log.error("market_date: ETF ticker test failed: %s", e)
 
     # Try up to 7 days back to find a valid market date
     for i in range(7):
