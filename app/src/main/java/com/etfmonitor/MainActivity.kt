@@ -4,8 +4,8 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
+import com.etfmonitor.utils.AppLogger
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -49,6 +49,10 @@ import javax.inject.Inject
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    companion object {
+        private val logger = AppLogger.getLogger("MainActivity")
+    }
 
     @Inject
     lateinit var stockRepository: StockRepository
@@ -157,21 +161,21 @@ class MainActivity : ComponentActivity() {
     private fun retryStockInitialization() {
         lifecycleScope.launch {
             try {
-                Log.d("MainActivity", "Retrying stock initialization...")
+                logger.d("Retrying stock initialization...")
                 val result = stockRepository.initializeStocks()
                 if (result.isSuccess) {
                     val count = result.getOrNull() ?: 0
-                    Log.d("MainActivity", "Stock database initialized with $count stocks")
+                    logger.d("Stock database initialized with $count stocks")
                 } else {
                     val exception = result.exceptionOrNull()
-                    Log.e("MainActivity", "Failed to initialize stock database: ${exception?.message}")
+                    logger.e("Failed to initialize stock database: ${exception?.message}")
                     if (exception is StockRepository.NetworkException) {
                         networkErrorMessage.value = exception.message ?: "네트워크 연결을 확인해 주세요."
                         showNetworkErrorDialog.value = true
                     }
                 }
             } catch (e: Exception) {
-                Log.e("MainActivity", "Error retrying stock initialization", e)
+                logger.e("Error retrying stock initialization", e)
             }
         }
     }
@@ -208,7 +212,7 @@ class MainActivity : ComponentActivity() {
                 // 차트 색상 설정 로드
                 loadChartColorSettings()
             } catch (e: Exception) {
-                Log.e("MainActivity", "Error loading theme setting", e)
+                logger.e("Error loading theme setting", e)
             }
         }
     }
@@ -219,14 +223,14 @@ class MainActivity : ComponentActivity() {
                 // Stock DB가 비어있으면 초기화
                 val stockCount = stockRepository.getStockCount()
                 if (stockCount == 0) {
-                    Log.d("MainActivity", "Initializing stock database...")
+                    logger.d("Initializing stock database...")
                     val result = stockRepository.initializeStocks()
                     if (result.isSuccess) {
                         val count = result.getOrNull() ?: 0
-                        Log.d("MainActivity", "Stock database initialized with $count stocks")
+                        logger.d("Stock database initialized with $count stocks")
                     } else {
                         val exception = result.exceptionOrNull()
-                        Log.e("MainActivity", "Failed to initialize stock database: ${exception?.message}")
+                        logger.e("Failed to initialize stock database: ${exception?.message}")
                         // 네트워크 에러인 경우 다이얼로그 표시
                         if (exception is StockRepository.NetworkException) {
                             networkErrorMessage.value = exception.message ?: "네트워크 연결을 확인해 주세요."
@@ -234,7 +238,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 } else {
-                    Log.d("MainActivity", "Stock database already has $stockCount stocks")
+                    logger.d("Stock database already has $stockCount stocks")
                 }
 
                 // WorkManager 스케줄 설정 (설정된 시간 로드)
@@ -254,13 +258,13 @@ class MainActivity : ComponentActivity() {
 
                 // WorkManager 스케줄 설정
                 WorkManagerHelper.scheduleStockUpdate(this@MainActivity, hour, minute)
-                Log.d("MainActivity", "WorkManager scheduled for $hour:${String.format("%02d", minute)}")
+                logger.d("WorkManager scheduled for $hour:${String.format("%02d", minute)}")
 
                 // 데이터 아카이빙 스케줄 설정 (월 1회)
                 WorkManagerHelper.scheduleDataArchiving(this@MainActivity)
-                Log.d("MainActivity", "Data archiving scheduled (monthly)")
+                logger.d("Data archiving scheduled (monthly)")
             } catch (e: Exception) {
-                Log.e("MainActivity", "Error initializing stock database", e)
+                logger.e("Error initializing stock database", e)
             }
         }
     }
@@ -306,9 +310,9 @@ class MainActivity : ComponentActivity() {
             )
 
             themeManager.setChartColorSettings(settings)
-            Log.d("MainActivity", "Chart color settings loaded")
+            logger.d("Chart color settings loaded")
         } catch (e: Exception) {
-            Log.e("MainActivity", "Error loading chart color settings", e)
+            logger.e("Error loading chart color settings", e)
         }
     }
 }

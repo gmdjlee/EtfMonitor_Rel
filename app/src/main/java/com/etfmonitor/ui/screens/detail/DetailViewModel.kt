@@ -1,11 +1,11 @@
 package com.etfmonitor.ui.screens.detail
 
-import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.repository.ComparisonResult
 import com.etfmonitor.repository.DataRepository
+import com.etfmonitor.utils.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,7 +33,7 @@ class DetailViewModel @Inject constructor(
 ) : ViewModel() {
 
     companion object {
-        private const val TAG = "DetailViewModel"
+        private val logger = AppLogger.getLogger("DetailViewModel")
     }
 
     private val etfTicker: String = savedStateHandle.get<String>("ticker")
@@ -64,7 +64,7 @@ class DetailViewModel @Inject constructor(
                     DetailState.Error("데이터를 찾을 수 없습니다")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading comparison for ticker: $etfTicker", e)
+                logger.e("Error loading comparison for ticker: $etfTicker", e)
                 _state.value = DetailState.Error(e.message ?: "오류 발생")
             }
         }

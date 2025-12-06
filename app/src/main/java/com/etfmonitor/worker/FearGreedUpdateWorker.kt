@@ -1,11 +1,11 @@
 package com.etfmonitor.worker
 
 import android.content.Context
-import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.etfmonitor.repository.FearGreedRepository
+import com.etfmonitor.utils.AppLogger
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -27,27 +27,27 @@ class FearGreedUpdateWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     companion object {
-        private const val TAG = "FearGreedUpdateWorker"
+        private val logger = AppLogger.getLogger("FearGreedUpdateWorker")
         const val WORK_NAME = "fear_greed_update_work"
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Starting Fear & Greed Index database update...")
+            logger.d("Starting Fear & Greed Index database update...")
 
             val result = fearGreedRepository.updateFearGreed()
 
             if (result.isSuccess) {
                 val count = result.getOrNull() ?: 0
-                Log.d(TAG, "Successfully updated $count Fear & Greed Index records")
+                logger.d("Successfully updated $count Fear & Greed Index records")
                 Result.success()
             } else {
                 val error = result.exceptionOrNull()
-                Log.e(TAG, "Failed to update Fear & Greed Index: ${error?.message}", error)
+                logger.e("Failed to update Fear & Greed Index: ${error?.message}", error)
                 Result.retry()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error in FearGreedUpdateWorker", e)
+            logger.e("Error in FearGreedUpdateWorker", e)
             Result.failure()
         }
     }

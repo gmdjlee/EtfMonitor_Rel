@@ -1,7 +1,7 @@
 package com.etfmonitor.ai
 
-import android.util.Log
 import com.etfmonitor.utils.ApiAuthenticationException
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.utils.ApiException
 import com.etfmonitor.utils.DataParsingException
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +36,7 @@ class GeminiApiClient @Inject constructor(
     override val provider: AIProvider = AIProvider.GEMINI
 
     companion object {
-        private const val TAG = "GeminiApiClient"
+        private val logger = AppLogger.getLogger("GeminiApiClient")
         private const val API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val MODELS_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val MODEL = "gemini-2.0-flash-exp" // Default model - Gemini 2.0 Flash (experimental)
@@ -65,19 +65,19 @@ class GeminiApiClient @Inject constructor(
         try {
             val apiKey = apiKeyProvider.getApiKey(AIProvider.GEMINI)
             if (apiKey.isNullOrBlank()) {
-                Log.e(TAG, "API key not configured")
+                logger.e("API key not configured")
                 return@withContext Result.failure(ApiAuthenticationException("Gemini", "API 키가 설정되지 않았습니다. 설정에서 API 키를 등록해주세요."))
             }
 
             // 선택된 모델 가져오기 (없으면 기본 모델 사용)
             var model = apiKeyProvider.getSelectedModel(AIProvider.GEMINI) ?: MODEL
-            Log.d(TAG, "Retrieved model from settings: $model")
+            logger.d("Retrieved model from settings: $model")
 
             // 잘못된 모델명 검증 및 수정
             model = validateAndFixModelName(model)
-            Log.d(TAG, "Validated model name: $model")
+            logger.d("Validated model name: $model")
 
-            Log.d(TAG, "Analyzing market with Gemini API using model: $model")
+            logger.d("Analyzing market with Gemini API using model: $model")
 
             withTimeout(TIMEOUT_SECONDS * 1000) {
                 val response = callGeminiApi(apiKey, prompt, temperature, model)
@@ -85,7 +85,7 @@ class GeminiApiClient @Inject constructor(
                 Result.success(signal)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Market analysis failed", e)
+            logger.e("Market analysis failed", e)
             Result.failure(e)
         }
     }
@@ -116,7 +116,7 @@ class GeminiApiClient @Inject constructor(
         }
 
         val url = "$API_BASE_URL/$model:generateContent"
-        Log.d(TAG, "Calling Gemini API with model: $model")
+        logger.d("Calling Gemini API with model: $model")
 
         val request = Request.Builder()
             .url(url)
@@ -128,14 +128,14 @@ class GeminiApiClient @Inject constructor(
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string() ?: "Unknown error"
-                Log.e(TAG, "API call failed for model '$model': ${response.code} - $errorBody")
+                logger.e("API call failed for model '$model': ${response.code} - $errorBody")
                 throw ApiException.fromStatusCode(response.code, "Gemini", errorBody)
             }
 
             val responseBody = response.body?.string()
                 ?: throw DataParsingException("Gemini API 응답이 비어있습니다", null)
 
-            Log.d(TAG, "API response received: ${responseBody.take(200)}...")
+            logger.d("API response received: ${responseBody.take(200)}...")
 
             // Extract text from response
             val jsonResponse = JSONObject(responseBody)
@@ -155,23 +155,23 @@ class GeminiApiClient @Inject constructor(
             // Check finishReason for blocked responses
             val finishReason = candidate.optString("finishReason", "")
             if (finishReason == "SAFETY") {
-                Log.w(TAG, "Response blocked by safety filter")
+                logger.w("Response blocked by safety filter")
                 throw ApiException("Gemini", 403, "안전성 정책으로 인해 응답이 차단되었습니다. 프롬프트를 수정해 주세요.")
             }
             if (finishReason == "RECITATION") {
-                Log.w(TAG, "Response blocked due to recitation")
+                logger.w("Response blocked due to recitation")
                 throw ApiException("Gemini", 403, "저작권 정책으로 인해 응답이 차단되었습니다.")
             }
 
             val content = candidate.optJSONObject("content")
             if (content == null) {
-                Log.e(TAG, "No content in response. finishReason: $finishReason")
+                logger.e("No content in response. finishReason: $finishReason")
                 throw DataParsingException("Gemini API 응답에 content가 없습니다 (finishReason: $finishReason)", responseBody)
             }
 
             val parts = content.optJSONArray("parts")
             if (parts == null || parts.length() == 0) {
-                Log.e(TAG, "No parts in content. finishReason: $finishReason")
+                logger.e("No parts in content. finishReason: $finishReason")
                 throw DataParsingException("Gemini API 응답에 parts가 없습니다 (finishReason: $finishReason)", responseBody)
             }
 
@@ -190,7 +190,7 @@ class GeminiApiClient @Inject constructor(
 
         // 공백이 포함된 경우 (예: "gemini 2.5 pro")
         if (fixedModel.contains(" ")) {
-            Log.w(TAG, "Invalid model name with spaces: '$fixedModel'")
+            logger.w("Invalid model name with spaces: '$fixedModel'")
             fixedModel = MODEL
             apiKeyProvider.setSelectedModel(AIProvider.GEMINI, MODEL)
             return fixedModel
@@ -198,7 +198,7 @@ class GeminiApiClient @Inject constructor(
 
         // -latest 접미사 제거 (v1beta에서 지원 안됨)
         if (fixedModel.endsWith("-latest")) {
-            Log.w(TAG, "Model name with '-latest' suffix: $fixedModel, removing suffix")
+            logger.w("Model name with '-latest' suffix: $fixedModel, removing suffix")
             fixedModel = fixedModel.removeSuffix("-latest")
             apiKeyProvider.setSelectedModel(AIProvider.GEMINI, fixedModel)
         }
@@ -206,7 +206,7 @@ class GeminiApiClient @Inject constructor(
         // 유효한 모델명 패턴 검증 (gemini-x.x-xxx 형식, -exp 접미사 허용)
         val validPattern = "^gemini-[0-9]+(\\.[0-9]+)?-[a-z]+(-[a-z]+)?(-exp)?$".toRegex()
         if (!validPattern.matches(fixedModel)) {
-            Log.w(TAG, "Invalid model name format: '$fixedModel', using default: $MODEL")
+            logger.w("Invalid model name format: '$fixedModel', using default: $MODEL")
             fixedModel = MODEL
             apiKeyProvider.setSelectedModel(AIProvider.GEMINI, MODEL)
         }
@@ -236,7 +236,7 @@ class GeminiApiClient @Inject constructor(
                 Result.success(response)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Chat failed", e)
+            logger.e("Chat failed", e)
             Result.failure(e)
         }
     }
@@ -296,7 +296,7 @@ class GeminiApiClient @Inject constructor(
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string() ?: "Unknown error"
-                Log.e(TAG, "Chat API call failed: ${response.code} - $errorBody")
+                logger.e("Chat API call failed: ${response.code} - $errorBody")
                 throw ApiException.fromStatusCode(response.code, "Gemini", errorBody)
             }
 
@@ -320,23 +320,23 @@ class GeminiApiClient @Inject constructor(
             // Check finishReason for blocked responses
             val finishReason = candidate.optString("finishReason", "")
             if (finishReason == "SAFETY") {
-                Log.w(TAG, "Chat response blocked by safety filter")
+                logger.w("Chat response blocked by safety filter")
                 throw ApiException("Gemini", 403, "안전성 정책으로 인해 응답이 차단되었습니다. 프롬프트를 수정해 주세요.")
             }
             if (finishReason == "RECITATION") {
-                Log.w(TAG, "Chat response blocked due to recitation")
+                logger.w("Chat response blocked due to recitation")
                 throw ApiException("Gemini", 403, "저작권 정책으로 인해 응답이 차단되었습니다.")
             }
 
             val content = candidate.optJSONObject("content")
             if (content == null) {
-                Log.e(TAG, "No content in chat response. finishReason: $finishReason")
+                logger.e("No content in chat response. finishReason: $finishReason")
                 throw DataParsingException("Gemini API 응답에 content가 없습니다 (finishReason: $finishReason)", responseBody)
             }
 
             val parts = content.optJSONArray("parts")
             if (parts == null || parts.length() == 0) {
-                Log.e(TAG, "No parts in chat content. finishReason: $finishReason")
+                logger.e("No parts in chat content. finishReason: $finishReason")
                 throw DataParsingException("Gemini API 응답에 parts가 없습니다 (finishReason: $finishReason)", responseBody)
             }
 
@@ -362,7 +362,7 @@ class GeminiApiClient @Inject constructor(
             val response = callGeminiApi(apiKey, testPrompt, 0.0)
             Result.success(response.isNotBlank())
         } catch (e: Exception) {
-            Log.e(TAG, "API key test failed", e)
+            logger.e("API key test failed", e)
             Result.failure(e)
         }
     }
@@ -388,14 +388,14 @@ class GeminiApiClient @Inject constructor(
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
                         val errorBody = response.body?.string() ?: "Unknown error"
-                        Log.e(TAG, "Models API call failed: ${response.code} - $errorBody")
+                        logger.e("Models API call failed: ${response.code} - $errorBody")
                         throw ApiException.fromStatusCode(response.code, "Gemini", errorBody)
                     }
 
                     val responseBody = response.body?.string()
                         ?: throw DataParsingException("Gemini Models API 응답이 비어있습니다", null)
 
-                    Log.d(TAG, "Models API response: ${responseBody.take(200)}...")
+                    logger.d("Models API response: ${responseBody.take(200)}...")
 
                     val jsonResponse = json.parseToJsonElement(responseBody).jsonObject
                     val modelsArray = jsonResponse["models"]?.jsonArray
@@ -413,12 +413,12 @@ class GeminiApiClient @Inject constructor(
                         if (supportedGenerationMethods?.any {
                             it.jsonPrimitive.content == "generateContent"
                         } != true) {
-                            Log.d(TAG, "Skipping model $modelId (doesn't support generateContent)")
+                            logger.d("Skipping model $modelId (doesn't support generateContent)")
                             return@mapNotNull null
                         }
 
                         val displayName = modelObj["displayName"]?.jsonPrimitive?.content ?: modelId
-                        Log.d(TAG, "Found model - ID: $modelId, Name: $displayName")
+                        logger.d("Found model - ID: $modelId, Name: $displayName")
 
                         AIModel(
                             id = modelId,
@@ -430,12 +430,12 @@ class GeminiApiClient @Inject constructor(
                         )
                     }
 
-                    Log.d(TAG, "Successfully loaded ${models.size} Gemini models")
+                    logger.d("Successfully loaded ${models.size} Gemini models")
                     Result.success(models)
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to list models", e)
+            logger.e("Failed to list models", e)
             Result.failure(e)
         }
     }

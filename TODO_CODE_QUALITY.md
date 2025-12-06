@@ -51,6 +51,24 @@
 - [x] `DataRepository.kt` - DataProgress.Error emit 패턴, 현재 패턴 적절
 - [x] `AdvancedAnalysisRepository.kt` - fallback 값 반환 패턴, 현재 패턴 적절
 
+### 8. AppLogger 전환 ✅ 완료
+40개 파일에서 `android.util.Log` → `AppLogger` 전환 완료
+
+**전환된 파일 (207개 Log 호출):**
+- Repository 파일 12개: DataRepository, FearGreedRepository, MarketDepositRepository 등
+- Python Client 파일 4개: PyKrxClient, OscillatorPyClient 등
+- ViewModel 파일 5개: AdvancedDashboardViewModel, SettingsViewModel 등
+- Worker 파일 7개: AdvancedAnalysisWorker, StockUpdateWorker 등
+- AI 파일 3개: ClaudeApiClient, GeminiApiClient, AIResponseParser
+- Analysis 파일 2개: CorrelationAnalyzer, Backtester
+- UI/Service 파일 6개: MainActivity, DataCollectionService 등
+
+### 9. 중복 코드 분석 ✅ 분석 완료
+`AdvancedAnalysisRepository.kt` 분석 결과:
+- 상관관계 계산 로직은 각 분석 유형별로 고유한 파라미터 사용
+- Helper 메서드 (`pearsonCorrelation`, `calculateWeightCorrelation` 등)가 이미 추출되어 있음
+- 현재 구조가 적절하며 과도한 추상화는 불필요
+
 ---
 
 ## 미완료 작업 📋
@@ -104,35 +122,6 @@ AI Clients는 완료되었으며, Repository/ViewModel은 분석 결과 현재 �
 
 **참고:** Result.failure(Exception(...)) 패턴을 사용하는 다른 Repository 파일들
 (FearGreedRepository, MarketDepositRepository 등)은 향후 개선 가능
-
----
-
-### Medium Priority (중간 우선순위)
-
-#### 4. 중복 코드 제거
-
-**`AdvancedAnalysisRepository.kt`:**
-- 상관관계 계산 패턴 중복 (lines 160-250)
-- 데이터 수집 패턴 중복
-
-**제안:**
-```kotlin
-// 공통 헬퍼 함수 추출
-private fun calculateCorrelationMetrics(data: List<Double>): CorrelationMetrics
-private fun collectMarketData(market: String, dateRange: Pair<String, String>): MarketData
-```
-
-#### 5. AppLogger 활용
-`utils/AppLogger.kt`가 존재하지만 직접 `Log` 호출이 57개 있습니다.
-
-**변환 예시:**
-```kotlin
-// Before
-Log.d(TAG, "message")
-
-// After
-AppLogger.d(TAG, "message")  // 조건부 로깅 지원
-```
 
 ---
 

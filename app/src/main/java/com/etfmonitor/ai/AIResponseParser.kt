@@ -1,6 +1,6 @@
 package com.etfmonitor.ai
 
-import android.util.Log
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.utils.DataParsingException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -13,7 +13,7 @@ import org.json.JSONArray
  */
 object AIResponseParser {
 
-    private const val TAG = "AIResponseParser"
+    private val logger = AppLogger.getLogger("AIResponseParser")
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -26,7 +26,7 @@ object AIResponseParser {
     fun parseToMarketSignal(responseText: String): MarketSignal {
         try {
             val jsonText = extractJsonFromResponse(responseText)
-            Log.d(TAG, "Parsing JSON: $jsonText")
+            logger.d("Parsing JSON: $jsonText")
 
             val jsonElement = json.parseToJsonElement(jsonText).jsonObject
 
@@ -43,7 +43,7 @@ object AIResponseParser {
                 riskLevel = parseRiskLevel(jsonElement["riskLevel"]?.jsonPrimitive?.content ?: "MEDIUM")
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse AI response", e)
+            logger.e("Failed to parse AI response", e)
             return createDefaultSignal("AI 응답 파싱 실패: ${e.message}")
         }
     }
@@ -121,7 +121,7 @@ object AIResponseParser {
             val array = JSONArray(jsonArray)
             List(array.length()) { i -> array.getString(i) }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to parse key factors", e)
+            logger.w("Failed to parse key factors", e)
             emptyList()
         }
     }

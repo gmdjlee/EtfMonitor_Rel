@@ -1,11 +1,11 @@
 package com.etfmonitor.ui.screens.advanced
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.database.*
 import com.etfmonitor.database.entities.*
 import com.etfmonitor.repository.AdvancedAnalysisRepository
+import com.etfmonitor.utils.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -133,7 +133,7 @@ class AdvancedDashboardViewModel @Inject constructor(
 ) : ViewModel() {
 
     companion object {
-        private const val TAG = "AdvancedDashboardVM"
+        private val logger = AppLogger.getLogger("AdvancedDashboardVM")
         private const val HISTORY_DAYS = 30
     }
 
@@ -196,7 +196,7 @@ class AdvancedDashboardViewModel @Inject constructor(
                 // 유동성 히스토리 로드
                 val liquidityHistoryData = liquidityAnalysisDao.getRecentHistory(HISTORY_DAYS)
                 _liquidityHistory.value = liquidityHistoryData
-                Log.d(TAG, "Loaded ${liquidityHistoryData.size} liquidity history records")
+                logger.d("Loaded ${liquidityHistoryData.size} liquidity history records")
 
                 // 섹터별 히스토리 로드
                 val allSectors = sectorAnalysisDao.getAllSectors()
@@ -208,12 +208,12 @@ class AdvancedDashboardViewModel @Inject constructor(
                     }
                 }
                 _sectorHistory.value = sectorHistoryMap
-                Log.d(TAG, "Loaded sector history for ${sectorHistoryMap.size} sectors")
+                logger.d("Loaded sector history for ${sectorHistoryMap.size} sectors")
 
                 // 시총가중 흐름 히스토리 계산
                 loadMarketCapFlowHistory()
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading history data", e)
+                logger.e("Error loading history data", e)
             }
         }
     }
@@ -242,9 +242,9 @@ class AdvancedDashboardViewModel @Inject constructor(
                 )
             }
             _marketCapFlowHistory.value = historyItems.reversed()  // 오래된 순으로 정렬
-            Log.d(TAG, "Loaded ${historyItems.size} market cap flow history records")
+            logger.d("Loaded ${historyItems.size} market cap flow history records")
         } catch (e: Exception) {
-            Log.e(TAG, "Error loading market cap flow history", e)
+            logger.e("Error loading market cap flow history", e)
         }
     }
 
@@ -262,7 +262,7 @@ class AdvancedDashboardViewModel @Inject constructor(
                 ).sortedBy { it.date }
 
                 if (marketIndexes.size < 2) {
-                    Log.w(TAG, "Insufficient market index data for accuracy calculation")
+                    logger.w("Insufficient market index data for accuracy calculation")
                     return@launch
                 }
 
@@ -272,9 +272,9 @@ class AdvancedDashboardViewModel @Inject constructor(
                 // 유동성 신호 정확도 계산
                 calculateLiquidityAccuracy(marketIndexes)
 
-                Log.d(TAG, "Accuracy data loaded successfully")
+                logger.d("Accuracy data loaded successfully")
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading accuracy data", e)
+                logger.e("Error loading accuracy data", e)
             }
         }
     }
@@ -339,10 +339,10 @@ class AdvancedDashboardViewModel @Inject constructor(
                     hitRate = correctCount.toDouble() / details.size,
                     details = details.sortedByDescending { it.date }
                 )
-                Log.d(TAG, "Market cap flow accuracy: ${correctCount}/${details.size} (${String.format("%.1f", correctCount.toDouble() / details.size * 100)}%)")
+                logger.d("Market cap flow accuracy: ${correctCount}/${details.size} (${String.format("%.1f", correctCount.toDouble() / details.size * 100)}%)")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error calculating market cap flow accuracy", e)
+            logger.e("Error calculating market cap flow accuracy", e)
         }
     }
 
@@ -406,10 +406,10 @@ class AdvancedDashboardViewModel @Inject constructor(
                     hitRate = correctCount.toDouble() / details.size,
                     details = details.sortedByDescending { it.date }
                 )
-                Log.d(TAG, "Liquidity accuracy: ${correctCount}/${details.size} (${String.format("%.1f", correctCount.toDouble() / details.size * 100)}%)")
+                logger.d("Liquidity accuracy: ${correctCount}/${details.size} (${String.format("%.1f", correctCount.toDouble() / details.size * 100)}%)")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error calculating liquidity accuracy", e)
+            logger.e("Error calculating liquidity accuracy", e)
         }
     }
 
@@ -439,32 +439,32 @@ class AdvancedDashboardViewModel @Inject constructor(
             try {
                 // 1. 데이터 가용성 체크
                 val dataAvailability = checkDataAvailability()
-                Log.d(TAG, "Data availability checked: holdings=${dataAvailability.holdingsData.available}, stockAnalysis=${dataAvailability.stockAnalysisData.available}")
+                logger.d("Data availability checked: holdings=${dataAvailability.holdingsData.available}, stockAnalysis=${dataAvailability.stockAnalysisData.available}")
 
                 // 날짜 설정
                 val dates = etfDao.getAllDistinctDates()
-                Log.d(TAG, "Available dates count: ${dates.size}")
+                logger.d("Available dates count: ${dates.size}")
                 if (dates.size < 2) {
-                    Log.w(TAG, "Insufficient date data: ${dates.size}")
+                    logger.w("Insufficient date data: ${dates.size}")
                     _state.value = AdvancedDashboardState.Error("데이터가 부족합니다. ETF 데이터를 먼저 수집해 주세요.")
                     return@launch
                 }
 
                 val currentDate = dates.first()
                 val previousDate = dates[1]
-                Log.d(TAG, "Analyzing dates: current=$currentDate, previous=$previousDate")
+                logger.d("Analyzing dates: current=$currentDate, previous=$previousDate")
 
                 // 병렬로 데이터 로드
-                Log.d(TAG, "Starting data analysis...")
+                logger.d("Starting data analysis...")
                 val marketCapFlow = advancedRepository.calculateMarketCapWeightedFlow(currentDate, previousDate)
-                Log.d(TAG, "Market cap flow: netFlow=${marketCapFlow.netFlow}")
+                logger.d("Market cap flow: netFlow=${marketCapFlow.netFlow}")
 
                 val divergenceSummary = advancedRepository.analyzeSupplyDemandDivergence(currentDate)
-                Log.d(TAG, "Divergence: total=${divergenceSummary.foreignBullishCount + divergenceSummary.institutionBullishCount + divergenceSummary.alignedBullishCount + divergenceSummary.alignedBearishCount + divergenceSummary.neutralCount}")
+                logger.d("Divergence: total=${divergenceSummary.foreignBullishCount + divergenceSummary.institutionBullishCount + divergenceSummary.alignedBullishCount + divergenceSummary.alignedBearishCount + divergenceSummary.neutralCount}")
 
                 val liquidityAnalysis = advancedRepository.getLatestLiquidityAnalysis()
                     ?: advancedRepository.calculateAndSaveLiquidityAnalysis(currentDate)
-                Log.d(TAG, "Liquidity analysis: ${liquidityAnalysis?.signal ?: "null"}")
+                logger.d("Liquidity analysis: ${liquidityAnalysis?.signal ?: "null"}")
 
                 // 섹터 분석
                 var sectorAnalyses = advancedRepository.getSectorAnalysisByDate(currentDate)
@@ -506,7 +506,7 @@ class AdvancedDashboardViewModel @Inject constructor(
                     )
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading dashboard", e)
+                logger.e("Error loading dashboard", e)
                 _state.value = AdvancedDashboardState.Error("데이터 로드 실패: ${e.message}")
             }
         }
@@ -619,7 +619,7 @@ class AdvancedDashboardViewModel @Inject constructor(
                 // 대시보드 갱신
                 loadDashboard()
             } catch (e: Exception) {
-                Log.e(TAG, "Error recalculating analysis", e)
+                logger.e("Error recalculating analysis", e)
             }
         }
     }

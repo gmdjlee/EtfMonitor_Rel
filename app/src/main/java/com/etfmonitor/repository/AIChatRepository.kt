@@ -1,7 +1,7 @@
 package com.etfmonitor.repository
 
-import android.util.Log
 import com.etfmonitor.ai.*
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.database.AIChatDao
 import com.etfmonitor.database.AIAnalysisDao
 import com.etfmonitor.database.CorrelationAnalysisDao
@@ -30,7 +30,7 @@ class AIChatRepository @Inject constructor(
     private val aiApiClientFactory: AIApiClientFactory
 ) {
     companion object {
-        private const val TAG = "AIChatRepository"
+        private val logger = AppLogger.getLogger("AIChatRepository")
         private const val MAX_CONTEXT_MESSAGES = 10 // 최대 컨텍스트 메시지 수
     }
 
@@ -54,7 +54,7 @@ class AIChatRepository @Inject constructor(
             contextData = null
         )
         chatDao.insertSession(session)
-        Log.d(TAG, "Created new chat session: ${session.id}")
+        logger.d( "Created new chat session: ${session.id}")
         session
     }
 
@@ -91,7 +91,7 @@ class AIChatRepository @Inject constructor(
         chatDao.insertMessage(systemMessage)
         chatDao.updateSessionMessageCount(session.id, 1)
 
-        Log.d(TAG, "Created analysis chat session: ${session.id}")
+        logger.d( "Created analysis chat session: ${session.id}")
         session
     }
 
@@ -114,7 +114,7 @@ class AIChatRepository @Inject constructor(
     suspend fun deleteSession(sessionId: String) = withContext(Dispatchers.IO) {
         chatDao.deleteMessagesBySession(sessionId)
         chatDao.deleteSession(sessionId)
-        Log.d(TAG, "Deleted session: $sessionId")
+        logger.d( "Deleted session: $sessionId")
     }
 
     // ========== 메시지 관리 ==========
@@ -133,7 +133,7 @@ class AIChatRepository @Inject constructor(
         userMessage: String
     ): Result<AIChatMessage> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Sending message in session $sessionId: ${userMessage.take(50)}...")
+            logger.d( "Sending message in session $sessionId: ${userMessage.take(50)}...")
 
             // 1. 사용자 메시지 저장
             val userMsg = AIChatMessage(
@@ -199,11 +199,11 @@ class AIChatRepository @Inject constructor(
                 chatDao.updateSessionTitle(sessionId, newTitle)
             }
 
-            Log.d(TAG, "AI response received: ${aiResponse.take(100)}...")
+            logger.d( "AI response received: ${aiResponse.take(100)}...")
             Result.success(assistantMsg)
 
         } catch (e: Exception) {
-            Log.e(TAG, "Send message failed", e)
+            logger.e( "Send message failed", e)
             Result.failure(e)
         }
     }
@@ -229,7 +229,7 @@ class AIChatRepository @Inject constructor(
             // 일반 메시지 전송
             sendMessage(sessionId, enhancedQuestion)
         } catch (e: Exception) {
-            Log.e(TAG, "Ask about analysis failed", e)
+            logger.e( "Ask about analysis failed", e)
             Result.failure(e)
         }
     }

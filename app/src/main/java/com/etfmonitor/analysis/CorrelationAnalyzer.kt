@@ -1,7 +1,7 @@
 package com.etfmonitor.analysis
 
-import android.util.Log
 import com.etfmonitor.database.DailyEtfStatisticsDao
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.database.FearGreedDao
 import com.etfmonitor.database.MarketDepositDao
 import com.etfmonitor.database.MarketIndexDao
@@ -35,7 +35,7 @@ class CorrelationAnalyzer @Inject constructor(
     private val marketDepositDao: MarketDepositDao
 ) {
     companion object {
-        private const val TAG = "CorrelationAnalyzer"
+        private val logger = AppLogger.getLogger("CorrelationAnalyzer")
         private const val DEFAULT_PERIOD_DAYS = 30
         private const val MIN_DATA_POINTS = 10
     }
@@ -55,7 +55,7 @@ class CorrelationAnalyzer @Inject constructor(
         periodDays: Int = DEFAULT_PERIOD_DAYS
     ): Result<CorrelationAnalysisResult> = withContext(Dispatchers.Default) {
         try {
-            Log.d(TAG, "Starting correlation analysis for $market, endDate=$endDate, period=$periodDays days")
+            logger.d("Starting correlation analysis for $market, endDate=$endDate, period=$periodDays days")
 
             // 1. 분석 기간 계산
             val startDate = calculateStartDate(endDate, periodDays)
@@ -112,11 +112,11 @@ class CorrelationAnalyzer @Inject constructor(
                 analysisContext = json.encodeToString(createAnalysisContext(analysisData, correlations))
             )
 
-            Log.d(TAG, "Correlation analysis completed: signal=${result.signal}, confidence=${result.confidence}")
+            logger.d("Correlation analysis completed: signal=${result.signal}, confidence=${result.confidence}")
             Result.success(result)
 
         } catch (e: Exception) {
-            Log.e(TAG, "Correlation analysis failed", e)
+            logger.e("Correlation analysis failed", e)
             Result.failure(e)
         }
     }
@@ -129,7 +129,7 @@ class CorrelationAnalyzer @Inject constructor(
         startDate: String,
         endDate: String
     ): AnalysisDataSet = withContext(Dispatchers.IO) {
-        Log.d(TAG, "Collecting data from $startDate to $endDate for $market")
+        logger.d("Collecting data from $startDate to $endDate for $market")
 
         val marketIndices = marketIndexDao.getByMarketAndDateRangeSuspend(market, startDate, endDate)
         val etfStats = dailyEtfStatisticsDao.getByDateRangeSuspend(startDate, endDate)
@@ -138,25 +138,25 @@ class CorrelationAnalyzer @Inject constructor(
         val fearGreedData = try {
             fearGreedDao.getByMarketAndDateRange(market, startDate, endDate).first()
         } catch (e: Exception) {
-            Log.w(TAG, "Fear & Greed data not available: ${e.message}")
+            logger.w("Fear & Greed data not available: ${e.message}")
             emptyList()
         }
 
         val oscillatorData = try {
             marketOscillatorDao.getDataByDateRange(market, startDate, endDate).first()
         } catch (e: Exception) {
-            Log.w(TAG, "Oscillator data not available: ${e.message}")
+            logger.w("Oscillator data not available: ${e.message}")
             emptyList()
         }
 
         val marketDeposits = try {
             marketDepositDao.getAllDeposits().first().filter { it.date in startDate..endDate }
         } catch (e: Exception) {
-            Log.w(TAG, "Market deposit data not available: ${e.message}")
+            logger.w("Market deposit data not available: ${e.message}")
             emptyList()
         }
 
-        Log.d(TAG, "Collected: indices=${marketIndices.size}, etfStats=${etfStats.size}, " +
+        logger.d("Collected: indices=${marketIndices.size}, etfStats=${etfStats.size}, " +
                 "fearGreed=${fearGreedData.size}, oscillator=${oscillatorData.size}, deposits=${marketDeposits.size}")
 
         AnalysisDataSet(

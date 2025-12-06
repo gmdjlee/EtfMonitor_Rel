@@ -1,11 +1,11 @@
 package com.etfmonitor.repository
 
-import android.util.Log
 import com.etfmonitor.database.DailyEtfStatisticsDao
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.StockDao
 import com.etfmonitor.database.entities.*
 import com.etfmonitor.python.PyKrxClient
+import com.etfmonitor.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -61,7 +61,7 @@ class DataRepository @Inject constructor(
 ) {
 
     companion object {
-        private const val TAG = "DataRepository"
+        private val logger = AppLogger.getLogger("DataRepository")
         private const val PARALLEL_LIMIT = 5
         // Holding weight change threshold for status determination (in percentage points)
         private const val WEIGHT_CHANGE_THRESHOLD = 0.01f
@@ -91,7 +91,7 @@ class DataRepository @Inject constructor(
      */
     suspend fun hasData(): Boolean = withContext(Dispatchers.IO) {
         val count = dao.getEtfCount()
-        Log.d(TAG, "hasData: count = $count")
+        logger.d( "hasData: count = $count")
         count > 0
     }
 
@@ -101,7 +101,7 @@ class DataRepository @Inject constructor(
      */
     suspend fun getLatestDate(): String? = withContext(Dispatchers.IO) {
         val date = dao.getLatestDate()
-        Log.d(TAG, "getLatestDate: $date")
+        logger.d( "getLatestDate: $date")
         date
     }
 
@@ -124,15 +124,15 @@ class DataRepository @Inject constructor(
     suspend fun getComparison(etfTicker: String): ComparisonResult? = withContext(Dispatchers.IO) {
         val dates = dao.getDates(etfTicker)
 
-        Log.d(TAG, "getComparison for $etfTicker: ${dates.size} dates available")
+        logger.d( "getComparison for $etfTicker: ${dates.size} dates available")
 
         if (dates.isEmpty()) {
-            Log.d(TAG, "No dates found for $etfTicker")
+            logger.d( "No dates found for $etfTicker")
             return@withContext null
         }
 
         if (dates.size == 1) {
-            Log.d(TAG, "Only one date available: ${dates[0]}")
+            logger.d( "Only one date available: ${dates[0]}")
             val current = dao.getHoldings(etfTicker, dates[0])
             return@withContext ComparisonResult(
                 etfTicker = etfTicker,
@@ -155,12 +155,12 @@ class DataRepository @Inject constructor(
         val currentDate = dates[0]
         val previousDate = dates[1]
 
-        Log.d(TAG, "Comparing: $previousDate vs $currentDate")
+        logger.d( "Comparing: $previousDate vs $currentDate")
 
         val current = dao.getHoldings(etfTicker, currentDate)
         val previous = dao.getHoldings(etfTicker, previousDate)
 
-        Log.d(TAG, "Current holdings: ${current.size}, Previous holdings: ${previous.size}")
+        logger.d( "Current holdings: ${current.size}, Previous holdings: ${previous.size}")
 
         val currentMap = current.associateBy { it.stockTicker }
         val previousMap = previous.associateBy { it.stockTicker }
@@ -173,7 +173,7 @@ class DataRepository @Inject constructor(
 
             when {
                 curr != null && prev == null -> {
-                    Log.d(TAG, "NEW: ${curr.stockName}")
+                    logger.d( "NEW: ${curr.stockName}")
                     HoldingWithComparison(
                         stockTicker = ticker,
                         stockName = curr.stockName,
@@ -185,7 +185,7 @@ class DataRepository @Inject constructor(
                     )
                 }
                 curr == null && prev != null -> {
-                    Log.d(TAG, "REMOVED: ${prev.stockName}")
+                    logger.d( "REMOVED: ${prev.stockName}")
                     HoldingWithComparison(
                         stockTicker = ticker,
                         stockName = prev.stockName,
@@ -208,7 +208,7 @@ class DataRepository @Inject constructor(
                     }
 
                     if (status != HoldingStatus.MAINTAIN) {
-                        Log.d(TAG, "${status.name}: ${curr.stockName} ($prevWeight% → $currWeight%)")
+                        logger.d( "${status.name}: ${curr.stockName} ($prevWeight% → $currWeight%)")
                     }
 
                     HoldingWithComparison(
@@ -222,7 +222,7 @@ class DataRepository @Inject constructor(
                     )
                 }
                 else -> {
-                    Log.e(TAG, "Unexpected case for ticker: $ticker")
+                    logger.e( "Unexpected case for ticker: $ticker")
                     HoldingWithComparison(
                         stockTicker = ticker,
                         stockName = curr?.stockName ?: prev?.stockName ?: ticker,
@@ -241,9 +241,9 @@ class DataRepository @Inject constructor(
                     .thenByDescending { it.currentWeight }
             )
 
-        Log.d(TAG, "Comparison result: ${items.size} items")
+        logger.d( "Comparison result: ${items.size} items")
         val statusCount = items.groupBy { it.status }.mapValues { it.value.size }
-        Log.d(TAG, "Status counts: $statusCount")
+        logger.d( "Status counts: $statusCount")
 
         ComparisonResult(
             etfTicker = etfTicker,
@@ -489,17 +489,17 @@ class DataRepository @Inject constructor(
      */
     fun initializeData(days: Int = 25) = flow {
         try {
-            Log.d(TAG, "initializeData: START")
+            logger.d( "initializeData: START")
             emit(DataProgress.Loading("초기화 시작", 0))
 
             initializeDefaultSettings()
 
             emit(DataProgress.Loading("영업일 계산 중", 5))
             val businessDays = pyKrx.getBusinessDays(days)
-            Log.d(TAG, "Business days found: ${businessDays.size}")
+            logger.d( "Business days found: ${businessDays.size}")
 
             if (businessDays.isEmpty()) {
-                Log.e(TAG, "No business days found")
+                logger.e( "No business days found")
                 emit(DataProgress.Error("영업일을 찾을 수 없습니다"))
                 return@flow
             }
@@ -511,7 +511,7 @@ class DataRepository @Inject constructor(
             val includeKeywords = themes + listOf("액티브")
 
             if (includeKeywords.isEmpty()) {
-                Log.e(TAG, "ERROR: Include keywords is empty!")
+                logger.e( "ERROR: Include keywords is empty!")
                 emit(DataProgress.Error("포함 키워드가 없습니다."))
                 return@flow
             }
@@ -531,7 +531,7 @@ class DataRepository @Inject constructor(
                 val progress = baseProgress + ((index + 1) * progressRange / totalDays)
 
                 emit(DataProgress.Loading("데이터 수집 중 (${index + 1}/$totalDays) $date", progress))
-                Log.d(TAG, "Processing date: $date (${index + 1}/$totalDays) - Progress: $progress%")
+                logger.d( "Processing date: $date (${index + 1}/$totalDays) - Progress: $progress%")
 
                 val dateYYYYMMDD = date.replace("-", "")
 
@@ -541,10 +541,10 @@ class DataRepository @Inject constructor(
                     excludeKeywords = exclusions
                 )
 
-                Log.d(TAG, "Filtered ETFs for $date: ${validEtfs.size}")
+                logger.d( "Filtered ETFs for $date: ${validEtfs.size}")
 
                 if (validEtfs.isEmpty()) {
-                    Log.w(TAG, "No valid ETFs for $date")
+                    logger.w( "No valid ETFs for $date")
                 }
 
                 val dateStartTime = System.currentTimeMillis()
@@ -561,23 +561,23 @@ class DataRepository @Inject constructor(
                 try {
                     val dailyStats = calculateDailyStatisticsImproved(date, results)
                     dailyEtfStatisticsDao.insert(dailyStats)
-                    Log.d(TAG, "Daily statistics saved for $date: " +
+                    logger.d( "Daily statistics saved for $date: " +
                             "newStocks=${dailyStats.newStockCount}, " +
                             "removed=${dailyStats.removedStockCount}, " +
                             "increased=${dailyStats.increasedStockCount}, " +
                             "decreased=${dailyStats.decreasedStockCount}")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to save daily statistics for $date", e)
+                    logger.e( "Failed to save daily statistics for $date", e)
                 }
 
                 val dateElapsed = System.currentTimeMillis() - dateStartTime
-                Log.d(TAG, "Date $date processed in ${dateElapsed}ms (${results.size} ETFs)")
+                logger.d( "Date $date processed in ${dateElapsed}ms (${results.size} ETFs)")
 
                 delay(50)
             }
 
             val totalElapsed = (System.currentTimeMillis() - startTime) / 1000
-            Log.d(TAG, "initializeData: COMPLETE in ${totalElapsed}s - ETFs: $totalEtfs, Holdings: $totalHoldings")
+            logger.d( "initializeData: COMPLETE in ${totalElapsed}s - ETFs: $totalEtfs, Holdings: $totalHoldings")
 
             if (totalEtfs == 0) {
                 emit(DataProgress.Error("수집된 ETF가 없습니다."))
@@ -585,7 +585,7 @@ class DataRepository @Inject constructor(
                 emit(DataProgress.Success("초기화 완료! ETF ${totalEtfs}개 수집 (${totalElapsed}초 소요)"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "initializeData: ERROR", e)
+            logger.e( "initializeData: ERROR", e)
             emit(DataProgress.Error("초기화 실패: ${e.message}"))
         }
     }.flowOn(Dispatchers.IO)  // IO 스레드에서 실행하여 UI 차단 방지
@@ -599,7 +599,7 @@ class DataRepository @Inject constructor(
      */
     fun updateData() = flow {
         try {
-            Log.d(TAG, "updateData: START")
+            logger.d( "updateData: START")
             emit(DataProgress.Loading("업데이트 시작", 0))
 
             val lastDate = dao.getLatestDate()
@@ -642,7 +642,7 @@ class DataRepository @Inject constructor(
                 val progress = baseProgress + ((index + 1) * progressRange / totalDays)
 
                 emit(DataProgress.Loading("데이터 수집 중 (${index + 1}/$totalDays) $date", progress))
-                Log.d(TAG, "Processing date: $date (${index + 1}/$totalDays) - Progress: $progress%")
+                logger.d( "Processing date: $date (${index + 1}/$totalDays) - Progress: $progress%")
 
                 val dateYYYYMMDD = date.replace("-", "")
 
@@ -659,13 +659,13 @@ class DataRepository @Inject constructor(
                 try {
                     val dailyStats = calculateDailyStatisticsImproved(date, results)
                     dailyEtfStatisticsDao.insert(dailyStats)
-                    Log.d(TAG, "Daily statistics saved for $date: " +
+                    logger.d( "Daily statistics saved for $date: " +
                             "newStocks=${dailyStats.newStockCount}, " +
                             "removed=${dailyStats.removedStockCount}, " +
                             "increased=${dailyStats.increasedStockCount}, " +
                             "decreased=${dailyStats.decreasedStockCount}")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to save daily statistics for $date", e)
+                    logger.e( "Failed to save daily statistics for $date", e)
                 }
 
                 delay(50)
@@ -674,7 +674,7 @@ class DataRepository @Inject constructor(
             val totalElapsed = (System.currentTimeMillis() - startTime) / 1000
             emit(DataProgress.Success("업데이트 완료! ETF ${totalEtfs}개 수집 (${totalElapsed}초 소요)"))
         } catch (e: Exception) {
-            Log.e(TAG, "updateData: ERROR", e)
+            logger.e( "updateData: ERROR", e)
             emit(DataProgress.Error("업데이트 실패: ${e.message}"))
         }
     }.flowOn(Dispatchers.IO)  // IO 스레드에서 실행하여 UI 차단 방지
@@ -696,7 +696,7 @@ class DataRepository @Inject constructor(
                     try {
                         val existingHoldings = dao.getHoldings(etf.ticker, formattedDate)
                         if (existingHoldings.isNotEmpty()) {
-                            Log.d(TAG, "Skipping ${etf.ticker} - data already exists")
+                            logger.d( "Skipping ${etf.ticker} - data already exists")
                             return@async EtfProcessResult(etf.ticker, existingHoldings)
                         }
 
@@ -705,12 +705,12 @@ class DataRepository @Inject constructor(
 
                         if (holdings.isNotEmpty()) {
                             dao.insertHoldings(holdings)
-                            Log.d(TAG, "✓ ${etf.ticker}: ${holdings.size} holdings")
+                            logger.d( "✓ ${etf.ticker}: ${holdings.size} holdings")
                         }
 
                         EtfProcessResult(etf.ticker, holdings)
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error processing ${etf.ticker}: ${e.message}")
+                        logger.e( "Error processing ${etf.ticker}: ${e.message}")
                         EtfProcessResult(etf.ticker, emptyList())
                     }
                 }
@@ -727,9 +727,9 @@ class DataRepository @Inject constructor(
         if (allStocksToSync.isNotEmpty()) {
             try {
                 stockDao.syncFromHoldings(allStocksToSync)
-                Log.d(TAG, "Synced ${allStocksToSync.size} stocks to master")
+                logger.d( "Synced ${allStocksToSync.size} stocks to master")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to sync stocks: ${e.message}")
+                logger.e( "Failed to sync stocks: ${e.message}")
             }
         }
 
@@ -748,22 +748,22 @@ class DataRepository @Inject constructor(
 
     suspend fun setDefaultDays(days: Int) = withContext(Dispatchers.IO) {
         dao.saveSetting(Setting("default_days", days.toString()))
-        Log.d(TAG, "Default days set to: $days")
+        logger.d( "Default days set to: $days")
     }
 
     suspend fun getThemes(): List<String> = withContext(Dispatchers.IO) {
-        Log.d(TAG, "  getThemes() called")
+        logger.d( "  getThemes() called")
         val saved = dao.getSetting("themes")
-        Log.d(TAG, "    DB returned: '$saved'")
+        logger.d( "    DB returned: '$saved'")
 
         val themes = if (saved != null && saved.isNotBlank()) {
             saved.split(",").map { it.trim() }.filter { it.isNotBlank() }
         } else {
-            Log.w(TAG, "    ⚠️ No themes in DB, using defaults")
+            logger.w( "    ⚠️ No themes in DB, using defaults")
             defaultThemes()
         }
 
-        Log.d(TAG, "    Returning (${themes.size}): ${themes.take(5)}...")
+        logger.d( "    Returning (${themes.size}): ${themes.take(5)}...")
         themes
     }
 
@@ -782,18 +782,18 @@ class DataRepository @Inject constructor(
     }
 
     suspend fun getExclusions(): List<String> = withContext(Dispatchers.IO) {
-        Log.d(TAG, "  getExclusions() called")
+        logger.d( "  getExclusions() called")
         val saved = dao.getSetting("exclusions")
-        Log.d(TAG, "    DB returned: '$saved'")
+        logger.d( "    DB returned: '$saved'")
 
         val exclusions = if (saved != null && saved.isNotBlank()) {
             saved.split(",").map { it.trim() }.filter { it.isNotBlank() }
         } else {
-            Log.w(TAG, "    ⚠️ No exclusions in DB, using defaults")
+            logger.w( "    ⚠️ No exclusions in DB, using defaults")
             defaultExclusions()
         }
 
-        Log.d(TAG, "    Returning (${exclusions.size}): ${exclusions.take(5)}...")
+        logger.d( "    Returning (${exclusions.size}): ${exclusions.take(5)}...")
         exclusions
     }
 
@@ -817,26 +817,26 @@ class DataRepository @Inject constructor(
     }
 
     private suspend fun initializeDefaultSettings() = withContext(Dispatchers.IO) {
-        Log.d(TAG, "  initializeDefaultSettings() called")
+        logger.d( "  initializeDefaultSettings() called")
 
         val existingThemes = dao.getSetting("themes")
         if (existingThemes == null) {
             val themes = defaultThemes().joinToString(",")
             dao.saveSetting(Setting("themes", themes))
-            Log.d(TAG, "    ✓ Saved default themes (${themes.length} chars)")
-            Log.d(TAG, "      First 100 chars: ${themes.take(100)}")
+            logger.d( "    ✓ Saved default themes (${themes.length} chars)")
+            logger.d( "      First 100 chars: ${themes.take(100)}")
         } else {
-            Log.d(TAG, "    ✓ Themes already exist (${existingThemes.length} chars)")
+            logger.d( "    ✓ Themes already exist (${existingThemes.length} chars)")
         }
 
         val existingExclusions = dao.getSetting("exclusions")
         if (existingExclusions == null) {
             val exclusions = defaultExclusions().joinToString(",")
             dao.saveSetting(Setting("exclusions", exclusions))
-            Log.d(TAG, "    ✓ Saved default exclusions (${exclusions.length} chars)")
-            Log.d(TAG, "      Content: $exclusions")
+            logger.d( "    ✓ Saved default exclusions (${exclusions.length} chars)")
+            logger.d( "      Content: $exclusions")
         } else {
-            Log.d(TAG, "    ✓ Exclusions already exist (${existingExclusions.length} chars)")
+            logger.d( "    ✓ Exclusions already exist (${existingExclusions.length} chars)")
         }
     }
 
@@ -869,7 +869,7 @@ class DataRepository @Inject constructor(
         date: String,
         currentResults: List<EtfProcessResult>
     ): DailyEtfStatistics = withContext(Dispatchers.IO) {
-        Log.d(TAG, "calculateDailyStatisticsImproved for $date")
+        logger.d( "calculateDailyStatisticsImproved for $date")
 
         // 현재 날짜의 모든 종목을 ETF-종목 조합으로 집계
         // Key: "etfTicker:stockTicker", Value: Holding
@@ -897,7 +897,7 @@ class DataRepository @Inject constructor(
 
         // 이전 영업일 조회
         val previousDate = getPreviousBusinessDay(date)
-        Log.d(TAG, "Previous business day: $previousDate")
+        logger.d( "Previous business day: $previousDate")
 
         // 이전 날짜의 holdings 조회
         val previousHoldingsMap = if (previousDate != null) {
@@ -905,7 +905,7 @@ class DataRepository @Inject constructor(
                 val previousHoldings = dao.getHoldingsByDateRange(previousDate, previousDate)
                 previousHoldings.associateBy { "${it.etfTicker}:${it.stockTicker}" }
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to get previous holdings: ${e.message}")
+                logger.w( "Failed to get previous holdings: ${e.message}")
                 emptyMap()
             }
         } else {
@@ -998,7 +998,7 @@ class DataRepository @Inject constructor(
             (cashDepositChange.toDouble() / previousStats.cashDepositAmount) * 100
         } else 0.0
 
-        Log.d(TAG, "Statistics calculated: " +
+        logger.d( "Statistics calculated: " +
                 "new=$newStockCount (${formatAmount(newStockAmount)}), " +
                 "removed=$removedStockCount (${formatAmount(removedStockAmount)}), " +
                 "increased=$increasedStockCount (${formatAmount(increasedStockAmount)}), " +
@@ -1071,7 +1071,7 @@ class DataRepository @Inject constructor(
 
             null
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to get previous business day: ${e.message}")
+            logger.w( "Failed to get previous business day: ${e.message}")
             null
         }
     }

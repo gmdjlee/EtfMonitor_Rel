@@ -1,7 +1,6 @@
 package com.etfmonitor.ui.screens.settings
 
 import android.content.Context
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.ai.AIProvider
@@ -17,6 +16,7 @@ import com.etfmonitor.ui.theme.ChartColorSettings
 import com.etfmonitor.ui.theme.FontScaleSettings
 import com.etfmonitor.ui.theme.SingleChartColorSettings
 import com.etfmonitor.ui.theme.ThemeManager
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.worker.WorkManagerHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -104,7 +104,7 @@ class SettingsViewModel @Inject constructor(
 ) : ViewModel() {
 
     companion object {
-        private const val TAG = "SettingsViewModel"
+        private val logger = AppLogger.getLogger("SettingsViewModel")
 
         // 설정 키 상수
         private object Keys {
@@ -378,7 +378,7 @@ class SettingsViewModel @Inject constructor(
                     lastUpdateTime = maxOf(oscKospiUpdate ?: 0L, oscKosdaqUpdate ?: 0L).takeIf { it > 0L }
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading data info", e)
+                logger.e("Error loading data info", e)
             }
         }
     }
@@ -865,7 +865,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setGeminiModel(modelId: String) = saveSetting("Gemini 모델이 선택되었습니다: $modelId") {
-        Log.d(TAG, "Setting Gemini model: $modelId")
+        logger.d("Setting Gemini model: $modelId")
         apiKeyProvider.setSelectedModel(AIProvider.GEMINI, modelId)
         _selectedGeminiModel.value = modelId
     }

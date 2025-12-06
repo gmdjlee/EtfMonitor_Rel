@@ -1,10 +1,10 @@
 package com.etfmonitor.repository
 
-import android.util.Log
 import com.chaquo.python.Python
 import com.chaquo.python.PyObject
 import com.etfmonitor.database.FearGreedDao
 import com.etfmonitor.database.entities.FearGreedIndex
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.utils.DateFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -22,7 +22,7 @@ class FearGreedRepository @Inject constructor(
     private val python: Python
 ) {
     companion object {
-        private const val TAG = "FearGreedRepository"
+        private val logger = AppLogger.getLogger("FearGreedRepo")
         private const val DATA_EXPIRY_HOURS = 12 // 12시간 후 데이터 만료
     }
 
@@ -64,7 +64,7 @@ class FearGreedRepository @Inject constructor(
         try {
             // 분석 과정의 데이터 손실을 고려하여 3배 수집, 최대 730일로 제한
             val collectionDays = minOf(days * 3, 730)
-            Log.d(TAG, "Initializing Fear & Greed Index data: requested=$days days, collecting=$collectionDays days (max 730)")
+            logger.d( "Initializing Fear & Greed Index data: requested=$days days, collecting=$collectionDays days (max 730)")
 
             onProgress?.invoke("Fear & Greed Index 데이터 수집 준비 중...", 0)
 
@@ -81,12 +81,12 @@ class FearGreedRepository @Inject constructor(
             val fearGreedData = try {
                 calculateFearGreed(startStr, endStr, onProgress)
             } catch (e: Exception) {
-                Log.e(TAG, "Python call failed", e)
+                logger.e( "Python call failed", e)
                 return@withContext Result.failure(Exception("Fear & Greed 계산 실패: ${e.message}", e))
             }
 
             if (fearGreedData.isEmpty()) {
-                Log.e(TAG, "No Fear & Greed data calculated")
+                logger.e( "No Fear & Greed data calculated")
                 return@withContext Result.failure(Exception("계산된 데이터가 없습니다"))
             }
 
@@ -95,14 +95,14 @@ class FearGreedRepository @Inject constructor(
             fearGreedDao.deleteAll()
             fearGreedDao.insertAll(fearGreedData)
 
-            Log.d(TAG, "Successfully initialized ${fearGreedData.size} Fear & Greed records")
+            logger.d( "Successfully initialized ${fearGreedData.size} Fear & Greed records")
             onProgress?.invoke("완료", 100)
             Result.success(fearGreedData.size)
         } catch (e: kotlinx.coroutines.CancellationException) {
-            Log.w(TAG, "Initialization cancelled")
+            logger.w( "Initialization cancelled")
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Error initializing Fear & Greed data", e)
+            logger.e( "Error initializing Fear & Greed data", e)
             Result.failure(e)
         }
     }
@@ -114,7 +114,7 @@ class FearGreedRepository @Inject constructor(
      */
     suspend fun updateFearGreed(): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Updating Fear & Greed Index data...")
+            logger.d( "Updating Fear & Greed Index data...")
 
             // 최근 데이터 갱신 (데이터 손실 고려하여 150일 수집)
             val endDate = LocalDate.now()
@@ -128,25 +128,25 @@ class FearGreedRepository @Inject constructor(
             val fearGreedData = try {
                 calculateFearGreed(startStr, endStr)
             } catch (e: Exception) {
-                Log.e(TAG, "Python call failed", e)
+                logger.e( "Python call failed", e)
                 return@withContext Result.failure(Exception("Fear & Greed 계산 실패: ${e.message}", e))
             }
 
             if (fearGreedData.isEmpty()) {
-                Log.e(TAG, "No Fear & Greed data calculated")
+                logger.e( "No Fear & Greed data calculated")
                 return@withContext Result.failure(Exception("계산된 데이터가 없습니다"))
             }
 
             // DB에 저장 (REPLACE 전략으로 중복 제거)
             fearGreedDao.insertAll(fearGreedData)
 
-            Log.d(TAG, "Successfully updated ${fearGreedData.size} Fear & Greed records")
+            logger.d( "Successfully updated ${fearGreedData.size} Fear & Greed records")
             Result.success(fearGreedData.size)
         } catch (e: kotlinx.coroutines.CancellationException) {
-            Log.w(TAG, "Update cancelled")
+            logger.w( "Update cancelled")
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Error updating Fear & Greed data", e)
+            logger.e( "Error updating Fear & Greed data", e)
             Result.failure(e)
         }
     }
@@ -161,40 +161,40 @@ class FearGreedRepository @Inject constructor(
     ): List<FearGreedIndex> =
         withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Calculating Fear & Greed for period: $startDate ~ $endDate")
+                logger.d( "Calculating Fear & Greed for period: $startDate ~ $endDate")
                 val module = python.getModule("feargreed")
 
                 // combine 함수 호출하여 데이터 수집
                 onProgress?.invoke("원시 데이터 수집 중...", 30)
                 val combineFunc = module["combine"]
                 if (combineFunc == null) {
-                    Log.e(TAG, "combine function not found in Python module")
+                    logger.e( "combine function not found in Python module")
                     return@withContext emptyList()
                 }
 
                 val dfObject = combineFunc.call(startDate, endDate)
                 if (dfObject == null || dfObject.toString() == "None") {
-                    Log.e(TAG, "Failed to get combined data from Python (returned None)")
+                    logger.e( "Failed to get combined data from Python (returned None)")
                     return@withContext emptyList()
                 }
 
-                Log.d(TAG, "Combined data retrieved successfully")
+                logger.d( "Combined data retrieved successfully")
 
                 // analyze 함수 호출하여 분석
                 onProgress?.invoke("Fear & Greed Index 분석 중...", 60)
                 val analyzeFunc = module["analyze"]
                 if (analyzeFunc == null) {
-                    Log.e(TAG, "analyze function not found in Python module")
+                    logger.e( "analyze function not found in Python module")
                     return@withContext emptyList()
                 }
 
                 val result = analyzeFunc.call(dfObject)
                 if (result == null) {
-                    Log.e(TAG, "analyze function returned null")
+                    logger.e( "analyze function returned null")
                     return@withContext emptyList()
                 }
 
-                Log.d(TAG, "Analyze function completed")
+                logger.d( "Analyze function completed")
                 onProgress?.invoke("데이터 파싱 중...", 80)
 
                 // 결과 파싱 (KOSPI, KOSDAQ) - Python에서 튜플 (kp_df, kq_df) 반환
@@ -203,7 +203,7 @@ class FearGreedRepository @Inject constructor(
                 // 튜플을 리스트로 변환
                 val resultList = result.asList()
                 if (resultList == null || resultList.size < 2) {
-                    Log.e(TAG, "Invalid result tuple from analyze function")
+                    logger.e( "Invalid result tuple from analyze function")
                     return@withContext emptyList()
                 }
 
@@ -211,41 +211,41 @@ class FearGreedRepository @Inject constructor(
                     // 튜플의 첫 번째 요소: KOSPI 데이터
                     val kospiDf = resultList.getOrNull(0)
                     if (kospiDf != null && kospiDf.toString() != "None") {
-                        Log.d(TAG, "Parsing KOSPI data...")
+                        logger.d( "Parsing KOSPI data...")
                         val kospiIndices = parseFearGreedData(kospiDf, "KOSPI")
-                        Log.d(TAG, "KOSPI parsed: ${kospiIndices.size} records")
+                        logger.d( "KOSPI parsed: ${kospiIndices.size} records")
                         indices.addAll(kospiIndices)
                     } else {
-                        Log.w(TAG, "KOSPI data is None")
+                        logger.w( "KOSPI data is None")
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error parsing KOSPI data", e)
+                    logger.e( "Error parsing KOSPI data", e)
                 }
 
                 try {
                     // 튜플의 두 번째 요소: KOSDAQ 데이터
                     val kosdaqDf = resultList.getOrNull(1)
                     if (kosdaqDf != null && kosdaqDf.toString() != "None") {
-                        Log.d(TAG, "Parsing KOSDAQ data...")
+                        logger.d( "Parsing KOSDAQ data...")
                         val kosdaqIndices = parseFearGreedData(kosdaqDf, "KOSDAQ")
-                        Log.d(TAG, "KOSDAQ parsed: ${kosdaqIndices.size} records")
+                        logger.d( "KOSDAQ parsed: ${kosdaqIndices.size} records")
                         indices.addAll(kosdaqIndices)
                     } else {
-                        Log.w(TAG, "KOSDAQ data is None")
+                        logger.w( "KOSDAQ data is None")
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error parsing KOSDAQ data", e)
+                    logger.e( "Error parsing KOSDAQ data", e)
                 }
 
                 if (indices.isEmpty()) {
-                    Log.e(TAG, "No Fear & Greed data calculated")
+                    logger.e( "No Fear & Greed data calculated")
                 } else {
-                    Log.d(TAG, "Total Fear & Greed records: ${indices.size}")
+                    logger.d( "Total Fear & Greed records: ${indices.size}")
                 }
 
                 indices
             } catch (e: Exception) {
-                Log.e(TAG, "Error calculating Fear & Greed", e)
+                logger.e( "Error calculating Fear & Greed", e)
                 emptyList()
             }
         }
@@ -260,49 +260,49 @@ class FearGreedRepository @Inject constructor(
             // DataFrame을 딕셔너리 리스트로 변환
             val recordsFunc = df["to_dict"]
             if (recordsFunc == null) {
-                Log.e(TAG, "to_dict method not found on DataFrame")
+                logger.e( "to_dict method not found on DataFrame")
                 return emptyList()
             }
 
             val records = recordsFunc.call("records")
             if (records == null) {
-                Log.e(TAG, "Failed to convert DataFrame to records (returned null)")
+                logger.e( "Failed to convert DataFrame to records (returned null)")
                 return emptyList()
             }
 
             val recordsList = records.asList()
             if (recordsList == null) {
-                Log.e(TAG, "Failed to convert records to list")
+                logger.e( "Failed to convert records to list")
                 return emptyList()
             }
 
-            Log.d(TAG, "Processing ${recordsList.size} records for $market")
+            logger.d( "Processing ${recordsList.size} records for $market")
 
             for ((index, record) in recordsList.withIndex()) {
                 try {
                     // 첫 번째 레코드에서 디버깅 정보 출력
                     if (index == 0) {
-                        Log.d(TAG, "First record type: ${record.javaClass.name}")
-                        Log.d(TAG, "First record toString: ${record.toString()}")
+                        logger.d( "First record type: ${record.javaClass.name}")
+                        logger.d( "First record toString: ${record.toString()}")
                         try {
                             val keys = record.asMap()?.keys
-                            Log.d(TAG, "Record keys: $keys")
+                            logger.d( "Record keys: $keys")
                         } catch (e: Exception) {
-                            Log.w(TAG, "Cannot get keys as map: ${e.message}")
+                            logger.w( "Cannot get keys as map: ${e.message}")
                         }
                     }
 
                     // Python dict의 get 메서드 사용
                     val getFunc = record["get"]
                     if (getFunc == null) {
-                        Log.e(TAG, "Record $index: get method not found")
+                        logger.e( "Record $index: get method not found")
                         continue
                     }
 
                     val dateObj = getFunc.call("거래일")
                     val date = dateObj?.toString()
                     if (date == null || date == "None") {
-                        if (index < 3) Log.w(TAG, "Record $index: missing date (dateObj=$dateObj)")
+                        if (index < 3) logger.w( "Record $index: missing date (dateObj=$dateObj)")
                         continue
                     }
 
@@ -310,11 +310,11 @@ class FearGreedRepository @Inject constructor(
                     val indexValue = try {
                         indexValueObj?.toDouble()
                     } catch (e: Exception) {
-                        if (index < 3) Log.w(TAG, "Record $index ($date): cannot convert $market to double: $indexValueObj")
+                        if (index < 3) logger.w( "Record $index ($date): cannot convert $market to double: $indexValueObj")
                         null
                     }
                     if (indexValue == null) {
-                        if (index < 3) Log.w(TAG, "Record $index ($date): missing $market value")
+                        if (index < 3) logger.w( "Record $index ($date): missing $market value")
                         continue
                     }
 
@@ -322,11 +322,11 @@ class FearGreedRepository @Inject constructor(
                     val fg = try {
                         fgObj?.toDouble()
                     } catch (e: Exception) {
-                        if (index < 3) Log.w(TAG, "Record $index ($date): cannot convert FG to double: $fgObj")
+                        if (index < 3) logger.w( "Record $index ($date): cannot convert FG to double: $fgObj")
                         null
                     }
                     if (fg == null) {
-                        if (index < 3) Log.w(TAG, "Record $index ($date): missing FG value")
+                        if (index < 3) logger.w( "Record $index ($date): missing FG value")
                         continue
                     }
 
@@ -334,11 +334,11 @@ class FearGreedRepository @Inject constructor(
                     val osc = try {
                         oscObj?.toDouble()
                     } catch (e: Exception) {
-                        if (index < 3) Log.w(TAG, "Record $index ($date): cannot convert Osc to double: $oscObj")
+                        if (index < 3) logger.w( "Record $index ($date): cannot convert Osc to double: $oscObj")
                         null
                     }
                     if (osc == null) {
-                        if (index < 3) Log.w(TAG, "Record $index ($date): missing Osc value")
+                        if (index < 3) logger.w( "Record $index ($date): missing Osc value")
                         continue
                     }
 
@@ -368,15 +368,15 @@ class FearGreedRepository @Inject constructor(
                         )
                     )
                 } catch (e: Exception) {
-                    if (index < 3) Log.w(TAG, "Failed to parse record $index: ${e.message}", e)
+                    if (index < 3) logger.w( "Failed to parse record $index: ${e.message}", e)
                     continue
                 }
             }
 
-            Log.d(TAG, "Successfully parsed ${indices.size} out of ${recordsList.size} records for $market")
+            logger.d( "Successfully parsed ${indices.size} out of ${recordsList.size} records for $market")
             return indices
         } catch (e: Exception) {
-            Log.e(TAG, "Error parsing Fear & Greed data for $market", e)
+            logger.e( "Error parsing Fear & Greed data for $market", e)
             return emptyList()
         }
     }
@@ -398,7 +398,7 @@ class FearGreedRepository @Inject constructor(
                 dateStr
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to format date: $dateStr", e)
+            logger.w( "Failed to format date: $dateStr", e)
             dateStr
         }
     }

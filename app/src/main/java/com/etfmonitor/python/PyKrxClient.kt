@@ -1,7 +1,7 @@
 package com.etfmonitor.python
 
-import android.util.Log
 import com.chaquo.python.Python
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.database.entities.Etf
 import com.etfmonitor.database.entities.Holding
 import com.etfmonitor.database.entities.SnapshotType
@@ -62,7 +62,7 @@ class PyKrxClient @Inject constructor(
 ) {
 
     companion object {
-        private const val TAG = "PyKrxClient"
+        private val logger = AppLogger.getLogger("PyKrxClient")
         private const val TIMEOUT_MS = 30_000L
         private const val MAX_RETRIES = 2
     }
@@ -94,15 +94,15 @@ class PyKrxClient @Inject constructor(
     )
 
     private val etfModule by lazy {
-        //Log.d(TAG, "Loading etfcollector module")
+        //logger.d( "Loading etfcollector module")
         python.getModule("etfcollector")
     }
     private val stockModule by lazy {
-        //Log.d(TAG, "Loading stocks module")
+        //logger.d( "Loading stocks module")
         python.getModule("stocks")
     }
     private val coreModule by lazy {
-        //Log.d(TAG, "Loading core module")
+        //logger.d( "Loading core module")
         python.getModule("core")
     }
 
@@ -116,53 +116,53 @@ class PyKrxClient @Inject constructor(
     ): List<Etf> = withContext(Dispatchers.IO) {
         try {
             /*
-            Log.d(TAG, "\n" + "=".repeat(80))
-            Log.d(TAG, "PyKrxClient.getFilteredEtfList() called")
-            Log.d(TAG, "=".repeat(80))
+            logger.d( "\n" + "=".repeat(80))
+            logger.d( "PyKrxClient.getFilteredEtfList() called")
+            logger.d( "=".repeat(80))
 
             // STEP 1: 입력 확인
-            Log.d(TAG, "STEP 1: Input parameters")
-            Log.d(TAG, "  date: $date")
-            Log.d(TAG, "  includeKeywords type: ${includeKeywords::class.simpleName}")
-            Log.d(TAG, "  includeKeywords size: ${includeKeywords.size}")
-            Log.d(TAG, "  includeKeywords: $includeKeywords")
-            Log.d(TAG, "  excludeKeywords type: ${excludeKeywords::class.simpleName}")
-            Log.d(TAG, "  excludeKeywords size: ${excludeKeywords.size}")
-            Log.d(TAG, "  excludeKeywords: $excludeKeywords")
+            logger.d( "STEP 1: Input parameters")
+            logger.d( "  date: $date")
+            logger.d( "  includeKeywords type: ${includeKeywords::class.simpleName}")
+            logger.d( "  includeKeywords size: ${includeKeywords.size}")
+            logger.d( "  includeKeywords: $includeKeywords")
+            logger.d( "  excludeKeywords type: ${excludeKeywords::class.simpleName}")
+            logger.d( "  excludeKeywords size: ${excludeKeywords.size}")
+            logger.d( "  excludeKeywords: $excludeKeywords")
              */
 
             // ✅ 검증: 빈 리스트 확인
             if (includeKeywords.isEmpty()) {
-                Log.e(TAG, "ERROR: includeKeywords is empty in PyKrxClient")
+                logger.e( "ERROR: includeKeywords is empty in PyKrxClient")
                 return@withContext emptyList()
             }
 
             // STEP 2: JSON 변환
-            //Log.d(TAG, "\nSTEP 2: Convert to JSON")
+            //logger.d( "\nSTEP 2: Convert to JSON")
             val includeJson = Json.encodeToString(includeKeywords)
             val excludeJson = Json.encodeToString(excludeKeywords)
 
             /*
-            Log.d(TAG, "  includeJson length: ${includeJson.length}")
-            Log.d(TAG, "  includeJson: $includeJson")
-            Log.d(TAG, "  excludeJson length: ${excludeJson.length}")
-            Log.d(TAG, "  excludeJson: $excludeJson")
+            logger.d( "  includeJson length: ${includeJson.length}")
+            logger.d( "  includeJson: $includeJson")
+            logger.d( "  excludeJson length: ${excludeJson.length}")
+            logger.d( "  excludeJson: $excludeJson")
 
              */
 
             // ✅ 검증: JSON 형식 확인
             if (!includeJson.startsWith("[") || !includeJson.endsWith("]")) {
-                Log.e(TAG, "ERROR: Invalid JSON format for includeKeywords")
+                logger.e( "ERROR: Invalid JSON format for includeKeywords")
             }
 
             // STEP 3: Python 호출
             /*
-            Log.d(TAG, "\nSTEP 3: Call Python module")
-            Log.d(TAG, "  Calling: etfModule.get_etf_list_with_names")
-            Log.d(TAG, "  Parameters:")
-            Log.d(TAG, "    1. date_str: $date")
-            Log.d(TAG, "    2. include_keywords_json: $includeJson")
-            Log.d(TAG, "    3. exclude_keywords_json: $excludeJson")
+            logger.d( "\nSTEP 3: Call Python module")
+            logger.d( "  Calling: etfModule.get_etf_list_with_names")
+            logger.d( "  Parameters:")
+            logger.d( "    1. date_str: $date")
+            logger.d( "    2. include_keywords_json: $includeJson")
+            logger.d( "    3. exclude_keywords_json: $excludeJson")
             
              */
 
@@ -176,42 +176,42 @@ class PyKrxClient @Inject constructor(
             }
 
             // STEP 4: Python 응답 확인
-            Log.d(TAG, "\nSTEP 4: Python response")
-            Log.d(TAG, "  Response length: ${jsonStr.length}")
+            logger.d( "\nSTEP 4: Python response")
+            logger.d( "  Response length: ${jsonStr.length}")
             if (jsonStr.length < 200) {
-                Log.d(TAG, "  Full response: $jsonStr")
+                logger.d( "  Full response: $jsonStr")
             } else {
-                Log.d(TAG, "  First 200 chars: ${jsonStr.take(200)}...")
+                logger.d( "  First 200 chars: ${jsonStr.take(200)}...")
             }
 
             // STEP 5: JSON 파싱 (kotlinx.serialization 사용)
-            Log.d(TAG, "\nSTEP 5: Parse response with kotlinx.serialization")
+            logger.d( "\nSTEP 5: Parse response with kotlinx.serialization")
             val etfJsonList = json.decodeFromString<List<EtfJson>>(jsonStr)
-            Log.d(TAG, "  Parsed ${etfJsonList.size} ETFs")
+            logger.d( "  Parsed ${etfJsonList.size} ETFs")
 
             val etfs = etfJsonList.map { etfJson ->
                 Etf(etfJson.ticker, etfJson.name)
             }
 
-            Log.d(TAG, "\nSTEP 6: Final result")
-            Log.d(TAG, "  Returning ${etfs.size} ETFs")
+            logger.d( "\nSTEP 6: Final result")
+            logger.d( "  Returning ${etfs.size} ETFs")
             if (etfs.isNotEmpty()) {
-                Log.d(TAG, "  Sample:")
+                logger.d( "  Sample:")
                 etfs.take(3).forEach {
-                    Log.d(TAG, "    ${it.ticker}: ${it.name}")
+                    logger.d( "    ${it.ticker}: ${it.name}")
                 }
             }
-            Log.d(TAG, "=".repeat(80) + "\n")
+            logger.d( "=".repeat(80) + "\n")
 
             etfs
         } catch (e: TimeoutCancellationException) {
-            Log.e(TAG, "getFilteredEtfList timeout", PythonTimeoutException(TIMEOUT_MS, "etfcollector", "get_etf_list_with_names"))
+            logger.e( "getFilteredEtfList timeout", PythonTimeoutException(TIMEOUT_MS, "etfcollector", "get_etf_list_with_names"))
             emptyList()
         } catch (e: SerializationException) {
-            Log.e(TAG, "getFilteredEtfList parse error", DataParsingException("ETF 목록 JSON 파싱 실패", cause = e))
+            logger.e( "getFilteredEtfList parse error", DataParsingException("ETF 목록 JSON 파싱 실패", cause = e))
             emptyList()
         } catch (e: Exception) {
-            Log.e(TAG, "getFilteredEtfList failed", PythonRuntimeException("ETF 목록 조회 실패", "etfcollector", "get_etf_list_with_names", cause = e))
+            logger.e( "getFilteredEtfList failed", PythonRuntimeException("ETF 목록 조회 실패", "etfcollector", "get_etf_list_with_names", cause = e))
             emptyList()
         }
     }
@@ -222,13 +222,13 @@ class PyKrxClient @Inject constructor(
      */
     suspend fun getEtfList(date: String): List<Etf> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "getEtfList: $date")
+            logger.d( "getEtfList: $date")
 
             val jsonStr = withTimeout(TIMEOUT_MS) {
                 etfModule.callAttr("get_etf_list", date).toString()
             }
             val tickers = json.decodeFromString<List<String>>(jsonStr)
-            Log.d(TAG, "Found ${tickers.size} tickers")
+            logger.d( "Found ${tickers.size} tickers")
 
             if (tickers.isEmpty()) {
                 return@withContext emptyList()
@@ -245,24 +245,24 @@ class PyKrxClient @Inject constructor(
                         null
                     }
                 } catch (e: TimeoutCancellationException) {
-                    Log.w(TAG, "Timeout getting ETF name for $ticker")
+                    logger.w( "Timeout getting ETF name for $ticker")
                     null
                 } catch (e: Exception) {
-                    Log.w(TAG, "Error getting ETF name for $ticker: ${e.message}")
+                    logger.w( "Error getting ETF name for $ticker: ${e.message}")
                     null
                 }
             }
 
-            Log.d(TAG, "getEtfList result: ${etfs.size} ETFs")
+            logger.d( "getEtfList result: ${etfs.size} ETFs")
             etfs
         } catch (e: TimeoutCancellationException) {
-            Log.e(TAG, "getEtfList timeout", PythonTimeoutException(TIMEOUT_MS, "etfcollector", "get_etf_list"))
+            logger.e( "getEtfList timeout", PythonTimeoutException(TIMEOUT_MS, "etfcollector", "get_etf_list"))
             emptyList()
         } catch (e: SerializationException) {
-            Log.e(TAG, "getEtfList parse error", DataParsingException("ETF 목록 JSON 파싱 실패", cause = e))
+            logger.e( "getEtfList parse error", DataParsingException("ETF 목록 JSON 파싱 실패", cause = e))
             emptyList()
         } catch (e: Exception) {
-            Log.e(TAG, "getEtfList error", PythonRuntimeException("ETF 목록 조회 실패", "etfcollector", "get_etf_list", cause = e))
+            logger.e( "getEtfList error", PythonRuntimeException("ETF 목록 조회 실패", "etfcollector", "get_etf_list", cause = e))
             emptyList()
         }
     }
@@ -301,7 +301,7 @@ class PyKrxClient @Inject constructor(
 
                     holdings
                 } catch (e: Exception) {
-                    Log.e(TAG, "getHoldings error for $etfTicker", e)
+                    logger.e( "getHoldings error for $etfTicker", e)
                     throw e
                 }
             } ?: emptyList()
@@ -313,13 +313,13 @@ class PyKrxClient @Inject constructor(
      */
     suspend fun getBusinessDays(days: Int): List<String> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "getBusinessDays: $days days")
+            logger.d( "getBusinessDays: $days days")
             val end = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
             val start = LocalDate.now()
                 .minusDays((days * 2).toLong())
                 .format(DateTimeFormatter.ofPattern("yyyyMMdd"))
 
-            Log.d(TAG, "Date range: $start to $end")
+            logger.d( "Date range: $start to $end")
 
             val jsonStr = withTimeout(TIMEOUT_MS) {
                 coreModule.callAttr("get_business_days", start, end).toString()
@@ -330,10 +330,10 @@ class PyKrxClient @Inject constructor(
                 .map { formatDate(it) }
                 .takeLast(days)
 
-            Log.d(TAG, "getBusinessDays result: ${businessDays.size} days")
+            logger.d( "getBusinessDays result: ${businessDays.size} days")
             businessDays
         } catch (e: Exception) {
-            Log.e(TAG, "getBusinessDays error", e)
+            logger.e( "getBusinessDays error", e)
             emptyList()
         }
     }
@@ -349,9 +349,9 @@ class PyKrxClient @Inject constructor(
                     block()
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Attempt ${attempt + 1}/$maxRetries failed: ${e.message}")
+                logger.w( "Attempt ${attempt + 1}/$maxRetries failed: ${e.message}")
                 if (attempt == maxRetries - 1) {
-                    Log.e(TAG, "All retry attempts failed")
+                    logger.e( "All retry attempts failed")
                     return null
                 }
             }
@@ -366,7 +366,7 @@ class PyKrxClient @Inject constructor(
             }
             if (name == "None" || name.isEmpty()) ticker else name
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting stock name for $ticker: ${e.message}")
+            logger.e( "Error getting stock name for $ticker: ${e.message}")
             ticker
         }
     }

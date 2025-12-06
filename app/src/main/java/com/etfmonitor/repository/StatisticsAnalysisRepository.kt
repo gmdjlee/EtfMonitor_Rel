@@ -1,7 +1,7 @@
 package com.etfmonitor.repository
 
-import android.util.Log
 import com.etfmonitor.database.DailyEtfStatisticsDao
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.MarketIndexDao
 import com.etfmonitor.database.entities.DailyEtfStatistics
@@ -26,7 +26,7 @@ class StatisticsAnalysisRepository @Inject constructor(
     private val dailyEtfStatisticsDao: DailyEtfStatisticsDao
 ) {
     companion object {
-        private const val TAG = "StatisticsAnalysis"
+        private val logger = AppLogger.getLogger("StatisticsAnalysis")
     }
 
     /**
@@ -35,19 +35,19 @@ class StatisticsAnalysisRepository @Inject constructor(
      */
     suspend fun calculateAndStoreDailyStatistics(): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Calculating daily ETF statistics...")
+            logger.d( "Calculating daily ETF statistics...")
 
             // 최근 2개 날짜 가져오기
             val dates = etfDao.getLatestTwoDates()
             if (dates.size < 2) {
-                Log.w(TAG, "Not enough data to calculate statistics")
+                logger.w( "Not enough data to calculate statistics")
                 return@withContext Result.failure(Exception("최소 2일의 데이터가 필요합니다"))
             }
 
             val currentDate = dates[0]
             val previousDate = dates[1]
 
-            Log.d(TAG, "Calculating statistics for $currentDate (vs $previousDate)")
+            logger.d( "Calculating statistics for $currentDate (vs $previousDate)")
 
             // 신규 편입 통계
             val newStocks = etfDao.getAllNewStocks(currentDate, previousDate)
@@ -109,12 +109,12 @@ class StatisticsAnalysisRepository @Inject constructor(
             // 저장
             dailyEtfStatisticsDao.insert(statistics)
 
-            Log.d(TAG, "Daily statistics saved: new=$newStockCount, removed=$removedStockCount, " +
+            logger.d( "Daily statistics saved: new=$newStockCount, removed=$removedStockCount, " +
                     "increased=$increasedStockCount, decreased=$decreasedStockCount")
 
             Result.success(1)
         } catch (e: Exception) {
-            Log.e(TAG, "Error calculating daily statistics", e)
+            logger.e( "Error calculating daily statistics", e)
             Result.failure(e)
         }
     }
@@ -129,14 +129,14 @@ class StatisticsAnalysisRepository @Inject constructor(
         endDate: String
     ): CorrelationResult = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Calculating correlation for $market from $startDate to $endDate")
+            logger.d( "Calculating correlation for $market from $startDate to $endDate")
 
             // 데이터 가져오기
             val statistics = dailyEtfStatisticsDao.getByDateRangeSuspend(startDate, endDate)
             val indices = marketIndexDao.getByMarketAndDateRangeSuspend(market, startDate, endDate)
 
             if (statistics.isEmpty() || indices.isEmpty()) {
-                Log.w(TAG, "Not enough data for correlation: stats=${statistics.size}, indices=${indices.size}")
+                logger.w( "Not enough data for correlation: stats=${statistics.size}, indices=${indices.size}")
                 return@withContext CorrelationResult.empty()
             }
 
@@ -149,11 +149,11 @@ class StatisticsAnalysisRepository @Inject constructor(
             }
 
             if (pairs.size < 10) {
-                Log.w(TAG, "Not enough paired data for correlation: ${pairs.size}")
+                logger.w( "Not enough paired data for correlation: ${pairs.size}")
                 return@withContext CorrelationResult.empty()
             }
 
-            Log.d(TAG, "Paired data count: ${pairs.size}")
+            logger.d( "Paired data count: ${pairs.size}")
 
             // 지수 변화율 계산
             val indexChanges = mutableListOf<Double>()
@@ -191,7 +191,7 @@ class StatisticsAnalysisRepository @Inject constructor(
                 pairs.map { it.second.changeRate }
             )
 
-            Log.d(TAG, "Correlations calculated: new=$newStockCorr, removed=$removedStockCorr, " +
+            logger.d( "Correlations calculated: new=$newStockCorr, removed=$removedStockCorr, " +
                     "increased=$increasedStockCorr, decreased=$decreasedStockCorr, cash=$cashDepositCorr")
 
             CorrelationResult(
@@ -206,7 +206,7 @@ class StatisticsAnalysisRepository @Inject constructor(
                 averageIndexChange = indexChanges.average()
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Error calculating correlation", e)
+            logger.e( "Error calculating correlation", e)
             CorrelationResult.empty()
         }
     }

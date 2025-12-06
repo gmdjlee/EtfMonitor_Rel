@@ -1,9 +1,9 @@
 package com.etfmonitor.repository
 
-import android.util.Log
 import com.etfmonitor.database.MarketIndexDao
 import com.etfmonitor.database.entities.MarketIndex
 import com.etfmonitor.python.MarketIndexPyClient
+import com.etfmonitor.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -23,7 +23,7 @@ class MarketIndexRepository @Inject constructor(
     private val pyClient: MarketIndexPyClient
 ) {
     companion object {
-        private const val TAG = "MarketIndexRepository"
+        private val logger = AppLogger.getLogger("MarketIndexRepo")
     }
     /**
      * 특정 시장의 모든 데이터 조회
@@ -160,7 +160,7 @@ class MarketIndexRepository @Inject constructor(
      */
     suspend fun initializeMarketIndex(days: Int = 30): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Initializing market index data for $days days")
+            logger.d( "Initializing market index data for $days days")
 
             // 날짜 범위 계산
             val endDate = LocalDate.now()
@@ -174,7 +174,7 @@ class MarketIndexRepository @Inject constructor(
             val indices = pyClient.fetchMarketIndices(startStr, endStr)
 
             if (indices.isEmpty()) {
-                Log.e(TAG, "No market index data fetched")
+                logger.e( "No market index data fetched")
                 return@withContext Result.failure(Exception("시장 지수 데이터를 가져올 수 없습니다"))
             }
 
@@ -182,10 +182,10 @@ class MarketIndexRepository @Inject constructor(
             dao.deleteAll()
             dao.insertAll(indices)
 
-            Log.d(TAG, "Successfully initialized ${indices.size} market index records")
+            logger.d( "Successfully initialized ${indices.size} market index records")
             Result.success(indices.size)
         } catch (e: Exception) {
-            Log.e(TAG, "Error initializing market index data", e)
+            logger.e( "Error initializing market index data", e)
             Result.failure(e)
         }
     }
@@ -199,23 +199,23 @@ class MarketIndexRepository @Inject constructor(
      */
     suspend fun updateMarketIndex(days: Int = 30): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Updating market index data for recent $days days")
+            logger.d( "Updating market index data for recent $days days")
 
             // 최근 데이터 수집
             val indices = pyClient.fetchRecentDays(days)
 
             if (indices.isEmpty()) {
-                Log.e(TAG, "No market index data fetched for update")
+                logger.e( "No market index data fetched for update")
                 return@withContext Result.failure(Exception("시장 지수 데이터를 가져올 수 없습니다"))
             }
 
             // DB에 저장 (REPLACE 전략으로 중복 제거)
             dao.insertAll(indices)
 
-            Log.d(TAG, "Successfully updated ${indices.size} market index records")
+            logger.d( "Successfully updated ${indices.size} market index records")
             Result.success(indices.size)
         } catch (e: Exception) {
-            Log.e(TAG, "Error updating market index data", e)
+            logger.e( "Error updating market index data", e)
             Result.failure(e)
         }
     }

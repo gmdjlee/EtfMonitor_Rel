@@ -1,11 +1,11 @@
 package com.etfmonitor.ui.screens.trend
 
-import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.repository.StockTrend
+import com.etfmonitor.utils.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,7 +33,7 @@ class StockTrendViewModel @Inject constructor(
 ) : ViewModel() {
 
     companion object {
-        private const val TAG = "StockTrendViewModel"
+        private val logger = AppLogger.getLogger("StockTrendViewModel")
     }
 
     private val etfTicker: String = savedStateHandle.get<String>("etfTicker")
@@ -59,7 +59,7 @@ class StockTrendViewModel @Inject constructor(
                     TrendState.Error("추이 데이터를 찾을 수 없습니다")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading trend for ETF: $etfTicker, Stock: $stockTicker", e)
+                logger.e("Error loading trend for ETF: $etfTicker, Stock: $stockTicker", e)
                 _state.value = TrendState.Error(e.message ?: "오류 발생")
             }
         }

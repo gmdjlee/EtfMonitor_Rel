@@ -8,8 +8,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.MainActivity
 import com.etfmonitor.R
 import com.etfmonitor.repository.DataProgress
@@ -52,7 +52,7 @@ class DataCollectionService : Service() {
     }
 
     companion object {
-        private const val TAG = "DataCollectionService"
+        private val logger = AppLogger.getLogger("DataCollectSvc")
         private const val NOTIFICATION_ID = 1001
         private const val CHANNEL_ID = "data_collection_channel"
         private const val CHANNEL_NAME = "데이터 수집"
@@ -95,12 +95,12 @@ class DataCollectionService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "Service created")
+        logger.d("Service created")
         createNotificationChannel()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "onStartCommand: ${intent?.action}")
+        logger.d("onStartCommand: ${intent?.action}")
 
         when (intent?.action) {
             ACTION_INITIALIZE -> {
@@ -125,12 +125,12 @@ class DataCollectionService : Service() {
 
     private fun startInitialization(days: Int) {
         serviceScope.launch {
-            Log.d(TAG, "Starting initialization with $days days")
+            logger.d("Starting initialization with $days days")
 
             // ETF 데이터 초기화 (단독으로 실행, 완료 후 HomeViewModel이 다음 단계 처리)
             repository.initializeData(days)
                 .catch { e ->
-                    Log.e(TAG, "Error in ETF initialization", e)
+                    logger.e("Error in ETF initialization", e)
                     val errorMsg = "ETF 초기화 실패: ${e.message}"
                     CollectionState.error(errorMsg)
                     updateNotification(errorMsg, 0, isError = true)
@@ -144,7 +144,7 @@ class DataCollectionService : Service() {
                         }
                         is DataProgress.Success -> {
                             // ETF 초기화 완료, 시장 지수 초기화 시작
-                            Log.d(TAG, "ETF initialization completed: ${progress.message}")
+                            logger.d("ETF initialization completed: ${progress.message}")
                             initializeMarketIndex(days)
                         }
                         is DataProgress.Error -> {
@@ -160,7 +160,7 @@ class DataCollectionService : Service() {
     private fun initializeMarketIndex(days: Int) {
         serviceScope.launch {
             try {
-                Log.d(TAG, "Starting Market Index initialization")
+                logger.d("Starting Market Index initialization")
                 updateNotification("시장 지수 데이터 수집 중...", 91)
 
                 val result = marketIndexRepository.initializeMarketIndex(days)
@@ -168,17 +168,17 @@ class DataCollectionService : Service() {
                 if (result.isSuccess) {
                     val count = result.getOrNull() ?: 0
                     val successMsg = "초기화 완료! 시장 지수 ${count}개 데이터"
-                    Log.d(TAG, successMsg)
+                    logger.d(successMsg)
                     CollectionState.complete(successMsg)
                     updateNotification(successMsg, 100, isComplete = true)
                 } else {
                     val errorMsg = "시장 지수 초기화 실패: ${result.exceptionOrNull()?.message}"
-                    Log.e(TAG, errorMsg)
+                    logger.e(errorMsg)
                     CollectionState.error(errorMsg)
                     updateNotification(errorMsg, 0, isError = true)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error in Market Index initialization", e)
+                logger.e("Error in Market Index initialization", e)
                 val errorMsg = "시장 지수 초기화 실패: ${e.message}"
                 CollectionState.error(errorMsg)
                 updateNotification(errorMsg, 0, isError = true)
@@ -190,12 +190,12 @@ class DataCollectionService : Service() {
 
     private fun startUpdate() {
         serviceScope.launch {
-            Log.d(TAG, "Starting update")
+            logger.d("Starting update")
 
             // Step 1: ETF 데이터 업데이트
             repository.updateData()
                 .catch { e ->
-                    Log.e(TAG, "Error in ETF update", e)
+                    logger.e("Error in ETF update", e)
                     val errorMsg = "ETF 업데이트 실패: ${e.message}"
                     CollectionState.error(errorMsg)
                     updateNotification(errorMsg, 0, isError = true)
@@ -209,7 +209,7 @@ class DataCollectionService : Service() {
                         }
                         is DataProgress.Success -> {
                             // ETF 업데이트 완료, 시장 지수 업데이트 시작
-                            Log.d(TAG, "ETF update completed: ${progress.message}")
+                            logger.d("ETF update completed: ${progress.message}")
                             updateMarketIndex()
                         }
                         is DataProgress.Error -> {
@@ -225,25 +225,25 @@ class DataCollectionService : Service() {
     private fun updateMarketIndex() {
         serviceScope.launch {
             try {
-                Log.d(TAG, "Starting Market Index update")
+                logger.d("Starting Market Index update")
                 updateNotification("시장 지수 데이터 업데이트 중...", 30)
 
                 val result = marketIndexRepository.updateMarketIndex(30)
 
                 if (result.isSuccess) {
                     val count = result.getOrNull() ?: 0
-                    Log.d(TAG, "Market Index update completed: $count records")
+                    logger.d("Market Index update completed: $count records")
                     // Market Index 완료 후 Fear & Greed 업데이트 시작
                     updateFearGreed(fearGreedRepository)
                 } else {
                     val errorMsg = "시장 지수 업데이트 실패: ${result.exceptionOrNull()?.message}"
-                    Log.e(TAG, errorMsg)
+                    logger.e(errorMsg)
                     CollectionState.error(errorMsg)
                     updateNotification(errorMsg, 0, isError = true)
                     stopSelf()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error in Market Index update", e)
+                logger.e("Error in Market Index update", e)
                 val errorMsg = "시장 지수 업데이트 실패: ${e.message}"
                 CollectionState.error(errorMsg)
                 updateNotification(errorMsg, 0, isError = true)
@@ -255,25 +255,25 @@ class DataCollectionService : Service() {
     private fun updateFearGreed(fearGreedRepository: com.etfmonitor.repository.FearGreedRepository) {
         serviceScope.launch {
             try {
-                Log.d(TAG, "Starting Fear & Greed update")
+                logger.d("Starting Fear & Greed update")
                 updateNotification("Fear & Greed 데이터 업데이트 중...", 50)
 
                 val result = fearGreedRepository.updateFearGreed()
 
                 if (result.isSuccess) {
                     val count = result.getOrNull() ?: 0
-                    Log.d(TAG, "Fear & Greed update completed: $count records")
+                    logger.d("Fear & Greed update completed: $count records")
                     // Fear & Greed 완료 후 MarketOscillator 업데이트 시작
                     updateMarketOscillator()
                 } else {
                     val errorMsg = "Fear & Greed 업데이트 실패: ${result.exceptionOrNull()?.message}"
-                    Log.e(TAG, errorMsg)
+                    logger.e(errorMsg)
                     CollectionState.error(errorMsg)
                     updateNotification(errorMsg, 0, isError = true)
                     stopSelf()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error in Fear & Greed update", e)
+                logger.e("Error in Fear & Greed update", e)
                 val errorMsg = "Fear & Greed 업데이트 실패: ${e.message}"
                 CollectionState.error(errorMsg)
                 updateNotification(errorMsg, 0, isError = true)
@@ -285,7 +285,7 @@ class DataCollectionService : Service() {
     private fun updateMarketOscillator() {
         serviceScope.launch {
             try {
-                Log.d(TAG, "Starting Market Oscillator update")
+                logger.d("Starting Market Oscillator update")
                 updateNotification("과매수/과매도 데이터 업데이트 중...", 0)
 
                 // KOSPI와 KOSDAQ 데이터 업데이트
@@ -296,17 +296,17 @@ class DataCollectionService : Service() {
                     val kospiCount = kospiResult.getOrNull() ?: 0
                     val kosdaqCount = kosdaqResult.getOrNull() ?: 0
                     val successMsg = "업데이트 완료! 과매수/과매도 ${kospiCount + kosdaqCount}개 데이터"
-                    Log.d(TAG, successMsg)
+                    logger.d(successMsg)
                     CollectionState.complete(successMsg)
                     updateNotification(successMsg, 100, isComplete = true)
                 } else {
                     val errorMsg = "과매수/과매도 업데이트 실패"
-                    Log.e(TAG, errorMsg)
+                    logger.e(errorMsg)
                     CollectionState.error(errorMsg)
                     updateNotification(errorMsg, 0, isError = true)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error in Market Oscillator update", e)
+                logger.e("Error in Market Oscillator update", e)
                 val errorMsg = "과매수/과매도 업데이트 실패: ${e.message}"
                 CollectionState.error(errorMsg)
                 updateNotification(errorMsg, 0, isError = true)
@@ -373,7 +373,7 @@ class DataCollectionService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "Service destroyed")
+        logger.d("Service destroyed")
         serviceScope.cancel()
     }
 

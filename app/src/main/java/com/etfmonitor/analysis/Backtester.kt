@@ -1,7 +1,7 @@
 package com.etfmonitor.analysis
 
-import android.util.Log
 import com.etfmonitor.ai.BacktestResult
+import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.ai.SignalRecord
 import com.etfmonitor.ai.SignalType
 import com.etfmonitor.database.MarketIndexDao
@@ -22,7 +22,7 @@ class Backtester @Inject constructor(
     private val marketIndexDao: MarketIndexDao
 ) {
     companion object {
-        private const val TAG = "Backtester"
+        private val logger = AppLogger.getLogger("Backtester")
     }
 
     /**
@@ -38,7 +38,7 @@ class Backtester @Inject constructor(
                 return@withContext Result.failure(Exception("백테스트할 신호가 없습니다"))
             }
 
-            Log.d(TAG, "Backtesting ${signals.size} signals for $market with $holdingPeriod days holding period")
+            logger.d("Backtesting ${signals.size} signals for $market with $holdingPeriod days holding period")
 
             // 신호별 미래 수익률 계산
             val enrichedSignals = calculateFutureReturns(market, signals, holdingPeriod)
@@ -84,11 +84,11 @@ class Backtester @Inject constructor(
                 period = period
             )
 
-            Log.d(TAG, "Backtest completed: accuracy=$accuracy%, avgReturn=$averageReturn%, winRate=$winRate%")
+            logger.d("Backtest completed: accuracy=$accuracy%, avgReturn=$averageReturn%, winRate=$winRate%")
 
             Result.success(result)
         } catch (e: Exception) {
-            Log.e(TAG, "Backtest error", e)
+            logger.e("Backtest error", e)
             Result.failure(e)
         }
     }
@@ -149,7 +149,7 @@ class Backtester @Inject constructor(
                     wasCorrect = wasCorrect
                 )
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to calculate returns for ${signal.date}", e)
+                logger.w("Failed to calculate returns for ${signal.date}", e)
                 null
             }
         }

@@ -1,6 +1,5 @@
 package com.etfmonitor.utils
 
-import android.util.Log
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.entities.Holding
 import com.etfmonitor.database.entities.SnapshotType
@@ -29,7 +28,7 @@ class DataArchiver @Inject constructor(
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
     companion object {
-        private const val TAG = "DataArchiver"
+        private val logger = AppLogger.getLogger("DataArchiver")
 
         // 보관 기간 정의
         private const val DAILY_RETENTION_YEARS = 1
@@ -45,7 +44,7 @@ class DataArchiver @Inject constructor(
      */
     suspend fun archiveData(): ArchiveResult = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Starting data archiving process...")
+            logger.d("Starting data archiving process...")
 
             val today = LocalDate.now()
             val result = ArchiveResult()
@@ -54,30 +53,30 @@ class DataArchiver @Inject constructor(
             val fiveYearsAgo = today.minusYears(MONTHLY_RETENTION_YEARS.toLong())
             val deletedCount = deleteOldData(fiveYearsAgo)
             result.deletedRecords = deletedCount
-            Log.d(TAG, "Deleted $deletedCount records older than ${fiveYearsAgo.format(dateFormatter)}")
+            logger.d("Deleted $deletedCount records older than ${fiveYearsAgo.format(dateFormatter)}")
 
             // 2. 3~5년 데이터를 월별 스냅샷으로 압축
             val threeYearsAgo = today.minusYears(WEEKLY_RETENTION_YEARS.toLong())
             val monthlyCompressed = compressToMonthlySnapshots(threeYearsAgo, fiveYearsAgo)
             result.monthlyCompressed = monthlyCompressed
-            Log.d(TAG, "Compressed $monthlyCompressed records to monthly snapshots (3-5 years)")
+            logger.d("Compressed $monthlyCompressed records to monthly snapshots (3-5 years)")
 
             // 3. 1~3년 데이터를 주별 스냅샷으로 압축
             val oneYearAgo = today.minusYears(DAILY_RETENTION_YEARS.toLong())
             val weeklyCompressed = compressToWeeklySnapshots(oneYearAgo, threeYearsAgo)
             result.weeklyCompressed = weeklyCompressed
-            Log.d(TAG, "Compressed $weeklyCompressed records to weekly snapshots (1-3 years)")
+            logger.d("Compressed $weeklyCompressed records to weekly snapshots (1-3 years)")
 
             // 4. 통계 수집
             result.totalRecords = dao.getTotalHoldingCount()
             result.snapshotCounts = dao.getSnapshotTypeCounts()
 
-            Log.d(TAG, "Archiving completed successfully: $result")
+            logger.d("Archiving completed successfully: $result")
             result.success = true
             result
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error during archiving", e)
+            logger.e("Error during archiving", e)
             ArchiveResult(success = false, error = e.message)
         }
     }

@@ -1,8 +1,8 @@
 package com.etfmonitor.repository
 
-import android.util.Log
 import com.etfmonitor.database.*
 import com.etfmonitor.database.entities.*
+import com.etfmonitor.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -44,7 +44,7 @@ class AdvancedAnalysisRepository @Inject constructor(
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
     companion object {
-        private const val TAG = "AdvancedAnalysisRepo"
+        private val logger = AppLogger.getLogger("AdvancedAnalysis")
 
         // 시총 규모 기준 (억원)
         private const val LARGE_CAP_THRESHOLD = 100_000L  // 10조원
@@ -72,10 +72,10 @@ class AdvancedAnalysisRepository @Inject constructor(
             val stockChanges = etfDao.getStockAmountRanking(currentDate, previousDate)
                 .filter { market == "ALL" || getStockMarket(it.stockTicker) == market }
 
-            Log.d(TAG, "Stock changes count: ${stockChanges.size} for market: $market")
+            logger.d( "Stock changes count: ${stockChanges.size} for market: $market")
 
             if (stockChanges.isEmpty()) {
-                Log.w(TAG, "No stock changes found for dates: $currentDate vs $previousDate")
+                logger.w( "No stock changes found for dates: $currentDate vs $previousDate")
                 return@withContext createEmptyMarketCapWeightedFlow(currentDate, market)
             }
 
@@ -130,7 +130,7 @@ class AdvancedAnalysisRepository @Inject constructor(
             val totalInflow = inflowBySize.values.sum()
             val totalOutflow = outflowBySize.values.sum()
 
-            Log.d(TAG, "Flow result: inflow=$totalInflow, outflow=$totalOutflow, net=${totalInflow - totalOutflow}")
+            logger.d( "Flow result: inflow=$totalInflow, outflow=$totalOutflow, net=${totalInflow - totalOutflow}")
 
             MarketCapWeightedFlow(
                 date = currentDate,
@@ -145,7 +145,7 @@ class AdvancedAnalysisRepository @Inject constructor(
                 flowVsMarketChange = null
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Error calculating market cap weighted flow", e)
+            logger.e( "Error calculating market cap weighted flow", e)
             createEmptyMarketCapWeightedFlow(currentDate, market)
         }
     }
@@ -180,10 +180,10 @@ class AdvancedAnalysisRepository @Inject constructor(
         try {
             // 분석 데이터 조회
             val allData = stockAnalysisDao.getAllAnalysisData()
-            Log.d(TAG, "Stock analysis data count: ${allData.size}")
+            logger.d( "Stock analysis data count: ${allData.size}")
 
             if (allData.isEmpty()) {
-                Log.w(TAG, "No stock analysis data found. Please run stock analysis first.")
+                logger.w( "No stock analysis data found. Please run stock analysis first.")
                 return@withContext createEmptyDivergenceSummary(date, market)
             }
 
@@ -222,7 +222,7 @@ class AdvancedAnalysisRepository @Inject constructor(
                 )
             }
 
-            Log.d(TAG, "Divergence analysis: found ${divergenceList.size} stocks with data")
+            logger.d( "Divergence analysis: found ${divergenceList.size} stocks with data")
 
             // 집계
             val foreignBullish = divergenceList.filter { it.divergenceType == DivergenceType.FOREIGN_BULLISH }
@@ -232,7 +232,7 @@ class AdvancedAnalysisRepository @Inject constructor(
             val neutral = divergenceList.filter { it.divergenceType == DivergenceType.NEUTRAL }
 
             val total = divergenceList.size
-            Log.d(TAG, "Divergence breakdown: foreign=${ foreignBullish.size}, inst=${institutionBullish.size}, bullish=${alignedBullish.size}, bearish=${alignedBearish.size}, neutral=${neutral.size}")
+            logger.d( "Divergence breakdown: foreign=${ foreignBullish.size}, inst=${institutionBullish.size}, bullish=${alignedBullish.size}, bearish=${alignedBearish.size}, neutral=${neutral.size}")
 
             val sentiment = MarketSentimentType.calculate(
                 foreignBullish.size,
@@ -256,7 +256,7 @@ class AdvancedAnalysisRepository @Inject constructor(
                 sentimentStrength = calculateSentimentStrength(foreignBullish.size, institutionBullish.size, alignedBullish.size, alignedBearish.size, total)
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Error analyzing supply demand divergence", e)
+            logger.e( "Error analyzing supply demand divergence", e)
             createEmptyDivergenceSummary(date, market)
         }
     }
@@ -271,19 +271,19 @@ class AdvancedAnalysisRepository @Inject constructor(
             // 1. 예탁금 데이터 조회
             val deposit = marketDepositDao.getDepositByDate(date)
             if (deposit == null) {
-                Log.w(TAG, "No deposit data found for date: $date")
+                logger.w( "No deposit data found for date: $date")
                 return@withContext null
             }
-            Log.d(TAG, "Deposit data: amount=${deposit.depositAmount}, credit=${deposit.creditAmount}")
+            logger.d( "Deposit data: amount=${deposit.depositAmount}, credit=${deposit.creditAmount}")
 
             // 2. 시가총액 계산
             val (kospiCap, kosdaqCap) = calculateTotalMarketCap(date)
             var totalCap = kospiCap + kosdaqCap
-            Log.d(TAG, "Market cap: kospi=$kospiCap, kosdaq=$kosdaqCap, total=$totalCap")
+            logger.d( "Market cap: kospi=$kospiCap, kosdaq=$kosdaqCap, total=$totalCap")
 
             // 시총 데이터가 없는 경우 기본값 사용 (2024년 기준 KOSPI+KOSDAQ 시총 약 2,500조원)
             if (totalCap == 0L) {
-                Log.w(TAG, "No market cap data available. Using estimated total market cap.")
+                logger.w( "No market cap data available. Using estimated total market cap.")
                 totalCap = 2500_0000_0000_0000L  // 2500조원 기본값
             }
 
@@ -318,7 +318,7 @@ class AdvancedAnalysisRepository @Inject constructor(
             liquidityAnalysisDao.insert(analysis)
             analysis
         } catch (e: Exception) {
-            Log.e(TAG, "Error calculating liquidity analysis", e)
+            logger.e( "Error calculating liquidity analysis", e)
             null
         }
     }
@@ -365,7 +365,7 @@ class AdvancedAnalysisRepository @Inject constructor(
                 trendStrength = calculateTrendStrength(depositChanges)
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Error analyzing liquidity trend", e)
+            logger.e( "Error analyzing liquidity trend", e)
             null
         }
     }
@@ -450,7 +450,7 @@ class AdvancedAnalysisRepository @Inject constructor(
             sectorAnalysisDao.insertAll(results)
             results.sortedByDescending { it.fearGreedValue }
         } catch (e: Exception) {
-            Log.e(TAG, "Error calculating sector analysis", e)
+            logger.e( "Error calculating sector analysis", e)
             emptyList()
         }
     }
@@ -510,7 +510,7 @@ class AdvancedAnalysisRepository @Inject constructor(
 
             signals.sortedByDescending { it.confidence }
         } catch (e: Exception) {
-            Log.e(TAG, "Error detecting sector rotation", e)
+            logger.e( "Error detecting sector rotation", e)
             emptyList()
         }
     }
@@ -588,7 +588,7 @@ class AdvancedAnalysisRepository @Inject constructor(
             etfCorrelationDao.insert(correlation)
             correlation
         } catch (e: Exception) {
-            Log.e(TAG, "Error calculating ETF correlation", e)
+            logger.e( "Error calculating ETF correlation", e)
             null
         }
     }
@@ -612,7 +612,7 @@ class AdvancedAnalysisRepository @Inject constructor(
 
             results
         } catch (e: Exception) {
-            Log.e(TAG, "Error calculating all ETF correlations", e)
+            logger.e( "Error calculating all ETF correlations", e)
             emptyList()
         }
     }
@@ -699,7 +699,7 @@ class AdvancedAnalysisRepository @Inject constructor(
                 suggestions = suggestions
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Error analyzing portfolio diversification", e)
+            logger.e( "Error analyzing portfolio diversification", e)
             PortfolioDiversification(
                 selectedEtfs = etfTickers,
                 overallDiversificationScore = 0.5,
@@ -788,10 +788,10 @@ class AdvancedAnalysisRepository @Inject constructor(
      */
     private suspend fun calculateTotalMarketCap(date: String): Pair<Long, Long> {
         val allData = stockAnalysisDao.getAllAnalysisData()
-        Log.d(TAG, "calculateTotalMarketCap: ${allData.size} stocks in stock_analysis_data")
+        logger.d( "calculateTotalMarketCap: ${allData.size} stocks in stock_analysis_data")
 
         if (allData.isEmpty()) {
-            Log.w(TAG, "No stock analysis data available for market cap calculation")
+            logger.w( "No stock analysis data available for market cap calculation")
             return 0L to 0L
         }
 
@@ -825,9 +825,9 @@ class AdvancedAnalysisRepository @Inject constructor(
         }
 
         if (usedFallback && matchedCount > 0) {
-            Log.d(TAG, "calculateTotalMarketCap: Using latest available data (not exact date match)")
+            logger.d( "calculateTotalMarketCap: Using latest available data (not exact date match)")
         }
-        Log.d(TAG, "calculateTotalMarketCap: $matchedCount stocks, kospi=$kospiCap, kosdaq=$kosdaqCap")
+        logger.d( "calculateTotalMarketCap: $matchedCount stocks, kospi=$kospiCap, kosdaq=$kosdaqCap")
         return kospiCap to kosdaqCap
     }
 
