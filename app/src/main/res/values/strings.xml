@@ -623,7 +623,6 @@
 
     <!-- AdvancedDashboard - Divergence Tab -->
     <string name="advanced_needs_stock_analysis">종목 수급 분석 데이터가 필요합니다</string>
-    <string name="advanced_market_sentiment">시장 심리</string>
     <string name="advanced_flow_dist">수급 분포</string>
     <string name="advanced_foreign_up">외국인↑</string>
     <string name="advanced_institution_up">기관↑</string>
