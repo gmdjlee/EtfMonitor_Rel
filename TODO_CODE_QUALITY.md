@@ -1,9 +1,12 @@
 # 코드 품질 개선 TODO
 
 > 마지막 업데이트: 2025-12-06
-> 관련 브랜치: `claude/refactor-large-files-0151t7mQjXV4o44pcnXQ948G`
+> 관련 브랜치: `claude/fix-build-errors-01587kHRmJzpDJFvTYEdEJG6`
 
 ## 완료된 작업 ✅
+
+### 0. 빌드 에러 수정
+- [x] `strings.xml` 중복 리소스 제거 - `advanced_market_sentiment` 중복 정의 수정
 
 ### 1. Critical 이슈 수정
 - [x] Not-null assertions (`!!`) 제거 - `CorrelationAnalyzer.kt`, `PredictionScreen.kt`
