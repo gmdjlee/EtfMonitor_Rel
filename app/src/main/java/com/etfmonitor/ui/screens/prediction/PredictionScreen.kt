@@ -194,11 +194,13 @@ fun PredictionScreen(
     }
 
     // 학습 결과 다이얼로그
-    if (showTrainingResultDialog && trainingResult != null) {
-        TrainingResultDialog(
-            result = trainingResult!!,
-            onDismiss = { showTrainingResultDialog = false }
-        )
+    trainingResult?.let { result ->
+        if (showTrainingResultDialog) {
+            TrainingResultDialog(
+                result = result,
+                onDismiss = { showTrainingResultDialog = false }
+            )
+        }
     }
 }
 

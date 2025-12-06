@@ -358,8 +358,10 @@ class CorrelationAnalyzer @Inject constructor(
             }
             // 상관관계가 양수이고 순유입도 양수면 상승 신호 강화
             val adjustedSignal = netFlowSignal * (1 + correlations.etfNetFlowCorrelation.coerceIn(-0.5, 0.5))
-            compositeScore += adjustedSignal * weights["etfNetFlow"]!!
-            totalWeight += weights["etfNetFlow"]!!
+            weights["etfNetFlow"]?.let { weight ->
+                compositeScore += adjustedSignal * weight
+                totalWeight += weight
+            }
         }
 
         // 원화예금 변화 신호 (예금 감소 = 매수 의욕 = 강세)
@@ -371,8 +373,10 @@ class CorrelationAnalyzer @Inject constructor(
                 latestEtf.cashDepositChangeRate < 2.0 -> -0.5
                 else -> -1.0  // 큰 증가 = 약세 (관망)
             }
-            compositeScore += cashSignal * weights["cashDeposit"]!!
-            totalWeight += weights["cashDeposit"]!!
+            weights["cashDeposit"]?.let { weight ->
+                compositeScore += cashSignal * weight
+                totalWeight += weight
+            }
         }
 
         // 고객예탁금 신호
@@ -383,8 +387,10 @@ class CorrelationAnalyzer @Inject constructor(
                 latestDeposit.depositChange > -1000 -> 0.25
                 else -> 0.5  // 예탁금 감소 = 매수 의욕
             }
-            compositeScore += depositSignal * weights["marketDeposit"]!!
-            totalWeight += weights["marketDeposit"]!!
+            weights["marketDeposit"]?.let { weight ->
+                compositeScore += depositSignal * weight
+                totalWeight += weight
+            }
         }
 
         // Fear & Greed 신호 (극단값에서 반전 고려)
@@ -397,8 +403,10 @@ class CorrelationAnalyzer @Inject constructor(
                 fgValue < 0.8 -> -0.5  // 탐욕 = 주의
                 else -> -1.0           // 극단적 탐욕 = 조정 기대
             }
-            compositeScore += fgSignal * weights["fearGreed"]!!
-            totalWeight += weights["fearGreed"]!!
+            weights["fearGreed"]?.let { weight ->
+                compositeScore += fgSignal * weight
+                totalWeight += weight
+            }
         }
 
         // Oscillator 신호 (과매수/과매도)
@@ -411,8 +419,10 @@ class CorrelationAnalyzer @Inject constructor(
                 oscValue < 70 -> -0.5   // 과매수
                 else -> -1.0            // 극단적 과매수 = 조정
             }
-            compositeScore += oscSignal * weights["oscillator"]!!
-            totalWeight += weights["oscillator"]!!
+            weights["oscillator"]?.let { weight ->
+                compositeScore += oscSignal * weight
+                totalWeight += weight
+            }
         }
 
         // 정규화
