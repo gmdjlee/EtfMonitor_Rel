@@ -10,7 +10,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.etfmonitor.R
 import com.etfmonitor.ui.theme.*
 
 /**
@@ -40,28 +42,28 @@ internal fun DaysSelectionDialog(
     onConfirm: (Int) -> Unit
 ) {
     val options = listOf(
-        DaysOption(5, "5일", "빠른 테스트"),
-        DaysOption(10, "10일", "약 2주"),
-        DaysOption(15, "15일", "약 3주"),
-        DaysOption(20, "20일", "약 1개월"),
-        DaysOption(25, "25일 (권장)", "약 1.5개월"),
-        DaysOption(30, "30일", "약 2개월"),
-        DaysOption(40, "40일", "약 2.5개월"),
-        DaysOption(50, "50일", "약 3개월")
+        DaysOption(5, stringResource(R.string.option_days_5), stringResource(R.string.option_days_5_desc)),
+        DaysOption(10, stringResource(R.string.option_days_10), stringResource(R.string.option_days_10_desc)),
+        DaysOption(15, stringResource(R.string.option_days_15), stringResource(R.string.option_days_15_desc)),
+        DaysOption(20, stringResource(R.string.option_days_20), stringResource(R.string.option_days_20_desc)),
+        DaysOption(25, stringResource(R.string.option_days_25), stringResource(R.string.option_days_25_desc)),
+        DaysOption(30, stringResource(R.string.option_days_30), stringResource(R.string.option_days_30_desc)),
+        DaysOption(40, stringResource(R.string.option_days_40), stringResource(R.string.option_days_40_desc)),
+        DaysOption(50, stringResource(R.string.option_days_50), stringResource(R.string.option_days_50_desc))
     )
 
     var selectedOption by remember { mutableStateOf(options[4]) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("초기 데이터 수집") },
+        title = { Text(stringResource(R.string.dialog_init_data_collection)) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    "ETF 데이터 수집 기간을 선택하세요",
+                    stringResource(R.string.dialog_etf_collection_period),
                     style = MaterialTheme.typography.bodyMedium
                 )
 
@@ -117,14 +119,14 @@ internal fun DaysSelectionDialog(
                                 tint = MaterialTheme.colorScheme.onTertiaryContainer
                             )
                             Text(
-                                "Fear & Greed Index",
+                                stringResource(R.string.label_fear_greed),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer
                             )
                         }
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "ETF 데이터 초기화 완료 후\nFear & Greed Index 데이터 1년(365일)을\n자동으로 수집합니다.",
+                            stringResource(R.string.dialog_fear_greed_auto_collect),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onTertiaryContainer
                         )
@@ -141,16 +143,13 @@ internal fun DaysSelectionDialog(
                         modifier = Modifier.padding(12.dp)
                     ) {
                         Text(
-                            "참고사항",
+                            stringResource(R.string.dialog_notes),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "• 기간이 길수록 수집 시간이 오래 걸립니다\n" +
-                                    "• 25일 권장 (약 1-2분 소요)\n" +
-                                    "• Fear & Greed Index는 추가 1-2분 소요\n" +
-                                    "• 최초 실행 시 Python 패키지 로딩에 추가 시간이 필요할 수 있습니다",
+                            stringResource(R.string.dialog_collection_notes),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
@@ -163,12 +162,12 @@ internal fun DaysSelectionDialog(
                 onClick = { onConfirm(selectedOption.days) },
                 shape = MaterialTheme.extendedShapes.button
             ) {
-                Text("시작")
+                Text(stringResource(R.string.action_start_collection))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("취소")
+                Text(stringResource(R.string.action_cancel))
             }
         },
         shape = MaterialTheme.extendedShapes.cardLarge
@@ -247,10 +246,10 @@ internal fun OptionsSelectionDialog(
             FilledTonalButton(
                 onClick = { onConfirm(selectedValue) },
                 shape = MaterialTheme.extendedShapes.button
-            ) { Text("수집 시작") }
+            ) { Text(stringResource(R.string.action_start_collection)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("나중에") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_later)) }
         },
         shape = MaterialTheme.extendedShapes.cardLarge
     )
@@ -262,17 +261,17 @@ internal fun MarketDepositPagesSelectionDialog(
     onConfirm: (Int) -> Unit
 ) {
     OptionsSelectionDialog(
-        title = "증시 자금 동향 초기화",
-        description = "증시 자금 동향 데이터 수집 페이지 수를 선택하세요.",
+        title = stringResource(R.string.dialog_market_deposit_init),
+        description = stringResource(R.string.dialog_market_deposit_desc),
         options = listOf(
-            SelectionOption(5, "5페이지", "약 최근 5일"),
-            SelectionOption(10, "10페이지 (권장)", "약 최근 10일"),
-            SelectionOption(15, "15페이지", "약 최근 15일"),
-            SelectionOption(20, "20페이지", "약 최근 20일"),
-            SelectionOption(30, "30페이지", "약 최근 30일")
+            SelectionOption(5, stringResource(R.string.option_pages_5), stringResource(R.string.option_pages_5_desc)),
+            SelectionOption(10, stringResource(R.string.option_pages_10), stringResource(R.string.option_pages_10_desc)),
+            SelectionOption(15, stringResource(R.string.option_pages_15), stringResource(R.string.option_pages_15_desc)),
+            SelectionOption(20, stringResource(R.string.option_pages_20), stringResource(R.string.option_pages_20_desc)),
+            SelectionOption(30, stringResource(R.string.option_pages_30), stringResource(R.string.option_pages_30_desc))
         ),
         defaultValue = 10,
-        infoText = "데이터 수집에는 약 30초-1분 정도 소요됩니다.",
+        infoText = stringResource(R.string.dialog_deposit_time_estimate),
         onDismiss = onDismiss,
         onConfirm = onConfirm
     )
@@ -284,16 +283,16 @@ internal fun FearGreedPeriodSelectionDialog(
     onConfirm: (Int) -> Unit
 ) {
     OptionsSelectionDialog(
-        title = "Fear & Greed Index 초기화",
-        description = "Fear & Greed Index 데이터 수집 기간을 선택하세요.",
+        title = stringResource(R.string.dialog_fear_greed_init),
+        description = stringResource(R.string.dialog_fear_greed_desc),
         options = listOf(
-            SelectionOption(180, "6개월", "약 180일"),
-            SelectionOption(365, "12개월 (권장)", "약 365일"),
-            SelectionOption(540, "18개월", "약 540일"),
-            SelectionOption(730, "24개월", "약 730일")
+            SelectionOption(180, stringResource(R.string.option_months_6), stringResource(R.string.option_months_6_desc)),
+            SelectionOption(365, stringResource(R.string.option_months_12), stringResource(R.string.option_months_12_desc)),
+            SelectionOption(540, stringResource(R.string.option_months_18), stringResource(R.string.option_months_18_desc)),
+            SelectionOption(730, stringResource(R.string.option_months_24), stringResource(R.string.option_months_24_desc))
         ),
         defaultValue = 365,
-        infoText = "데이터 수집에는 선택한 기간에 따라 1-3분 정도 소요됩니다.",
+        infoText = stringResource(R.string.dialog_fear_greed_time_estimate),
         onDismiss = onDismiss,
         onConfirm = onConfirm
     )
@@ -305,16 +304,16 @@ internal fun MarketOscillatorPeriodSelectionDialog(
     onConfirm: (Int) -> Unit
 ) {
     OptionsSelectionDialog(
-        title = "과매수/과매도 지표 초기화",
-        description = "과매수/과매도 지표 데이터 수집 기간을 선택하세요.",
+        title = stringResource(R.string.dialog_oscillator_init),
+        description = stringResource(R.string.dialog_oscillator_desc),
         options = listOf(
-            SelectionOption(180, "6개월", "약 180일"),
-            SelectionOption(365, "12개월 (권장)", "약 365일"),
-            SelectionOption(540, "18개월", "약 540일"),
-            SelectionOption(730, "24개월", "약 730일")
+            SelectionOption(180, stringResource(R.string.option_months_6), stringResource(R.string.option_months_6_desc)),
+            SelectionOption(365, stringResource(R.string.option_months_12), stringResource(R.string.option_months_12_desc)),
+            SelectionOption(540, stringResource(R.string.option_months_18), stringResource(R.string.option_months_18_desc)),
+            SelectionOption(730, stringResource(R.string.option_months_24), stringResource(R.string.option_months_24_desc))
         ),
         defaultValue = 365,
-        infoText = "데이터 수집에는 선택한 기간에 따라 1-5분 정도 소요됩니다.",
+        infoText = stringResource(R.string.dialog_oscillator_time_estimate),
         onDismiss = onDismiss,
         onConfirm = onConfirm
     )
@@ -331,11 +330,11 @@ internal fun UnifiedInitializationDialog(
 ) {
     // ETF 수집 기간
     val etfOptions = listOf(
-        DaysOption(5, "5일", "빠른 테스트"),
-        DaysOption(10, "10일", "약 2주"),
-        DaysOption(15, "15일", "약 3주"),
-        DaysOption(20, "20일", "약 1개월"),
-        DaysOption(25, "25일 (권장)", "약 1.5개월")
+        DaysOption(5, stringResource(R.string.option_days_5), stringResource(R.string.option_days_5_desc)),
+        DaysOption(10, stringResource(R.string.option_days_10), stringResource(R.string.option_days_10_desc)),
+        DaysOption(15, stringResource(R.string.option_days_15), stringResource(R.string.option_days_15_desc)),
+        DaysOption(20, stringResource(R.string.option_days_20), stringResource(R.string.option_days_20_desc)),
+        DaysOption(25, stringResource(R.string.option_days_25), stringResource(R.string.option_days_25_desc))
     )
     var selectedEtfDays by remember { mutableStateOf(25) }
 
@@ -357,7 +356,7 @@ internal fun UnifiedInitializationDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                "초기 데이터 수집",
+                stringResource(R.string.dialog_init_data_collection),
                 style = MaterialTheme.typography.headlineSmall
             )
         },
@@ -369,7 +368,7 @@ internal fun UnifiedInitializationDialog(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    "수집할 데이터를 선택하세요.",
+                    stringResource(R.string.dialog_select_data_to_collect),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -384,7 +383,7 @@ internal fun UnifiedInitializationDialog(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            "ETF 데이터 (필수)",
+                            stringResource(R.string.dialog_etf_data_required),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -415,13 +414,13 @@ internal fun UnifiedInitializationDialog(
 
                 // 2. 증시 자금 동향 (선택)
                 UnifiedOptionSection(
-                    title = "증시 자금 동향",
+                    title = stringResource(R.string.menu_market_fund),
                     enabled = collectDeposit,
                     onEnabledChange = { collectDeposit = it },
                     options = listOf(
-                        "5페이지 (약 5일)" to 5,
-                        "10페이지 (권장)" to 10,
-                        "20페이지 (약 20일)" to 20
+                        stringResource(R.string.option_pages_5_desc) to 5,
+                        stringResource(R.string.option_pages_10) to 10,
+                        stringResource(R.string.option_pages_20_desc) to 20
                     ),
                     selectedValue = selectedDepositPages,
                     onValueChange = { selectedDepositPages = it }
@@ -429,13 +428,13 @@ internal fun UnifiedInitializationDialog(
 
                 // 3. Fear & Greed Index (선택)
                 UnifiedOptionSection(
-                    title = "Fear & Greed Index",
+                    title = stringResource(R.string.label_fear_greed),
                     enabled = collectFearGreed,
                     onEnabledChange = { collectFearGreed = it },
                     options = listOf(
-                        "6개월" to 180,
-                        "12개월 (권장)" to 365,
-                        "18개월" to 540
+                        stringResource(R.string.option_months_6) to 180,
+                        stringResource(R.string.option_months_12) to 365,
+                        stringResource(R.string.option_months_18) to 540
                     ),
                     selectedValue = selectedFearGreedDays,
                     onValueChange = { selectedFearGreedDays = it }
@@ -443,13 +442,13 @@ internal fun UnifiedInitializationDialog(
 
                 // 4. 과매수/과매도 지표 (선택)
                 UnifiedOptionSection(
-                    title = "시장 과매수/과매도",
+                    title = stringResource(R.string.menu_market_overbought),
                     enabled = collectOscillator,
                     onEnabledChange = { collectOscillator = it },
                     options = listOf(
-                        "6개월" to 180,
-                        "12개월 (권장)" to 365,
-                        "18개월" to 540
+                        stringResource(R.string.option_months_6) to 180,
+                        stringResource(R.string.option_months_12) to 365,
+                        stringResource(R.string.option_months_18) to 540
                     ),
                     selectedValue = selectedOscillatorDays,
                     onValueChange = { selectedOscillatorDays = it }
@@ -461,7 +460,7 @@ internal fun UnifiedInitializationDialog(
                     shape = MaterialTheme.extendedShapes.card
                 ) {
                     Text(
-                        "• ETF 데이터: 약 1-2분\n• 증시 자금 동향: 약 30초\n• Fear & Greed: 약 1-2분\n• 과매수/과매도: 약 3-5분",
+                        stringResource(R.string.dialog_unified_time_estimate),
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(12.dp),
                         color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -481,12 +480,12 @@ internal fun UnifiedInitializationDialog(
                 },
                 shape = MaterialTheme.extendedShapes.button
             ) {
-                Text("수집 시작")
+                Text(stringResource(R.string.action_start_collection))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("나중에")
+                Text(stringResource(R.string.action_later))
             }
         },
         shape = MaterialTheme.extendedShapes.cardLarge

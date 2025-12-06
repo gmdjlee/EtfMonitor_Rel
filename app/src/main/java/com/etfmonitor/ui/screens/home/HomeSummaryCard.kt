@@ -6,6 +6,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import com.etfmonitor.R
 import com.etfmonitor.ui.theme.*
 
 /**
@@ -29,7 +31,7 @@ internal fun SummaryCard(summary: HomeSummary) {
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
         ) {
             Text(
-                "시장 현황",
+                stringResource(R.string.home_market_status),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -44,21 +46,21 @@ internal fun SummaryCard(summary: HomeSummary) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "증시 자금",
+                        stringResource(R.string.home_market_fund),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Column(horizontalAlignment = Alignment.End) {
                         summary.depositChange?.let {
                             Text(
-                                "예탁금: ${formatChange(it)}",
+                                stringResource(R.string.home_deposit_format, formatChange(it)),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = getChangeColor(it)
                             )
                         }
                         summary.creditChange?.let {
                             Text(
-                                "신용잔고: ${formatChange(it)}",
+                                stringResource(R.string.home_credit_format, formatChange(it)),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = getChangeColor(it)
                             )
@@ -75,21 +77,21 @@ internal fun SummaryCard(summary: HomeSummary) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Fear & Greed",
+                        stringResource(R.string.label_fear_greed),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Column(horizontalAlignment = Alignment.End) {
                         summary.kospiFearGreed?.let {
                             Text(
-                                "KOSPI: ${String.format("%.2f", it)}",
+                                stringResource(R.string.home_kospi_format, String.format("%.2f", it)),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = getFearGreedColor(it)
                             )
                         }
                         summary.kosdaqFearGreed?.let {
                             Text(
-                                "KOSDAQ: ${String.format("%.2f", it)}",
+                                stringResource(R.string.home_kosdaq_format, String.format("%.2f", it)),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = getFearGreedColor(it)
                             )
@@ -106,21 +108,21 @@ internal fun SummaryCard(summary: HomeSummary) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "시장 상태",
+                        stringResource(R.string.home_market_state),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Column(horizontalAlignment = Alignment.End) {
                         summary.kospiStatus?.let { status ->
                             Text(
-                                "KOSPI: ${getStatusText(status)}",
+                                stringResource(R.string.home_kospi_format, getStatusText(status)),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = getStatusColor(status)
                             )
                         }
                         summary.kosdaqStatus?.let { status ->
                             Text(
-                                "KOSDAQ: ${getStatusText(status)}",
+                                stringResource(R.string.home_kosdaq_format, getStatusText(status)),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = getStatusColor(status)
                             )
@@ -161,9 +163,9 @@ internal fun getFearGreedColor(value: Double): Color {
 @Composable
 internal fun getStatusText(status: String): String {
     return when (status) {
-        "Overbought" -> "과매수"
-        "Oversold" -> "과매도"
-        else -> "중립"
+        "Overbought" -> stringResource(R.string.status_overbought)
+        "Oversold" -> stringResource(R.string.status_oversold)
+        else -> stringResource(R.string.status_neutral)
     }
 }
 

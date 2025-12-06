@@ -334,6 +334,89 @@
     <string name="home_quick_actions">빠른 작업</string>
     <string name="home_view_etf_list">ETF 목록 보기</string>
     <string name="home_view_statistics">전체 통계</string>
+    <string name="home_last_update">최근 업데이트: %s</string>
+    <string name="home_market_status">시장 현황</string>
+    <string name="home_market_fund">증시 자금</string>
+    <string name="home_market_state">시장 상태</string>
+    <string name="home_deposit_format">예탁금: %s</string>
+    <string name="home_credit_format">신용잔고: %s</string>
+    <string name="home_kospi_format">KOSPI: %s</string>
+    <string name="home_kosdaq_format">KOSDAQ: %s</string>
+
+    <!-- HomeScreen Menu Items -->
+    <string name="menu_etf_theme_list">ETF 테마 목록</string>
+    <string name="menu_etf_theme_desc">테마별 ETF 편입 종목 분석</string>
+    <string name="menu_etf_statistics">ETF 전체 통계</string>
+    <string name="menu_etf_statistics_desc">통합 편입 비중 및 트렌드</string>
+    <string name="menu_stock_analysis">종목 수급 분석</string>
+    <string name="menu_stock_analysis_desc">외인/기관 매매 동향</string>
+    <string name="menu_market_fund">증시 자금 동향</string>
+    <string name="menu_market_fund_desc">시장 예수금 추이</string>
+    <string name="menu_fear_greed">Fear &amp; Greed</string>
+    <string name="menu_fear_greed_desc">시장 심리 지수</string>
+    <string name="menu_market_overbought">시장 과매수/과매도</string>
+    <string name="menu_market_overbought_desc">RSI 기반 시장 분석</string>
+    <string name="menu_ai_analysis">AI 시장 분석</string>
+    <string name="menu_ai_analysis_desc">Claude AI 매매 신호</string>
+    <string name="menu_ml_prediction">ML 주가 예측</string>
+    <string name="menu_ml_prediction_desc">ETF 변화 기반 상승 예측</string>
+    <string name="menu_advanced_analysis">고급 분석</string>
+    <string name="menu_advanced_analysis_desc">시총가중/수급/섹터 종합분석</string>
+
+    <!-- HomeScreen Dialogs -->
+    <string name="dialog_init_data_collection">초기 데이터 수집</string>
+    <string name="dialog_etf_collection_period">ETF 데이터 수집 기간을 선택하세요</string>
+    <string name="dialog_select_data_to_collect">수집할 데이터를 선택하세요.</string>
+    <string name="dialog_etf_data_required">ETF 데이터 (필수)</string>
+    <string name="dialog_market_deposit_init">증시 자금 동향 초기화</string>
+    <string name="dialog_market_deposit_desc">증시 자금 동향 데이터 수집 페이지 수를 선택하세요.</string>
+    <string name="dialog_fear_greed_init">Fear &amp; Greed Index 초기화</string>
+    <string name="dialog_fear_greed_desc">Fear &amp; Greed Index 데이터 수집 기간을 선택하세요.</string>
+    <string name="dialog_oscillator_init">과매수/과매도 지표 초기화</string>
+    <string name="dialog_oscillator_desc">과매수/과매도 지표 데이터 수집 기간을 선택하세요.</string>
+    <string name="dialog_fear_greed_auto_collect">ETF 데이터 초기화 완료 후\nFear &amp; Greed Index 데이터 1년(365일)을\n자동으로 수집합니다.</string>
+    <string name="dialog_notes">참고사항</string>
+    <string name="dialog_collection_notes">• 기간이 길수록 수집 시간이 오래 걸립니다\n• 25일 권장 (약 1-2분 소요)\n• Fear &amp; Greed Index는 추가 1-2분 소요\n• 최초 실행 시 Python 패키지 로딩에 추가 시간이 필요할 수 있습니다</string>
+    <string name="dialog_unified_time_estimate">• ETF 데이터: 약 1-2분\n• 증시 자금 동향: 약 30초\n• Fear &amp; Greed: 약 1-2분\n• 과매수/과매도: 약 3-5분</string>
+    <string name="dialog_deposit_time_estimate">데이터 수집에는 약 30초-1분 정도 소요됩니다.</string>
+    <string name="dialog_fear_greed_time_estimate">데이터 수집에는 선택한 기간에 따라 1-3분 정도 소요됩니다.</string>
+    <string name="dialog_oscillator_time_estimate">데이터 수집에는 선택한 기간에 따라 1-5분 정도 소요됩니다.</string>
+
+    <!-- Day/Period Options -->
+    <string name="option_days_5">5일</string>
+    <string name="option_days_5_desc">빠른 테스트</string>
+    <string name="option_days_10">10일</string>
+    <string name="option_days_10_desc">약 2주</string>
+    <string name="option_days_15">15일</string>
+    <string name="option_days_15_desc">약 3주</string>
+    <string name="option_days_20">20일</string>
+    <string name="option_days_20_desc">약 1개월</string>
+    <string name="option_days_25">25일 (권장)</string>
+    <string name="option_days_25_desc">약 1.5개월</string>
+    <string name="option_days_30">30일</string>
+    <string name="option_days_30_desc">약 2개월</string>
+    <string name="option_days_40">40일</string>
+    <string name="option_days_40_desc">약 2.5개월</string>
+    <string name="option_days_50">50일</string>
+    <string name="option_days_50_desc">약 3개월</string>
+    <string name="option_pages_5">5페이지</string>
+    <string name="option_pages_5_desc">약 최근 5일</string>
+    <string name="option_pages_10">10페이지 (권장)</string>
+    <string name="option_pages_10_desc">약 최근 10일</string>
+    <string name="option_pages_15">15페이지</string>
+    <string name="option_pages_15_desc">약 최근 15일</string>
+    <string name="option_pages_20">20페이지</string>
+    <string name="option_pages_20_desc">약 최근 20일</string>
+    <string name="option_pages_30">30페이지</string>
+    <string name="option_pages_30_desc">약 최근 30일</string>
+    <string name="option_months_6">6개월</string>
+    <string name="option_months_6_desc">약 180일</string>
+    <string name="option_months_12">12개월 (권장)</string>
+    <string name="option_months_12_desc">약 365일</string>
+    <string name="option_months_18">18개월</string>
+    <string name="option_months_18_desc">약 540일</string>
+    <string name="option_months_24">24개월</string>
+    <string name="option_months_24_desc">약 730일</string>
 
     <!-- StatisticsScreen Additional -->
     <string name="statistics_summary">통계 요약</string>

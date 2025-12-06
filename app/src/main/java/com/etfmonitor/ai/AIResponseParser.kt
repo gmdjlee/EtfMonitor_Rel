@@ -1,6 +1,7 @@
 package com.etfmonitor.ai
 
 import android.util.Log
+import com.etfmonitor.utils.DataParsingException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -83,7 +84,7 @@ object AIResponseParser {
             return objectMatch.value.trim()
         }
 
-        throw Exception("No JSON found in response")
+        throw DataParsingException("응답에서 JSON을 찾을 수 없습니다", text)
     }
 
     /**
