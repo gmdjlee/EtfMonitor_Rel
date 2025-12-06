@@ -7,7 +7,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.etfmonitor.R
 import com.etfmonitor.ui.theme.*
 
 /**
@@ -44,17 +46,17 @@ fun ThemeCard(
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
-                    Text("포함 테마", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings_include_theme), style = MaterialTheme.typography.titleMedium)
                 }
                 IconButton(onClick = { showDialog = true }) {
-                    Icon(Icons.Default.Add, "추가")
+                    Icon(Icons.Default.Add, stringResource(R.string.settings_add))
                 }
             }
 
             HorizontalDivider()
 
             Text(
-                "이 키워드가 포함된 ETF를 수집합니다",
+                stringResource(R.string.settings_include_theme_desc),
                 style = MaterialTheme.typography.bodySmall
             )
 

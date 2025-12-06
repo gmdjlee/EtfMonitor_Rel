@@ -250,21 +250,44 @@
 
     <!-- SettingsScreen -->
     <string name="settings_title">설정</string>
+    <string name="settings_tab_general">일반</string>
+    <string name="settings_tab_keyword">키워드</string>
+    <string name="settings_tab_data_update">데이터 업데이트</string>
+    <string name="settings_tab_period">수집 기간</string>
+    <string name="settings_tab_chart">차트</string>
+
+    <!-- Settings - Theme -->
     <string name="settings_theme">테마</string>
-    <string name="settings_theme_light">라이트</string>
-    <string name="settings_theme_dark">다크</string>
-    <string name="settings_theme_system">시스템</string>
+    <string name="settings_theme_title">테마 설정</string>
+    <string name="settings_theme_desc">앱의 테마를 변경합니다</string>
+    <string name="settings_theme_system">시스템 설정</string>
+    <string name="settings_theme_system_desc">기기의 테마 설정을 따릅니다</string>
+    <string name="settings_theme_light">라이트 모드</string>
+    <string name="settings_theme_light_desc">밝은 테마를 사용합니다</string>
+    <string name="settings_theme_dark">다크 모드</string>
+    <string name="settings_theme_dark_desc">어두운 테마를 사용합니다</string>
+
+    <!-- Settings - AI API -->
+    <string name="settings_ai_api_title">AI API 설정</string>
+    <string name="settings_ai_api_desc">AI 시장 분석 기능을 사용하려면 API 키가 필요합니다</string>
+    <string name="settings_ai_provider_select">AI 제공자 선택</string>
     <string name="settings_api_key">API 키</string>
+    <string name="settings_api_key_set">API 키 설정됨</string>
+    <string name="settings_api_key_not_set">API 키 미설정</string>
+    <string name="settings_api_key_set_check">✓ API 키 설정됨</string>
+    <string name="settings_api_testing">API 연결 테스트 중…</string>
+    <string name="settings_api_success">API 연결 성공!</string>
+    <string name="settings_api_fail">연결 실패: %s</string>
     <string name="settings_api_key_claude">Claude API 키</string>
     <string name="settings_api_key_gemini">Gemini API 키</string>
-    <string name="settings_font_scale">글꼴 크기</string>
-    <string name="settings_chart_colors">차트 색상</string>
-    <string name="settings_data_management">데이터 관리</string>
-    <string name="settings_clear_cache">캐시 삭제</string>
-    <string name="settings_reset_data">데이터 초기화</string>
-    <string name="settings_about">정보</string>
-    <string name="settings_version">버전</string>
-    <string name="settings_schedule">자동 업데이트</string>
+    <string name="settings_api_key_claude_title">Claude API 키 설정</string>
+    <string name="settings_api_key_gemini_title">Gemini API 키 설정</string>
+    <string name="settings_api_key_enter">API 키를 입력하세요</string>
+    <string name="settings_api_key_secure">API 키는 안전하게 암호화되어 기기에 저장됩니다.</string>
+    <string name="settings_api_key_claude_url">Claude API 키 발급:</string>
+    <string name="settings_api_key_gemini_url">Gemini API 키 발급:</string>
+    <string name="settings_api_key_delete">API 키 삭제</string>
+    <string name="settings_api_key_delete_confirm">%s API 키를 삭제하시겠습니까?</string>
     <string name="settings_provider_selection">AI 제공자</string>
     <string name="settings_model_selection">AI 모델</string>
     <string name="settings_test_api_key">API 키 테스트</string>
@@ -272,6 +295,130 @@
     <string name="settings_saved">저장되었습니다</string>
     <string name="settings_api_key_valid">API 키가 유효합니다</string>
     <string name="settings_api_key_invalid">API 키가 유효하지 않습니다</string>
+    <string name="settings_action_change">변경</string>
+    <string name="settings_action_set">설정</string>
+    <string name="settings_action_test">테스트</string>
+    <string name="settings_action_delete">삭제</string>
+
+    <!-- Settings - Model Selection -->
+    <string name="settings_model_select">%s 모델 선택</string>
+    <string name="settings_model_load">사용 가능한 모델 불러오기</string>
+    <string name="settings_model_loading">모델 목록 불러오는 중…</string>
+    <string name="settings_model_select_placeholder">모델을 선택하세요</string>
+    <string name="settings_model_selected">선택된 모델</string>
+    <string name="settings_model_input">입력: %s</string>
+    <string name="settings_model_output">출력: %s</string>
+    <string name="settings_model_tokens">토큰</string>
+
+    <!-- Settings - Font Scale -->
+    <string name="settings_font_scale">폰트 크기</string>
+    <string name="settings_font_scale_desc">각 스타일별 폰트 크기를 조절합니다</string>
+    <string name="settings_font_display">대형 헤더 (57sp, 45sp, 36sp)</string>
+    <string name="settings_font_headline">섹션 헤더 (32sp, 28sp, 24sp)</string>
+    <string name="settings_font_title">카드/컴포넌트 제목 (22sp, 16sp, 14sp)</string>
+    <string name="settings_font_body">본문/테이블 텍스트 (12sp ~ 20sp)</string>
+    <string name="settings_font_label">버튼, 태그, 캡션 (14sp, 12sp, 11sp)</string>
+
+    <!-- Settings - Keyword Tab -->
+    <string name="settings_include_theme">포함 테마</string>
+    <string name="settings_include_theme_desc">이 키워드가 포함된 ETF를 수집합니다</string>
+    <string name="settings_add_theme">테마 추가</string>
+    <string name="settings_keyword">키워드</string>
+    <string name="settings_keyword_example">예: 반도체</string>
+    <string name="settings_exclude_keyword">제외 키워드</string>
+    <string name="settings_exclude_keyword_desc">이 키워드가 포함된 ETF는 제외합니다</string>
+    <string name="settings_add_exclusion">제외 키워드 추가</string>
+    <string name="settings_exclude_example">예: 레버리지</string>
+    <string name="settings_add">추가</string>
+
+    <!-- Settings - Data Management -->
+    <string name="settings_data_management">데이터 관리</string>
+    <string name="settings_data_management_desc">ETF 데이터 초기화 및 업데이트</string>
+    <string name="settings_data_init">데이터 초기화</string>
+    <string name="settings_data_update">데이터 업데이트</string>
+    <string name="settings_data_init_hint">초기화: 선택한 기간의 데이터를 수집합니다\n업데이트: 최신 데이터를 가져옵니다</string>
+
+    <!-- Settings - ETF Collection Period -->
+    <string name="settings_etf_period">ETF 수집 기간</string>
+    <string name="settings_etf_period_desc">초기화 시 수집할 영업일 수</string>
+    <string name="settings_current_setting">현재 설정</string>
+    <string name="settings_days_format">%d일</string>
+    <string name="settings_count_format">%d개</string>
+    <string name="settings_etf_period_recommend">권장: 25일 (약 1-2분 소요)</string>
+    <string name="settings_period_change_title">기본 수집 기간 변경</string>
+
+    <!-- Settings - Search History -->
+    <string name="settings_search_history">검색 히스토리</string>
+    <string name="settings_search_history_desc">차트 분석에서 저장할 최대 검색 히스토리 개수</string>
+    <string name="settings_search_history_range">범위: 5~30개 (기본: 15개)</string>
+    <string name="settings_search_history_title">검색 히스토리 개수 설정</string>
+    <string name="settings_search_history_select">저장할 최대 검색 히스토리 개수를 선택하세요</string>
+
+    <!-- Settings - Database -->
+    <string name="settings_database">데이터베이스</string>
+    <string name="settings_database_desc">모든 수집된 데이터를 삭제합니다</string>
+    <string name="settings_database_reset">데이터베이스 초기화</string>
+    <string name="settings_database_reset_confirm">모든 수집된 데이터가 삭제됩니다. 계속하시겠습니까?</string>
+
+    <!-- Settings - Period Cards -->
+    <string name="settings_feargreed_period">Fear &amp; Greed Index 수집 기간</string>
+    <string name="settings_feargreed_period_desc">Fear &amp; Greed Index 데이터 초기화 시 수집할 기간</string>
+    <string name="settings_feargreed_period_title">Fear &amp; Greed Index 수집 기간 설정</string>
+    <string name="settings_feargreed_period_recommend">권장: 12개월 (약 365일, 약 1-2분 소요)</string>
+    <string name="settings_oscillator_period">과매수/과매도 수집 기간</string>
+    <string name="settings_oscillator_period_desc">과매수/과매도 데이터 초기화 시 수집할 기간</string>
+    <string name="settings_oscillator_period_title">과매수/과매도 수집 기간 설정</string>
+    <string name="settings_period_select">데이터 수집 기간을 선택하세요</string>
+
+    <!-- Settings - Update Cards -->
+    <string name="settings_update_time">업데이트 시간</string>
+    <string name="settings_update_time_title">업데이트 시간 설정</string>
+    <string name="settings_last_update">마지막 업데이트:</string>
+    <string name="settings_updating">업데이트 중…</string>
+    <string name="settings_update_now">지금 업데이트</string>
+    <string name="settings_stock_update">종목 DB 자동 업데이트</string>
+    <string name="settings_stock_update_desc">매일 지정된 시간에 종목 데이터를 자동으로 업데이트합니다</string>
+    <string name="settings_stock_count">저장된 종목 수:</string>
+    <string name="settings_deposit_update">증시 자금 DB 자동 업데이트</string>
+    <string name="settings_deposit_update_desc">매일 지정된 시간에 증시 자금 데이터를 자동으로 업데이트합니다</string>
+    <string name="settings_deposit_count">저장된 데이터 수:</string>
+    <string name="settings_feargreed_update">공포 탐욕 지수 DB 자동 업데이트</string>
+    <string name="settings_feargreed_update_desc">매일 지정된 시간에 공포 탐욕 지수 데이터를 자동으로 업데이트합니다</string>
+    <string name="settings_kospi_count">KOSPI 데이터 수:</string>
+    <string name="settings_kosdaq_count">KOSDAQ 데이터 수:</string>
+    <string name="settings_oscillator_update">시장 오실레이터 DB 자동 업데이트</string>
+    <string name="settings_oscillator_update_desc">매일 지정된 시간에 시장 오실레이터 데이터를 자동으로 업데이트합니다</string>
+    <string name="settings_clear_cache">캐시 삭제</string>
+    <string name="settings_reset_data">데이터 초기화</string>
+    <string name="settings_about">정보</string>
+    <string name="settings_version">버전</string>
+    <string name="settings_schedule">자동 업데이트</string>
+
+    <!-- Settings - Chart Color Cards -->
+    <string name="settings_chart_colors">차트 색상</string>
+    <string name="settings_chart_marketcap">시가총액 &amp; 오실레이터 차트</string>
+    <string name="settings_chart_line_color">라인 색상</string>
+    <string name="settings_chart_marketcap_line">시가총액 라인</string>
+    <string name="settings_chart_oscillator_line">오실레이터 라인</string>
+    <string name="settings_chart_text_legend">텍스트 &amp; 범례 색상 (선택사항)</string>
+    <string name="settings_chart_axis_color">축 라벨/틱 색상</string>
+    <string name="settings_chart_legend_color">범례 색상</string>
+    <string name="settings_chart_macd">MACD 차트</string>
+    <string name="settings_chart_macd_line">MACD 라인</string>
+    <string name="settings_chart_signal_line">Signal 라인</string>
+    <string name="settings_chart_histogram">히스토그램 색상</string>
+    <string name="settings_chart_positive">양수 (상승)</string>
+    <string name="settings_chart_negative">음수 (하락)</string>
+    <string name="settings_chart_deposit">증시 자금 동향 차트</string>
+    <string name="settings_chart_customer_deposit">고객예탁금 라인</string>
+    <string name="settings_chart_credit">신용잔고 라인</string>
+    <string name="settings_chart_feargreed">공포 탐욕 지수 차트</string>
+    <string name="settings_chart_fg_line">공포탐욕 지수 라인</string>
+    <string name="settings_chart_index_line">지수 라인</string>
+    <string name="settings_chart_reset">차트 색상 초기화</string>
+    <string name="settings_chart_reset_desc">모든 차트 색상을 기본값으로 되돌립니다</string>
+    <string name="settings_chart_reset_all">모든 색상 초기화</string>
+    <string name="settings_chart_reset_confirm">모든 차트 색상이 기본값으로 되돌아갑니다. 계속하시겠습니까?</string>
 
     <!-- Formatters (with placeholders) -->
     <string name="format_billion_won">%s억원</string>
@@ -443,6 +590,95 @@
     <string name="advanced_etf_overlap">ETF 중복률</string>
     <string name="advanced_select_etfs">ETF 선택</string>
     <string name="advanced_diversification_score">분산도 점수</string>
+
+    <!-- AdvancedDashboard - Tab UI -->
+    <string name="advanced_data_source_count">데이터 소스: %d/5</string>
+    <string name="advanced_data_etf_holdings">ETF 보유종목</string>
+    <string name="advanced_data_stock_analysis">종목 수급분석</string>
+    <string name="advanced_data_market_deposit">시장 예탁금</string>
+    <string name="advanced_data_fear_greed">Fear &amp; Greed</string>
+    <string name="advanced_data_etf_list">ETF 목록</string>
+    <string name="advanced_signal_strong_buy">강력 매수</string>
+    <string name="advanced_signal_buy">매수 우위</string>
+    <string name="advanced_signal_neutral">중립</string>
+    <string name="advanced_signal_sell">매도 우위</string>
+    <string name="advanced_signal_strong_sell">강력 매도</string>
+    <string name="advanced_market_cap_weighted">시총가중</string>
+    <string name="advanced_supply_demand">수급</string>
+    <string name="advanced_liquidity_label">유동성</string>
+    <string name="advanced_greed">탐욕</string>
+    <string name="advanced_fear">공포</string>
+    <string name="advanced_etf_overlap_warning">ETF 중복 경고</string>
+    <string name="advanced_retry">다시 시도</string>
+    <string name="advanced_data_loading">분석 데이터 로드 중…</string>
+
+    <!-- AdvancedDashboard - MarketCapFlow Tab -->
+    <string name="advanced_needs_etf_holdings">ETF 보유종목 데이터가 필요합니다</string>
+    <string name="advanced_market_cap_flow">시총가중 흐름</string>
+    <string name="advanced_size_by_category">규모별 분포</string>
+    <string name="advanced_top_inflow">상위 유입 종목</string>
+    <string name="advanced_top_outflow">상위 유출 종목</string>
+    <string name="advanced_stock_marketcap_etf">시총 %s | ETF %d개</string>
+
+    <!-- AdvancedDashboard - Divergence Tab -->
+    <string name="advanced_needs_stock_analysis">종목 수급 분석 데이터가 필요합니다</string>
+    <string name="advanced_market_sentiment">시장 심리</string>
+    <string name="advanced_flow_dist">수급 분포</string>
+    <string name="advanced_foreign_up">외국인↑</string>
+    <string name="advanced_institution_up">기관↑</string>
+    <string name="advanced_aligned_up">동반↑</string>
+    <string name="advanced_aligned_down">동반↓</string>
+    <string name="advanced_total_stocks_analyzed">총 %d 종목 분석</string>
+    <string name="advanced_foreign_strong">외국인 강세 종목 (기관 매도)</string>
+    <string name="advanced_institution_strong">기관 강세 종목 (외국인 매도)</string>
+    <string name="advanced_foreign_label">외국인: %s</string>
+    <string name="advanced_institution_label">기관: %s</string>
+
+    <!-- AdvancedDashboard - Liquidity Tab -->
+    <string name="advanced_needs_deposit_data">예탁금/시총 데이터가 필요합니다</string>
+    <string name="advanced_liquidity_signal">유동성 신호</string>
+    <string name="advanced_deposit">예탁금</string>
+    <string name="advanced_credit_balance">신용잔고</string>
+    <string name="advanced_leverage_risk">레버리지 위험</string>
+    <string name="advanced_ratio_analysis">비율 분석</string>
+    <string name="advanced_deposit_to_marketcap">예탁금/시총 비율</string>
+    <string name="advanced_credit_to_deposit">신용/예탁금 비율</string>
+    <string name="advanced_normal">보통</string>
+    <string name="advanced_caution">주의</string>
+    <string name="advanced_historical_position">역사적 위치</string>
+    <string name="advanced_current_liquidity">현재 유동성 수준</string>
+    <string name="advanced_top_percentile">상위 %d%%</string>
+    <string name="advanced_low">낮음</string>
+    <string name="advanced_high">높음</string>
+    <string name="advanced_market_cap_total">시장 시가총액</string>
+    <string name="advanced_change_billion">%+.0f억</string>
+    <string name="advanced_trillion_won">%s조원</string>
+
+    <!-- AdvancedDashboard - Sector Tab -->
+    <string name="advanced_needs_sector_data">섹터 분석 데이터가 필요합니다</string>
+    <string name="advanced_extreme_greed">극도의 탐욕</string>
+    <string name="advanced_greed_level">탐욕</string>
+    <string name="advanced_neutral_level">중립</string>
+    <string name="advanced_fear_level">공포</string>
+    <string name="advanced_extreme_fear">극도의 공포</string>
+    <string name="advanced_overall_market_sentiment">시장 전체 심리</string>
+    <string name="advanced_sector_fg_index">섹터별 심리 지수</string>
+    <string name="advanced_greed_sectors">탐욕 섹터</string>
+    <string name="advanced_fear_sectors">공포 섹터</string>
+    <string name="advanced_sector_rotation_signal">섹터 로테이션 신호</string>
+    <string name="advanced_sector_new_removed">신규 +%d | 제외 -%d</string>
+
+    <!-- AdvancedDashboard - ETF Correlation Tab -->
+    <string name="advanced_needs_correlation_data">ETF 상관관계 분석 데이터가 필요합니다</string>
+    <string name="advanced_high_overlap_pairs">높은 중복률 ETF 쌍</string>
+    <string name="advanced_overlap_desc">중복률 70%% 이상인 ETF 쌍은 분산 효과가 낮습니다</string>
+    <string name="advanced_diversification_advice">분산 투자 권고</string>
+    <string name="advanced_diversification_warning">80%% 이상 중복되는 ETF가 있습니다. 동일 종목에 과도하게 투자될 수 있으니 포트폴리오 재검토를 권장합니다.</string>
+    <string name="advanced_correlation_legend">상관관계 범례</string>
+    <string name="advanced_correlation_high">높음 >70%%</string>
+    <string name="advanced_correlation_medium">보통 40-70%%</string>
+    <string name="advanced_correlation_low">낮음 &lt;40%%</string>
+    <string name="advanced_common_stocks">공통 %d종목</string>
 
     <!-- Market Cap Size -->
     <string name="market_cap_large">대형주</string>

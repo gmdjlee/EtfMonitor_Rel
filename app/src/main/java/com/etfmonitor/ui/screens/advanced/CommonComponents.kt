@@ -12,9 +12,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.etfmonitor.R
 import kotlin.math.abs
 
 /**
@@ -36,7 +38,7 @@ internal fun LoadingContent() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator()
             Spacer(modifier = Modifier.height(16.dp))
-            Text("분석 데이터 로드 중...")
+            Text(stringResource(R.string.advanced_data_loading))
         }
     }
 }
@@ -49,7 +51,7 @@ internal fun ErrorContent(message: String, onRetry: () -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(message, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
             Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = onRetry) { Text("다시 시도") }
+            Button(onClick = onRetry) { Text(stringResource(R.string.advanced_retry)) }
         }
     }
 }

@@ -11,8 +11,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.etfmonitor.R
 import com.etfmonitor.database.entities.*
 
 /**
@@ -29,7 +31,7 @@ internal fun MarketCapFlowTab(
     val flow = data.marketCapFlow
 
     if (flow == null) {
-        EmptyStateCard("ETF 보유종목 데이터가 필요합니다", Icons.Default.BarChart)
+        EmptyStateCard(stringResource(R.string.advanced_needs_etf_holdings), Icons.Default.BarChart)
         return
     }
 
@@ -40,7 +42,7 @@ internal fun MarketCapFlowTab(
     ) {
         // 예측 정확도 카드 (데이터가 있을 경우)
         if (accuracy != null) {
-            item { PredictionAccuracyCard("시총가중 흐름", accuracy) }
+            item { PredictionAccuracyCard(stringResource(R.string.advanced_market_cap_flow), accuracy) }
         }
 
         // 히스토리 차트 (데이터가 있을 경우)
@@ -61,7 +63,7 @@ internal fun MarketCapFlowTab(
                     modifier = Modifier.padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("순 자금 흐름", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.advanced_net_fund_flow), style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "${if (flow.netFlow >= 0) "+" else ""}${formatAmount(flow.netFlow)}",
@@ -74,8 +76,8 @@ internal fun MarketCapFlowTab(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        FlowStatItem("유입", "+${formatAmount(flow.totalInflow)}", GreenPositive)
-                        FlowStatItem("유출", "-${formatAmount(flow.totalOutflow)}", RedNegative)
+                        FlowStatItem(stringResource(R.string.advanced_inflow), "+${formatAmount(flow.totalInflow)}", GreenPositive)
+                        FlowStatItem(stringResource(R.string.advanced_outflow), "-${formatAmount(flow.totalOutflow)}", RedNegative)
                     }
                 }
             }
@@ -83,7 +85,7 @@ internal fun MarketCapFlowTab(
 
         // 시총 규모별 분포
         item {
-            SectionCard("규모별 분포") {
+            SectionCard(stringResource(R.string.advanced_size_by_category)) {
                 MarketCapSize.entries.forEach { size ->
                     val inflow = flow.inflowBySize[size] ?: 0L
                     val outflow = flow.outflowBySize[size] ?: 0L
@@ -112,7 +114,7 @@ internal fun MarketCapFlowTab(
         // 상위 유입 종목
         if (flow.topInflowStocks.isNotEmpty()) {
             item {
-                SectionCard("상위 유입 종목") {
+                SectionCard(stringResource(R.string.advanced_top_inflow)) {
                     flow.topInflowStocks.take(10).forEachIndexed { idx, stock ->
                         StockFlowRow(idx + 1, stock, true)
                     }
@@ -123,7 +125,7 @@ internal fun MarketCapFlowTab(
         // 상위 유출 종목
         if (flow.topOutflowStocks.isNotEmpty()) {
             item {
-                SectionCard("상위 유출 종목") {
+                SectionCard(stringResource(R.string.advanced_top_outflow)) {
                     flow.topOutflowStocks.take(10).forEachIndexed { idx, stock ->
                         StockFlowRow(idx + 1, stock, false)
                     }
@@ -186,7 +188,7 @@ internal fun StockFlowRow(rank: Int, stock: StockFlow, isInflow: Boolean) {
         Column(modifier = Modifier.weight(1f)) {
             Text(stock.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
             Text(
-                "시총 ${formatMarketCap(stock.marketCap)} | ETF ${stock.etfCount}개",
+                stringResource(R.string.advanced_stock_marketcap_etf, formatMarketCap(stock.marketCap), stock.etfCount),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

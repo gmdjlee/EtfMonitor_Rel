@@ -14,10 +14,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.etfmonitor.R
 import kotlinx.coroutines.launch
 
 /**
@@ -43,13 +45,13 @@ import kotlinx.coroutines.launch
  */
 
 // 탭 정의
-private enum class AdvancedTab(val title: String, val icon: ImageVector) {
-    DASHBOARD("대시보드", Icons.Default.Dashboard),
-    MARKET_CAP_FLOW("시총가중", Icons.AutoMirrored.Filled.TrendingUp),
-    DIVERGENCE("수급분석", Icons.Default.CompareArrows),
-    LIQUIDITY("유동성", Icons.Default.AccountBalance),
-    SECTOR_FG("섹터심리", Icons.Default.PieChart),
-    ETF_CORRELATION("ETF상관", Icons.Default.GridView)
+private enum class AdvancedTab(val titleResId: Int, val icon: ImageVector) {
+    DASHBOARD(R.string.advanced_tab_dashboard, Icons.Default.Dashboard),
+    MARKET_CAP_FLOW(R.string.advanced_tab_market_cap, Icons.AutoMirrored.Filled.TrendingUp),
+    DIVERGENCE(R.string.advanced_tab_flow, Icons.Default.CompareArrows),
+    LIQUIDITY(R.string.advanced_tab_liquidity, Icons.Default.AccountBalance),
+    SECTOR_FG(R.string.advanced_tab_sector, Icons.Default.PieChart),
+    ETF_CORRELATION(R.string.advanced_tab_etf_correlation, Icons.Default.GridView)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,15 +68,15 @@ fun AdvancedDashboardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("고급 분석") },
+                title = { Text(stringResource(R.string.advanced_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.nav_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "새로고침")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.nav_refresh))
                     }
                 }
             )
@@ -93,11 +95,12 @@ fun AdvancedDashboardScreen(
                 divider = {}
             ) {
                 AdvancedTab.entries.forEachIndexed { index, tab ->
+                    val tabTitle = stringResource(tab.titleResId)
                     Tab(
                         selected = pagerState.currentPage == index,
                         onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                        text = { Text(tab.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        icon = { Icon(tab.icon, contentDescription = tab.title, modifier = Modifier.size(20.dp)) }
+                        text = { Text(tabTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        icon = { Icon(tab.icon, contentDescription = tabTitle, modifier = Modifier.size(20.dp)) }
                     )
                 }
             }
