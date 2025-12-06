@@ -7,24 +7,62 @@ import com.etfmonitor.oscillator.model.ElderImpulseData
 import com.etfmonitor.oscillator.model.MarketDepositData
 import com.etfmonitor.oscillator.model.StockData
 import com.etfmonitor.oscillator.model.TrendSignalData
+import com.etfmonitor.utils.DataParsingException
+import com.etfmonitor.utils.PythonRuntimeException
+import com.etfmonitor.utils.PythonTimeoutException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Python 기반 오실레이터 데이터 클라이언트
+ * Python 기반 기술적 분석 데이터 클라이언트
  *
- * Production 최적화:
- * - @Singleton: Hilt가 단일 인스턴스 관리
- * - @Inject: 생성자 주입으로 의존성 명확화
- * - withTimeout: 모든 Python 호출에 30초 타임아웃 적용
- * - withContext(Dispatchers.IO): 모든 Python 호출을 IO 스레드에서 실행
- * - kotlinx.serialization: 타입 안전한 JSON 파싱
+ * 주식 분석, 시장 자금 동향, 기술적 지표(오실레이터) 등
+ * 고급 분석 데이터를 Python 스크립트를 통해 수집합니다.
+ *
+ * ## 주요 기능
+ *
+ * ### 종목 분석
+ * - 종목 검색: [searchStock]
+ * - 종목 분석 데이터 (시총, 외국인/기관 수급): [getStockAnalysis]
+ * - 전체 종목 리스트: [getAllStocksList]
+ *
+ * ### 시장 자금 동향
+ * - 고객예탁금/신용잔고 데이터: [getMarketDepositData]
+ * - 최신 시장 자금 현황: [getLatestMarketData]
+ *
+ * ### 기술적 지표
+ * - 시장 과매수/과매도 지표: [getMarketOscillator] (타임아웃 180초)
+ * - 추세 시그널 분석: [getTrendSignalData]
+ * - Elder Impulse System: [getElderImpulseData]
+ * - DeMark TD Setup: [getDemarkTDData]
+ *
+ * ## Python 모듈
+ * - `stocks`: 종목 검색 및 분석
+ * - `deposit_scraper`: 시장 자금 동향 스크래핑
+ * - `market`: 시장 오실레이터 계산
+ * - `trend_signal`: 기술적 지표 분석
+ *
+ * ## 타임아웃 설정
+ * - 일반 작업: 30초 ([TIMEOUT_MS])
+ * - 시장 오실레이터: 180초 ([MARKET_OSCILLATOR_TIMEOUT_MS]) - 200+ 종목 분석 필요
+ *
+ * ## 예외 처리
+ * - [PythonTimeoutException]: 타임아웃 발생 시
+ * - [DataParsingException]: JSON 파싱 실패 시
+ * - [PythonRuntimeException]: 기타 Python 실행 오류 시
+ *
+ * @property python Chaquopy Python 인스턴스
+ *
+ * @see PyKrxClient ETF 데이터 수집
+ * @see StockPredictorPyClient ML 예측
  */
 @Singleton
 class OscillatorPyClient @Inject constructor(private val python: Python) {
@@ -166,8 +204,14 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                 Log.d(TAG, "Found stock: ${response.ticker} - ${response.name}")
                 Pair(response.ticker, response.name)
             }
+        } catch (e: TimeoutCancellationException) {
+            Log.e(TAG, "searchStock timeout", PythonTimeoutException(TIMEOUT_MS, "stocks", "search_stock_wrapper"))
+            null
+        } catch (e: SerializationException) {
+            Log.e(TAG, "searchStock parse error", DataParsingException("종목 검색 JSON 파싱 실패", cause = e))
+            null
         } catch (e: Exception) {
-            Log.e(TAG, "searchStock error", e)
+            Log.e(TAG, "searchStock error", PythonRuntimeException("종목 검색 실패: $query", "stocks", "search_stock_wrapper", cause = e))
             null
         }
     }
@@ -199,8 +243,14 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                         Log.d(TAG, "Stock analysis complete: ${it.name}, ${response.dates.size} data points")
                     }
                 }
+            } catch (e: TimeoutCancellationException) {
+                Log.e(TAG, "getStockAnalysis timeout", PythonTimeoutException(TIMEOUT_MS, "stocks", "get_stock_analysis"))
+                null
+            } catch (e: SerializationException) {
+                Log.e(TAG, "getStockAnalysis parse error", DataParsingException("종목 분석 JSON 파싱 실패: $ticker", cause = e))
+                null
             } catch (e: Exception) {
-                Log.e(TAG, "getStockAnalysis error", e)
+                Log.e(TAG, "getStockAnalysis error", PythonRuntimeException("종목 분석 실패: $ticker", "stocks", "get_stock_analysis", cause = e))
                 null
             }
         }

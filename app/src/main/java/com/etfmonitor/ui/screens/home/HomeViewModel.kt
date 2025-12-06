@@ -19,17 +19,44 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
- * Production Level HomeViewModel
+ * 홈 화면 ViewModel
  *
- * 최적화 포인트:
- * 1. @HiltViewModel: Hilt가 ViewModel 생명주기 자동 관리
- * 2. @Inject: 생성자 주입으로 의존성 명확화
- * 3. @ApplicationContext: Application Context 직접 주입
- * 4. Factory 패턴 제거: Hilt가 자동으로 ViewModel 생성
+ * 앱의 메인 화면을 담당하는 ViewModel로, 전체적인 데이터 상태 관리와
+ * 초기화/업데이트 작업을 조율합니다.
  *
- * 기존 문제점 해결:
- * - EtfMonitorApp.instance 제거: 메모리 누수 위험 제거
- * - 수동 Factory 제거: Hilt가 자동으로 관리하여 코드 간결화
+ * ## 주요 기능
+ * - 데이터 상태 확인 및 UI 상태 관리 ([state])
+ * - 초기 데이터 수집 시작 ([startForegroundCollection])
+ * - 데이터 업데이트 ([updateData])
+ * - 시장 요약 정보 로딩 ([HomeSummary])
+ *
+ * ## 상태 관리
+ * [HomeState]를 통해 다음 상태들을 관리합니다:
+ * - [HomeState.Loading]: 초기 로딩 중
+ * - [HomeState.Idle]: 데이터 대기 상태 (요약 정보 포함)
+ * - [HomeState.Initializing]: 초기 데이터 수집 중
+ * - [HomeState.Updating]: 데이터 업데이트 중
+ * - [HomeState.Success]: 작업 성공
+ * - [HomeState.Error]: 오류 발생
+ *
+ * ## 다이얼로그 상태
+ * 첫 실행 및 데이터 수집 다이얼로그 상태를 관리합니다:
+ * - [showUnifiedInitDialog]: 통합 초기화 다이얼로그
+ * - [showMarketDepositDialog]: 시장 예탁금 다이얼로그
+ * - [showFearGreedDialog]: 공포탐욕지수 다이얼로그
+ * - [showMarketOscillatorDialog]: 시장 오실레이터 다이얼로그
+ *
+ * ## 의존성
+ * @property repository ETF 데이터 Repository
+ * @property fearGreedRepository 공포탐욕지수 Repository
+ * @property marketOscillatorRepository 시장 오실레이터 Repository
+ * @property marketDepositRepository 시장 예탁금 Repository
+ * @property etfDao ETF DAO (설정 저장용)
+ * @property context 애플리케이션 Context
+ *
+ * @see HomeState
+ * @see HomeSummary
+ * @see DataCollectionService
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(

@@ -21,9 +21,36 @@ import javax.inject.Singleton
 /**
  * ETF 데이터 Repository
  *
- * 역할:
- * - ETF 목록 및 보유 종목 관리
- * - 데이터 수집 시 stocks 마스터 자동 동기화
+ * ETF 목록 조회, 보유 종목 비교, 데이터 수집 및 업데이트를 담당하는 핵심 Repository입니다.
+ *
+ * ## 주요 기능
+ * - ETF 목록 조회 및 검색 ([getAllEtfs], [searchEtfs])
+ * - ETF 보유 종목 비교 분석 ([getComparison])
+ * - 초기 데이터 수집 및 업데이트 ([initializeData], [updateData])
+ * - 데이터 상태 확인 ([hasData], [getLatestDate])
+ *
+ * ## 스레드 안전성
+ * - 모든 suspend 함수는 [Dispatchers.IO]에서 실행됩니다.
+ * - Flow 반환 함수는 `flowOn(Dispatchers.IO)`로 백그라운드에서 실행됩니다.
+ *
+ * ## 데이터 동기화
+ * - 데이터 수집 시 stocks 마스터 테이블이 자동으로 동기화됩니다.
+ * - [DailyEtfStatistics]가 자동으로 계산되어 저장됩니다.
+ *
+ * ## 의존성
+ * - [EtfDao]: ETF 및 Holding 데이터 접근
+ * - [DailyEtfStatisticsDao]: 일별 통계 데이터 접근
+ * - [StockDao]: 종목 마스터 데이터 접근
+ * - [PyKrxClient]: Python 기반 데이터 수집 클라이언트
+ *
+ * @property dao ETF DAO 인스턴스
+ * @property dailyEtfStatisticsDao 일별 통계 DAO 인스턴스
+ * @property stockDao 종목 DAO 인스턴스
+ * @property pyKrx Python 데이터 수집 클라이언트
+ *
+ * @see Etf
+ * @see Holding
+ * @see DailyEtfStatistics
  */
 @Singleton
 class DataRepository @Inject constructor(

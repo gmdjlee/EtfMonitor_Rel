@@ -279,4 +279,101 @@
     <string name="format_percent">%.2f%%</string>
     <string name="format_percent_change">%+.2f%%</string>
     <string name="format_date_range">%s ~ %s</string>
+    <string name="format_days_later">%d일 후</string>
+    <string name="format_n_stocks">%d개 종목</string>
+    <string name="format_days">%d일</string>
+    <string name="format_model_accuracy">모델 정확도: %d%%</string>
+    <string name="format_confidence">신뢰도: %d%%</string>
+    <string name="format_expected_stocks">상승 예상 종목</string>
+
+    <!-- Error Messages -->
+    <string name="error_network">네트워크 오류</string>
+    <string name="error_network_message">네트워크 연결을 확인해 주세요</string>
+    <string name="error_data_load">데이터 로딩 실패</string>
+    <string name="error_data_insufficient">분석에 필요한 데이터가 부족합니다</string>
+    <string name="error_timeout">요청 시간이 초과되었습니다</string>
+    <string name="error_api_auth">API 인증에 실패했습니다</string>
+    <string name="error_api_rate_limit">API 요청 한도가 초과되었습니다</string>
+    <string name="error_python_runtime">데이터 수집 중 오류가 발생했습니다</string>
+
+    <!-- Dialog Titles -->
+    <string name="dialog_init_data">데이터 초기화</string>
+    <string name="dialog_update_data">데이터 업데이트</string>
+    <string name="dialog_confirm_reset">초기화 확인</string>
+    <string name="dialog_select_period">기간 선택</string>
+    <string name="dialog_display_settings">표시 설정</string>
+
+    <!-- PredictionScreen Additional -->
+    <string name="prediction_description">ETF 구성 변화(신규 편입, 비중 증가/감소)를 학습하여\n향후 주가 상승 가능성이 높은 종목을 예측합니다.</string>
+    <string name="prediction_step_1">충분한 ETF 데이터 수집 (최소 2주)</string>
+    <string name="prediction_step_2">우측 하단 \'예측 실행\' 버튼 클릭</string>
+    <string name="prediction_step_3">ML 모델 학습 완료 후 예측 결과 확인</string>
+    <string name="prediction_step_4">상승 확률이 높은 종목 분석</string>
+    <string name="prediction_disclaimer">본 예측은 참고용이며, 투자 결정의 책임은 본인에게 있습니다.</string>
+    <string name="prediction_days_after">%d일 후 예측</string>
+    <string name="prediction_rise_threshold">%s%% 이상 상승</string>
+    <string name="prediction_confidence_threshold">%d%% 신뢰도</string>
+    <string name="prediction_settings">예측 설정</string>
+    <string name="prediction_model_type">모델 타입</string>
+    <string name="prediction_sample_count">학습 샘플 수</string>
+    <string name="prediction_performance_metrics">성능 지표</string>
+    <string name="prediction_recall">재현율 (Recall)</string>
+    <string name="prediction_feature_importance">피처 중요도</string>
+    <string name="prediction_loading_message">ML 모델 학습 및 예측에는\n약 1-2분이 소요됩니다.</string>
+    <string name="prediction_model_random_forest">Random Forest</string>
+    <string name="prediction_model_gradient_boosting">Gradient Boosting</string>
+
+    <!-- HomeScreen Additional -->
+    <string name="home_retry">재시도</string>
+    <string name="home_deposit_change">예탁금 변동</string>
+    <string name="home_credit_change">신용 변동</string>
+    <string name="home_fear_greed_kospi">코스피 공포탐욕</string>
+    <string name="home_fear_greed_kosdaq">코스닥 공포탐욕</string>
+    <string name="home_oscillator_kospi">코스피 오실레이터</string>
+    <string name="home_oscillator_kosdaq">코스닥 오실레이터</string>
+    <string name="home_quick_actions">빠른 작업</string>
+    <string name="home_view_etf_list">ETF 목록 보기</string>
+    <string name="home_view_statistics">전체 통계</string>
+
+    <!-- StatisticsScreen Additional -->
+    <string name="statistics_summary">통계 요약</string>
+    <string name="statistics_total_count">전체 %d건</string>
+    <string name="statistics_no_data_for_tab">해당 탭에 데이터가 없습니다</string>
+    <string name="statistics_avg_weight">평균 비중</string>
+    <string name="statistics_total_amount">총 금액</string>
+
+    <!-- AdvancedDashboard Additional -->
+    <string name="advanced_composite_signal">종합 신호</string>
+    <string name="advanced_confidence">신뢰도</string>
+    <string name="advanced_up_probability">상승 확률</string>
+    <string name="advanced_down_probability">하락 확률</string>
+    <string name="advanced_analysis_context">분석 컨텍스트</string>
+    <string name="advanced_no_analysis_data">분석 데이터가 없습니다.\n데이터를 먼저 수집해 주세요.</string>
+    <string name="advanced_foreign_bullish">외국인 매수</string>
+    <string name="advanced_institution_bullish">기관 매수</string>
+    <string name="advanced_aligned_bullish">동조 매수</string>
+    <string name="advanced_aligned_bearish">동조 매도</string>
+    <string name="advanced_deposit_ratio">예탁금 비율</string>
+    <string name="advanced_credit_ratio">신용 비율</string>
+    <string name="advanced_sector_rotation">섹터 로테이션</string>
+    <string name="advanced_sector_sentiment">섹터 심리</string>
+    <string name="advanced_etf_overlap">ETF 중복률</string>
+    <string name="advanced_select_etfs">ETF 선택</string>
+    <string name="advanced_diversification_score">분산도 점수</string>
+
+    <!-- Market Cap Size -->
+    <string name="market_cap_large">대형주</string>
+    <string name="market_cap_mid">중형주</string>
+    <string name="market_cap_small">소형주</string>
+
+    <!-- Content Descriptions (Accessibility) -->
+    <string name="cd_back_button">뒤로가기 버튼</string>
+    <string name="cd_settings_button">설정 버튼</string>
+    <string name="cd_refresh_button">새로고침 버튼</string>
+    <string name="cd_search_button">검색 버튼</string>
+    <string name="cd_close_button">닫기 버튼</string>
+    <string name="cd_analytics_button">분석 결과 버튼</string>
+    <string name="cd_prediction_button">예측 실행 버튼</string>
+    <string name="cd_chart_indicator">차트 지표</string>
+    <string name="cd_loading_indicator">로딩 중</string>
 </resources>

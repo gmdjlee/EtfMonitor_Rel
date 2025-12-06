@@ -5,9 +5,14 @@ import com.chaquo.python.Python
 import com.etfmonitor.database.entities.Etf
 import com.etfmonitor.database.entities.Holding
 import com.etfmonitor.database.entities.SnapshotType
+import com.etfmonitor.utils.DataParsingException
+import com.etfmonitor.utils.PythonRuntimeException
+import com.etfmonitor.utils.PythonTimeoutException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -17,18 +22,39 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Production Level PyKrxClient
+ * Python 기반 한국 주식시장(KRX) 데이터 수집 클라이언트
  *
- * 최적화 포인트:
- * 1. @Singleton: Hilt가 단일 인스턴스 관리
- * 2. @Inject: 생성자 주입으로 의존성 명확화
- * 3. kotlinx.serialization: org.json 대체하여 타입 안정성 향상 및 성능 개선
- * 4. withContext(Dispatchers.IO): 모든 Python 호출을 IO 스레드에서 실행
+ * Chaquopy를 통해 Python pykrx 라이브러리를 활용하여
+ * ETF 목록, 보유 종목, 영업일 정보 등을 수집합니다.
  *
- * JSON 파싱 성능 개선:
- * - kotlinx.serialization은 컴파일 타임에 직렬화 코드 생성
- * - org.json보다 약 3-5배 빠른 파싱 속도
- * - 타입 안정성 보장으로 런타임 오류 감소
+ * ## 주요 기능
+ * - ETF 목록 조회 (필터링 지원): [getFilteredEtfList], [getEtfList]
+ * - ETF 보유 종목 조회: [getHoldings]
+ * - 영업일 목록 조회: [getBusinessDays]
+ *
+ * ## Python 모듈
+ * - `etfcollector`: ETF 목록 및 보유 종목 수집
+ * - `stocks`: 종목명 조회
+ * - `core`: 영업일 계산
+ *
+ * ## 성능 최적화
+ * - [kotlinx.serialization]을 사용하여 JSON 파싱 성능 3-5배 향상
+ * - 컴파일 타임 직렬화 코드 생성으로 런타임 오류 감소
+ * - 모든 Python 호출은 [Dispatchers.IO]에서 실행
+ *
+ * ## 타임아웃 및 재시도
+ * - 기본 타임아웃: 30초 ([TIMEOUT_MS])
+ * - 보유 종목 조회 시 최대 2회 재시도 ([MAX_RETRIES])
+ *
+ * ## 예외 처리
+ * - [PythonTimeoutException]: 타임아웃 발생 시
+ * - [DataParsingException]: JSON 파싱 실패 시
+ * - [PythonRuntimeException]: 기타 Python 실행 오류 시
+ *
+ * @property python Chaquopy Python 인스턴스
+ *
+ * @see OscillatorPyClient 추가 분석 데이터 수집
+ * @see MarketIndexPyClient 시장 지수 데이터 수집
  */
 @Singleton
 class PyKrxClient @Inject constructor(
@@ -178,8 +204,14 @@ class PyKrxClient @Inject constructor(
             Log.d(TAG, "=".repeat(80) + "\n")
 
             etfs
+        } catch (e: TimeoutCancellationException) {
+            Log.e(TAG, "getFilteredEtfList timeout", PythonTimeoutException(TIMEOUT_MS, "etfcollector", "get_etf_list_with_names"))
+            emptyList()
+        } catch (e: SerializationException) {
+            Log.e(TAG, "getFilteredEtfList parse error", DataParsingException("ETF 목록 JSON 파싱 실패", cause = e))
+            emptyList()
         } catch (e: Exception) {
-            Log.e(TAG, "getFilteredEtfList failed", e)
+            Log.e(TAG, "getFilteredEtfList failed", PythonRuntimeException("ETF 목록 조회 실패", "etfcollector", "get_etf_list_with_names", cause = e))
             emptyList()
         }
     }
@@ -212,16 +244,25 @@ class PyKrxClient @Inject constructor(
                     } else {
                         null
                     }
+                } catch (e: TimeoutCancellationException) {
+                    Log.w(TAG, "Timeout getting ETF name for $ticker")
+                    null
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error getting ETF name for $ticker: ${e.message}")
+                    Log.w(TAG, "Error getting ETF name for $ticker: ${e.message}")
                     null
                 }
             }
 
             Log.d(TAG, "getEtfList result: ${etfs.size} ETFs")
             etfs
+        } catch (e: TimeoutCancellationException) {
+            Log.e(TAG, "getEtfList timeout", PythonTimeoutException(TIMEOUT_MS, "etfcollector", "get_etf_list"))
+            emptyList()
+        } catch (e: SerializationException) {
+            Log.e(TAG, "getEtfList parse error", DataParsingException("ETF 목록 JSON 파싱 실패", cause = e))
+            emptyList()
         } catch (e: Exception) {
-            Log.e(TAG, "getEtfList error", e)
+            Log.e(TAG, "getEtfList error", PythonRuntimeException("ETF 목록 조회 실패", "etfcollector", "get_etf_list", cause = e))
             emptyList()
         }
     }

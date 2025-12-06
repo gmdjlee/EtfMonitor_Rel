@@ -415,8 +415,8 @@ class AdvancedAnalysisRepository @Inject constructor(
                 // 모멘텀 점수: 비중 변화 기반 (정규화)
                 val momentumScore = (avgWeightChange / 10.0).coerceIn(-1.0, 1.0)
 
-                // 변동성 점수: 시장 대비 (단순화)
-                val volatilityScore = 0.5  // TODO: 실제 변동성 계산
+                // 변동성 점수: 비중 변화의 표준편차 기반 계산 (0 ~ 1)
+                val volatilityScore = calculateSectorVolatility(stocks)
 
                 // Fear & Greed 계산 (가중 평균)
                 val fearGreedValue = (
@@ -841,6 +841,36 @@ class AdvancedAnalysisRepository @Inject constructor(
         return if (changes.size > 1) {
             sameDirection.toDouble() / (changes.size - 1)
         } else 0.0
+    }
+
+    /**
+     * 섹터 변동성 점수 계산
+     *
+     * 비중 변화의 표준편차를 기반으로 변동성을 계산하고 0~1 범위로 정규화합니다.
+     * - 높은 표준편차 = 높은 변동성 = 불안정 (낮은 점수)
+     * - 낮은 표준편차 = 낮은 변동성 = 안정 (높은 점수)
+     *
+     * @param stocks 섹터에 포함된 종목 리스트
+     * @return 변동성 점수 (0.0 = 높은 변동성, 1.0 = 낮은 변동성)
+     */
+    private fun calculateSectorVolatility(stocks: List<StockAmountRanking>): Double {
+        if (stocks.size < 2) return 0.5  // 데이터 부족 시 중립값
+
+        // 각 종목의 비중 변화율 계산
+        val weightChanges = stocks.map { calculateWeightChange(it) }
+
+        // 표준편차 계산
+        val mean = weightChanges.average()
+        val variance = weightChanges.map { (it - mean) * (it - mean) }.average()
+        val stdDev = sqrt(variance)
+
+        // 정규화: 표준편차 10%를 최대 변동성으로 가정
+        // stdDev가 0이면 변동성이 없음 (안정적) → 1.0 반환
+        // stdDev가 10 이상이면 높은 변동성 → 0.0에 가까운 값 반환
+        val normalizedVolatility = (stdDev / 10.0).coerceIn(0.0, 1.0)
+
+        // 변동성 점수 반전 (낮은 변동성 = 높은 점수, 시장 안정 = Fear & Greed에서 긍정적)
+        return 1.0 - normalizedVolatility
     }
 
     private fun inferSectorFromStock(ticker: String, name: String): String {
