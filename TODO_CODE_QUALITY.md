@@ -1,7 +1,7 @@
 # 코드 품질 개선 TODO
 
 > 마지막 업데이트: 2025-12-06
-> 관련 브랜치: `claude/improve-code-quality-01TkUKGWCPe9kowRhtz73yur`
+> 관련 브랜치: `claude/refactor-large-files-0151t7mQjXV4o44pcnXQ948G`
 
 ## 완료된 작업 ✅
 
@@ -19,6 +19,14 @@
 - [x] `HomeViewModel.kt` 문서화
 - [x] `PyKrxClient.kt` 문서화
 - [x] `OscillatorPyClient.kt` 문서화
+
+### 4. 대형 파일 분리 (>1000 lines)
+- [x] `AdvancedDashboardScreen.kt` 분리 → `DashboardTab.kt`, `MarketCapTab.kt`, `LiquidityTab.kt`, `SectorTab.kt`
+- [x] `SettingsScreen.kt` 분리 → `ThemeSettings.kt`, `ApiKeySettings.kt`, `ScheduleSettings.kt`
+- [x] `StatisticsScreen.kt` 분리 → `RankingTab.kt`, `AnalysisTab.kt`, `CashDepositTab.kt`
+- [x] `ChartComponents.kt` 분리 → `LineCharts.kt`, `BarCharts.kt`, `ChartUtils.kt`
+- [x] `HomeScreen.kt` 분리 → `HomeSummaryCard.kt`, `HomeDialogs.kt`, `HomeQuickActions.kt`
+- [x] `DataRepository.kt` 분리 → `EtfDataRepository.kt`, `HoldingDataRepository.kt`
 
 ---
 
@@ -89,19 +97,7 @@ Text(stringResource(R.string.error_network))
 
 ### Medium Priority (중간 우선순위)
 
-#### 4. 대형 파일 분리 (>1000 lines)
-가독성과 유지보수성을 위해 분리가 필요합니다.
-
-| 파일 | 라인수 | 분리 제안 |
-|------|--------|----------|
-| `AdvancedDashboardScreen.kt` | 2181 | `DashboardTab.kt`, `MarketCapTab.kt`, `LiquidityTab.kt`, `SectorTab.kt` |
-| `SettingsScreen.kt` | 1969 | `ThemeSettings.kt`, `ApiKeySettings.kt`, `ScheduleSettings.kt` |
-| `StatisticsScreen.kt` | 1341 | `RankingTab.kt`, `AnalysisTab.kt`, `CashDepositTab.kt` |
-| `ChartComponents.kt` | 1303 | `LineCharts.kt`, `BarCharts.kt`, `ChartUtils.kt` |
-| `HomeScreen.kt` | 1257 | `HomeSummaryCard.kt`, `HomeDialogs.kt`, `HomeQuickActions.kt` |
-| `DataRepository.kt` | 1092 | `EtfDataRepository.kt`, `HoldingDataRepository.kt` |
-
-#### 5. 중복 코드 제거
+#### 4. 중복 코드 제거
 
 **`AdvancedAnalysisRepository.kt`:**
 - 상관관계 계산 패턴 중복 (lines 160-250)
@@ -114,7 +110,7 @@ private fun calculateCorrelationMetrics(data: List<Double>): CorrelationMetrics
 private fun collectMarketData(market: String, dateRange: Pair<String, String>): MarketData
 ```
 
-#### 6. AppLogger 활용
+#### 5. AppLogger 활용
 `utils/AppLogger.kt`가 존재하지만 직접 `Log` 호출이 57개 있습니다.
 
 **변환 예시:**
@@ -130,13 +126,13 @@ AppLogger.d(TAG, "message")  // 조건부 로깅 지원
 
 ### Low Priority (낮은 우선순위)
 
-#### 7. 주석 처리된 코드 제거
+#### 6. 주석 처리된 코드 제거
 - [ ] `PyKrxClient.kt` lines 92-100+ - 디버그 로그 블록
 
-#### 8. SQL 쿼리 문서화
+#### 7. SQL 쿼리 문서화
 `EtfDao.kt`의 복잡한 쿼리에 설명 추가
 
-#### 9. 추가 KDoc 문서화
+#### 8. 추가 KDoc 문서화
 - [ ] `FearGreedRepository.kt`
 - [ ] `MarketDepositRepository.kt`
 - [ ] `StockAnalysisRepository.kt`
