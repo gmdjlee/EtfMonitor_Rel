@@ -12,7 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.etfmonitor.database.entities.PredictionAccuracy
+// PredictionAccuracy is defined in AdvancedDashboardViewModel.kt (same package)
 
 /**
  * Advanced Dashboard Screen - Prediction Accuracy UI Components
