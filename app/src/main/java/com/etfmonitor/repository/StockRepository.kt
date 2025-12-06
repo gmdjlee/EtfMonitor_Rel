@@ -82,7 +82,13 @@ class StockRepository @Inject constructor(
     // ========== 전체 종목 초기화 ==========
 
     /**
+     * 네트워크 오류를 나타내는 예외
+     */
+    class NetworkException(message: String) : Exception(message)
+
+    /**
      * 종목 데이터 초기화 (Python에서 가져와서 DB에 저장)
+     * @return Result.success(종목 수) 또는 Result.failure(NetworkException 또는 Exception)
      */
     suspend fun initializeStocks(): Result<Int> = withContext(Dispatchers.IO) {
         try {
@@ -91,8 +97,10 @@ class StockRepository @Inject constructor(
             val stockList = pyClient.getAllStocksList()
 
             if (stockList.isEmpty()) {
-                Log.e(TAG, "Failed to get stocks list from Python")
-                return@withContext Result.failure(Exception("Python 모듈 호출 실패"))
+                Log.e(TAG, "Failed to get stocks list from Python (empty result - possible network issue)")
+                return@withContext Result.failure(
+                    NetworkException("종목 데이터를 가져올 수 없습니다. 네트워크 연결을 확인해 주세요.")
+                )
             }
 
             val stocks = stockList.map { (ticker, name) ->

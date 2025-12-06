@@ -10,10 +10,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -54,6 +58,10 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var themeManager: ThemeManager
+
+    // 네트워크 에러 다이얼로그 상태
+    private val showNetworkErrorDialog = mutableStateOf(false)
+    private val networkErrorMessage = mutableStateOf("")
 
     // ✅ 알림 권한 요청 (Android 13+)
     private val requestPermissionLauncher = registerForActivityResult(
@@ -112,7 +120,58 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     Navigation()
+
+                    // 네트워크 에러 다이얼로그
+                    if (showNetworkErrorDialog.value) {
+                        AlertDialog(
+                            onDismissRequest = { showNetworkErrorDialog.value = false },
+                            title = { Text("네트워크 오류") },
+                            text = { Text(networkErrorMessage.value) },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        showNetworkErrorDialog.value = false
+                                        retryStockInitialization()
+                                    }
+                                ) {
+                                    Text("재시도")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(
+                                    onClick = { showNetworkErrorDialog.value = false }
+                                ) {
+                                    Text("나중에")
+                                }
+                            }
+                        )
+                    }
                 }
+            }
+        }
+    }
+
+    /**
+     * 종목 데이터 초기화 재시도
+     */
+    private fun retryStockInitialization() {
+        lifecycleScope.launch {
+            try {
+                Log.d("MainActivity", "Retrying stock initialization...")
+                val result = stockRepository.initializeStocks()
+                if (result.isSuccess) {
+                    val count = result.getOrNull() ?: 0
+                    Log.d("MainActivity", "Stock database initialized with $count stocks")
+                } else {
+                    val exception = result.exceptionOrNull()
+                    Log.e("MainActivity", "Failed to initialize stock database: ${exception?.message}")
+                    if (exception is StockRepository.NetworkException) {
+                        networkErrorMessage.value = exception.message ?: "네트워크 연결을 확인해 주세요."
+                        showNetworkErrorDialog.value = true
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error retrying stock initialization", e)
             }
         }
     }
@@ -166,7 +225,13 @@ class MainActivity : ComponentActivity() {
                         val count = result.getOrNull() ?: 0
                         Log.d("MainActivity", "Stock database initialized with $count stocks")
                     } else {
-                        Log.e("MainActivity", "Failed to initialize stock database: ${result.exceptionOrNull()?.message}")
+                        val exception = result.exceptionOrNull()
+                        Log.e("MainActivity", "Failed to initialize stock database: ${exception?.message}")
+                        // 네트워크 에러인 경우 다이얼로그 표시
+                        if (exception is StockRepository.NetworkException) {
+                            networkErrorMessage.value = exception.message ?: "네트워크 연결을 확인해 주세요."
+                            showNetworkErrorDialog.value = true
+                        }
                     }
                 } else {
                     Log.d("MainActivity", "Stock database already has $stockCount stocks")

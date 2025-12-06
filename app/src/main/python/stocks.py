@@ -45,18 +45,15 @@ def get_all_stocks(date: Optional[str] = None) -> str:
     """
     try:
         d = date or market_date()
-        log.info("get_all_stocks: using date %s", d)
         tickers = get_tickers(date=d)
-        log.info("get_all_stocks: got %d tickers from get_tickers", len(tickers))
 
-        # Build result without filtering by name first
         result = []
         for t in tickers:
             name = get_name(t)
             if name:
                 result.append({"ticker": t, "name": name})
 
-        log.info("All stocks: %d (after name filter)", len(result))
+        log.info("All stocks: %d", len(result))
         return to_json(result)
 
     except Exception as e:

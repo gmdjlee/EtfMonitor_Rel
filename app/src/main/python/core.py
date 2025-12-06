@@ -137,41 +137,16 @@ def days_ago(n: int) -> str:
 
 def market_date() -> str:
     """Get latest market date (most recent business day)."""
-    log = get_logger("core")
-
-    # Check pykrx version
-    try:
-        import pykrx
-        log.info("market_date: pykrx version=%s", getattr(pykrx, '__version__', 'unknown'))
-    except Exception as e:
-        log.error("market_date: pykrx version check failed: %s", e)
-
-    # Test with ETF ticker list (alternative API)
-    try:
-        test_date = days_ago(1)
-        etf_tickers = stock.get_etf_ticker_list(test_date)
-        log.info("market_date: ETF tickers for %s: %d", test_date, len(list(etf_tickers)) if etf_tickers else 0)
-    except Exception as e:
-        log.error("market_date: ETF ticker test failed: %s", e)
-
     # Try up to 7 days back to find a valid market date
     for i in range(7):
         d = days_ago(i)
         try:
-            log.info("market_date: calling pykrx for %s...", d)
             tickers = stock.get_market_ticker_list(d, market="KOSPI")
-            log.info("market_date: pykrx returned type=%s", type(tickers))
-            ticker_count = len(list(tickers)) if tickers is not None else 0
-            log.info("market_date: trying %s, got %d tickers", d, ticker_count)
-            if ticker_count > 0:
+            if tickers is not None and len(list(tickers)) > 0:
                 return d
-        except Exception as e:
-            log.warning("market_date: %s failed: %s (type=%s)", d, e, type(e).__name__)
-            import traceback
-            log.warning("market_date: traceback: %s", traceback.format_exc())
+        except Exception:
             continue
     # Fallback to yesterday if nothing found
-    log.warning("market_date: no valid date found, using yesterday")
     return days_ago(1)
 
 
@@ -206,21 +181,15 @@ def get_business_days(start: str, end: str) -> str:
 # Stock utilities
 def get_tickers(market: Optional[str] = None, date: Optional[str] = None) -> List[str]:
     """Get stock tickers for market(s)."""
-    log = get_logger("core")
     d = date or market_date()
-    log.info("get_tickers: date=%s, market=%s", d, market)
     try:
         if market and market in MARKETS:
-            result = list(stock.get_market_ticker_list(d, market=market))
-            log.info("get_tickers: %s returned %d tickers", market, len(result))
-            return result
+            return list(stock.get_market_ticker_list(d, market=market))
         # All markets
         kospi = list(stock.get_market_ticker_list(d, market="KOSPI"))
         kosdaq = list(stock.get_market_ticker_list(d, market="KOSDAQ"))
-        log.info("get_tickers: KOSPI=%d, KOSDAQ=%d", len(kospi), len(kosdaq))
         return kospi + kosdaq
-    except Exception as e:
-        log.error("get_tickers error: %s", e)
+    except Exception:
         return []
 
 
