@@ -206,13 +206,7 @@ private fun AggregatedSummaryCard(timeSeries: List<StockAggregatedTimePoint>) {
     }
 }
 
-@Composable
-private fun SummaryItem(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, style = MaterialTheme.typography.labelSmall)
-        Text(value, style = MaterialTheme.typography.titleMedium)
-    }
-}
+// SummaryItem is defined in CashDepositTab.kt (internal visibility)
 
 // ✅ 2. AggregatedChartCard 개선
 // Uses shared ChartCard with dark mode support
@@ -301,18 +295,7 @@ private fun AggregatedChartCard(
     }
 }
 
-private fun formatDateForChart(date: String): String {
-    return try {
-        val parts = date.split("-")
-        if (parts.size == 3) {
-            "${parts[1]}/${parts[2]}"
-        } else {
-            date
-        }
-    } catch (e: Exception) {
-        date
-    }
-}
+// formatDateForChart is defined in CashDepositTab.kt (internal visibility)
 
 // ✅ 3. AggregatedDataTable 개선
 @Composable
