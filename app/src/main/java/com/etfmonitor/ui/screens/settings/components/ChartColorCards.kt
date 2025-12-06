@@ -8,7 +8,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.etfmonitor.R
 import com.etfmonitor.ui.theme.SingleChartColorSettings
 
 /**
@@ -128,35 +130,35 @@ fun MarketCapOscillatorColorCard(
     onLegendColorReset: () -> Unit
 ) {
     val config = ChartColorCardConfig(
-        title = "시가총액 & 오실레이터 차트",
+        title = stringResource(R.string.settings_chart_marketcap),
         icon = Icons.Default.ShowChart,
         sections = listOf(
             ColorSectionConfig(
-                title = "라인 색상",
+                title = stringResource(R.string.settings_chart_line_color),
                 items = listOf(
                     ColorItemConfig(
-                        label = "시가총액 라인",
+                        label = stringResource(R.string.settings_chart_marketcap_line),
                         getCurrentColor = { it.lineColor1 },
                         onColorSelected = onLineColor1Changed
                     ),
                     ColorItemConfig(
-                        label = "오실레이터 라인",
+                        label = stringResource(R.string.settings_chart_oscillator_line),
                         getCurrentColor = { it.lineColor2 },
                         onColorSelected = onLineColor2Changed
                     )
                 )
             ),
             ColorSectionConfig(
-                title = "텍스트 & 범례 색상 (선택사항)",
+                title = stringResource(R.string.settings_chart_text_legend),
                 optionalItems = listOf(
                     OptionalColorItemConfig(
-                        label = "축 라벨/틱 색상",
+                        label = stringResource(R.string.settings_chart_axis_color),
                         getCurrentColor = { it.textColor },
                         onColorSelected = onTextColorChanged,
                         onReset = onTextColorReset
                     ),
                     OptionalColorItemConfig(
-                        label = "범례 색상",
+                        label = stringResource(R.string.settings_chart_legend_color),
                         getCurrentColor = { it.legendColor },
                         onColorSelected = onLegendColorChanged,
                         onReset = onLegendColorReset
@@ -185,50 +187,50 @@ fun MacdColorCard(
     onLegendColorReset: () -> Unit
 ) {
     val config = ChartColorCardConfig(
-        title = "MACD 차트",
+        title = stringResource(R.string.settings_chart_macd),
         icon = Icons.Default.BarChart,
         sections = listOf(
             ColorSectionConfig(
-                title = "라인 색상",
+                title = stringResource(R.string.settings_chart_line_color),
                 items = listOf(
                     ColorItemConfig(
-                        label = "MACD 라인",
+                        label = stringResource(R.string.settings_chart_macd_line),
                         getCurrentColor = { it.lineColor1 },
                         onColorSelected = onLineColor1Changed
                     ),
                     ColorItemConfig(
-                        label = "Signal 라인",
+                        label = stringResource(R.string.settings_chart_signal_line),
                         getCurrentColor = { it.lineColor2 },
                         onColorSelected = onLineColor2Changed
                     )
                 )
             ),
             ColorSectionConfig(
-                title = "히스토그램 색상",
+                title = stringResource(R.string.settings_chart_histogram),
                 items = listOf(
                     ColorItemConfig(
-                        label = "양수 (상승)",
+                        label = stringResource(R.string.settings_chart_positive),
                         getCurrentColor = { it.positiveColor },
                         onColorSelected = onPositiveColorChanged
                     ),
                     ColorItemConfig(
-                        label = "음수 (하락)",
+                        label = stringResource(R.string.settings_chart_negative),
                         getCurrentColor = { it.negativeColor },
                         onColorSelected = onNegativeColorChanged
                     )
                 )
             ),
             ColorSectionConfig(
-                title = "텍스트 & 범례 색상 (선택사항)",
+                title = stringResource(R.string.settings_chart_text_legend),
                 optionalItems = listOf(
                     OptionalColorItemConfig(
-                        label = "축 라벨/틱 색상",
+                        label = stringResource(R.string.settings_chart_axis_color),
                         getCurrentColor = { it.textColor },
                         onColorSelected = onTextColorChanged,
                         onReset = onTextColorReset
                     ),
                     OptionalColorItemConfig(
-                        label = "범례 색상",
+                        label = stringResource(R.string.settings_chart_legend_color),
                         getCurrentColor = { it.legendColor },
                         onColorSelected = onLegendColorChanged,
                         onReset = onLegendColorReset
@@ -255,35 +257,35 @@ fun MarketDepositColorCard(
     onLegendColorReset: () -> Unit
 ) {
     val config = ChartColorCardConfig(
-        title = "증시 자금 동향 차트",
+        title = stringResource(R.string.settings_chart_deposit),
         icon = Icons.Default.TrendingUp,
         sections = listOf(
             ColorSectionConfig(
-                title = "라인 색상",
+                title = stringResource(R.string.settings_chart_line_color),
                 items = listOf(
                     ColorItemConfig(
-                        label = "고객예탁금 라인",
+                        label = stringResource(R.string.settings_chart_customer_deposit),
                         getCurrentColor = { it.lineColor1 },
                         onColorSelected = onLineColor1Changed
                     ),
                     ColorItemConfig(
-                        label = "신용잔고 라인",
+                        label = stringResource(R.string.settings_chart_credit),
                         getCurrentColor = { it.lineColor2 },
                         onColorSelected = onLineColor2Changed
                     )
                 )
             ),
             ColorSectionConfig(
-                title = "텍스트 & 범례 색상 (선택사항)",
+                title = stringResource(R.string.settings_chart_text_legend),
                 optionalItems = listOf(
                     OptionalColorItemConfig(
-                        label = "축 라벨/틱 색상",
+                        label = stringResource(R.string.settings_chart_axis_color),
                         getCurrentColor = { it.textColor },
                         onColorSelected = onTextColorChanged,
                         onReset = onTextColorReset
                     ),
                     OptionalColorItemConfig(
-                        label = "범례 색상",
+                        label = stringResource(R.string.settings_chart_legend_color),
                         getCurrentColor = { it.legendColor },
                         onColorSelected = onLegendColorChanged,
                         onReset = onLegendColorReset
@@ -310,35 +312,35 @@ fun FearGreedColorCard(
     onLegendColorReset: () -> Unit
 ) {
     val config = ChartColorCardConfig(
-        title = "공포 탐욕 지수 차트",
+        title = stringResource(R.string.settings_chart_feargreed),
         icon = Icons.Default.Psychology,
         sections = listOf(
             ColorSectionConfig(
-                title = "라인 색상",
+                title = stringResource(R.string.settings_chart_line_color),
                 items = listOf(
                     ColorItemConfig(
-                        label = "공포탐욕 지수 라인",
+                        label = stringResource(R.string.settings_chart_fg_line),
                         getCurrentColor = { it.lineColor1 },
                         onColorSelected = onLineColor1Changed
                     ),
                     ColorItemConfig(
-                        label = "지수 라인",
+                        label = stringResource(R.string.settings_chart_index_line),
                         getCurrentColor = { it.lineColor2 },
                         onColorSelected = onLineColor2Changed
                     )
                 )
             ),
             ColorSectionConfig(
-                title = "텍스트 & 범례 색상 (선택사항)",
+                title = stringResource(R.string.settings_chart_text_legend),
                 optionalItems = listOf(
                     OptionalColorItemConfig(
-                        label = "축 라벨/틱 색상",
+                        label = stringResource(R.string.settings_chart_axis_color),
                         getCurrentColor = { it.textColor },
                         onColorSelected = onTextColorChanged,
                         onReset = onTextColorReset
                     ),
                     OptionalColorItemConfig(
-                        label = "범례 색상",
+                        label = stringResource(R.string.settings_chart_legend_color),
                         getCurrentColor = { it.legendColor },
                         onColorSelected = onLegendColorChanged,
                         onReset = onLegendColorReset
@@ -374,13 +376,13 @@ fun ResetChartColorsCard(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error
                 )
-                Text("차트 색상 초기화", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.settings_chart_reset), style = MaterialTheme.typography.titleMedium)
             }
 
             HorizontalDivider()
 
             Text(
-                "모든 차트 색상을 기본값으로 되돌립니다",
+                stringResource(R.string.settings_chart_reset_desc),
                 style = MaterialTheme.typography.bodyMedium
             )
 
@@ -393,7 +395,7 @@ fun ResetChartColorsCard(
             ) {
                 Icon(Icons.Default.Restore, null)
                 Spacer(Modifier.width(8.dp))
-                Text("모든 색상 초기화")
+                Text(stringResource(R.string.settings_chart_reset_all))
             }
         }
     }
@@ -402,8 +404,8 @@ fun ResetChartColorsCard(
         AlertDialog(
             onDismissRequest = { showDialog = false },
             icon = { Icon(Icons.Default.Warning, null) },
-            title = { Text("차트 색상 초기화") },
-            text = { Text("모든 차트 색상이 기본값으로 되돌아갑니다. 계속하시겠습니까?") },
+            title = { Text(stringResource(R.string.settings_chart_reset)) },
+            text = { Text(stringResource(R.string.settings_chart_reset_confirm)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -414,12 +416,12 @@ fun ResetChartColorsCard(
                         containerColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text("초기화")
+                    Text(stringResource(R.string.action_reset))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDialog = false }) {
-                    Text("취소")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )

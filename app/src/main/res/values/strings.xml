@@ -368,6 +368,7 @@
     <string name="settings_oscillator_period">과매수/과매도 수집 기간</string>
     <string name="settings_oscillator_period_desc">과매수/과매도 데이터 초기화 시 수집할 기간</string>
     <string name="settings_oscillator_period_title">과매수/과매도 수집 기간 설정</string>
+    <string name="settings_oscillator_period_recommend">권장: 12개월 (약 365일, 약 1-2분 소요)</string>
     <string name="settings_period_select">데이터 수집 기간을 선택하세요</string>
 
     <!-- Settings - Update Cards -->

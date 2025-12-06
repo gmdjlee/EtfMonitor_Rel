@@ -8,7 +8,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.etfmonitor.R
 import com.etfmonitor.ui.screens.settings.FearGreedUpdateSettings
 import com.etfmonitor.ui.screens.settings.MarketDepositUpdateSettings
 import com.etfmonitor.ui.screens.settings.MarketOscillatorUpdateSettings
@@ -85,7 +87,7 @@ fun DataUpdateCard(
             ) {
                 Column {
                     Text(
-                        "업데이트 시간",
+                        stringResource(R.string.settings_update_time),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -97,7 +99,7 @@ fun DataUpdateCard(
                 }
 
                 Button(onClick = { showTimePicker = true }) {
-                    Text("변경")
+                    Text(stringResource(R.string.settings_action_change))
                 }
             }
 
@@ -133,7 +135,7 @@ fun DataUpdateCard(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                "마지막 업데이트:",
+                                stringResource(R.string.settings_last_update),
                                 style = MaterialTheme.typography.bodySmall
                             )
                             Text(
@@ -158,11 +160,11 @@ fun DataUpdateCard(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text("업데이트 중...")
+                    Text(stringResource(R.string.settings_updating))
                 } else {
                     Icon(Icons.Default.Refresh, null)
                     Spacer(Modifier.width(8.dp))
-                    Text("지금 업데이트")
+                    Text(stringResource(R.string.settings_update_now))
                 }
             }
         }
@@ -191,15 +193,15 @@ fun StockUpdateCard(
     onUpdateNow: () -> Unit
 ) {
     val config = DataUpdateCardConfig(
-        title = "종목 DB 자동 업데이트",
+        title = stringResource(R.string.settings_stock_update),
         icon = Icons.Default.Schedule,
-        description = "매일 지정된 시간에 종목 데이터를 자동으로 업데이트합니다",
+        description = stringResource(R.string.settings_stock_update_desc),
         updateHour = settings.updateHour,
         updateMinute = settings.updateMinute,
         lastUpdateTime = settings.lastUpdateTime,
         isUpdating = settings.isUpdating,
         stats = listOf(
-            StatItem("저장된 종목 수:", "${settings.stockCount}개")
+            StatItem(stringResource(R.string.settings_stock_count), stringResource(R.string.label_etf_count_unit, settings.stockCount))
         )
     )
 
@@ -220,15 +222,15 @@ fun MarketDepositUpdateCard(
     onUpdateNow: () -> Unit
 ) {
     val config = DataUpdateCardConfig(
-        title = "증시 자금 DB 자동 업데이트",
+        title = stringResource(R.string.settings_deposit_update),
         icon = Icons.Default.TrendingUp,
-        description = "매일 지정된 시간에 증시 자금 데이터를 자동으로 업데이트합니다",
+        description = stringResource(R.string.settings_deposit_update_desc),
         updateHour = settings.updateHour,
         updateMinute = settings.updateMinute,
         lastUpdateTime = settings.lastUpdateTime,
         isUpdating = settings.isUpdating,
         stats = listOf(
-            StatItem("저장된 데이터 수:", "${settings.depositCount}개")
+            StatItem(stringResource(R.string.settings_deposit_count), stringResource(R.string.label_etf_count_unit, settings.depositCount))
         )
     )
 
@@ -249,16 +251,16 @@ fun FearGreedUpdateCard(
     onUpdateNow: () -> Unit
 ) {
     val config = DataUpdateCardConfig(
-        title = "공포 탐욕 지수 DB 자동 업데이트",
+        title = stringResource(R.string.settings_feargreed_update),
         icon = Icons.Default.Psychology,
-        description = "매일 지정된 시간에 공포 탐욕 지수 데이터를 자동으로 업데이트합니다",
+        description = stringResource(R.string.settings_feargreed_update_desc),
         updateHour = settings.updateHour,
         updateMinute = settings.updateMinute,
         lastUpdateTime = settings.lastUpdateTime,
         isUpdating = settings.isUpdating,
         stats = listOf(
-            StatItem("KOSPI 데이터 수:", "${settings.kospiCount}개"),
-            StatItem("KOSDAQ 데이터 수:", "${settings.kosdaqCount}개")
+            StatItem(stringResource(R.string.settings_kospi_count), stringResource(R.string.label_etf_count_unit, settings.kospiCount)),
+            StatItem(stringResource(R.string.settings_kosdaq_count), stringResource(R.string.label_etf_count_unit, settings.kosdaqCount))
         )
     )
 
@@ -279,16 +281,16 @@ fun MarketOscillatorUpdateCard(
     onUpdateNow: () -> Unit
 ) {
     val config = DataUpdateCardConfig(
-        title = "시장 오실레이터 DB 자동 업데이트",
+        title = stringResource(R.string.settings_oscillator_update),
         icon = Icons.Default.ShowChart,
-        description = "매일 지정된 시간에 시장 오실레이터 데이터를 자동으로 업데이트합니다",
+        description = stringResource(R.string.settings_oscillator_update_desc),
         updateHour = settings.updateHour,
         updateMinute = settings.updateMinute,
         lastUpdateTime = settings.lastUpdateTime,
         isUpdating = settings.isUpdating,
         stats = listOf(
-            StatItem("KOSPI 데이터 수:", "${settings.kospiCount}개"),
-            StatItem("KOSDAQ 데이터 수:", "${settings.kosdaqCount}개")
+            StatItem(stringResource(R.string.settings_kospi_count), stringResource(R.string.label_etf_count_unit, settings.kospiCount)),
+            StatItem(stringResource(R.string.settings_kosdaq_count), stringResource(R.string.label_etf_count_unit, settings.kosdaqCount))
         )
     )
 
@@ -318,7 +320,7 @@ fun TimePickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("업데이트 시간 설정") },
+        title = { Text(stringResource(R.string.settings_update_time_title)) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -329,12 +331,12 @@ fun TimePickerDialog(
         },
         confirmButton = {
             Button(onClick = { onConfirm(timePickerState.hour, timePickerState.minute) }) {
-                Text("확인")
+                Text(stringResource(R.string.action_confirm))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("취소")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
