@@ -13,6 +13,7 @@ import com.etfmonitor.database.entities.AIAnalysisResult
 import com.etfmonitor.database.entities.CorrelationAnalysisResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -110,23 +111,24 @@ class CorrelationAnalysisRepository @Inject constructor(
     /**
      * 저장된 상관관계 분석 결과 조회
      */
-    fun getCorrelationResults(market: String): Flow<List<CorrelationAnalysisResult>> {
-        return correlationAnalysisDao.getAllByMarket(market)
-    }
+    fun getCorrelationResults(market: String): Flow<List<CorrelationAnalysisResult>> =
+        correlationAnalysisDao.getAllByMarket(market).flowOn(Dispatchers.IO)
 
     /**
      * 특정 날짜의 상관관계 분석 결과 조회
      */
-    suspend fun getCorrelationResult(market: String, date: String): CorrelationAnalysisResult? {
-        return correlationAnalysisDao.getByMarketAndDate(market, date)
-    }
+    suspend fun getCorrelationResult(market: String, date: String): CorrelationAnalysisResult? =
+        withContext(Dispatchers.IO) {
+            correlationAnalysisDao.getByMarketAndDate(market, date)
+        }
 
     /**
      * 최신 상관관계 분석 결과 조회
      */
-    suspend fun getLatestCorrelationResult(market: String): CorrelationAnalysisResult? {
-        return correlationAnalysisDao.getLatestByMarket(market)
-    }
+    suspend fun getLatestCorrelationResult(market: String): CorrelationAnalysisResult? =
+        withContext(Dispatchers.IO) {
+            correlationAnalysisDao.getLatestByMarket(market)
+        }
 
     // ========== AI 분석 ==========
 
@@ -255,15 +257,14 @@ class CorrelationAnalysisRepository @Inject constructor(
     /**
      * AI 분석 결과 조회
      */
-    fun getAIAnalysisResults(market: String): Flow<List<AIAnalysisResult>> {
-        return aiAnalysisDao.getAllByMarket(market)
-    }
+    fun getAIAnalysisResults(market: String): Flow<List<AIAnalysisResult>> =
+        aiAnalysisDao.getAllByMarket(market).flowOn(Dispatchers.IO)
 
     /**
      * 최신 AI 분석 결과 조회
      */
-    suspend fun getLatestAIResult(market: String): AIAnalysisResult? {
-        return aiAnalysisDao.getLatestByMarket(market)
+    suspend fun getLatestAIResult(market: String): AIAnalysisResult? = withContext(Dispatchers.IO) {
+        aiAnalysisDao.getLatestByMarket(market)
     }
 
     // ========== Private Helpers ==========

@@ -75,9 +75,9 @@ fun MarketOscillatorScreen(
             oversoldThreshold = oversoldThreshold,
             onDismiss = { showSettingsDialog = false },
             onConfirm = { days, overbought, oversold ->
-                viewModel.setDisplayDays(days)
-                viewModel.setOverboughtThreshold(overbought)
-                viewModel.setOversoldThreshold(oversold)
+                viewModel.onDisplayDaysChanged(days)
+                viewModel.onOverboughtThresholdChanged(overbought)
+                viewModel.onOversoldThresholdChanged(oversold)
                 showSettingsDialog = false
             }
         )
@@ -136,13 +136,13 @@ fun MarketOscillatorScreen(
                     ) {
                         FilterChip(
                             selected = selectedMarket == "KOSPI",
-                            onClick = { viewModel.setSelectedMarket("KOSPI") },
+                            onClick = { viewModel.onSelectedMarketChanged("KOSPI") },
                             label = { Text("코스피") },
                             modifier = Modifier.weight(1f)
                         )
                         FilterChip(
                             selected = selectedMarket == "KOSDAQ",
-                            onClick = { viewModel.setSelectedMarket("KOSDAQ") },
+                            onClick = { viewModel.onSelectedMarketChanged("KOSDAQ") },
                             label = { Text("코스닥") },
                             modifier = Modifier.weight(1f)
                         )

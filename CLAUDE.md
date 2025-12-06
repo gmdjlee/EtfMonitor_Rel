@@ -10,7 +10,7 @@
 - **Min SDK**: 26 (Android 8.0) | **Target SDK**: 35 (Android 15)
 - **Architecture**: MVVM + Clean Architecture
 - **Dependency Injection**: Hilt 2.54
-- **Database**: Room 2.8.3 (12 schemas with migrations)
+- **Database**: Room 2.8.3 (19 entities, 16 DAOs, schema v14)
 - **AI Integration**: Claude & Gemini API for market analysis
 - **Unique Feature**: Embedded Python runtime (Chaquopy) for data collection & ML predictions
 
@@ -28,6 +28,101 @@ Monitor Korean ETFs with features including:
 
 ---
 
+## ⚠️ Critical Implementation Notes
+
+> **Read this section before making any changes to the codebase.**
+
+### Database Critical Patterns
+
+#### 1. Holding Entity Memory Optimization
+The `Holding` entity uses compressed storage to minimize memory footprint:
+```kotlin
+// STORAGE: Uses Short/Int instead of Float
+@Entity
+data class Holding(
+    val etfTicker: String,
+    val stockTicker: String,
+    val date: String,
+    val weightBps: Short,        // basis points: 5.25% → 525
+    val amountMillion: Int,      // millions: 1,234,567,890 → 1234
+    val snapshotType: String     // DAILY, WEEKLY, MONTHLY
+)
+
+// CONVERSION HELPERS (built into entity):
+val weight: Float = weightBps / 10000f
+val amount: Float = amountMillion * 1_000_000f
+```
+
+**⚠️ ALWAYS use the factory method to create Holdings:**
+```kotlin
+// ✅ CORRECT: Use factory method
+val holding = Holding.create(etfTicker, stockTicker, name, date, weight, amount)
+
+// ❌ WRONG: Direct construction may cause overflow/underflow
+val holding = Holding(etfTicker, stockTicker, date, 525, 1234, "DAILY")
+```
+
+#### 2. StockAnalysisData JOIN Requirement
+After Migration 12→13, the `name` field was removed from `stock_analysis_data`. **Always use JOIN with stocks table:**
+```kotlin
+// ✅ CORRECT: Use DTO with JOIN
+val data = stockAnalysisDao.getAnalysisDataWithName(ticker)  // Returns StockAnalysisWithName
+
+// ❌ WRONG: Direct query will miss name field
+val data = stockAnalysisDao.getAnalysisData(ticker)  // name is null
+```
+
+#### 3. DAO Query Memory Limits
+All ranking/list queries use LIMIT to prevent OOM on Android:
+```kotlin
+// Built-in limits in EtfDao:
+// - Stock rankings: LIMIT 500
+// - Stock changes: LIMIT 300
+// - General lists: LIMIT 100
+```
+
+#### 4. Type Conversion in Queries
+When querying Holding data, convert compressed values:
+```sql
+SELECT CAST(weightBps AS REAL) / 10000.0 as weight,
+       CAST(amountMillion AS REAL) * 1000000.0 as amount
+FROM holdings
+```
+
+### Python Integration Critical Patterns
+
+#### Timeout Requirements by Client
+| Client | Default Timeout | Notes |
+|--------|----------------|-------|
+| PyKrxClient | 30s | 2 retries for holdings data |
+| MarketIndexPyClient | 30s | Standard |
+| OscillatorPyClient | **180s** | Market oscillator collects 200+ stocks |
+| StockPredictorPyClient | **120s** | ML training is expensive |
+| FearGreedRepository | No timeout | Direct Python, request 3x days due to MA loss |
+
+#### FearGreed Data Collection
+Fear & Greed calculation loses data due to moving averages. **Always request 3x the needed days:**
+```kotlin
+// To get 30 days of Fear & Greed data:
+fearGreedRepository.initializeFearGreed(days = 90)  // Request 3x days
+```
+
+### Repository Caching Strategies
+| Repository | Cache Expiry | Invalidation Logic |
+|------------|-------------|-------------------|
+| StockAnalysisRepository | 24 hours | OR missing today's data OR <80% requested days |
+| MarketDepositRepository | 12 hours | AND latest date == today |
+| FearGreedRepository | No auto-expiry | Check latest date manually |
+
+### ViewModel State Patterns
+**Note:** Not all ViewModels use sealed classes. Two ViewModels use individual StateFlows for granular control:
+- **SettingsViewModel**: 25+ individual StateFlows (themes, API keys, schedules, etc.)
+- **StatisticsViewModel**: 12+ individual StateFlows (sorting, search, analysis results)
+
+This is intentional for these complex configuration screens. New ViewModels should still prefer sealed classes.
+
+---
+
 ## Codebase Structure
 
 ```
@@ -36,43 +131,49 @@ EtfMonitor_Rel/
 │   ├── java/com/example/etfmonitor/
 │   │   ├── MainActivity.kt              # Entry point
 │   │   ├── EtfMonitorApp.kt            # Hilt application
-│   │   ├── database/                    # Room (16 entities, 13 DAOs)
+│   │   ├── database/                    # Room (19 entities, 16 DAOs)
 │   │   │   ├── AppDatabase.kt
 │   │   │   ├── entities/
 │   │   │   ├── DAOs/
-│   │   │   └── Migrations (v1→v12)
+│   │   │   └── Migrations (v1→v14)
 │   │   ├── di/                          # Hilt modules
 │   │   │   ├── DatabaseModule.kt
 │   │   │   ├── RepositoryModule.kt
 │   │   │   ├── PythonModule.kt
 │   │   │   ├── AIModule.kt
 │   │   │   └── WorkerModule.kt
-│   │   ├── repository/                  # Data layer (8 repos)
+│   │   ├── repository/                  # Data layer (13 repos)
 │   │   ├── python/                      # Python bridge (PyKrxClient)
 │   │   ├── oscillator/                  # Technical analysis
 │   │   ├── ai/                          # AI integration (Claude, Gemini)
 │   │   │   ├── AIApiClient.kt
 │   │   │   ├── ClaudeApiClient.kt
 │   │   │   ├── GeminiApiClient.kt
-│   │   │   └── MarketAnalysisPrompts.kt
+│   │   │   ├── MarketAnalysisPrompts.kt
+│   │   │   ├── AIApiClientFactory.kt
+│   │   │   ├── AIResponseParser.kt
+│   │   │   └── MarketSignal.kt
 │   │   ├── analysis/                    # Market analysis
 │   │   │   ├── CorrelationAnalyzer.kt
 │   │   │   └── Backtester.kt
 │   │   ├── ui/                          # Compose UI layer
 │   │   │   ├── Navigation.kt
-│   │   │   ├── screens/                 # 12 feature screens
+│   │   │   ├── screens/                 # 14 feature screens
 │   │   │   ├── components/              # Reusable components
 │   │   │   └── theme/                   # Material Design 3
 │   │   ├── worker/                      # Background tasks
 │   │   ├── service/                     # Foreground services
 │   │   └── utils/                       # Formatters
-│   ├── python/                          # Python scripts
-│   │   ├── etfcollector.py
-│   │   ├── stockcollector.py
-│   │   ├── stock_analyzer.py
+│   ├── python/                          # Python scripts (10 files)
+│   │   ├── etfcollector.py              # ETF data collection
+│   │   ├── stocks.py                    # Stock data utilities
+│   │   ├── market.py                    # Market data fetcher
+│   │   ├── core.py                      # Core utilities
+│   │   ├── feargreed.py                 # Fear & Greed calculation
+│   │   ├── deposit_scraper.py           # Market deposit scraper
 │   │   ├── stock_predictor.py           # ML predictions
-│   │   ├── market_index_fetcher.py
-│   │   └── ...
+│   │   ├── trend_signal.py              # Trend signal analysis
+│   │   └── logger.py                    # Logging utilities
 │   ├── res/                             # Android resources
 │   └── AndroidManifest.xml
 ├── gradle/libs.versions.toml            # Version catalog
@@ -118,13 +219,27 @@ EtfMonitor_Rel/
 
 #### 1. State-Driven UI (Sealed Classes)
 ```kotlin
-// Pattern: Sealed class for type-safe state
+// Pattern: Sealed class for type-safe state (HomeViewModel actual implementation)
 sealed class HomeState {
     object Loading : HomeState()
-    data class Idle(val hasData: Boolean, val lastDate: String?) : HomeState()
+    data class Idle(val hasData: Boolean, val lastDate: String?, val summary: HomeSummary? = null) : HomeState()
+    data class Initializing(val message: String, val progress: Int) : HomeState()
+    data class Updating(val message: String, val progress: Int) : HomeState()
     data class Success(val message: String) : HomeState()
     data class Error(val message: String) : HomeState()
 }
+
+// Supporting data class for complex state
+data class HomeSummary(
+    val depositChange: Double?,
+    val creditChange: Double?,
+    val kospiFearGreed: Double?,
+    val kosdaqFearGreed: Double?,
+    val kospiOscillator: Double?,
+    val kospiStatus: String?,
+    val kosdaqOscillator: Double?,
+    val kosdaqStatus: String?
+)
 
 // ViewModels expose immutable StateFlow
 @HiltViewModel
@@ -227,6 +342,7 @@ fun observeData() {
 | **Room** | 2.8.3 | Local database |
 | **Coroutines** | 1.10.2 | Async/concurrency |
 | **WorkManager** | 2.9.1 | Background tasks |
+| **Navigation Compose** | 2.8.5 | Type-safe navigation |
 | **Chaquopy** | 15.0.1 | Python runtime |
 | **OkHttp** | 4.12.0 | HTTP client (AI APIs) |
 | **Security Crypto** | 1.1.0-alpha06 | Encrypted API key storage |
@@ -245,6 +361,41 @@ fun observeData() {
 - `pandas`: Data manipulation
 - `scikit-learn`: Machine learning (stock predictions)
 - `beautifulsoup4`: Web scraping
+- `numpy`: Numerical computing
+- `requests`: HTTP client
+
+#### Python Scripts (app/src/main/python/)
+| Script | Exposed Functions | Return Format | Notes |
+|--------|------------------|---------------|-------|
+| **etfcollector.py** | `get_etf_list_with_names()`, `get_etf_list()`, `get_etf_holdings()` | JSON array | Uses pykrx, filters by keywords |
+| **stocks.py** | `search_stock()`, `get_stock_data()`, `get_stock_ohlcv()`, `get_all_stocks_list()` | JSON object | 5-day rolling sums for investor data |
+| **market.py** | `fetch_all_markets()`, `fetch_recent_days()`, `get_market_oscillator()` | JSON object | Oscillator collects 200+ component stocks |
+| **core.py** | `get_business_days()`, date/number utilities | Various | Shared utilities, not directly called |
+| **feargreed.py** | `run_analysis()`, `combine()`, `analyze()` | DataFrame tuple | 5 indicators @ 20% each (Mom, PCR, VIX, Spread, RSI) |
+| **deposit_scraper.py** | `scrape_deposit_data()`, `get_market_deposit_data()` | JSON string | Scrapes Naver Finance |
+| **stock_predictor.py** | `train_and_predict()`, `train_model()`, `predict()` | JSON | RandomForest/GradientBoosting, min 20 samples |
+| **trend_signal.py** | `get_trend_signal_analysis()`, `get_elder_impulse_analysis()`, `get_demark_td_analysis()` | JSON | Technical indicators with buy/sell signals |
+
+#### Python JSON Return Patterns
+```python
+# stocks.py - get_stock_data()
+{
+  "ticker": "005930",
+  "name": "삼성전자",
+  "dates": ["2024-01-01", "2024-01-02"],
+  "market_cap": [100000, 105000],
+  "foreign_5d": [500, 600],      # 5-day cumulative
+  "institution_5d": [300, 400]   # 5-day cumulative
+}
+
+# stock_predictor.py - train_and_predict()
+{
+  "success": true,
+  "accuracy": 0.85,
+  "precision": 0.82,
+  "predictions": [{"ticker": "...", "confidence": 0.92, ...}]
+}
+```
 
 ---
 
@@ -849,50 +1000,194 @@ fun Screen(viewModel: ViewModel = hiltViewModel()) {
 - **`EtfMonitorApp.kt`**: Hilt application, Python engine initialization, WorkManager config
 
 ### Navigation
-- **`ui/Navigation.kt`**: All screen routes (12 screens), NavHost setup
+- **`ui/Navigation.kt`**: All screen routes (14 screens), NavHost setup
+
+### ViewModels (13 total)
+
+#### Sealed State Class ViewModels (11)
+| ViewModel | State Class | States | Key Dependencies |
+|-----------|-------------|--------|------------------|
+| **HomeViewModel** | HomeState | Loading, Idle, Initializing, Updating, Success, Error + HomeSummary | 4 Repos, EtfDao, Context |
+| **EtfListViewModel** | ListState | Loading, Success, Empty, Error | DataRepository |
+| **DetailViewModel** | DetailState | Loading, Success, Error | DataRepository, SavedStateHandle |
+| **StockTrendViewModel** | TrendState | Loading, Success, Error | DataRepository, SavedStateHandle |
+| **PredictionViewModel** | PredictionState | Initial, NoPredictions, HasPredictions, Loading, Success, Error | StockPredictionRepository |
+| **FearGreedViewModel** | FearGreedState | Loading, Idle, Initializing, Updating, Success, Error | FearGreedRepository, EtfDao |
+| **OscillatorViewModel** | OscillatorState | Idle, Loading, Success(7 data items), Error | 4 Clients, StockRepository |
+| **MarketDepositViewModel** | MarketDepositState | Idle, Loading, Success, Error | MarketDepositRepository |
+| **MarketOscillatorViewModel** | MarketOscillatorState | Loading, Idle, Initializing, Updating, Success, Error | MarketOscillatorRepository |
+| **AdvancedDashboardViewModel** | AdvancedDashboardState | Loading, Success(AdvancedDashboardData), Error | AdvancedAnalysisRepository, 8 DAOs |
+| **NewAIAnalysisViewModel** | NewAIAnalysisState | 11 states including analysis + chat states | 4 Repositories |
+
+#### Individual StateFlow ViewModels (2)
+| ViewModel | StateFlows Count | Purpose |
+|-----------|-----------------|---------|
+| **SettingsViewModel** | 25+ | Themes, API keys, schedules, font scales, chart colors |
+| **StatisticsViewModel** | 12+ | Multi-column sorting, search, analysis results |
+
+#### Common ViewModel Patterns
+```kotlin
+// First-Run Dialog Pattern (used by HomeViewModel, FearGreedViewModel, MarketOscillatorViewModel)
+private val _showFirstRunDialog = MutableStateFlow(false)
+fun checkFirstRun() {
+    viewModelScope.launch {
+        val dismissed = etfDao.getSetting("${feature}_dialog_dismissed")
+        if (!hasData && dismissed != "true") _showFirstRunDialog.value = true
+    }
+}
+
+// Search Debounce Pattern (used by EtfListViewModel, OscillatorViewModel)
+_searchQuery
+    .debounce(300)
+    .flatMapLatest { query -> repository.search(query) }
+    .launchIn(viewModelScope)
+```
 
 ### Database
-- **`database/AppDatabase.kt`**: Room database (16 entities, 12 migrations v1→v12)
+- **`database/AppDatabase.kt`**: Room database (19 entities, 16 DAOs, 13 migrations v1→v14)
 - **`database/Migrations`**: Schema evolution (inline in AppDatabase.kt)
+- **`database/Converters.kt`**: TypeConverters for `List<String>` and `List<Long>` (uses org.json.JSONArray)
 
-### Repositories
-- **`repository/DataRepository.kt`**: ETF data, holdings, comparisons
-- **`repository/StockRepository.kt`**: Stock ticker initialization
-- **`repository/StockAnalysisRepository.kt`**: Foreign/institutional analysis
-- **`repository/AIAnalysisRepository.kt`**: AI market analysis
-- **`repository/StatisticsAnalysisRepository.kt`**: Correlation analysis
-- **`repository/MarketIndexRepository.kt`**: Market index data
+#### Database Entities (19 total)
+| Entity | Table | Primary Key | Critical Notes |
+|--------|-------|-------------|----------------|
+| Etf | etfs | ticker (String) | Minimal: ticker + name |
+| **Holding** | holdings | (etfTicker, stockTicker, date) | **Uses Short/Int compression** - see Critical Notes |
+| Stock | stocks | ticker (String) | Added in v13, has inferMarket() helper |
+| StockAnalysisData | stock_analysis_data | ticker (String) | **name removed in v13** - requires JOIN |
+| Setting | settings | key (String) | Simple KV store |
+| SearchHistory | search_history | id (Int, auto) | User search tracking |
+| MarketDeposit | market_deposits | date (String) | Daily deposit/credit |
+| FearGreedIndex | fear_greed_index | id (String: "KOSPI-2024-01-01") | 12 indicator columns |
+| MarketOscillatorData | market_oscillator | id (String: "KOSPI-2025-01-01") | Overbought/oversold |
+| MarketIndex | market_index | id (String: "KOSPI-2025-01-01") | OHLCV + changeRate |
+| DailyEtfStatistics | daily_etf_statistics | date (String) | 14-column aggregates |
+| CorrelationAnalysisResult | correlation_analysis_result | id (String) | 12+ correlation metrics |
+| AIAnalysisResult | ai_analysis_result | id (UUID String) | AI interpretation |
+| AIChatSession | ai_chat_session | id (UUID String) | Chat session |
+| AIChatMessage | ai_chat_message | id (UUID String) | Chat messages |
+| StockPrediction | stock_predictions | id ("{ticker}-{date}") | ML predictions |
+| SectorAnalysis | sector_analysis | id ("{sector}-{date}") | Sector Fear/Greed |
+| EtfCorrelationCache | etf_correlation_cache | id ("{etf1}-{etf2}-{date}") | ETF pair correlation |
+| LiquidityAnalysis | liquidity_analysis | date (String) | Market liquidity |
 
-### AI Integration
-- **`ai/AIApiClient.kt`**: Base AI client interface
-- **`ai/ClaudeApiClient.kt`**: Anthropic Claude API client
-- **`ai/GeminiApiClient.kt`**: Google Gemini API client
-- **`ai/MarketAnalysisPrompts.kt`**: AI prompt templates
-- **`ai/ApiKeyProvider.kt`**: Secure API key management
+#### Critical Migrations
+| Migration | Impact | Action Required |
+|-----------|--------|-----------------|
+| **7→8** | Holding restructure | Float → Short/Int, added snapshotType, 7 indices |
+| **12→13** | Stock expansion | name removed from StockAnalysisData → use JOIN |
+| **13→14** | Advanced analysis | Added SectorAnalysis, EtfCorrelationCache, LiquidityAnalysis |
+
+### Repositories (13 total)
+
+#### Core Data Repositories
+| Repository | Dependencies | Key Methods | Error Pattern |
+|------------|--------------|-------------|---------------|
+| **DataRepository** | EtfDao, DailyEtfStatisticsDao, StockDao, PyKrxClient | `initializeData()`, `updateData()`, `getComparison()` | Flow<DataProgress> |
+| **StockRepository** | StockDao, OscillatorPyClient | `syncFromHoldings()`, `initializeStocks()` | Result<Int> |
+| **StockAnalysisRepository** | StockAnalysisDao, StockDao, OscillatorPyClient | `getStockAnalysis()` (24h cache) | nullable return |
+| **MarketIndexRepository** | MarketIndexDao, MarketIndexPyClient | `initializeMarketIndex()`, `updateMarketIndex()` | Result<Int> |
+| **MarketDepositRepository** | MarketDepositDao, OscillatorPyClient | `getOrUpdateMarketData()` (12h smart cache) | Result<Int> |
+| **FearGreedRepository** | FearGreedDao, Python (direct) | `initializeFearGreed(days)` → request 3x days | Result<Int> |
+| **MarketOscillatorRepository** | MarketOscillatorDao, OscillatorPyClient | `initializeMarketData()` (365 days) | Result<Int> |
+
+#### Analysis Repositories
+| Repository | Dependencies | Key Methods | Notes |
+|------------|--------------|-------------|-------|
+| **AIAnalysisRepository** | AIApiClientFactory, 5 DAOs | `analyzeMarket()`, `generateQuickSignal()` | Temperature: 0.5 analysis, 0.3 quick |
+| **AIChatRepository** | AIChatDao, AIApiClientFactory | `createSession()`, `sendMessage()` | Max 10 messages for context |
+| **CorrelationAnalysisRepository** | CorrelationAnalyzer, 4 DAOs, AIApiClientFactory | `runCorrelationAnalysis()`, `interpretWithAI()` | 7+ correlation metrics |
+| **StatisticsAnalysisRepository** | EtfDao, MarketIndexDao, DailyEtfStatisticsDao | `calculateCorrelation()` (Pearson) | Min 10 data points |
+| **StockPredictionRepository** | StockPredictionDao, EtfDao, StockPredictorPyClient | `runPrediction()` | Min 20 training samples |
+| **AdvancedAnalysisRepository** | 9 DAOs | 5 analysis types: MarketCapFlow, Divergence, Liquidity, Sector, ETF Correlation | Complex multi-factor analysis |
+
+### AI Integration (11 files)
+
+#### API Client Configuration
+| Client | API Endpoint | Default Model | Timeout |
+|--------|-------------|---------------|---------|
+| **ClaudeApiClient** | `api.anthropic.com/v1/messages` | `claude-3-5-sonnet-20241022` | 60s |
+| **GeminiApiClient** | `generativelanguage.googleapis.com/v1beta/models` | `gemini-2.0-flash-exp` | 60s |
+
+#### AI Files
+- **`ai/AIApiClient.kt`**: Interface with `analyzeMarket()`, `chat()`, `isApiAvailable()`, `testApiKey()`, `listModels()`
+- **`ai/ClaudeApiClient.kt`**: Anthropic API (headers: `x-api-key`, `anthropic-version: 2023-06-01`)
+- **`ai/GeminiApiClient.kt`**: Google API with `validateAndFixModelName()`, SAFETY/RECITATION block handling
+- **`ai/AIApiClientFactory.kt`**: Factory pattern for client selection based on `ApiKeyProvider.getSelectedProvider()`
+- **`ai/AIResponseParser.kt`**: Extracts JSON from `\`\`\`json...\`\`\`` blocks or raw `{...}`, parses Korean signal names
+- **`ai/MarketAnalysisPrompts.kt`**: Templates for `COMPREHENSIVE`, `ETF_ONLY`, `TECHNICAL_ONLY`, `SENTIMENT_ONLY` analysis
+- **`ai/ApiKeyProvider.kt`**: Interface for API key management
+- **`ai/SharedPreferencesApiKeyProvider.kt`**: **AES256-GCM encrypted** storage via Android Keystore
+- **`ai/AIModel.kt`**: Model definitions with id, name, provider, contextWindow, maxOutputTokens
+- **`ai/AIProvider.kt`**: Enum (CLAUDE, GEMINI) with `toDisplayName()`, `fromString()`
+- **`ai/MarketSignal.kt`**: Signal data class with `SignalType` (STRONG_BUY→STRONG_SELL), `RiskLevel` (LOW/MEDIUM/HIGH)
 
 ### Analysis
 - **`analysis/CorrelationAnalyzer.kt`**: ETF flow vs market correlation
 - **`analysis/Backtester.kt`**: Strategy backtesting
 
-### Python Bridge
+### Python Bridge (4 Kotlin Clients)
 - **`python/PyKrxClient.kt`**: Main Python integration (ETF/stock data)
-- **`python/OscillatorPyClient.kt`**: Technical oscillator calculations
+  - `getFilteredEtfList()`, `getEtfList()`, `getHoldings()`, `getBusinessDays()`, `getStockName()`
+  - Uses: `etfcollector`, `stocks`, `core` modules
+  - Retry: 2 retries for holdings data with exponential backoff
 - **`python/MarketIndexPyClient.kt`**: Market index data fetcher
+  - `fetchMarketIndices()`, `fetchRecentDays()`, `getLatestIndex()`
+  - Uses: `market` module
+- **`python/StockPredictorPyClient.kt`**: ML stock prediction client
+  - `trainAndPredict()`, `trainModel()`, `predict()`, `getModelStatus()`, `clearModelCache()`
+  - Uses: `stock_predictor` module
+  - Timeout: 120s (ML training is expensive)
+- **`oscillator/python/OscillatorPyClient.kt`**: Technical analysis client
+  - `searchStock()`, `getStockAnalysis()`, `getMarketDepositData()`, `getAllStocksList()`
+  - `getMarketOscillator()` (180s timeout), `getTrendSignalData()`, `getElderImpulseData()`, `getDemarkTDData()`
+  - Uses: `stocks`, `deposit_scraper`, `market`, `trend_signal` modules
 
 ### UI Theme
 - **`ui/theme/Theme.kt`**: Material Design 3 color schemes, typography
 - **`ui/theme/ThemeManager.kt`**: Global theme state (dark mode, font, colors)
 
-### Background Tasks
+### Background Tasks (7 workers)
 - **`worker/StockUpdateWorker.kt`**: Daily stock data refresh
 - **`worker/DataArchiveWorker.kt`**: Data archiving
-- **`service/DataCollectionService.kt`**: Foreground ETF sync service
+- **`worker/AdvancedAnalysisWorker.kt`**: Advanced analysis tasks
+- **`worker/MarketOscillatorUpdateWorker.kt`**: Market oscillator updates
+- **`worker/MarketDepositUpdateWorker.kt`**: Market deposit updates
+- **`worker/FearGreedUpdateWorker.kt`**: Fear & Greed index updates
+- **`worker/WorkManagerHelper.kt`**: WorkManager scheduling utilities
 
-### Dependency Injection
-- **`di/DatabaseModule.kt`**: Database and DAO providers
-- **`di/RepositoryModule.kt`**: Repository providers
-- **`di/PythonModule.kt`**: Python engine provider
-- **`di/AIModule.kt`**: AI client providers
+### Services
+- **`service/DataCollectionService.kt`**: Foreground ETF sync service
+- **`service/CollectionState.kt`**: Collection state management
+
+### Dependency Injection (5 Modules, 43 Singleton Providers)
+
+#### Module Summary
+| Module | Manual Providers | Provides |
+|--------|-----------------|----------|
+| **DatabaseModule** | 17 | AppDatabase + 16 DAOs |
+| **RepositoryModule** | 6 | 6 Repositories (7 more auto-injected via @Inject) |
+| **PythonModule** | 3 | Python instance + 2 clients (2 more auto-injected) |
+| **AIModule** | 9 | ApiKeyProvider, 2 API clients, Factory, 2 Analyzers, 3 Repositories |
+| **WorkerModule** | 1 | WorkManager |
+
+#### Auto-Injected Components (via @Inject constructor)
+- **Repositories**: StockRepository, StockAnalysisRepository, MarketDepositRepository, AdvancedAnalysisRepository
+- **Python Clients**: PyKrxClient, OscillatorPyClient
+
+#### DI Dependency Flow
+```
+AppDatabase → DAOs → Repositories → ViewModels
+                ↓
+Python Instance → Python Clients → Repositories
+                ↓
+ApiKeyProvider → AI Clients → AIApiClientFactory → AI Repositories
+```
+
+#### Database Name
+```kotlin
+Room.databaseBuilder(context, AppDatabase::class.java, "etf_monitor.db")
+```
 
 ### Build Configuration
 - **`gradle/libs.versions.toml`**: Version catalog for all dependencies
@@ -1090,6 +1385,83 @@ dependencies {
 
 ---
 
+## Claude Code - Coding Guidelines
+
+### Core Philosophy: Minimal Engineering
+
+#### DO NOT Over-Engineer
+- Make ONLY changes that are directly requested or clearly necessary
+- Keep solutions simple and focused
+- Do NOT add unrequested features, refactor code, or make "improvements"
+- Bug fixes do NOT require cleaning up surrounding code
+- Simple features do NOT need additional configurability
+
+#### Trust the System
+- Do NOT add error handling, fallbacks, or validation for scenarios that cannot occur
+- Trust internal code and framework guarantees
+- Validate ONLY at system boundaries (user input, external APIs)
+
+#### Avoid Premature Abstraction
+- Do NOT create helpers, utilities, or abstractions for one-time tasks
+- Do NOT design for hypothetical future requirements
+- The correct complexity level is the MINIMUM required for the current task
+- Reuse existing abstractions when possible and follow DRY principles
+
+#### Quality Standards
+- Write high-quality, general-purpose solutions using available standard tools
+- Focus on understanding problem requirements and implementing the correct algorithm
+- Provide grounded, hallucination-free answers unless confident in the exact answer
+
+---
+
+### UI/UX Design Guidelines
+
+#### Typography
+- Choose beautiful, distinctive, and interesting fonts
+- AVOID generic fonts like Arial, Inter, Roboto, system fonts
+- Select unique choices that enhance aesthetics
+
+#### Color & Theme
+- Commit to a cohesive aesthetic
+- Dominant colors with sharp accents perform better than timid, evenly-distributed palettes
+- Draw inspiration from IDE themes and cultural aesthetics
+- AVOID clichéd color schemes (especially purple gradients on white backgrounds)
+
+#### Motion & Animation
+- Use animations for effects and micro-interactions
+- Focus on high-impact moments
+- One well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions
+
+#### Backgrounds
+- Create atmosphere and depth rather than defaulting to solid colors
+- Layer gradients, use geometric patterns, or add contextual effects that match the overall aesthetic
+
+#### Avoid Generic AI Aesthetics
+- Overused font families (Inter, Roboto, Arial, system fonts)
+- Clichéd color schemes (purple gradients on white)
+- Predictable layouts and component patterns
+- Cookie-cutter designs lacking contextual character
+
+---
+
+### Summary Rules
+
+```
+✓ ONLY requested changes
+✓ Minimal complexity
+✓ Trust framework guarantees
+✓ Validate at boundaries only
+✓ Unique, beautiful design choices
+
+✗ NO unrequested features
+✗ NO premature abstraction
+✗ NO unnecessary error handling
+✗ NO hypothetical future design
+✗ NO generic AI aesthetics
+```
+
+---
+
 ## AI Assistant Guidelines
 
 ### When Working on This Project
@@ -1107,6 +1479,7 @@ dependencies {
 
 ### Common Pitfalls to Avoid
 
+#### General
 - ❌ Exposing `MutableStateFlow` publicly
 - ❌ Running database operations without `Dispatchers.IO`
 - ❌ Creating ViewModels manually (use `hiltViewModel()`)
@@ -1115,6 +1488,24 @@ dependencies {
 - ❌ Using LiveData (this project uses StateFlow)
 - ❌ Hardcoding strings (use string resources)
 - ❌ Blocking main thread with suspend functions
+
+#### Database-Specific (Critical)
+- ❌ Direct `Holding` construction (use `Holding.create()` factory)
+- ❌ Querying `StockAnalysisData` without JOIN to `stocks` table
+- ❌ Forgetting type conversion for compressed Holding values in queries
+- ❌ Not using LIMIT clauses in ranking/list queries (causes OOM)
+- ❌ Assuming `name` field exists in `stock_analysis_data` (removed in v13)
+
+#### Python-Specific
+- ❌ Using 30s timeout for `getMarketOscillator()` (needs 180s)
+- ❌ Using 30s timeout for ML training (needs 120s)
+- ❌ Requesting exact days for FearGreed (request 3x due to MA data loss)
+- ❌ Not handling JSON parsing errors from Python (use `ignoreUnknownKeys = true`)
+
+#### AI-Specific
+- ❌ Calling AI without checking `isApiKeyConfigured` first
+- ❌ Assuming English-only signal names (parser handles Korean: 강력매수, 매수, 중립, 매도, 강력매도)
+- ❌ Not handling Gemini SAFETY/RECITATION blocks
 
 ### Code Review Checklist
 
@@ -1131,6 +1522,28 @@ Before submitting changes, verify:
 
 ---
 
-**Last Updated**: 2025-11-30
-**Codebase Version**: Schema v12, ~28,700 LOC
+**Last Updated**: 2025-12-06
+**Codebase Version**: Schema v14, ~39,900 LOC
 **Maintainer**: gmdjlee
+
+---
+
+## Change History
+
+### 2025-12-06 - Critical Implementation Notes Added
+- Added "Critical Implementation Notes" section at top of document
+- Documented Holding entity memory optimization (Short/Int compression)
+- Documented StockAnalysisData JOIN requirement after Migration 12→13
+- Added Python client timeout requirements table (30s, 120s, 180s)
+- Added repository caching strategies table
+- Documented FearGreed 3x data collection requirement
+- Added complete database entity reference table (19 entities)
+- Added critical migrations summary (7→8, 12→13, 13→14)
+- Expanded repository documentation with dependencies and error patterns
+- Added ViewModels reference table (13 ViewModels, state patterns)
+- Documented First-Run Dialog and Search Debounce patterns
+- Added Python scripts reference table with return formats
+- Expanded AI integration documentation (endpoints, models, timeouts)
+- Added DI module summary (5 modules, 43 providers)
+- Expanded Common Pitfalls with Database, Python, and AI-specific issues
+- Fixed HomeState example to match actual implementation (7 states)
