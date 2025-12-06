@@ -8,8 +8,10 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.etfmonitor.R
 import com.etfmonitor.ui.screens.settings.components.*
 
 /**
@@ -58,7 +60,13 @@ fun SettingsScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("일반", "키워드", "데이터 업데이트", "수집 기간", "차트")
+    val tabs = listOf(
+        stringResource(R.string.settings_tab_general),
+        stringResource(R.string.settings_tab_keyword),
+        stringResource(R.string.settings_tab_data_update),
+        stringResource(R.string.settings_tab_period),
+        stringResource(R.string.settings_tab_chart)
+    )
 
     LaunchedEffect(message) {
         message?.let {
@@ -72,7 +80,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "설정",
+                        stringResource(R.string.settings_title),
                         style = MaterialTheme.typography.headlineSmall
                     )
                 },
@@ -80,7 +88,7 @@ fun SettingsScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "뒤로"
+                            contentDescription = stringResource(R.string.nav_back)
                         )
                     }
                 },

@@ -9,7 +9,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.etfmonitor.R
 
 /**
  * Settings Screen - Data Tab Card Components
@@ -38,13 +40,13 @@ fun DataManagementCard(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Text("데이터 관리", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.settings_data_management), style = MaterialTheme.typography.titleMedium)
             }
 
             HorizontalDivider()
 
             Text(
-                "ETF 데이터 초기화 및 업데이트",
+                stringResource(R.string.settings_data_management_desc),
                 style = MaterialTheme.typography.bodyMedium
             )
 
@@ -54,7 +56,7 @@ fun DataManagementCard(
             ) {
                 Icon(Icons.Default.Download, null)
                 Spacer(Modifier.width(8.dp))
-                Text("데이터 초기화")
+                Text(stringResource(R.string.settings_data_init))
             }
 
             OutlinedButton(
@@ -63,7 +65,7 @@ fun DataManagementCard(
             ) {
                 Icon(Icons.Default.Refresh, null)
                 Spacer(Modifier.width(8.dp))
-                Text("데이터 업데이트")
+                Text(stringResource(R.string.settings_data_update))
             }
 
             Surface(
@@ -71,7 +73,7 @@ fun DataManagementCard(
                 shape = MaterialTheme.shapes.small
             ) {
                 Text(
-                    "초기화: 선택한 기간의 데이터를 수집합니다\n업데이트: 최신 데이터를 가져옵니다",
+                    stringResource(R.string.settings_data_init_hint),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(8.dp)
                 )
@@ -118,13 +120,13 @@ fun DefaultDaysCard(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Text("ETF 수집 기간", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.settings_etf_period), style = MaterialTheme.typography.titleMedium)
             }
 
             HorizontalDivider()
 
             Text(
-                "초기화 시 수집할 영업일 수",
+                stringResource(R.string.settings_etf_period_desc),
                 style = MaterialTheme.typography.bodyMedium
             )
 
@@ -135,19 +137,19 @@ fun DefaultDaysCard(
             ) {
                 Column {
                     Text(
-                        "현재 설정",
+                        stringResource(R.string.settings_current_setting),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        "${currentDays}일",
+                        stringResource(R.string.settings_days_format, currentDays),
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
 
                 Button(onClick = { showDialog = true }) {
-                    Text("변경")
+                    Text(stringResource(R.string.settings_action_change))
                 }
             }
 
@@ -156,7 +158,7 @@ fun DefaultDaysCard(
                 shape = MaterialTheme.shapes.small
             ) {
                 Text(
-                    "권장: 25일 (약 1-2분 소요)",
+                    stringResource(R.string.settings_etf_period_recommend),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(8.dp)
                 )
@@ -197,13 +199,13 @@ fun SearchHistoryLimitCard(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Text("검색 히스토리", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.settings_search_history), style = MaterialTheme.typography.titleMedium)
             }
 
             HorizontalDivider()
 
             Text(
-                "차트 분석에서 저장할 최대 검색 히스토리 개수",
+                stringResource(R.string.settings_search_history_desc),
                 style = MaterialTheme.typography.bodyMedium
             )
 
@@ -214,19 +216,19 @@ fun SearchHistoryLimitCard(
             ) {
                 Column {
                     Text(
-                        "현재 설정",
+                        stringResource(R.string.settings_current_setting),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        "${currentLimit}개",
+                        stringResource(R.string.settings_count_format, currentLimit),
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
 
                 Button(onClick = { showDialog = true }) {
-                    Text("변경")
+                    Text(stringResource(R.string.settings_action_change))
                 }
             }
 
@@ -235,7 +237,7 @@ fun SearchHistoryLimitCard(
                 shape = MaterialTheme.shapes.small
             ) {
                 Text(
-                    "범위: 5~30개 (기본: 15개)",
+                    stringResource(R.string.settings_search_history_range),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(8.dp)
                 )
@@ -275,13 +277,13 @@ fun DatabaseCard(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error
                 )
-                Text("데이터베이스", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.settings_database), style = MaterialTheme.typography.titleMedium)
             }
 
             HorizontalDivider()
 
             Text(
-                "모든 수집된 데이터를 삭제합니다",
+                stringResource(R.string.settings_database_desc),
                 style = MaterialTheme.typography.bodySmall
             )
 
@@ -294,7 +296,7 @@ fun DatabaseCard(
             ) {
                 Icon(Icons.Default.Delete, null)
                 Spacer(Modifier.width(8.dp))
-                Text("데이터베이스 초기화")
+                Text(stringResource(R.string.settings_database_reset))
             }
         }
     }
@@ -303,8 +305,8 @@ fun DatabaseCard(
         AlertDialog(
             onDismissRequest = { showDialog = false },
             icon = { Icon(Icons.Default.Warning, null) },
-            title = { Text("데이터베이스 초기화") },
-            text = { Text("모든 수집된 데이터가 삭제됩니다. 계속하시겠습니까?") },
+            title = { Text(stringResource(R.string.settings_database_reset)) },
+            text = { Text(stringResource(R.string.settings_database_reset_confirm)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -315,12 +317,12 @@ fun DatabaseCard(
                         containerColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text("초기화")
+                    Text(stringResource(R.string.action_reset))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDialog = false }) {
-                    Text("취소")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
@@ -336,21 +338,21 @@ fun DaysSelectionDialog(
     onConfirm: (Int) -> Unit
 ) {
     val options = listOf(
-        DaysOption(5, "5일", "빠른 테스트"),
-        DaysOption(10, "10일", "약 2주"),
-        DaysOption(15, "15일", "약 3주"),
-        DaysOption(20, "20일", "약 1개월"),
-        DaysOption(25, "25일 (권장)", "약 1.5개월"),
-        DaysOption(30, "30일", "약 2개월"),
-        DaysOption(40, "40일", "약 2.5개월"),
-        DaysOption(50, "50일", "약 3개월")
+        DaysOption(5, stringResource(R.string.option_days_5), stringResource(R.string.option_days_5_desc)),
+        DaysOption(10, stringResource(R.string.option_days_10), stringResource(R.string.option_days_10_desc)),
+        DaysOption(15, stringResource(R.string.option_days_15), stringResource(R.string.option_days_15_desc)),
+        DaysOption(20, stringResource(R.string.option_days_20), stringResource(R.string.option_days_20_desc)),
+        DaysOption(25, stringResource(R.string.option_days_25), stringResource(R.string.option_days_25_desc)),
+        DaysOption(30, stringResource(R.string.option_days_30), stringResource(R.string.option_days_30_desc)),
+        DaysOption(40, stringResource(R.string.option_days_40), stringResource(R.string.option_days_40_desc)),
+        DaysOption(50, stringResource(R.string.option_days_50), stringResource(R.string.option_days_50_desc))
     )
 
     var selectedDays by remember { mutableIntStateOf(currentDays) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("기본 수집 기간 변경") },
+        title = { Text(stringResource(R.string.settings_period_change_title)) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -385,12 +387,12 @@ fun DaysSelectionDialog(
         },
         confirmButton = {
             Button(onClick = { onConfirm(selectedDays) }) {
-                Text("확인")
+                Text(stringResource(R.string.action_confirm))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("취소")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
@@ -406,14 +408,14 @@ fun SearchHistoryLimitDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("검색 히스토리 개수 설정") },
+        title = { Text(stringResource(R.string.settings_search_history_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("저장할 최대 검색 히스토리 개수를 선택하세요")
+                Text(stringResource(R.string.settings_search_history_select))
 
                 Column {
                     Text(
-                        "${selectedLimit}개",
+                        stringResource(R.string.settings_count_format, selectedLimit),
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -427,20 +429,20 @@ fun SearchHistoryLimitDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("5개", style = MaterialTheme.typography.bodySmall)
-                        Text("30개", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.settings_count_format, 5), style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.settings_count_format, 30), style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
         },
         confirmButton = {
             Button(onClick = { onConfirm(selectedLimit) }) {
-                Text("확인")
+                Text(stringResource(R.string.action_confirm))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("취소")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

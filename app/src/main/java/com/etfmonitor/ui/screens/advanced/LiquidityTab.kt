@@ -11,8 +11,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.etfmonitor.R
 import com.etfmonitor.database.entities.*
 
 /**
@@ -29,7 +31,7 @@ internal fun LiquidityTab(
     val liquidity = data.liquidityAnalysis
 
     if (liquidity == null) {
-        EmptyStateCard("예탁금/시총 데이터가 필요합니다", Icons.Default.AccountBalance)
+        EmptyStateCard(stringResource(R.string.advanced_needs_deposit_data), Icons.Default.AccountBalance)
         return
     }
 
@@ -43,7 +45,7 @@ internal fun LiquidityTab(
     ) {
         // 예측 정확도 카드
         if (accuracy != null) {
-            item { PredictionAccuracyCard("유동성 신호", accuracy) }
+            item { PredictionAccuracyCard(stringResource(R.string.advanced_liquidity_signal), accuracy) }
         }
 
         // 핵심 지표 카드
@@ -54,14 +56,14 @@ internal fun LiquidityTab(
             ) {
                 LiquidityMetricCard(
                     modifier = Modifier.weight(1f),
-                    title = "예탁금",
+                    title = stringResource(R.string.advanced_deposit),
                     value = formatTrillion(liquidity.depositAmount),
                     change = liquidity.depositChange,
                     isPositiveGood = true
                 )
                 LiquidityMetricCard(
                     modifier = Modifier.weight(1f),
-                    title = "신용잔고",
+                    title = stringResource(R.string.advanced_credit_balance),
                     value = formatTrillion(liquidity.creditAmount),
                     change = liquidity.creditChange,
                     isPositiveGood = false
@@ -77,7 +79,7 @@ internal fun LiquidityTab(
             ) {
                 SignalCard(
                     modifier = Modifier.weight(1f),
-                    title = "유동성 신호",
+                    title = stringResource(R.string.advanced_liquidity_signal),
                     value = signal.displayName,
                     color = when (signal) {
                         LiquiditySignal.BULLISH_LIQUIDITY -> GreenPositive
@@ -87,7 +89,7 @@ internal fun LiquidityTab(
                 )
                 SignalCard(
                     modifier = Modifier.weight(1f),
-                    title = "레버리지 위험",
+                    title = stringResource(R.string.advanced_leverage_risk),
                     value = riskLevel.displayName,
                     color = when (riskLevel) {
                         LeverageRiskLevel.LOW -> GreenPositive
@@ -101,9 +103,9 @@ internal fun LiquidityTab(
 
         // 비율 분석
         item {
-            SectionCard("비율 분석") {
+            SectionCard(stringResource(R.string.advanced_ratio_analysis)) {
                 RatioProgressItem(
-                    title = "예탁금/시총 비율",
+                    title = stringResource(R.string.advanced_deposit_to_marketcap),
                     value = liquidity.depositToMarketCapRatio,
                     maxValue = 5.0,
                     suffix = "%",
@@ -113,7 +115,7 @@ internal fun LiquidityTab(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 RatioProgressItem(
-                    title = "신용/예탁금 비율",
+                    title = stringResource(R.string.advanced_credit_to_deposit),
                     value = liquidity.creditToDepositRatio,
                     maxValue = 100.0,
                     suffix = "%",
@@ -122,14 +124,14 @@ internal fun LiquidityTab(
                         liquidity.creditToDepositRatio > 30 -> OrangeAccent
                         else -> GreenPositive
                     },
-                    thresholds = listOf(30.0 to "보통", 50.0 to "주의")
+                    thresholds = listOf(30.0 to stringResource(R.string.advanced_normal), 50.0 to stringResource(R.string.advanced_caution))
                 )
             }
         }
 
         // 역사적 백분위
         item {
-            SectionCard("역사적 위치") {
+            SectionCard(stringResource(R.string.advanced_historical_position)) {
                 val percentile = (100 - liquidity.historicalPercentile).toInt()
 
                 Row(
@@ -137,9 +139,9 @@ internal fun LiquidityTab(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("현재 유동성 수준", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.advanced_current_liquidity), style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        "상위 $percentile%",
+                        stringResource(R.string.advanced_top_percentile, percentile),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -165,15 +167,15 @@ internal fun LiquidityTab(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("낮음", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("높음", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.advanced_low), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.advanced_high), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
 
         // 시장 시총
         item {
-            SectionCard("시장 시가총액") {
+            SectionCard(stringResource(R.string.advanced_market_cap_total)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center

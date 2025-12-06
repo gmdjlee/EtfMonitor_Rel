@@ -12,9 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.etfmonitor.R
 import com.etfmonitor.database.entities.*
 
 /**
@@ -27,7 +29,7 @@ internal fun DivergenceTab(data: AdvancedDashboardData) {
     val divergence = data.divergenceSummary
 
     if (divergence == null) {
-        EmptyStateCard("종목 수급 분석 데이터가 필요합니다", Icons.Default.CompareArrows)
+        EmptyStateCard(stringResource(R.string.advanced_needs_stock_analysis), Icons.Default.CompareArrows)
         return
     }
 
@@ -46,7 +48,7 @@ internal fun DivergenceTab(data: AdvancedDashboardData) {
                     modifier = Modifier.padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("시장 심리", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.advanced_market_sentiment), style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         divergence.marketSentiment.displayName,
@@ -60,7 +62,7 @@ internal fun DivergenceTab(data: AdvancedDashboardData) {
 
         // 분포 현황
         item {
-            SectionCard("수급 분포") {
+            SectionCard(stringResource(R.string.advanced_flow_dist)) {
                 val total = divergence.foreignBullishCount + divergence.institutionBullishCount +
                         divergence.alignedBullishCount + divergence.alignedBearishCount + divergence.neutralCount
 
@@ -68,10 +70,10 @@ internal fun DivergenceTab(data: AdvancedDashboardData) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    DivergenceStatItem("외국인↑", divergence.foreignBullishCount, BlueAccent)
-                    DivergenceStatItem("기관↑", divergence.institutionBullishCount, OrangeAccent)
-                    DivergenceStatItem("동반↑", divergence.alignedBullishCount, GreenPositive)
-                    DivergenceStatItem("동반↓", divergence.alignedBearishCount, RedNegative)
+                    DivergenceStatItem(stringResource(R.string.advanced_foreign_up), divergence.foreignBullishCount, BlueAccent)
+                    DivergenceStatItem(stringResource(R.string.advanced_institution_up), divergence.institutionBullishCount, OrangeAccent)
+                    DivergenceStatItem(stringResource(R.string.advanced_aligned_up), divergence.alignedBullishCount, GreenPositive)
+                    DivergenceStatItem(stringResource(R.string.advanced_aligned_down), divergence.alignedBearishCount, RedNegative)
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -101,7 +103,7 @@ internal fun DivergenceTab(data: AdvancedDashboardData) {
 
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "총 $total 종목 분석",
+                    stringResource(R.string.advanced_total_stocks_analyzed, total),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth(),
@@ -113,7 +115,7 @@ internal fun DivergenceTab(data: AdvancedDashboardData) {
         // 외국인 강세 종목
         if (divergence.topForeignBullish.isNotEmpty()) {
             item {
-                SectionCard("외국인 강세 종목 (기관 매도)", BlueAccent) {
+                SectionCard(stringResource(R.string.advanced_foreign_strong), BlueAccent) {
                     divergence.topForeignBullish.take(5).forEach { stock ->
                         DivergenceStockRow(stock)
                     }
@@ -124,7 +126,7 @@ internal fun DivergenceTab(data: AdvancedDashboardData) {
         // 기관 강세 종목
         if (divergence.topInstitutionBullish.isNotEmpty()) {
             item {
-                SectionCard("기관 강세 종목 (외국인 매도)", OrangeAccent) {
+                SectionCard(stringResource(R.string.advanced_institution_strong), OrangeAccent) {
                     divergence.topInstitutionBullish.take(5).forEach { stock ->
                         DivergenceStockRow(stock)
                     }
@@ -157,12 +159,12 @@ internal fun DivergenceStockRow(stock: SupplyDemandDivergence) {
             Text(stock.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "외국인: ${formatAmount(stock.foreign5d / 100)}",
+                    stringResource(R.string.advanced_foreign_label, formatAmount(stock.foreign5d / 100)),
                     style = MaterialTheme.typography.labelSmall,
                     color = BlueAccent
                 )
                 Text(
-                    "기관: ${formatAmount(stock.institution5d / 100)}",
+                    stringResource(R.string.advanced_institution_label, formatAmount(stock.institution5d / 100)),
                     style = MaterialTheme.typography.labelSmall,
                     color = OrangeAccent
                 )

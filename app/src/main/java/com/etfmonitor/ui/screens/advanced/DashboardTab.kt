@@ -15,9 +15,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.etfmonitor.R
 import com.etfmonitor.database.entities.*
 
 /**
@@ -95,7 +97,7 @@ internal fun DataAvailabilityCard(dataAvailability: DataAvailability) {
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("데이터 소스: $availableCount/5", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.advanced_data_source_count, availableCount), style = MaterialTheme.typography.titleSmall)
                 }
                 IconButton(onClick = { expanded = !expanded }, modifier = Modifier.size(32.dp)) {
                     Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
@@ -104,11 +106,11 @@ internal fun DataAvailabilityCard(dataAvailability: DataAvailability) {
 
             if (expanded) {
                 Spacer(modifier = Modifier.height(8.dp))
-                DataSourceRow("ETF 보유종목", dataAvailability.holdingsData)
-                DataSourceRow("종목 수급분석", dataAvailability.stockAnalysisData)
-                DataSourceRow("시장 예탁금", dataAvailability.marketDepositData)
-                DataSourceRow("Fear & Greed", dataAvailability.fearGreedData)
-                DataSourceRow("ETF 목록", dataAvailability.etfData)
+                DataSourceRow(stringResource(R.string.advanced_data_etf_holdings), dataAvailability.holdingsData)
+                DataSourceRow(stringResource(R.string.advanced_data_stock_analysis), dataAvailability.stockAnalysisData)
+                DataSourceRow(stringResource(R.string.advanced_data_market_deposit), dataAvailability.marketDepositData)
+                DataSourceRow(stringResource(R.string.advanced_data_fear_greed), dataAvailability.fearGreedData)
+                DataSourceRow(stringResource(R.string.advanced_data_etf_list), dataAvailability.etfData)
             }
         }
     }
@@ -146,11 +148,11 @@ internal fun OverallSignalCard(date: String, signal: OverallSignal) {
     }
 
     val signalText = when (signal.direction) {
-        SignalDirection.STRONG_BUY -> "강력 매수"
-        SignalDirection.BUY -> "매수 우위"
-        SignalDirection.NEUTRAL -> "중립"
-        SignalDirection.SELL -> "매도 우위"
-        SignalDirection.STRONG_SELL -> "강력 매도"
+        SignalDirection.STRONG_BUY -> stringResource(R.string.advanced_signal_strong_buy)
+        SignalDirection.BUY -> stringResource(R.string.advanced_signal_buy)
+        SignalDirection.NEUTRAL -> stringResource(R.string.advanced_signal_neutral)
+        SignalDirection.SELL -> stringResource(R.string.advanced_signal_sell)
+        SignalDirection.STRONG_SELL -> stringResource(R.string.advanced_signal_strong_sell)
     }
 
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = backgroundColor)) {
@@ -186,13 +188,13 @@ internal fun KeyMetricsRow(
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         MetricCard(
             modifier = Modifier.weight(1f),
-            title = "시총가중",
+            title = stringResource(R.string.advanced_market_cap_weighted),
             value = flow?.let { "${if (it.netFlow >= 0) "+" else ""}${it.netFlow}억" } ?: "-",
             isPositive = flow?.netFlow?.let { it >= 0 }
         )
         MetricCard(
             modifier = Modifier.weight(1f),
-            title = "수급",
+            title = stringResource(R.string.advanced_supply_demand),
             value = divergence?.marketSentiment?.displayName ?: "-",
             isPositive = divergence?.marketSentiment?.let {
                 it == MarketSentimentType.CONSENSUS_BULLISH || it == MarketSentimentType.STRONG_FOREIGN_LED || it == MarketSentimentType.STRONG_INSTITUTION_LED
@@ -200,7 +202,7 @@ internal fun KeyMetricsRow(
         )
         MetricCard(
             modifier = Modifier.weight(1f),
-            title = "유동성",
+            title = stringResource(R.string.advanced_liquidity_label),
             value = liquidity?.let { try { LiquiditySignal.valueOf(it.signal).displayName } catch (e: Exception) { "-" } } ?: "-",
             isPositive = liquidity?.signal?.let { it == LiquiditySignal.BULLISH_LIQUIDITY.name }
         )
@@ -209,9 +211,9 @@ internal fun KeyMetricsRow(
 
 @Composable
 internal fun SectorSentimentSummary(greed: List<SectorAnalysis>, fear: List<SectorAnalysis>) {
-    SectionCard("섹터 심리") {
+    SectionCard(stringResource(R.string.advanced_sector_sentiment)) {
         if (greed.isNotEmpty()) {
-            Text("탐욕", style = MaterialTheme.typography.labelSmall, color = GreenPositive)
+            Text(stringResource(R.string.advanced_greed), style = MaterialTheme.typography.labelSmall, color = GreenPositive)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(greed) { sector ->
                     SectorChip(sector.sectorName, sector.fearGreedValue, true)
@@ -220,7 +222,7 @@ internal fun SectorSentimentSummary(greed: List<SectorAnalysis>, fear: List<Sect
             Spacer(modifier = Modifier.height(8.dp))
         }
         if (fear.isNotEmpty()) {
-            Text("공포", style = MaterialTheme.typography.labelSmall, color = RedNegative)
+            Text(stringResource(R.string.advanced_fear), style = MaterialTheme.typography.labelSmall, color = RedNegative)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(fear) { sector ->
                     SectorChip(sector.sectorName, sector.fearGreedValue, false)
@@ -244,7 +246,7 @@ private fun SectorChip(name: String, value: Double, isGreed: Boolean) {
 
 @Composable
 internal fun SectorRotationCard(signals: List<SectorRotationSignal>) {
-    SectionCard("섹터 로테이션") {
+    SectionCard(stringResource(R.string.advanced_sector_rotation)) {
         signals.take(3).forEach { signal ->
             Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
@@ -263,7 +265,7 @@ internal fun EtfOverlapWarningCard(overlaps: List<EtfCorrelationCache>) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Warning, contentDescription = null, tint = OrangeAccent, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("ETF 중복 경고", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.advanced_etf_overlap_warning), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(8.dp))
             overlaps.forEach { o ->

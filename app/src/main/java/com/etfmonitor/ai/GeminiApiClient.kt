@@ -1,6 +1,9 @@
 package com.etfmonitor.ai
 
 import android.util.Log
+import com.etfmonitor.utils.ApiAuthenticationException
+import com.etfmonitor.utils.ApiException
+import com.etfmonitor.utils.DataParsingException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -63,7 +66,7 @@ class GeminiApiClient @Inject constructor(
             val apiKey = apiKeyProvider.getApiKey(AIProvider.GEMINI)
             if (apiKey.isNullOrBlank()) {
                 Log.e(TAG, "API key not configured")
-                return@withContext Result.failure(Exception("Gemini API 키가 설정되지 않았습니다. 설정에서 API 키를 등록해주세요."))
+                return@withContext Result.failure(ApiAuthenticationException("Gemini", "API 키가 설정되지 않았습니다. 설정에서 API 키를 등록해주세요."))
             }
 
             // 선택된 모델 가져오기 (없으면 기본 모델 사용)
@@ -126,11 +129,11 @@ class GeminiApiClient @Inject constructor(
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string() ?: "Unknown error"
                 Log.e(TAG, "API call failed for model '$model': ${response.code} - $errorBody")
-                throw Exception("Gemini API 호출 실패 (모델: $model): ${response.code} - $errorBody")
+                throw ApiException.fromStatusCode(response.code, "Gemini", errorBody)
             }
 
             val responseBody = response.body?.string()
-                ?: throw Exception("Empty response from Gemini API")
+                ?: throw DataParsingException("Gemini API 응답이 비어있습니다", null)
 
             Log.d(TAG, "API response received: ${responseBody.take(200)}...")
 
@@ -142,9 +145,9 @@ class GeminiApiClient @Inject constructor(
                 val error = jsonResponse.optJSONObject("error")
                 if (error != null) {
                     val errorMessage = error.optString("message", "Unknown error")
-                    throw Exception("Gemini API 오류: $errorMessage")
+                    throw ApiException("Gemini", response.code, errorMessage)
                 }
-                throw Exception("No candidates in Gemini API response")
+                throw DataParsingException("Gemini API 응답에 candidates가 없습니다", responseBody)
             }
 
             val candidate = candidates.getJSONObject(0)
@@ -153,23 +156,23 @@ class GeminiApiClient @Inject constructor(
             val finishReason = candidate.optString("finishReason", "")
             if (finishReason == "SAFETY") {
                 Log.w(TAG, "Response blocked by safety filter")
-                throw Exception("Gemini API가 안전성 정책으로 인해 응답을 차단했습니다. 프롬프트를 수정해 주세요.")
+                throw ApiException("Gemini", 403, "안전성 정책으로 인해 응답이 차단되었습니다. 프롬프트를 수정해 주세요.")
             }
             if (finishReason == "RECITATION") {
                 Log.w(TAG, "Response blocked due to recitation")
-                throw Exception("Gemini API가 저작권 정책으로 인해 응답을 차단했습니다.")
+                throw ApiException("Gemini", 403, "저작권 정책으로 인해 응답이 차단되었습니다.")
             }
 
             val content = candidate.optJSONObject("content")
             if (content == null) {
                 Log.e(TAG, "No content in response. finishReason: $finishReason")
-                throw Exception("Gemini API 응답에 content가 없습니다. (finishReason: $finishReason)")
+                throw DataParsingException("Gemini API 응답에 content가 없습니다 (finishReason: $finishReason)", responseBody)
             }
 
             val parts = content.optJSONArray("parts")
             if (parts == null || parts.length() == 0) {
                 Log.e(TAG, "No parts in content. finishReason: $finishReason")
-                throw Exception("Gemini API 응답에 parts가 없습니다. (finishReason: $finishReason)")
+                throw DataParsingException("Gemini API 응답에 parts가 없습니다 (finishReason: $finishReason)", responseBody)
             }
 
             parts.getJSONObject(0).getString("text")
@@ -222,7 +225,7 @@ class GeminiApiClient @Inject constructor(
         try {
             val apiKey = apiKeyProvider.getApiKey(AIProvider.GEMINI)
             if (apiKey.isNullOrBlank()) {
-                return@withContext Result.failure(Exception("Gemini API 키가 설정되지 않았습니다."))
+                return@withContext Result.failure(ApiAuthenticationException("Gemini"))
             }
 
             var model = apiKeyProvider.getSelectedModel(AIProvider.GEMINI) ?: MODEL
@@ -294,11 +297,11 @@ class GeminiApiClient @Inject constructor(
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string() ?: "Unknown error"
                 Log.e(TAG, "Chat API call failed: ${response.code} - $errorBody")
-                throw Exception("Gemini API 호출 실패: ${response.code}")
+                throw ApiException.fromStatusCode(response.code, "Gemini", errorBody)
             }
 
             val responseBody = response.body?.string()
-                ?: throw Exception("Empty response from Gemini API")
+                ?: throw DataParsingException("Gemini API 응답이 비어있습니다", null)
 
             val jsonResponse = JSONObject(responseBody)
             val candidates = jsonResponse.optJSONArray("candidates")
@@ -307,9 +310,9 @@ class GeminiApiClient @Inject constructor(
                 val error = jsonResponse.optJSONObject("error")
                 if (error != null) {
                     val errorMessage = error.optString("message", "Unknown error")
-                    throw Exception("Gemini API 오류: $errorMessage")
+                    throw ApiException("Gemini", response.code, errorMessage)
                 }
-                throw Exception("No candidates in Gemini API response")
+                throw DataParsingException("Gemini API 응답에 candidates가 없습니다", responseBody)
             }
 
             val candidate = candidates.getJSONObject(0)
@@ -318,23 +321,23 @@ class GeminiApiClient @Inject constructor(
             val finishReason = candidate.optString("finishReason", "")
             if (finishReason == "SAFETY") {
                 Log.w(TAG, "Chat response blocked by safety filter")
-                throw Exception("Gemini API가 안전성 정책으로 인해 응답을 차단했습니다. 프롬프트를 수정해 주세요.")
+                throw ApiException("Gemini", 403, "안전성 정책으로 인해 응답이 차단되었습니다. 프롬프트를 수정해 주세요.")
             }
             if (finishReason == "RECITATION") {
                 Log.w(TAG, "Chat response blocked due to recitation")
-                throw Exception("Gemini API가 저작권 정책으로 인해 응답을 차단했습니다.")
+                throw ApiException("Gemini", 403, "저작권 정책으로 인해 응답이 차단되었습니다.")
             }
 
             val content = candidate.optJSONObject("content")
             if (content == null) {
                 Log.e(TAG, "No content in chat response. finishReason: $finishReason")
-                throw Exception("Gemini API 응답에 content가 없습니다. (finishReason: $finishReason)")
+                throw DataParsingException("Gemini API 응답에 content가 없습니다 (finishReason: $finishReason)", responseBody)
             }
 
             val parts = content.optJSONArray("parts")
             if (parts == null || parts.length() == 0) {
                 Log.e(TAG, "No parts in chat content. finishReason: $finishReason")
-                throw Exception("Gemini API 응답에 parts가 없습니다. (finishReason: $finishReason)")
+                throw DataParsingException("Gemini API 응답에 parts가 없습니다 (finishReason: $finishReason)", responseBody)
             }
 
             parts.getJSONObject(0).getString("text")
@@ -371,7 +374,7 @@ class GeminiApiClient @Inject constructor(
         try {
             val apiKey = apiKeyProvider.getApiKey(AIProvider.GEMINI)
             if (apiKey.isNullOrBlank()) {
-                return@withContext Result.failure(Exception("Gemini API 키가 설정되지 않았습니다."))
+                return@withContext Result.failure(ApiAuthenticationException("Gemini"))
             }
 
             withTimeout(TIMEOUT_SECONDS * 1000) {
@@ -386,17 +389,17 @@ class GeminiApiClient @Inject constructor(
                     if (!response.isSuccessful) {
                         val errorBody = response.body?.string() ?: "Unknown error"
                         Log.e(TAG, "Models API call failed: ${response.code} - $errorBody")
-                        throw Exception("Gemini 모델 목록 조회 실패: ${response.code}")
+                        throw ApiException.fromStatusCode(response.code, "Gemini", errorBody)
                     }
 
                     val responseBody = response.body?.string()
-                        ?: throw Exception("Empty response from Gemini Models API")
+                        ?: throw DataParsingException("Gemini Models API 응답이 비어있습니다", null)
 
                     Log.d(TAG, "Models API response: ${responseBody.take(200)}...")
 
                     val jsonResponse = json.parseToJsonElement(responseBody).jsonObject
                     val modelsArray = jsonResponse["models"]?.jsonArray
-                        ?: throw Exception("No models in response")
+                        ?: throw DataParsingException("응답에 models가 없습니다", responseBody)
 
                     val models = modelsArray.mapNotNull { modelElement ->
                         val modelObj = modelElement.jsonObject

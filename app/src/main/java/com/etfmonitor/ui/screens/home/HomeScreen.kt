@@ -20,9 +20,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.etfmonitor.R
 import com.etfmonitor.ui.theme.*
 
 /**
@@ -107,12 +109,12 @@ fun HomeScreen(
                 title = {
                     Column {
                         Text(
-                            "Market Monitor",
+                            stringResource(R.string.app_name),
                             style = MaterialTheme.typography.headlineSmall
                         )
                         lastDate?.let {
                             Text(
-                                "최근 업데이트: $it",
+                                stringResource(R.string.home_last_update, it),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -123,7 +125,7 @@ fun HomeScreen(
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(
                             imageVector = Icons.Default.Settings,
-                            contentDescription = "설정",
+                            contentDescription = stringResource(R.string.nav_settings),
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -319,8 +321,8 @@ private fun HomeContent(
             add(
                 MenuItem(
                     icon = Icons.AutoMirrored.Filled.List,
-                    title = "ETF 테마 목록",
-                    description = "테마별 ETF 편입 종목 분석",
+                    title = stringResource(R.string.menu_etf_theme_list),
+                    description = stringResource(R.string.menu_etf_theme_desc),
                     color = MaterialTheme.colorScheme.primary,
                     onClick = onNavigateToList
                 )
@@ -328,8 +330,8 @@ private fun HomeContent(
             add(
                 MenuItem(
                     icon = Icons.Default.Analytics,
-                    title = "ETF 전체 통계",
-                    description = "통합 편입 비중 및 트렌드",
+                    title = stringResource(R.string.menu_etf_statistics),
+                    description = stringResource(R.string.menu_etf_statistics_desc),
                     color = MaterialTheme.colorScheme.secondary,
                     onClick = onNavigateToStatistics
                 )
@@ -338,8 +340,8 @@ private fun HomeContent(
         add(
             MenuItem(
                 icon = Icons.Filled.ShowChart,
-                title = "종목 수급 분석",
-                description = "외인/기관 매매 동향",
+                title = stringResource(R.string.menu_stock_analysis),
+                description = stringResource(R.string.menu_stock_analysis_desc),
                 color = MaterialTheme.colorScheme.tertiary,
                 onClick = onNavigateToOscillator
             )
@@ -347,8 +349,8 @@ private fun HomeContent(
         add(
             MenuItem(
                 icon = Icons.AutoMirrored.Filled.TrendingUp,
-                title = "증시 자금 동향",
-                description = "시장 예수금 추이",
+                title = stringResource(R.string.menu_market_fund),
+                description = stringResource(R.string.menu_market_fund_desc),
                 color = MaterialTheme.colorScheme.primary,
                 onClick = onNavigateToMarketDeposit
             )
@@ -356,8 +358,8 @@ private fun HomeContent(
         add(
             MenuItem(
                 icon = Icons.Default.BarChart,
-                title = "Fear & Greed",
-                description = "시장 심리 지수",
+                title = stringResource(R.string.menu_fear_greed),
+                description = stringResource(R.string.menu_fear_greed_desc),
                 color = MaterialTheme.colorScheme.tertiary,
                 onClick = onNavigateToFearGreed
             )
@@ -365,8 +367,8 @@ private fun HomeContent(
         add(
             MenuItem(
                 icon = Icons.Default.Speed,
-                title = "시장 과매수/과매도",
-                description = "RSI 기반 시장 분석",
+                title = stringResource(R.string.menu_market_overbought),
+                description = stringResource(R.string.menu_market_overbought_desc),
                 color = MaterialTheme.colorScheme.secondary,
                 onClick = onNavigateToMarketOscillator
             )
@@ -374,8 +376,8 @@ private fun HomeContent(
         add(
             MenuItem(
                 icon = Icons.Default.AutoAwesome,
-                title = "AI 시장 분석",
-                description = "Claude AI 매매 신호",
+                title = stringResource(R.string.menu_ai_analysis),
+                description = stringResource(R.string.menu_ai_analysis_desc),
                 color = MaterialTheme.colorScheme.tertiary,
                 onClick = onNavigateToAIAnalysis
             )
@@ -385,8 +387,8 @@ private fun HomeContent(
             add(
                 MenuItem(
                     icon = Icons.Default.Psychology,
-                    title = "ML 주가 예측",
-                    description = "ETF 변화 기반 상승 예측",
+                    title = stringResource(R.string.menu_ml_prediction),
+                    description = stringResource(R.string.menu_ml_prediction_desc),
                     color = MaterialTheme.colorScheme.primary,
                     onClick = onNavigateToPrediction
                 )
@@ -395,8 +397,8 @@ private fun HomeContent(
             add(
                 MenuItem(
                     icon = Icons.Default.Dashboard,
-                    title = "고급 분석",
-                    description = "시총가중/수급/섹터 종합분석",
+                    title = stringResource(R.string.menu_advanced_analysis),
+                    description = stringResource(R.string.menu_advanced_analysis_desc),
                     color = MaterialTheme.colorScheme.secondary,
                     onClick = onNavigateToAdvancedDashboard
                 )

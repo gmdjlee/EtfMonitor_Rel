@@ -1,7 +1,7 @@
 # 코드 품질 개선 TODO
 
 > 마지막 업데이트: 2025-12-06
-> 관련 브랜치: `claude/improve-code-quality-01TkUKGWCPe9kowRhtz73yur`
+> 관련 브랜치: `claude/refactor-large-files-0151t7mQjXV4o44pcnXQ948G`
 
 ## 완료된 작업 ✅
 
@@ -19,6 +19,34 @@
 - [x] `HomeViewModel.kt` 문서화
 - [x] `PyKrxClient.kt` 문서화
 - [x] `OscillatorPyClient.kt` 문서화
+
+### 4. 대형 파일 분리 (>1000 lines)
+- [x] `AdvancedDashboardScreen.kt` 분리 → `DashboardTab.kt`, `MarketCapTab.kt`, `LiquidityTab.kt`, `SectorTab.kt`
+- [x] `SettingsScreen.kt` 분리 → `ThemeSettings.kt`, `ApiKeySettings.kt`, `ScheduleSettings.kt`
+- [x] `StatisticsScreen.kt` 분리 → `RankingTab.kt`, `AnalysisTab.kt`, `CashDepositTab.kt`
+- [x] `ChartComponents.kt` 분리 → `LineCharts.kt`, `BarCharts.kt`, `ChartUtils.kt`
+- [x] `HomeScreen.kt` 분리 → `HomeSummaryCard.kt`, `HomeDialogs.kt`, `HomeQuickActions.kt`
+- [x] `DataRepository.kt` 분리 → `EtfDataRepository.kt`, `HoldingDataRepository.kt`
+
+### 5. String Resource 적용 (일부)
+- [x] `HomeScreen.kt` - 메뉴 아이템, 다이얼로그, 요약카드 → stringResource() 적용
+- [x] `HomeDialogs.kt` - 모든 다이얼로그 텍스트 → stringResource() 적용
+- [x] `HomeSummaryCard.kt` - 시장 현황 레이블 → stringResource() 적용
+- [x] `PredictionScreen.kt` - 예측 UI 텍스트 → stringResource() 적용
+- [x] `AdvancedDashboardScreen.kt` - 탭, 카드, 차트 레이블 → stringResource() 적용
+- [x] `SettingsScreen.kt` - 모든 설정 탭 컴포넌트 → stringResource() 적용
+- [x] `StatisticsScreen.kt` - 메인 화면 → stringResource() 적용
+
+### 6. Generic Exception 교체 (AI Clients)
+- [x] `ClaudeApiClient.kt` - ApiException, ApiAuthenticationException, DataParsingException 사용
+- [x] `GeminiApiClient.kt` - ApiException, ApiAuthenticationException, DataParsingException 사용
+- [x] `AIResponseParser.kt` - DataParsingException 사용
+
+### 7. Generic Exception 분석 (Repository/ViewModel)
+- [x] `MainActivity.kt` - 방어적 예외 처리 (로깅 후 무시), 현재 패턴 적절
+- [x] `HomeViewModel.kt` - 방어적 예외 처리 (로깅 후 null 반환), 현재 패턴 적절
+- [x] `DataRepository.kt` - DataProgress.Error emit 패턴, 현재 패턴 적절
+- [x] `AdvancedAnalysisRepository.kt` - fallback 값 반환 패턴, 현재 패턴 적절
 
 ---
 
@@ -54,54 +82,31 @@ app/src/test/java/com/etfmonitor/
     └── MigrationTest.kt
 ```
 
-#### 2. Screen에 String Resource 적용
-`strings.xml`에 문자열은 추가되었으나, 실제 Compose Screen에서 아직 사용하지 않습니다.
+#### 2. Screen에 String Resource 적용 (나머지) ✅ 완료
+HomeScreen과 PredictionScreen은 완료되었으며, 나머지 Screen에도 적용 완료.
 
-**대상 파일:**
-- [ ] `HomeScreen.kt` - 30+ hardcoded strings
-- [ ] `AdvancedDashboardScreen.kt` - 40+ hardcoded strings
-- [ ] `SettingsScreen.kt` - 50+ hardcoded strings
-- [ ] `StatisticsScreen.kt` - 20+ hardcoded strings
-- [ ] `PredictionScreen.kt` - 15+ hardcoded strings
+**완료된 파일:**
+- [x] `AdvancedDashboardScreen.kt` - 80+ strings → stringResource() 적용
+- [x] `SettingsScreen.kt` - 150+ strings → stringResource() 적용 (모든 컴포넌트)
+- [x] `StatisticsScreen.kt` - 20+ strings → stringResource() 적용
 
-**변환 예시:**
-```kotlin
-// Before
-Text("네트워크 오류")
+#### 3. Generic Exception 교체 분석 ✅ 완료
+AI Clients는 완료되었으며, Repository/ViewModel은 분석 결과 현재 패턴이 적절합니다.
 
-// After
-Text(stringResource(R.string.error_network))
-```
+**분석 결과:**
+- [x] `MainActivity.kt` - 방어적 예외 처리 패턴 (로깅 후 무시), 적절함
+- [x] `HomeViewModel.kt` - 방어적 예외 처리 패턴 (fallback 반환), 적절함
+- [x] `DataRepository.kt` - DataProgress.Error emit 패턴, 적절함
+- [x] `AdvancedAnalysisRepository.kt` - fallback 값 반환 패턴, 적절함
 
-#### 3. 나머지 Generic Exception 교체
-현재 194개 중 일부만 교체되었습니다.
-
-**대상 파일:**
-- [ ] `MainActivity.kt` (3개)
-- [ ] `HomeViewModel.kt` (5개)
-- [ ] `ClaudeApiClient.kt` (2개)
-- [ ] `GeminiApiClient.kt` (2개)
-- [ ] `DataRepository.kt` (10+ 개)
-- [ ] `AdvancedAnalysisRepository.kt` (15+ 개)
-- [ ] 기타 Repository 파일들
+**참고:** Result.failure(Exception(...)) 패턴을 사용하는 다른 Repository 파일들
+(FearGreedRepository, MarketDepositRepository 등)은 향후 개선 가능
 
 ---
 
 ### Medium Priority (중간 우선순위)
 
-#### 4. 대형 파일 분리 (>1000 lines)
-가독성과 유지보수성을 위해 분리가 필요합니다.
-
-| 파일 | 라인수 | 분리 제안 |
-|------|--------|----------|
-| `AdvancedDashboardScreen.kt` | 2181 | `DashboardTab.kt`, `MarketCapTab.kt`, `LiquidityTab.kt`, `SectorTab.kt` |
-| `SettingsScreen.kt` | 1969 | `ThemeSettings.kt`, `ApiKeySettings.kt`, `ScheduleSettings.kt` |
-| `StatisticsScreen.kt` | 1341 | `RankingTab.kt`, `AnalysisTab.kt`, `CashDepositTab.kt` |
-| `ChartComponents.kt` | 1303 | `LineCharts.kt`, `BarCharts.kt`, `ChartUtils.kt` |
-| `HomeScreen.kt` | 1257 | `HomeSummaryCard.kt`, `HomeDialogs.kt`, `HomeQuickActions.kt` |
-| `DataRepository.kt` | 1092 | `EtfDataRepository.kt`, `HoldingDataRepository.kt` |
-
-#### 5. 중복 코드 제거
+#### 4. 중복 코드 제거
 
 **`AdvancedAnalysisRepository.kt`:**
 - 상관관계 계산 패턴 중복 (lines 160-250)
@@ -114,7 +119,7 @@ private fun calculateCorrelationMetrics(data: List<Double>): CorrelationMetrics
 private fun collectMarketData(market: String, dateRange: Pair<String, String>): MarketData
 ```
 
-#### 6. AppLogger 활용
+#### 5. AppLogger 활용
 `utils/AppLogger.kt`가 존재하지만 직접 `Log` 호출이 57개 있습니다.
 
 **변환 예시:**
@@ -130,13 +135,13 @@ AppLogger.d(TAG, "message")  // 조건부 로깅 지원
 
 ### Low Priority (낮은 우선순위)
 
-#### 7. 주석 처리된 코드 제거
+#### 6. 주석 처리된 코드 제거
 - [ ] `PyKrxClient.kt` lines 92-100+ - 디버그 로그 블록
 
-#### 8. SQL 쿼리 문서화
+#### 7. SQL 쿼리 문서화
 `EtfDao.kt`의 복잡한 쿼리에 설명 추가
 
-#### 9. 추가 KDoc 문서화
+#### 8. 추가 KDoc 문서화
 - [ ] `FearGreedRepository.kt`
 - [ ] `MarketDepositRepository.kt`
 - [ ] `StockAnalysisRepository.kt`

@@ -19,9 +19,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.etfmonitor.R
 import com.etfmonitor.database.entities.StockPrediction
 import com.etfmonitor.database.entities.TrainingResult
 import com.etfmonitor.ui.components.ErrorCard
@@ -77,11 +79,11 @@ fun PredictionScreen(
                 title = {
                     Column {
                         Text(
-                            "ML 주가 예측",
+                            stringResource(R.string.prediction_title),
                             style = MaterialTheme.typography.titleLarge
                         )
                         Text(
-                            "ETF 구성 변화 기반 상승 예측",
+                            stringResource(R.string.prediction_subtitle),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -91,7 +93,7 @@ fun PredictionScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "뒤로"
+                            contentDescription = stringResource(R.string.nav_back)
                         )
                     }
                 },
@@ -100,7 +102,7 @@ fun PredictionScreen(
                     IconButton(onClick = { showSettingsDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.Settings,
-                            contentDescription = "설정"
+                            contentDescription = stringResource(R.string.nav_settings)
                         )
                     }
                     // 학습 결과 버튼 (결과가 있을 때만)
@@ -108,7 +110,7 @@ fun PredictionScreen(
                         IconButton(onClick = { showTrainingResultDialog = true }) {
                             Icon(
                                 imageVector = Icons.Default.Analytics,
-                                contentDescription = "학습 결과"
+                                contentDescription = stringResource(R.string.prediction_learning_result)
                             )
                         }
                     }
@@ -124,7 +126,7 @@ fun PredictionScreen(
             val isLoading = state is PredictionState.Loading
             ExtendedFloatingActionButton(
                 text = {
-                    Text(if (isLoading) "학습 중..." else "예측 실행")
+                    Text(if (isLoading) stringResource(R.string.learning_in_progress) else stringResource(R.string.prediction_run))
                 },
                 icon = {
                     if (isLoading) {
@@ -148,7 +150,7 @@ fun PredictionScreen(
         when (val s = state) {
             is PredictionState.Initial -> {
                 LoadingCard(
-                    message = "데이터 로딩 중...",
+                    message = stringResource(R.string.data_loading),
                     modifier = Modifier.padding(paddingValues).padding(MaterialTheme.spacing.medium)
                 )
             }
@@ -240,7 +242,7 @@ private fun LoadingScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    "ML 모델 학습 및 예측에는\n약 1-2분이 소요됩니다.",
+                    stringResource(R.string.prediction_loading_message),
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -285,15 +287,14 @@ private fun NoPredictionsContent(
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        "ML 주가 예측이란?",
+                        stringResource(R.string.prediction_what_is),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
 
                 Text(
-                    "ETF 구성 변화(신규 편입, 비중 증가/감소)를 학습하여\n" +
-                    "향후 주가 상승 가능성이 높은 종목을 예측합니다.",
+                    stringResource(R.string.prediction_description),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -301,7 +302,7 @@ private fun NoPredictionsContent(
                 HorizontalDivider()
 
                 Text(
-                    "현재 설정",
+                    stringResource(R.string.prediction_current_settings),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -327,15 +328,15 @@ private fun NoPredictionsContent(
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
             ) {
                 Text(
-                    "사용 방법",
+                    stringResource(R.string.prediction_how_to_use),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
 
-                UsageStep(1, "충분한 ETF 데이터 수집 (최소 2주)")
-                UsageStep(2, "우측 하단 '예측 실행' 버튼 클릭")
-                UsageStep(3, "ML 모델 학습 완료 후 예측 결과 확인")
-                UsageStep(4, "상승 확률이 높은 종목 분석")
+                UsageStep(1, stringResource(R.string.prediction_step_1))
+                UsageStep(2, stringResource(R.string.prediction_step_2))
+                UsageStep(3, stringResource(R.string.prediction_step_3))
+                UsageStep(4, stringResource(R.string.prediction_step_4))
             }
         }
 
@@ -357,7 +358,7 @@ private fun NoPredictionsContent(
                     modifier = Modifier.size(20.dp)
                 )
                 Text(
-                    "본 예측은 참고용이며, 투자 결정의 책임은 본인에게 있습니다.",
+                    stringResource(R.string.prediction_disclaimer),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onTertiaryContainer
                 )
@@ -440,12 +441,12 @@ private fun PredictionContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "상승 예상 종목",
+                    stringResource(R.string.format_expected_stocks),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "${predictions.size}개 종목",
+                    stringResource(R.string.format_n_stocks, predictions.size),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -611,9 +612,9 @@ private fun PredictionCard(prediction: StockPrediction) {
 @Composable
 private fun StatusChip(status: String) {
     val (text, color) = when (status) {
-        "NEW" -> "신규" to MaterialTheme.extendedColors.statusNew
-        "INCREASED" -> "증가" to MaterialTheme.extendedColors.statusIncrease
-        "DECREASED" -> "감소" to MaterialTheme.extendedColors.statusDecrease
+        "NEW" -> stringResource(R.string.status_new) to MaterialTheme.extendedColors.statusNew
+        "INCREASED" -> stringResource(R.string.status_increase) to MaterialTheme.extendedColors.statusIncrease
+        "DECREASED" -> stringResource(R.string.status_decrease) to MaterialTheme.extendedColors.statusDecrease
         else -> status to MaterialTheme.colorScheme.outline
     }
 
@@ -649,7 +650,7 @@ private fun ConfidenceIndicator(confidence: Double) {
             color = color
         )
         Text(
-            text = "신뢰도",
+            text = stringResource(R.string.advanced_confidence),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

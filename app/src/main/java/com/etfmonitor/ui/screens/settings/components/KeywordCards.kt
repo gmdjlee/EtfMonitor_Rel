@@ -7,7 +7,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.etfmonitor.R
 import com.etfmonitor.ui.theme.*
 
 /**
@@ -44,17 +46,17 @@ fun ThemeCard(
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
-                    Text("포함 테마", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings_include_theme), style = MaterialTheme.typography.titleMedium)
                 }
                 IconButton(onClick = { showDialog = true }) {
-                    Icon(Icons.Default.Add, "추가")
+                    Icon(Icons.Default.Add, stringResource(R.string.settings_add))
                 }
             }
 
             HorizontalDivider()
 
             Text(
-                "이 키워드가 포함된 ETF를 수집합니다",
+                stringResource(R.string.settings_include_theme_desc),
                 style = MaterialTheme.typography.bodySmall
             )
 
@@ -80,20 +82,20 @@ fun ThemeCard(
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            title = { Text("테마 추가") },
+            title = { Text(stringResource(R.string.settings_add_theme)) },
             text = {
                 OutlinedTextField(
                     value = newTheme,
                     onValueChange = { newTheme = it },
                     label = {
                         Text(
-                            "키워드",
+                            stringResource(R.string.settings_keyword),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
                     placeholder = {
                         Text(
-                            "예: 반도체",
+                            stringResource(R.string.settings_keyword_example),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
@@ -114,12 +116,12 @@ fun ThemeCard(
                         showDialog = false
                     }
                 ) {
-                    Text("추가")
+                    Text(stringResource(R.string.settings_add))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDialog = false }) {
-                    Text("취소")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
@@ -155,17 +157,17 @@ fun ExclusionCard(
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error
                     )
-                    Text("제외 키워드", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings_exclude_keyword), style = MaterialTheme.typography.titleMedium)
                 }
                 IconButton(onClick = { showDialog = true }) {
-                    Icon(Icons.Default.Add, "추가")
+                    Icon(Icons.Default.Add, stringResource(R.string.settings_add))
                 }
             }
 
             HorizontalDivider()
 
             Text(
-                "이 키워드가 포함된 ETF는 제외합니다",
+                stringResource(R.string.settings_exclude_keyword_desc),
                 style = MaterialTheme.typography.bodySmall
             )
 
@@ -194,20 +196,20 @@ fun ExclusionCard(
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            title = { Text("제외 키워드 추가") },
+            title = { Text(stringResource(R.string.settings_add_exclusion)) },
             text = {
                 OutlinedTextField(
                     value = newExclusion,
                     onValueChange = { newExclusion = it },
                     label = {
                         Text(
-                            "키워드",
+                            stringResource(R.string.settings_keyword),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
                     placeholder = {
                         Text(
-                            "예: 레버리지",
+                            stringResource(R.string.settings_exclude_example),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
@@ -228,12 +230,12 @@ fun ExclusionCard(
                         showDialog = false
                     }
                 ) {
-                    Text("추가")
+                    Text(stringResource(R.string.settings_add))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDialog = false }) {
-                    Text("취소")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )

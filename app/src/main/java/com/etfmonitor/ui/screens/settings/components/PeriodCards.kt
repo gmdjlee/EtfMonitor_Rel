@@ -11,7 +11,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.etfmonitor.R
 
 /**
  * 기간 옵션 데이터 클래스
@@ -34,14 +36,15 @@ data class PeriodCardConfig(
 )
 
 /**
- * 일 수를 표시 텍스트로 변환
+ * 일 수를 표시 텍스트로 변환 (Composable)
  */
+@Composable
 private fun daysToDisplayText(days: Int): String = when (days) {
-    180 -> "6개월"
-    365 -> "12개월"
-    540 -> "18개월"
-    730 -> "24개월"
-    else -> "${days}일"
+    180 -> stringResource(R.string.period_6_months).substringBefore(" ")
+    365 -> stringResource(R.string.period_12_months).substringBefore(" ")
+    540 -> stringResource(R.string.period_18_months)
+    730 -> stringResource(R.string.period_24_months)
+    else -> stringResource(R.string.settings_days_format, days)
 }
 
 /**
@@ -96,7 +99,7 @@ fun PeriodCard(
             ) {
                 Column {
                     Text(
-                        "현재 설정",
+                        stringResource(R.string.settings_current_setting),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -108,7 +111,7 @@ fun PeriodCard(
                 }
 
                 Button(onClick = { showDialog = true }) {
-                    Text("변경")
+                    Text(stringResource(R.string.settings_action_change))
                 }
             }
 
@@ -148,11 +151,11 @@ fun FearGreedPeriodCard(
     onDaysChange: (Int) -> Unit
 ) {
     val config = PeriodCardConfig(
-        title = "Fear & Greed Index 수집 기간",
+        title = stringResource(R.string.settings_feargreed_period),
         icon = Icons.Default.BarChart,
-        description = "Fear & Greed Index 데이터 초기화 시 수집할 기간",
-        dialogTitle = "Fear & Greed Index 수집 기간 설정",
-        recommendationText = "권장: 12개월 (약 365일, 약 1-2분 소요)"
+        description = stringResource(R.string.settings_feargreed_period_desc),
+        dialogTitle = stringResource(R.string.settings_feargreed_period_title),
+        recommendationText = stringResource(R.string.settings_feargreed_period_recommend)
     )
 
     PeriodCard(
@@ -171,11 +174,11 @@ fun MarketOscillatorPeriodCard(
     onDaysChange: (Int) -> Unit
 ) {
     val config = PeriodCardConfig(
-        title = "과매수/과매도 수집 기간",
+        title = stringResource(R.string.settings_oscillator_period),
         icon = Icons.Default.Leaderboard,
-        description = "과매수/과매도 데이터 초기화 시 수집할 기간",
-        dialogTitle = "과매수/과매도 수집 기간 설정",
-        recommendationText = "권장: 12개월 (약 365일, 약 1-2분 소요)"
+        description = stringResource(R.string.settings_oscillator_period_desc),
+        dialogTitle = stringResource(R.string.settings_oscillator_period_title),
+        recommendationText = stringResource(R.string.settings_oscillator_period_recommend)
     )
 
     PeriodCard(
@@ -196,10 +199,10 @@ fun PeriodSelectionDialog(
     onConfirm: (Int) -> Unit
 ) {
     val periodOptions = listOf(
-        PeriodOption(180, "6개월", "약 180일"),
-        PeriodOption(365, "12개월 (권장)", "약 365일"),
-        PeriodOption(540, "18개월", "약 540일"),
-        PeriodOption(730, "24개월", "약 730일")
+        PeriodOption(180, stringResource(R.string.option_months_6), stringResource(R.string.option_months_6_desc)),
+        PeriodOption(365, stringResource(R.string.option_months_12), stringResource(R.string.option_months_12_desc)),
+        PeriodOption(540, stringResource(R.string.option_months_18), stringResource(R.string.option_months_18_desc)),
+        PeriodOption(730, stringResource(R.string.option_months_24), stringResource(R.string.option_months_24_desc))
     )
 
     var selectedDays by remember { mutableIntStateOf(currentDays) }
@@ -213,7 +216,7 @@ fun PeriodSelectionDialog(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    "데이터 수집 기간을 선택하세요",
+                    stringResource(R.string.settings_period_select),
                     style = MaterialTheme.typography.bodyMedium
                 )
 
@@ -248,12 +251,12 @@ fun PeriodSelectionDialog(
         },
         confirmButton = {
             Button(onClick = { onConfirm(selectedDays) }) {
-                Text("확인")
+                Text(stringResource(R.string.action_confirm))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("취소")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

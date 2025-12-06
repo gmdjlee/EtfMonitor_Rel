@@ -7,8 +7,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.etfmonitor.R
 import com.etfmonitor.database.entities.HoldingStatus
 
 /**
@@ -52,7 +54,15 @@ fun StatisticsScreen(
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
 
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("금액 순위", "신규 편입", "제외", "비중 증가", "비중 감소", "원화예금", "분석")
+    val tabs = listOf(
+        stringResource(R.string.statistics_tab_amount_ranking),
+        stringResource(R.string.statistics_tab_new),
+        stringResource(R.string.statistics_tab_removed),
+        stringResource(R.string.statistics_tab_increased),
+        stringResource(R.string.statistics_tab_decreased),
+        stringResource(R.string.statistics_tab_cash_deposit),
+        stringResource(R.string.statistics_tab_analysis)
+    )
 
     Scaffold(
         topBar = {
@@ -60,7 +70,7 @@ fun StatisticsScreen(
                 title = {
                     Column {
                         Text(
-                            "전체 통계",
+                            stringResource(R.string.statistics_title),
                             style = MaterialTheme.typography.headlineSmall
                         )
                         dates?.let { (prev, curr) ->
@@ -75,7 +85,7 @@ fun StatisticsScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "뒤로"
+                            contentDescription = stringResource(R.string.nav_back)
                         )
                     }
                 },

@@ -14,9 +14,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.etfmonitor.R
 import com.etfmonitor.database.entities.*
 
 /**
@@ -29,7 +31,7 @@ internal fun EtfCorrelationTab(data: AdvancedDashboardData) {
     val overlaps = data.highOverlapEtfs
 
     if (overlaps.isEmpty()) {
-        EmptyStateCard("ETF 상관관계 분석 데이터가 필요합니다", Icons.Default.GridView)
+        EmptyStateCard(stringResource(R.string.advanced_needs_correlation_data), Icons.Default.GridView)
         return
     }
 
@@ -40,9 +42,9 @@ internal fun EtfCorrelationTab(data: AdvancedDashboardData) {
     ) {
         // 높은 중복률 ETF 쌍
         item {
-            SectionCard("높은 중복률 ETF 쌍") {
+            SectionCard(stringResource(R.string.advanced_high_overlap_pairs)) {
                 Text(
-                    "중복률 70% 이상인 ETF 쌍은 분산 효과가 낮습니다",
+                    stringResource(R.string.advanced_overlap_desc),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -73,12 +75,12 @@ internal fun EtfCorrelationTab(data: AdvancedDashboardData) {
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                "분산 투자 권고",
+                                stringResource(R.string.advanced_diversification_advice),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                "80% 이상 중복되는 ETF가 있습니다. 동일 종목에 과도하게 투자될 수 있으니 포트폴리오 재검토를 권장합니다.",
+                                stringResource(R.string.advanced_diversification_warning),
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
@@ -89,14 +91,14 @@ internal fun EtfCorrelationTab(data: AdvancedDashboardData) {
 
         // 상관관계 범례
         item {
-            SectionCard("상관관계 범례") {
+            SectionCard(stringResource(R.string.advanced_correlation_legend)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    CorrelationLegendItem("높음 >70%", Color(0xFFD32F2F))
-                    CorrelationLegendItem("보통 40-70%", OrangeAccent)
-                    CorrelationLegendItem("낮음 <40%", GreenPositive)
+                    CorrelationLegendItem(stringResource(R.string.advanced_correlation_high), Color(0xFFD32F2F))
+                    CorrelationLegendItem(stringResource(R.string.advanced_correlation_medium), OrangeAccent)
+                    CorrelationLegendItem(stringResource(R.string.advanced_correlation_low), GreenPositive)
                 }
             }
         }
@@ -151,7 +153,7 @@ internal fun EtfCorrelationRow(pair: EtfCorrelationCache) {
                     color = overlapColor
                 )
                 Text(
-                    "공통 ${pair.commonStockCount}종목",
+                    stringResource(R.string.advanced_common_stocks, pair.commonStockCount),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

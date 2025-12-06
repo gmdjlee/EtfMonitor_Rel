@@ -1,6 +1,9 @@
 package com.etfmonitor.ai
 
 import android.util.Log
+import com.etfmonitor.utils.ApiAuthenticationException
+import com.etfmonitor.utils.ApiException
+import com.etfmonitor.utils.DataParsingException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -60,7 +63,7 @@ class ClaudeApiClient @Inject constructor(
             val apiKey = apiKeyProvider.getApiKey(AIProvider.CLAUDE)
             if (apiKey.isNullOrBlank()) {
                 Log.e(TAG, "API key not configured")
-                return@withContext Result.failure(Exception("Claude API 키가 설정되지 않았습니다. 설정에서 API 키를 등록해주세요."))
+                return@withContext Result.failure(ApiAuthenticationException("Claude", "API 키가 설정되지 않았습니다. 설정에서 API 키를 등록해주세요."))
             }
 
             // 선택된 모델 가져오기 (없으면 기본 모델 사용)
@@ -112,11 +115,11 @@ class ClaudeApiClient @Inject constructor(
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string() ?: "Unknown error"
                 Log.e(TAG, "API call failed: ${response.code} - $errorBody")
-                throw Exception("Claude API 호출 실패: ${response.code} - $errorBody")
+                throw ApiException.fromStatusCode(response.code, "Claude", errorBody)
             }
 
             val responseBody = response.body?.string()
-                ?: throw Exception("Empty response from Claude API")
+                ?: throw DataParsingException("Claude API 응답이 비어있습니다", null)
 
             Log.d(TAG, "API response received: ${responseBody.take(200)}...")
 
@@ -124,7 +127,7 @@ class ClaudeApiClient @Inject constructor(
             val jsonResponse = JSONObject(responseBody)
             val content = jsonResponse.getJSONArray("content")
             if (content.length() == 0) {
-                throw Exception("No content in Claude API response")
+                throw DataParsingException("Claude API 응답에 content가 없습니다", responseBody)
             }
 
             content.getJSONObject(0).getString("text")
@@ -142,7 +145,7 @@ class ClaudeApiClient @Inject constructor(
         try {
             val apiKey = apiKeyProvider.getApiKey(AIProvider.CLAUDE)
             if (apiKey.isNullOrBlank()) {
-                return@withContext Result.failure(Exception("Claude API 키가 설정되지 않았습니다."))
+                return@withContext Result.failure(ApiAuthenticationException("Claude"))
             }
 
             val model = apiKeyProvider.getSelectedModel(AIProvider.CLAUDE) ?: MODEL
@@ -200,16 +203,16 @@ class ClaudeApiClient @Inject constructor(
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string() ?: "Unknown error"
                 Log.e(TAG, "Chat API call failed: ${response.code} - $errorBody")
-                throw Exception("Claude API 호출 실패: ${response.code}")
+                throw ApiException.fromStatusCode(response.code, "Claude", errorBody)
             }
 
             val responseBody = response.body?.string()
-                ?: throw Exception("Empty response from Claude API")
+                ?: throw DataParsingException("Claude API 응답이 비어있습니다", null)
 
             val jsonResponse = JSONObject(responseBody)
             val content = jsonResponse.getJSONArray("content")
             if (content.length() == 0) {
-                throw Exception("No content in Claude API response")
+                throw DataParsingException("Claude API 응답에 content가 없습니다", responseBody)
             }
 
             content.getJSONObject(0).getString("text")
@@ -245,7 +248,7 @@ class ClaudeApiClient @Inject constructor(
         try {
             val apiKey = apiKeyProvider.getApiKey(AIProvider.CLAUDE)
             if (apiKey.isNullOrBlank()) {
-                return@withContext Result.failure(Exception("Claude API 키가 설정되지 않았습니다."))
+                return@withContext Result.failure(ApiAuthenticationException("Claude"))
             }
 
             withTimeout(TIMEOUT_SECONDS * 1000) {
@@ -260,16 +263,16 @@ class ClaudeApiClient @Inject constructor(
                     if (!response.isSuccessful) {
                         val errorBody = response.body?.string() ?: "Unknown error"
                         Log.e(TAG, "Models API call failed: ${response.code} - $errorBody")
-                        throw Exception("Claude 모델 목록 조회 실패: ${response.code}")
+                        throw ApiException.fromStatusCode(response.code, "Claude", errorBody)
                     }
 
                     val responseBody = response.body?.string()
-                        ?: throw Exception("Empty response from Claude Models API")
+                        ?: throw DataParsingException("Claude Models API 응답이 비어있습니다", null)
 
                     Log.d(TAG, "Models API response: ${responseBody.take(200)}...")
 
                     val jsonResponse = json.parseToJsonElement(responseBody).jsonObject
-                    val data = jsonResponse["data"]?.jsonArray ?: throw Exception("No data in response")
+                    val data = jsonResponse["data"]?.jsonArray ?: throw DataParsingException("응답에 data가 없습니다", responseBody)
 
                     val models = data.map { modelElement ->
                         val modelObj = modelElement.jsonObject

@@ -10,9 +10,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.etfmonitor.R
 import com.etfmonitor.database.entities.*
 
 /**
@@ -28,7 +30,7 @@ internal fun SectorFearGreedTab(
     val allSectors = data.allSectorAnalyses.sortedByDescending { it.fearGreedValue }
 
     if (allSectors.isEmpty()) {
-        EmptyStateCard("섹터 분석 데이터가 필요합니다", Icons.Default.PieChart)
+        EmptyStateCard(stringResource(R.string.advanced_needs_sector_data), Icons.Default.PieChart)
         return
     }
 
@@ -46,11 +48,11 @@ internal fun SectorFearGreedTab(
         item {
             val avgFearGreed = allSectors.map { it.fearGreedValue }.average()
             val sentiment = when {
-                avgFearGreed > 0.8 -> "극도의 탐욕"
-                avgFearGreed > 0.6 -> "탐욕"
-                avgFearGreed > 0.4 -> "중립"
-                avgFearGreed > 0.2 -> "공포"
-                else -> "극도의 공포"
+                avgFearGreed > 0.8 -> stringResource(R.string.advanced_extreme_greed)
+                avgFearGreed > 0.6 -> stringResource(R.string.advanced_greed_level)
+                avgFearGreed > 0.4 -> stringResource(R.string.advanced_neutral_level)
+                avgFearGreed > 0.2 -> stringResource(R.string.advanced_fear_level)
+                else -> stringResource(R.string.advanced_extreme_fear)
             }
 
             Card(
@@ -63,7 +65,7 @@ internal fun SectorFearGreedTab(
                     modifier = Modifier.padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("시장 전체 심리", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.advanced_overall_market_sentiment), style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         String.format("%.0f", avgFearGreed * 100),
@@ -78,7 +80,7 @@ internal fun SectorFearGreedTab(
 
         // 섹터 히트맵
         item {
-            SectionCard("섹터별 심리 지수") {
+            SectionCard(stringResource(R.string.advanced_sector_fg_index)) {
                 allSectors.chunked(2).forEach { row ->
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -102,7 +104,7 @@ internal fun SectorFearGreedTab(
         val greedSectors = allSectors.filter { it.fearGreedValue > 0.6 }
         if (greedSectors.isNotEmpty()) {
             item {
-                SectionCard("탐욕 섹터", GreenPositive) {
+                SectionCard(stringResource(R.string.advanced_greed_sectors), GreenPositive) {
                     greedSectors.take(5).forEachIndexed { idx, sector ->
                         SectorDetailRow(idx + 1, sector)
                     }
@@ -114,7 +116,7 @@ internal fun SectorFearGreedTab(
         val fearSectors = allSectors.filter { it.fearGreedValue < 0.4 }.sortedBy { it.fearGreedValue }
         if (fearSectors.isNotEmpty()) {
             item {
-                SectionCard("공포 섹터", RedNegative) {
+                SectionCard(stringResource(R.string.advanced_fear_sectors), RedNegative) {
                     fearSectors.take(5).forEachIndexed { idx, sector ->
                         SectorDetailRow(idx + 1, sector)
                     }
@@ -125,7 +127,7 @@ internal fun SectorFearGreedTab(
         // 섹터 로테이션 신호
         if (data.sectorRotationSignals.isNotEmpty()) {
             item {
-                SectionCard("섹터 로테이션 신호") {
+                SectionCard(stringResource(R.string.advanced_sector_rotation_signal)) {
                     data.sectorRotationSignals.take(3).forEach { signal ->
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
@@ -201,7 +203,7 @@ internal fun SectorDetailRow(rank: Int, sector: SectorAnalysis) {
         Column(modifier = Modifier.weight(1f)) {
             Text(sector.sectorName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
             Text(
-                "신규 +${sector.newEntries} | 제외 -${sector.removals}",
+                stringResource(R.string.advanced_sector_new_removed, sector.newEntries, sector.removals),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
