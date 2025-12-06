@@ -18,8 +18,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.etfmonitor.R
 import com.etfmonitor.database.entities.MarketOscillatorData
 import com.etfmonitor.ui.components.LoadingCard
 import com.etfmonitor.ui.components.ErrorCard
@@ -86,20 +88,20 @@ fun MarketOscillatorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("시장 과매수/과매도 분석") },
+                title = { Text(stringResource(R.string.market_oscillator_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.nav_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { showSettingsDialog = true }) {
-                        Icon(Icons.Default.Settings, "설정")
+                        Icon(Icons.Default.Settings, stringResource(R.string.nav_settings))
                     }
                     val currentState = state
                     if (currentState is MarketOscillatorState.Idle && currentState.hasData) {
                         IconButton(onClick = { viewModel.update() }) {
-                            Icon(Icons.Default.Refresh, "업데이트")
+                            Icon(Icons.Default.Refresh, stringResource(R.string.nav_update))
                         }
                     }
                 },
@@ -125,7 +127,7 @@ fun MarketOscillatorScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        "시장 선택",
+                        stringResource(R.string.market_select),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -137,13 +139,13 @@ fun MarketOscillatorScreen(
                         FilterChip(
                             selected = selectedMarket == "KOSPI",
                             onClick = { viewModel.onSelectedMarketChanged("KOSPI") },
-                            label = { Text("코스피") },
+                            label = { Text(stringResource(R.string.market_kospi)) },
                             modifier = Modifier.weight(1f)
                         )
                         FilterChip(
                             selected = selectedMarket == "KOSDAQ",
                             onClick = { viewModel.onSelectedMarketChanged("KOSDAQ") },
-                            label = { Text("코스닥") },
+                            label = { Text(stringResource(R.string.market_kosdaq)) },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -152,7 +154,7 @@ fun MarketOscillatorScreen(
 
             // State Display
             when (val currentState = state) {
-                is MarketOscillatorState.Loading -> LoadingCard("데이터 로딩 중...")
+                is MarketOscillatorState.Loading -> LoadingCard(stringResource(R.string.data_loading))
                 is MarketOscillatorState.Initializing -> {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(
@@ -162,7 +164,7 @@ fun MarketOscillatorScreen(
                         ) {
                             CircularProgressIndicator()
                             Text(currentState.message)
-                            Text("진행률: ${currentState.progress}%", style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.progress_percent, currentState.progress), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
@@ -195,12 +197,12 @@ fun MarketOscillatorScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
-                                    "시장 과매수/과매도 데이터가 없습니다.",
+                                    stringResource(R.string.market_oscillator_no_data),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Button(onClick = { showManualPeriodDialog = true }) {
-                                    Text("데이터 수집")
+                                    Text(stringResource(R.string.action_collect_data))
                                 }
                             }
                         }

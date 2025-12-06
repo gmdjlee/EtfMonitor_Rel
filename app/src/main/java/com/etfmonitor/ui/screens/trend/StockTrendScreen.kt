@@ -11,9 +11,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.etfmonitor.R
 import com.etfmonitor.ui.components.ChartCard
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
@@ -48,7 +50,7 @@ fun StockTrendScreen(
                         Text(
                             when (val s = state) {
                                 is TrendState.Success -> s.trend.stockName
-                                else -> "종목 추이"
+                                else -> stringResource(R.string.stock_trend_title)
                             },
                             style = MaterialTheme.typography.titleMedium
                         )
@@ -60,7 +62,7 @@ fun StockTrendScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.nav_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -110,13 +112,13 @@ private fun TrendContent(
     ) {
         SummaryCard(trend.timeSeries)
         StockTrendChartCard(
-            title = "비중 추이 (%)",
+            title = stringResource(R.string.stock_trend_weight_chart),
             data = trend.timeSeries,
             valueExtractor = { it.weight },
             color = MaterialTheme.colorScheme.primary
         )
         StockTrendChartCard(
-            title = "평가금액 추이 (억원)",
+            title = stringResource(R.string.stock_trend_amount_chart),
             data = trend.timeSeries,
             valueExtractor = { it.amount / 100_000_000 },
             color = MaterialTheme.colorScheme.secondary
@@ -145,7 +147,7 @@ private fun SummaryCard(timeSeries: List<HoldingTimeSeries>) {
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("요약", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.stock_trend_summary), style = MaterialTheme.typography.titleMedium)
             HorizontalDivider()
 
             Row(
@@ -153,7 +155,7 @@ private fun SummaryCard(timeSeries: List<HoldingTimeSeries>) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("데이터 기간", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.label_data_period), style = MaterialTheme.typography.labelSmall)
                     Text("${first.date} ~ ${last.date}")
                 }
             }
@@ -163,11 +165,11 @@ private fun SummaryCard(timeSeries: List<HoldingTimeSeries>) {
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 SummaryItem(
-                    label = "비중 변화",
+                    label = stringResource(R.string.label_weight_change),
                     value = String.format("%+.2f%%", weightChange)
                 )
                 SummaryItem(
-                    label = "금액 변화",
+                    label = stringResource(R.string.label_amount_change),
                     value = AmountFormatter.formatChange(amountChange)  // ✅ 개선
                 )
             }

@@ -21,8 +21,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.etfmonitor.R
 import com.etfmonitor.ui.components.MarketCapOscillatorChart
 import com.etfmonitor.ui.components.MacdChart
 import com.etfmonitor.ui.components.TrendSignalChart
@@ -53,10 +55,10 @@ fun OscillatorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("차트 분석") },
+                title = { Text(stringResource(R.string.oscillator_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.nav_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -92,7 +94,7 @@ fun OscillatorScreen(
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = {
                             Text(
-                                "종목명 또는 티커 검색...",
+                                stringResource(R.string.search_hint),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -113,7 +115,7 @@ fun OscillatorScreen(
                                     IconButton(onClick = { showHistoryDialog = true }) {
                                         Icon(
                                             Icons.Default.History,
-                                            contentDescription = "검색 기록",
+                                            contentDescription = stringResource(R.string.search_history),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
@@ -126,7 +128,7 @@ fun OscillatorScreen(
                                     }) {
                                         Icon(
                                             Icons.Default.Clear,
-                                            contentDescription = "지우기",
+                                            contentDescription = stringResource(R.string.action_clear),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
@@ -196,7 +198,7 @@ fun OscillatorScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        LoadingCard(message = "데이터 분석 중...")
+                        LoadingCard(message = stringResource(R.string.data_analyzing))
                     }
                 }
 
@@ -326,7 +328,7 @@ fun OscillatorScreen(
 
                         // Swipe hint
                         Text(
-                            text = "◀ 좌우로 스와이프하여 다른 차트 보기 ▶",
+                            text = stringResource(R.string.oscillator_swipe_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
@@ -351,7 +353,7 @@ fun OscillatorScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        IdleCard(message = "종목을 검색하여 수급 오실레이터를 분석하세요")
+                        IdleCard(message = stringResource(R.string.oscillator_idle_message))
                     }
                 }
             }
@@ -393,7 +395,7 @@ private fun buildChartPages(
     // 1. 시가총액 & 수급 오실레이터 차트
     pages.add(
         ChartPage(
-            title = "시가총액 & 수급 오실레이터"
+            title = stringResource(R.string.oscillator_chart_marketcap)
         ) {
             MarketCapOscillatorChart(
                 result = currentState.oscillatorResult,
@@ -407,7 +409,7 @@ private fun buildChartPages(
     currentState.demarkTDData?.let { demarkData ->
         pages.add(
             ChartPage(
-                title = "DeMark TD Setup"
+                title = stringResource(R.string.oscillator_chart_demark)
             ) {
                 DemarkTDChartWithSelector(
                     data = demarkData,
@@ -422,7 +424,7 @@ private fun buildChartPages(
     currentState.trendSignalData?.let { trendData ->
         pages.add(
             ChartPage(
-                title = "추세 시그널"
+                title = stringResource(R.string.oscillator_chart_trend)
             ) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -443,7 +445,7 @@ private fun buildChartPages(
     currentState.elderImpulseData?.let { elderData ->
         pages.add(
             ChartPage(
-                title = "Elder Impulse (주봉)"
+                title = stringResource(R.string.oscillator_chart_elder)
             ) {
                 ElderImpulseChart(
                     data = elderData,
@@ -456,7 +458,7 @@ private fun buildChartPages(
     // 5. MACD 차트
     pages.add(
         ChartPage(
-            title = "MACD"
+            title = stringResource(R.string.oscillator_chart_macd)
         ) {
             MacdChart(
                 result = currentState.oscillatorResult,
@@ -487,19 +489,19 @@ private fun DemarkTDChartWithSelector(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             IntervalButton(
-                text = "일봉",
+                text = stringResource(R.string.interval_daily),
                 selected = currentInterval == "d",
                 onClick = { onIntervalChange("d") },
                 modifier = Modifier.weight(1f)
             )
             IntervalButton(
-                text = "주봉",
+                text = stringResource(R.string.interval_weekly),
                 selected = currentInterval == "w",
                 onClick = { onIntervalChange("w") },
                 modifier = Modifier.weight(1f)
             )
             IntervalButton(
-                text = "월봉",
+                text = stringResource(R.string.interval_monthly),
                 selected = currentInterval == "m",
                 onClick = { onIntervalChange("m") },
                 modifier = Modifier.weight(1f)
@@ -562,7 +564,7 @@ private fun SearchHistoryDialog(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Text("최근 검색")
+                Text(stringResource(R.string.recent_search))
             }
         },
         text = {
@@ -573,7 +575,7 @@ private fun SearchHistoryDialog(
             ) {
                 if (searchHistory.isEmpty()) {
                     Text(
-                        "검색 히스토리가 없습니다",
+                        stringResource(R.string.search_history_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -607,7 +609,7 @@ private fun SearchHistoryDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("닫기")
+                Text(stringResource(R.string.action_close))
             }
         }
     )
@@ -649,17 +651,17 @@ private fun TrendSignalAnalysisCard(analysis: TrendSignalAnalysis) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "추세 시그널 분석",
+                    stringResource(R.string.oscillator_trend_analysis),
                     style = MaterialTheme.typography.titleMedium
                 )
 
                 // 신호 배지
                 val (signalText, signalColor) = when (analysis.signal) {
-                    TrendTradeSignal.STRONG_BUY -> "강력 매수" to Color(0xFF4CAF50)
-                    TrendTradeSignal.BUY -> "매수" to Color(0xFF8BC34A)
-                    TrendTradeSignal.NEUTRAL -> "중립" to Color(0xFF9E9E9E)
-                    TrendTradeSignal.SELL -> "매도" to Color(0xFFFF9800)
-                    TrendTradeSignal.STRONG_SELL -> "강력 매도" to Color(0xFFF44336)
+                    TrendTradeSignal.STRONG_BUY -> stringResource(R.string.signal_strong_buy) to Color(0xFF4CAF50)
+                    TrendTradeSignal.BUY -> stringResource(R.string.signal_buy) to Color(0xFF8BC34A)
+                    TrendTradeSignal.NEUTRAL -> stringResource(R.string.signal_neutral) to Color(0xFF9E9E9E)
+                    TrendTradeSignal.SELL -> stringResource(R.string.signal_sell) to Color(0xFFFF9800)
+                    TrendTradeSignal.STRONG_SELL -> stringResource(R.string.signal_strong_sell) to Color(0xFFF44336)
                 }
 
                 Surface(
@@ -686,9 +688,9 @@ private fun TrendSignalAnalysisCard(analysis: TrendSignalAnalysis) {
             )
 
             // 지표 값
-            DataRow("현재가", String.format("%,.0f", analysis.currentPrice))
-            DataRow("MA", String.format("%,.0f", analysis.maPrice))
-            DataRow("CMF", String.format("%.3f", analysis.cmfValue))
+            DataRow(stringResource(R.string.label_current_price), String.format("%,.0f", analysis.currentPrice))
+            DataRow(stringResource(R.string.label_ma), String.format("%,.0f", analysis.maPrice))
+            DataRow(stringResource(R.string.label_cmf), String.format("%.3f", analysis.cmfValue))
 
             // Fear & Greed 상태
             val fearGreedState = FearGreedState.fromValue(analysis.fearGreedValue)
@@ -706,7 +708,7 @@ private fun TrendSignalAnalysisCard(analysis: TrendSignalAnalysis) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Fear & Greed",
+                    stringResource(R.string.label_fear_greed),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -734,8 +736,8 @@ private fun TrendSignalAnalysisCard(analysis: TrendSignalAnalysis) {
             }
 
             // 시그널 카운트
-            DataRow("최근 매수 시그널", "${analysis.recentBuyCount}회")
-            DataRow("최근 매도 시그널", "${analysis.recentSellCount}회")
+            DataRow(stringResource(R.string.label_recent_buy_signals), "${analysis.recentBuyCount}회")
+            DataRow(stringResource(R.string.label_recent_sell_signals), "${analysis.recentSellCount}회")
 
             HorizontalDivider()
 

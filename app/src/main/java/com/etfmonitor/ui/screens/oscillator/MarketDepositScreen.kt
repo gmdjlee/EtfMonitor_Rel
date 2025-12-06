@@ -12,8 +12,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.etfmonitor.R
 import com.etfmonitor.ui.components.MarketDepositChart
 import com.etfmonitor.ui.components.LoadingCard
 import com.etfmonitor.ui.components.ErrorCard
@@ -29,10 +31,10 @@ fun MarketDepositScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("증시 자금 동향") },
+                title = { Text(stringResource(R.string.market_deposit_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.nav_back))
                     }
                 },
                 actions = {
@@ -40,7 +42,7 @@ fun MarketDepositScreen(
                         onClick = { viewModel.refreshData() },
                         enabled = state !is MarketDepositState.Loading
                     ) {
-                        Icon(Icons.Default.Refresh, "새로고침")
+                        Icon(Icons.Default.Refresh, stringResource(R.string.nav_refresh))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -61,7 +63,7 @@ fun MarketDepositScreen(
             // 상태별 UI
             when (val currentState = state) {
                 is MarketDepositState.Loading -> {
-                    LoadingCard(message = "데이터 수집 중...")
+                    LoadingCard(message = stringResource(R.string.data_collecting))
                 }
 
                 is MarketDepositState.Success -> {
@@ -77,7 +79,7 @@ fun MarketDepositScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                "시장 분석",
+                                stringResource(R.string.market_deposit_analysis),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer
@@ -106,7 +108,7 @@ fun MarketDepositScreen(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Text(
-                                    "최신 데이터 (${currentState.data.dates[lastIdx]})",
+                                    stringResource(R.string.market_deposit_latest_data, currentState.data.dates[lastIdx]),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -121,7 +123,7 @@ fun MarketDepositScreen(
                                 ) {
                                     Column {
                                         Text(
-                                            "고객예탁금",
+                                            stringResource(R.string.market_deposit_customer),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -151,7 +153,7 @@ fun MarketDepositScreen(
                                 ) {
                                     Column {
                                         Text(
-                                            "신용잔고",
+                                            stringResource(R.string.market_deposit_credit),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -180,24 +182,24 @@ fun MarketDepositScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    "데이터 상세",
+                                    stringResource(R.string.market_deposit_details),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
 
                                 Text(
-                                    "데이터 포인트: ${currentState.data.dates.size}개",
+                                    stringResource(R.string.market_deposit_data_points, currentState.data.dates.size),
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                                 Text(
-                                    "날짜 범위: ${currentState.data.dates.first()} ~ ${currentState.data.dates.last()}",
+                                    stringResource(R.string.market_deposit_date_range, currentState.data.dates.first(), currentState.data.dates.last()),
                                     style = MaterialTheme.typography.bodyMedium
                                 )
 
                                 HorizontalDivider()
 
                                 Text(
-                                    "최근 5일 추이",
+                                    stringResource(R.string.market_deposit_recent_5_days),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Medium
                                 )
