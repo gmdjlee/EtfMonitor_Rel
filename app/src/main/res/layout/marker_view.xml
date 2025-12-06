@@ -8,30 +8,12 @@
     app:cardCornerRadius="8dp"
     app:cardElevation="4dp">
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/tvContent"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="8dp">
-
-        <TextView
-            android:id="@+id/tvDate"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="2024-01-01"
-            android:textColor="#333333"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tvValue"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:text="0.00"
-            android:textColor="#666666"
-            android:textSize="11sp" />
-
-    </LinearLayout>
+        android:padding="8dp"
+        android:textColor="#333333"
+        android:textSize="11sp" />
 
 </androidx.cardview.widget.CardView>
