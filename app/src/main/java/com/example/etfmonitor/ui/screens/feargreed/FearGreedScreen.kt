@@ -112,13 +112,13 @@ fun FearGreedScreen(
                     ) {
                         FilterChip(
                             selected = selectedMarket == "KOSPI",
-                            onClick = { viewModel.setSelectedMarket("KOSPI") },
+                            onClick = { viewModel.onSelectedMarketChanged("KOSPI") },
                             label = { Text("KOSPI") },
                             modifier = Modifier.weight(1f)
                         )
                         FilterChip(
                             selected = selectedMarket == "KOSDAQ",
-                            onClick = { viewModel.setSelectedMarket("KOSDAQ") },
+                            onClick = { viewModel.onSelectedMarketChanged("KOSDAQ") },
                             label = { Text("KOSDAQ") },
                             modifier = Modifier.weight(1f)
                         )

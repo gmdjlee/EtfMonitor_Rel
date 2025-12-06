@@ -87,7 +87,7 @@ fun OscillatorScreen(
                         value = textFieldValue,
                         onValueChange = {
                             textFieldValue = it
-                            viewModel.updateSearchQuery(it)
+                            viewModel.onSearchQueryChanged(it)
                         },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = {
@@ -122,7 +122,7 @@ fun OscillatorScreen(
                                 if (textFieldValue.isNotEmpty()) {
                                     IconButton(onClick = {
                                         textFieldValue = ""
-                                        viewModel.clearSuggestions()
+                                        viewModel.onClearSuggestions()
                                     }) {
                                         Icon(
                                             Icons.Default.Clear,
@@ -176,7 +176,7 @@ fun OscillatorScreen(
                                     },
                                     modifier = Modifier.clickable {
                                         textFieldValue = stock.name
-                                        viewModel.clearSuggestions()
+                                        viewModel.onClearSuggestions()
                                         viewModel.analyzeStock(stock.ticker)
                                     }
                                 )

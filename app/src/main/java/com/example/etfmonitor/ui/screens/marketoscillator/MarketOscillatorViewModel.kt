@@ -132,22 +132,22 @@ class MarketOscillatorViewModel @Inject constructor(
         }
     }
 
-    fun setSelectedMarket(market: String) {
+    fun onSelectedMarketChanged(market: String) {
         _selectedMarket.value = market
         loadData()
         checkData()
     }
 
-    fun setDisplayDays(days: Int) {
+    fun onDisplayDaysChanged(days: Int) {
         _displayDays.value = days
         loadData()
     }
 
-    fun setOverboughtThreshold(threshold: Double) {
+    fun onOverboughtThresholdChanged(threshold: Double) {
         _overboughtThreshold.value = threshold
     }
 
-    fun setOversoldThreshold(threshold: Double) {
+    fun onOversoldThresholdChanged(threshold: Double) {
         _oversoldThreshold.value = threshold
     }
 

@@ -67,6 +67,7 @@ class HomeViewModel @Inject constructor(
     val showUnifiedInitDialog: StateFlow<Boolean> = _showUnifiedInitDialog.asStateFlow()
 
     private val _etfInitializationCompleted = MutableStateFlow(false)
+    val etfInitializationCompleted: StateFlow<Boolean> = _etfInitializationCompleted.asStateFlow()
 
     init {
         checkData()
@@ -391,8 +392,13 @@ class HomeViewModel @Inject constructor(
 
     // 통합 초기화에서 ETF 완료 후 실행할 대기중인 초기화 파라미터
     private val _pendingDepositPages = MutableStateFlow<Int?>(null)
+    val pendingDepositPages: StateFlow<Int?> = _pendingDepositPages.asStateFlow()
+
     private val _pendingFearGreedDays = MutableStateFlow<Int?>(null)
+    val pendingFearGreedDays: StateFlow<Int?> = _pendingFearGreedDays.asStateFlow()
+
     private val _pendingOscillatorDays = MutableStateFlow<Int?>(null)
+    val pendingOscillatorDays: StateFlow<Int?> = _pendingOscillatorDays.asStateFlow()
 
     /**
      * ETF 초기화 완료 후 나머지 데이터 초기화 실행
