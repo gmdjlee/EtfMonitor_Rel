@@ -1090,6 +1090,83 @@ dependencies {
 
 ---
 
+## Claude Code - Coding Guidelines
+
+### Core Philosophy: Minimal Engineering
+
+#### DO NOT Over-Engineer
+- Make ONLY changes that are directly requested or clearly necessary
+- Keep solutions simple and focused
+- Do NOT add unrequested features, refactor code, or make "improvements"
+- Bug fixes do NOT require cleaning up surrounding code
+- Simple features do NOT need additional configurability
+
+#### Trust the System
+- Do NOT add error handling, fallbacks, or validation for scenarios that cannot occur
+- Trust internal code and framework guarantees
+- Validate ONLY at system boundaries (user input, external APIs)
+
+#### Avoid Premature Abstraction
+- Do NOT create helpers, utilities, or abstractions for one-time tasks
+- Do NOT design for hypothetical future requirements
+- The correct complexity level is the MINIMUM required for the current task
+- Reuse existing abstractions when possible and follow DRY principles
+
+#### Quality Standards
+- Write high-quality, general-purpose solutions using available standard tools
+- Focus on understanding problem requirements and implementing the correct algorithm
+- Provide grounded, hallucination-free answers unless confident in the exact answer
+
+---
+
+### UI/UX Design Guidelines
+
+#### Typography
+- Choose beautiful, distinctive, and interesting fonts
+- AVOID generic fonts like Arial, Inter, Roboto, system fonts
+- Select unique choices that enhance aesthetics
+
+#### Color & Theme
+- Commit to a cohesive aesthetic
+- Dominant colors with sharp accents perform better than timid, evenly-distributed palettes
+- Draw inspiration from IDE themes and cultural aesthetics
+- AVOID clichéd color schemes (especially purple gradients on white backgrounds)
+
+#### Motion & Animation
+- Use animations for effects and micro-interactions
+- Focus on high-impact moments
+- One well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions
+
+#### Backgrounds
+- Create atmosphere and depth rather than defaulting to solid colors
+- Layer gradients, use geometric patterns, or add contextual effects that match the overall aesthetic
+
+#### Avoid Generic AI Aesthetics
+- Overused font families (Inter, Roboto, Arial, system fonts)
+- Clichéd color schemes (purple gradients on white)
+- Predictable layouts and component patterns
+- Cookie-cutter designs lacking contextual character
+
+---
+
+### Summary Rules
+
+```
+✓ ONLY requested changes
+✓ Minimal complexity
+✓ Trust framework guarantees
+✓ Validate at boundaries only
+✓ Unique, beautiful design choices
+
+✗ NO unrequested features
+✗ NO premature abstraction
+✗ NO unnecessary error handling
+✗ NO hypothetical future design
+✗ NO generic AI aesthetics
+```
+
+---
+
 ## AI Assistant Guidelines
 
 ### When Working on This Project
