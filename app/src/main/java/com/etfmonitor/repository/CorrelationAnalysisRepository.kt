@@ -94,7 +94,7 @@ class CorrelationAnalysisRepository @Inject constructor(
                 logger.d( "No market index data found for $market. Fetching data...")
                 val fetchResult = marketIndexRepository.initializeMarketIndex(periodDays + 30)
                 if (fetchResult.isFailure) {
-                    Log.w(TAG, "Failed to fetch market index data: ${fetchResult.exceptionOrNull()?.message}")
+                    logger.w("Failed to fetch market index data: ${fetchResult.exceptionOrNull()?.message}")
                     // 수집 실패해도 분석 시도 (다른 데이터로라도 분석)
                 } else {
                     logger.d( "Successfully fetched market index data: ${fetchResult.getOrNull()} records")
@@ -150,7 +150,7 @@ class CorrelationAnalysisRepository @Inject constructor(
             val context = try {
                 json.decodeFromString<AnalysisContext>(correlationResult.analysisContext)
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to parse analysis context", e)
+                logger.w("Failed to parse analysis context", e)
                 null
             }
 
@@ -231,7 +231,7 @@ class CorrelationAnalysisRepository @Inject constructor(
 
             if (aiResult.isFailure) {
                 // AI 실패해도 상관관계 결과는 반환
-                Log.w(TAG, "AI interpretation failed, returning correlation only")
+                logger.w("AI interpretation failed, returning correlation only")
                 return@withContext Result.success(
                     FullAnalysisResult(
                         correlationResult = correlation,

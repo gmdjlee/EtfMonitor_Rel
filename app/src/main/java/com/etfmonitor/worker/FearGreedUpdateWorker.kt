@@ -43,7 +43,8 @@ class FearGreedUpdateWorker @AssistedInject constructor(
                 Result.success()
             } else {
                 val error = result.exceptionOrNull()
-                logger.e("Failed to update Fear & Greed Index: ${error?.message}", error)
+                error?.let { logger.e("Failed to update Fear & Greed Index: ${it.message}", it) }
+                    ?: logger.e("Failed to update Fear & Greed Index: unknown error")
                 Result.retry()
             }
         } catch (e: Exception) {

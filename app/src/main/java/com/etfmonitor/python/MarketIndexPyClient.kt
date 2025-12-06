@@ -144,7 +144,7 @@ class MarketIndexPyClient @Inject constructor(
 
                 // Python에서 None을 반환하면 null로 처리
                 if (result.toString() == "None") {
-                    Log.w(TAG, "No latest index data found for $market")
+                    logger.w("No latest index data found for $market")
                     return@withTimeout null
                 }
 

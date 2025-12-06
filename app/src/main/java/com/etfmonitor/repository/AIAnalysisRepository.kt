@@ -305,7 +305,7 @@ class AIAnalysisRepository @Inject constructor(
                     // Rate limiting: 1 request per second to avoid API throttling
                     kotlinx.coroutines.delay(1000)
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed to generate signal for $date", e)
+                    logger.w("Failed to generate signal for $date", e)
                     continue
                 }
             }
