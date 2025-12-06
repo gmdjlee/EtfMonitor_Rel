@@ -1,3 +1,282 @@
 <resources>
     <string name="app_name">Market Monitor</string>
+
+    <!-- Common/Navigation -->
+    <string name="nav_back">뒤로</string>
+    <string name="nav_refresh">새로고침</string>
+    <string name="nav_settings">설정</string>
+    <string name="nav_update">업데이트</string>
+    <string name="action_confirm">확인</string>
+    <string name="action_cancel">취소</string>
+    <string name="action_close">닫기</string>
+    <string name="action_apply">적용</string>
+    <string name="action_clear">지우기</string>
+    <string name="action_later">나중에</string>
+    <string name="action_reset">초기화</string>
+    <string name="action_start_collection">수집 시작</string>
+    <string name="action_collect_data">데이터 수집</string>
+    <string name="search_history">검색 기록</string>
+    <string name="search_history_empty">검색 히스토리가 없습니다</string>
+    <string name="recent_search">최근 검색</string>
+    <string name="search_hint">종목명 또는 티커 검색…</string>
+    <string name="data_loading">데이터 로딩 중…</string>
+    <string name="data_analyzing">데이터 분석 중…</string>
+    <string name="data_collecting">데이터 수집 중…</string>
+    <string name="data_none">데이터 없음</string>
+    <string name="data_points">%d개 데이터</string>
+    <string name="progress_percent">진행률: %d%%</string>
+    <string name="learning_in_progress">학습 중…</string>
+
+    <!-- Market Names -->
+    <string name="market_kospi">코스피</string>
+    <string name="market_kosdaq">코스닥</string>
+    <string name="market_select">시장 선택</string>
+
+    <!-- Status Labels -->
+    <string name="status_overbought">과매수</string>
+    <string name="status_oversold">과매도</string>
+    <string name="status_neutral">중립</string>
+    <string name="status_new">신규</string>
+    <string name="status_removed">제외</string>
+    <string name="status_increase">증가</string>
+    <string name="status_decrease">감소</string>
+    <string name="status_maintained">유지</string>
+
+    <!-- Signal Labels -->
+    <string name="signal_strong_buy">강력 매수</string>
+    <string name="signal_buy">매수</string>
+    <string name="signal_neutral">중립</string>
+    <string name="signal_sell">매도</string>
+    <string name="signal_strong_sell">강력 매도</string>
+
+    <!-- Table Headers -->
+    <string name="header_date">날짜</string>
+    <string name="header_weight">비중</string>
+    <string name="header_amount">금액</string>
+    <string name="header_index">지수</string>
+    <string name="header_status">상태</string>
+    <string name="header_rank">순위</string>
+    <string name="header_stock_name">종목명</string>
+    <string name="header_etf_count">ETF수</string>
+    <string name="header_new">신규</string>
+    <string name="header_increase">증가</string>
+    <string name="header_decrease">감소</string>
+    <string name="header_removed">제외</string>
+    <string name="header_oscillator">Oscillator</string>
+
+    <!-- Data Labels -->
+    <string name="label_current_price">현재가</string>
+    <string name="label_ma">MA</string>
+    <string name="label_cmf">CMF</string>
+    <string name="label_fear_greed">Fear &amp; Greed</string>
+    <string name="label_weight_change">비중 변화</string>
+    <string name="label_amount_change">금액 변화</string>
+    <string name="label_previous">이전</string>
+    <string name="label_current">현재</string>
+    <string name="label_change">변동</string>
+    <string name="label_data_period">데이터 기간</string>
+    <string name="label_date_range">날짜 범위</string>
+    <string name="label_total_stocks">총 %d개 종목</string>
+    <string name="label_etf_prefix">ETF:</string>
+    <string name="label_valuation">평가금액:</string>
+    <string name="label_compared_to_previous">이전 대비:</string>
+    <string name="label_included_etf">포함 ETF</string>
+    <string name="label_valuation_amount">평가금액</string>
+    <string name="label_avg_weight">평균 비중</string>
+    <string name="label_current_total">현재 총액</string>
+    <string name="label_change_amount">변동액</string>
+    <string name="label_etf_count_unit">%d개</string>
+    <string name="label_recent_buy_signals">최근 매수 시그널</string>
+    <string name="label_recent_sell_signals">최근 매도 시그널</string>
+    <string name="label_signal_count">%d회</string>
+
+    <!-- Time Intervals -->
+    <string name="interval_daily">일봉</string>
+    <string name="interval_weekly">주봉</string>
+    <string name="interval_monthly">월봉</string>
+
+    <!-- Period Options -->
+    <string name="period_6_months">6개월</string>
+    <string name="period_12_months">12개월 (권장)</string>
+    <string name="period_18_months">18개월</string>
+    <string name="period_24_months">24개월</string>
+    <string name="period_about_days">약 %d일</string>
+    <string name="period_recent_days">최근 %d일</string>
+    <string name="period_display">표시 기간</string>
+
+    <!-- OscillatorScreen -->
+    <string name="oscillator_title">차트 분석</string>
+    <string name="oscillator_idle_message">종목을 검색하여 수급 오실레이터를 분석하세요</string>
+    <string name="oscillator_chart_marketcap">시가총액 &amp; 수급 오실레이터</string>
+    <string name="oscillator_chart_demark">DeMark TD Setup</string>
+    <string name="oscillator_chart_trend">추세 시그널</string>
+    <string name="oscillator_chart_elder">Elder Impulse (주봉)</string>
+    <string name="oscillator_chart_macd">MACD</string>
+    <string name="oscillator_swipe_hint">◀ 좌우로 스와이프하여 다른 차트 보기 ▶</string>
+    <string name="oscillator_trend_analysis">추세 시그널 분석</string>
+
+    <!-- MarketDepositScreen -->
+    <string name="market_deposit_title">증시 자금 동향</string>
+    <string name="market_deposit_analysis">시장 분석</string>
+    <string name="market_deposit_latest_data">최신 데이터 (%s)</string>
+    <string name="market_deposit_customer">고객예탁금</string>
+    <string name="market_deposit_credit">신용잔고</string>
+    <string name="market_deposit_details">데이터 상세</string>
+    <string name="market_deposit_data_points">데이터 포인트: %d개</string>
+    <string name="market_deposit_date_range">날짜 범위: %s ~ %s</string>
+    <string name="market_deposit_recent_5_days">최근 5일 추이</string>
+
+    <!-- MarketOscillatorScreen -->
+    <string name="market_oscillator_title">시장 과매수/과매도 분석</string>
+    <string name="market_oscillator_no_data">시장 과매수/과매도 데이터가 없습니다.</string>
+    <string name="market_oscillator_latest_data">최신 데이터 (%s)</string>
+    <string name="market_oscillator_history">과매수/과매도 내역</string>
+    <string name="market_oscillator_display_period">표시 기간: 최근 %d일</string>
+    <string name="market_oscillator_init_title">시장 과매수/과매도 초기화</string>
+    <string name="market_oscillator_init_desc">코스피/코스닥 데이터 수집 기간을 선택하세요.</string>
+    <string name="market_oscillator_collection_time">데이터 수집에는 선택한 기간에 따라 2-5분 정도 소요됩니다.</string>
+    <string name="market_oscillator_settings_title">표시 설정</string>
+    <string name="market_oscillator_overbought_threshold">과매수 기준 (%)</string>
+    <string name="market_oscillator_oversold_threshold">과매도 기준 (%)</string>
+    <string name="market_oscillator_threshold_hint_overbought">예: 80</string>
+    <string name="market_oscillator_threshold_hint_oversold">예: -80</string>
+    <string name="market_oscillator_threshold_explanation">• 과매수: Oscillator가 설정값 이상\n• 과매도: Oscillator가 설정값 이하</string>
+    <string name="market_oscillator_days_option">%d일</string>
+
+    <!-- StatisticsScreen -->
+    <string name="statistics_title">전체 통계</string>
+    <string name="statistics_tab_amount_ranking">금액 순위</string>
+    <string name="statistics_tab_new">신규 편입</string>
+    <string name="statistics_tab_removed">제외</string>
+    <string name="statistics_tab_increased">비중 증가</string>
+    <string name="statistics_tab_decreased">비중 감소</string>
+    <string name="statistics_tab_cash_deposit">원화예금</string>
+    <string name="statistics_tab_analysis">분석</string>
+    <string name="statistics_sort_reset">정렬 초기화</string>
+    <string name="statistics_sort_hint">열 클릭으로 정렬</string>
+    <string name="statistics_sort_columns">정렬: %d개 열</string>
+    <string name="statistics_cash_deposit_empty">원화예금 데이터가 없습니다</string>
+    <string name="statistics_cash_deposit_summary">원화예금 요약</string>
+    <string name="statistics_cash_deposit_chart">원화예금 추이 (억원)</string>
+    <string name="statistics_detailed_data">상세 데이터</string>
+    <string name="statistics_analysis_hint">종목을 검색하여 ETF 편입 현황을 분석하세요</string>
+    <string name="statistics_etf_change">ETF 편입 변동</string>
+    <string name="statistics_new_inclusion">신규 편입</string>
+    <string name="statistics_weight_increase">비중 증가</string>
+    <string name="statistics_weight_decrease">비중 감소</string>
+    <string name="statistics_etf_details">ETF별 상세 현황 (%d개)</string>
+    <string name="statistics_sort_descending">내림차순</string>
+    <string name="statistics_sort_ascending">오름차순</string>
+    <string name="statistics_sort_available">정렬 가능</string>
+
+    <!-- PredictionScreen -->
+    <string name="prediction_title">ML 주가 예측</string>
+    <string name="prediction_subtitle">ETF 구성 변화 기반 상승 예측</string>
+    <string name="prediction_learning_result">학습 결과</string>
+    <string name="prediction_run">예측 실행</string>
+    <string name="prediction_what_is">ML 주가 예측이란?</string>
+    <string name="prediction_current_settings">현재 설정</string>
+    <string name="prediction_how_to_use">사용 방법</string>
+    <string name="prediction_period">예측 기간</string>
+    <string name="prediction_rise_criteria">상승 판단 기준</string>
+    <string name="prediction_min_confidence">최소 신뢰도</string>
+    <string name="prediction_ml_model">ML 모델</string>
+    <string name="prediction_accuracy">정확도</string>
+    <string name="prediction_precision">정밀도</string>
+    <string name="prediction_training_samples">학습 샘플</string>
+    <string name="prediction_training_complete">학습 완료</string>
+    <string name="prediction_results">예측 결과</string>
+    <string name="prediction_no_results">예측 결과가 없습니다</string>
+    <string name="prediction_run_first">예측을 실행해 주세요</string>
+
+    <!-- StockTrendScreen -->
+    <string name="stock_trend_title">종목 추이</string>
+    <string name="stock_trend_summary">요약</string>
+    <string name="stock_trend_weight_chart">비중 추이 (%)</string>
+    <string name="stock_trend_amount_chart">평가금액 추이</string>
+
+    <!-- AdvancedDashboardScreen -->
+    <string name="advanced_title">고급 분석</string>
+    <string name="advanced_tab_dashboard">대시보드</string>
+    <string name="advanced_tab_market_cap">시총가중</string>
+    <string name="advanced_tab_flow">수급분석</string>
+    <string name="advanced_tab_liquidity">유동성</string>
+    <string name="advanced_tab_sector">섹터심리</string>
+    <string name="advanced_tab_etf_correlation">ETF상관</string>
+    <string name="advanced_net_fund_flow">순 자금 흐름</string>
+    <string name="advanced_inflow">유입</string>
+    <string name="advanced_outflow">유출</string>
+    <string name="advanced_size_distribution">규모별 분포</string>
+    <string name="advanced_top_inflow_stocks">상위 유입 종목</string>
+    <string name="advanced_top_outflow_stocks">상위 유출 종목</string>
+    <string name="advanced_market_sentiment">시장 심리</string>
+    <string name="advanced_flow_distribution">수급 분포</string>
+    <string name="advanced_loading">분석 데이터 로딩 중…</string>
+    <string name="advanced_error">데이터 로딩 실패</string>
+
+    <!-- FearGreedScreen -->
+    <string name="fear_greed_title">공포탐욕지수</string>
+    <string name="fear_greed_components">구성 요소</string>
+    <string name="fear_greed_no_data">공포탐욕지수 데이터가 없습니다.</string>
+    <string name="fear_greed_init_title">공포탐욕지수 초기화</string>
+    <string name="fear_greed_init_desc">데이터 수집 기간을 선택하세요.</string>
+
+    <!-- AIAnalysisScreen -->
+    <string name="ai_analysis_title">AI 시장 분석</string>
+    <string name="ai_analysis_analyzing">AI 분석 중…</string>
+    <string name="ai_analysis_no_api_key">API 키가 설정되지 않았습니다</string>
+    <string name="ai_analysis_run">분석 실행</string>
+    <string name="ai_analysis_result">분석 결과</string>
+
+    <!-- HomeScreen -->
+    <string name="home_market_summary">시장 요약</string>
+    <string name="home_data_update">데이터 업데이트</string>
+    <string name="home_update_available">업데이트 가능</string>
+    <string name="home_no_data">데이터가 없습니다</string>
+    <string name="home_init_required">데이터 초기화가 필요합니다</string>
+    <string name="home_init_button">초기화 시작</string>
+
+    <!-- EtfListScreen -->
+    <string name="etf_list_title">ETF 목록</string>
+    <string name="etf_list_empty">ETF 목록이 비어있습니다</string>
+    <string name="etf_list_search_hint">ETF 검색…</string>
+
+    <!-- DetailScreen -->
+    <string name="detail_title">상세 정보</string>
+    <string name="detail_holdings">보유 종목</string>
+    <string name="detail_weight_distribution">비중 분포</string>
+    <string name="detail_top_holdings">상위 보유 종목</string>
+    <string name="detail_no_holdings">보유 종목이 없습니다</string>
+
+    <!-- SettingsScreen -->
+    <string name="settings_title">설정</string>
+    <string name="settings_theme">테마</string>
+    <string name="settings_theme_light">라이트</string>
+    <string name="settings_theme_dark">다크</string>
+    <string name="settings_theme_system">시스템</string>
+    <string name="settings_api_key">API 키</string>
+    <string name="settings_api_key_claude">Claude API 키</string>
+    <string name="settings_api_key_gemini">Gemini API 키</string>
+    <string name="settings_font_scale">글꼴 크기</string>
+    <string name="settings_chart_colors">차트 색상</string>
+    <string name="settings_data_management">데이터 관리</string>
+    <string name="settings_clear_cache">캐시 삭제</string>
+    <string name="settings_reset_data">데이터 초기화</string>
+    <string name="settings_about">정보</string>
+    <string name="settings_version">버전</string>
+    <string name="settings_schedule">자동 업데이트</string>
+    <string name="settings_provider_selection">AI 제공자</string>
+    <string name="settings_model_selection">AI 모델</string>
+    <string name="settings_test_api_key">API 키 테스트</string>
+    <string name="settings_save">저장</string>
+    <string name="settings_saved">저장되었습니다</string>
+    <string name="settings_api_key_valid">API 키가 유효합니다</string>
+    <string name="settings_api_key_invalid">API 키가 유효하지 않습니다</string>
+
+    <!-- Formatters (with placeholders) -->
+    <string name="format_billion_won">%s억원</string>
+    <string name="format_billion_short">%s억</string>
+    <string name="format_percent">%.2f%%</string>
+    <string name="format_percent_change">%+.2f%%</string>
+    <string name="format_date_range">%s ~ %s</string>
 </resources>
