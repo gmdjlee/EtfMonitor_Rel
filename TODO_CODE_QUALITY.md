@@ -33,11 +33,20 @@
 - [x] `HomeDialogs.kt` - 모든 다이얼로그 텍스트 → stringResource() 적용
 - [x] `HomeSummaryCard.kt` - 시장 현황 레이블 → stringResource() 적용
 - [x] `PredictionScreen.kt` - 예측 UI 텍스트 → stringResource() 적용
+- [x] `AdvancedDashboardScreen.kt` - 탭, 카드, 차트 레이블 → stringResource() 적용
+- [x] `SettingsScreen.kt` - 모든 설정 탭 컴포넌트 → stringResource() 적용
+- [x] `StatisticsScreen.kt` - 메인 화면 → stringResource() 적용
 
 ### 6. Generic Exception 교체 (AI Clients)
 - [x] `ClaudeApiClient.kt` - ApiException, ApiAuthenticationException, DataParsingException 사용
 - [x] `GeminiApiClient.kt` - ApiException, ApiAuthenticationException, DataParsingException 사용
 - [x] `AIResponseParser.kt` - DataParsingException 사용
+
+### 7. Generic Exception 분석 (Repository/ViewModel)
+- [x] `MainActivity.kt` - 방어적 예외 처리 (로깅 후 무시), 현재 패턴 적절
+- [x] `HomeViewModel.kt` - 방어적 예외 처리 (로깅 후 null 반환), 현재 패턴 적절
+- [x] `DataRepository.kt` - DataProgress.Error emit 패턴, 현재 패턴 적절
+- [x] `AdvancedAnalysisRepository.kt` - fallback 값 반환 패턴, 현재 패턴 적절
 
 ---
 
@@ -73,23 +82,25 @@ app/src/test/java/com/etfmonitor/
     └── MigrationTest.kt
 ```
 
-#### 2. Screen에 String Resource 적용 (나머지)
-HomeScreen과 PredictionScreen은 완료되었으며, 나머지 Screen에 적용 필요합니다.
+#### 2. Screen에 String Resource 적용 (나머지) ✅ 완료
+HomeScreen과 PredictionScreen은 완료되었으며, 나머지 Screen에도 적용 완료.
 
-**대상 파일:**
-- [ ] `AdvancedDashboardScreen.kt` - 40+ hardcoded strings
-- [ ] `SettingsScreen.kt` - 50+ hardcoded strings
-- [ ] `StatisticsScreen.kt` - 20+ hardcoded strings
+**완료된 파일:**
+- [x] `AdvancedDashboardScreen.kt` - 80+ strings → stringResource() 적용
+- [x] `SettingsScreen.kt` - 150+ strings → stringResource() 적용 (모든 컴포넌트)
+- [x] `StatisticsScreen.kt` - 20+ strings → stringResource() 적용
 
-#### 3. 나머지 Generic Exception 교체
-AI Clients는 완료되었으며, Repository/ViewModel에 적용 필요합니다.
+#### 3. Generic Exception 교체 분석 ✅ 완료
+AI Clients는 완료되었으며, Repository/ViewModel은 분석 결과 현재 패턴이 적절합니다.
 
-**대상 파일:**
-- [ ] `MainActivity.kt` (3개 catch blocks)
-- [ ] `HomeViewModel.kt` (5개 catch blocks)
-- [ ] `DataRepository.kt` (10+ 개)
-- [ ] `AdvancedAnalysisRepository.kt` (15+ 개)
-- [ ] 기타 Repository 파일들
+**분석 결과:**
+- [x] `MainActivity.kt` - 방어적 예외 처리 패턴 (로깅 후 무시), 적절함
+- [x] `HomeViewModel.kt` - 방어적 예외 처리 패턴 (fallback 반환), 적절함
+- [x] `DataRepository.kt` - DataProgress.Error emit 패턴, 적절함
+- [x] `AdvancedAnalysisRepository.kt` - fallback 값 반환 패턴, 적절함
+
+**참고:** Result.failure(Exception(...)) 패턴을 사용하는 다른 Repository 파일들
+(FearGreedRepository, MarketDepositRepository 등)은 향후 개선 가능
 
 ---
 
