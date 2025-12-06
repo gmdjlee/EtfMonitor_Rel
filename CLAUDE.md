@@ -10,7 +10,7 @@
 - **Min SDK**: 26 (Android 8.0) | **Target SDK**: 35 (Android 15)
 - **Architecture**: MVVM + Clean Architecture
 - **Dependency Injection**: Hilt 2.54
-- **Database**: Room 2.8.3 (12 schemas with migrations)
+- **Database**: Room 2.8.3 (14 schemas with migrations)
 - **AI Integration**: Claude & Gemini API for market analysis
 - **Unique Feature**: Embedded Python runtime (Chaquopy) for data collection & ML predictions
 
@@ -36,43 +36,49 @@ EtfMonitor_Rel/
 │   ├── java/com/example/etfmonitor/
 │   │   ├── MainActivity.kt              # Entry point
 │   │   ├── EtfMonitorApp.kt            # Hilt application
-│   │   ├── database/                    # Room (16 entities, 13 DAOs)
+│   │   ├── database/                    # Room (19 entities, 16 DAOs)
 │   │   │   ├── AppDatabase.kt
 │   │   │   ├── entities/
 │   │   │   ├── DAOs/
-│   │   │   └── Migrations (v1→v12)
+│   │   │   └── Migrations (v1→v14)
 │   │   ├── di/                          # Hilt modules
 │   │   │   ├── DatabaseModule.kt
 │   │   │   ├── RepositoryModule.kt
 │   │   │   ├── PythonModule.kt
 │   │   │   ├── AIModule.kt
 │   │   │   └── WorkerModule.kt
-│   │   ├── repository/                  # Data layer (8 repos)
+│   │   ├── repository/                  # Data layer (13 repos)
 │   │   ├── python/                      # Python bridge (PyKrxClient)
 │   │   ├── oscillator/                  # Technical analysis
 │   │   ├── ai/                          # AI integration (Claude, Gemini)
 │   │   │   ├── AIApiClient.kt
 │   │   │   ├── ClaudeApiClient.kt
 │   │   │   ├── GeminiApiClient.kt
-│   │   │   └── MarketAnalysisPrompts.kt
+│   │   │   ├── MarketAnalysisPrompts.kt
+│   │   │   ├── AIApiClientFactory.kt
+│   │   │   ├── AIResponseParser.kt
+│   │   │   └── MarketSignal.kt
 │   │   ├── analysis/                    # Market analysis
 │   │   │   ├── CorrelationAnalyzer.kt
 │   │   │   └── Backtester.kt
 │   │   ├── ui/                          # Compose UI layer
 │   │   │   ├── Navigation.kt
-│   │   │   ├── screens/                 # 12 feature screens
+│   │   │   ├── screens/                 # 14 feature screens
 │   │   │   ├── components/              # Reusable components
 │   │   │   └── theme/                   # Material Design 3
 │   │   ├── worker/                      # Background tasks
 │   │   ├── service/                     # Foreground services
 │   │   └── utils/                       # Formatters
-│   ├── python/                          # Python scripts
-│   │   ├── etfcollector.py
-│   │   ├── stockcollector.py
-│   │   ├── stock_analyzer.py
+│   ├── python/                          # Python scripts (10 files)
+│   │   ├── etfcollector.py              # ETF data collection
+│   │   ├── stocks.py                    # Stock data utilities
+│   │   ├── market.py                    # Market data fetcher
+│   │   ├── core.py                      # Core utilities
+│   │   ├── feargreed.py                 # Fear & Greed calculation
+│   │   ├── deposit_scraper.py           # Market deposit scraper
 │   │   ├── stock_predictor.py           # ML predictions
-│   │   ├── market_index_fetcher.py
-│   │   └── ...
+│   │   ├── trend_signal.py              # Trend signal analysis
+│   │   └── logger.py                    # Logging utilities
 │   ├── res/                             # Android resources
 │   └── AndroidManifest.xml
 ├── gradle/libs.versions.toml            # Version catalog
@@ -227,6 +233,7 @@ fun observeData() {
 | **Room** | 2.8.3 | Local database |
 | **Coroutines** | 1.10.2 | Async/concurrency |
 | **WorkManager** | 2.9.1 | Background tasks |
+| **Navigation Compose** | 2.8.5 | Type-safe navigation |
 | **Chaquopy** | 15.0.1 | Python runtime |
 | **OkHttp** | 4.12.0 | HTTP client (AI APIs) |
 | **Security Crypto** | 1.1.0-alpha06 | Encrypted API key storage |
@@ -849,26 +856,39 @@ fun Screen(viewModel: ViewModel = hiltViewModel()) {
 - **`EtfMonitorApp.kt`**: Hilt application, Python engine initialization, WorkManager config
 
 ### Navigation
-- **`ui/Navigation.kt`**: All screen routes (12 screens), NavHost setup
+- **`ui/Navigation.kt`**: All screen routes (14 screens), NavHost setup
 
 ### Database
-- **`database/AppDatabase.kt`**: Room database (16 entities, 12 migrations v1→v12)
+- **`database/AppDatabase.kt`**: Room database (19 entities, 14 migrations v1→v14)
 - **`database/Migrations`**: Schema evolution (inline in AppDatabase.kt)
 
-### Repositories
+### Repositories (13 total)
 - **`repository/DataRepository.kt`**: ETF data, holdings, comparisons
 - **`repository/StockRepository.kt`**: Stock ticker initialization
 - **`repository/StockAnalysisRepository.kt`**: Foreign/institutional analysis
 - **`repository/AIAnalysisRepository.kt`**: AI market analysis
-- **`repository/StatisticsAnalysisRepository.kt`**: Correlation analysis
+- **`repository/AIChatRepository.kt`**: AI chat session management
+- **`repository/CorrelationAnalysisRepository.kt`**: Correlation analysis
+- **`repository/StatisticsAnalysisRepository.kt`**: Statistics analysis
 - **`repository/MarketIndexRepository.kt`**: Market index data
+- **`repository/MarketOscillatorRepository.kt`**: Market oscillator data
+- **`repository/MarketDepositRepository.kt`**: Market deposit data
+- **`repository/FearGreedRepository.kt`**: Fear & Greed index
+- **`repository/StockPredictionRepository.kt`**: ML prediction results
+- **`repository/AdvancedAnalysisRepository.kt`**: Advanced analysis (sector, liquidity)
 
-### AI Integration
+### AI Integration (11 files)
 - **`ai/AIApiClient.kt`**: Base AI client interface
 - **`ai/ClaudeApiClient.kt`**: Anthropic Claude API client
 - **`ai/GeminiApiClient.kt`**: Google Gemini API client
+- **`ai/AIApiClientFactory.kt`**: AI client factory
+- **`ai/AIResponseParser.kt`**: AI response parsing
 - **`ai/MarketAnalysisPrompts.kt`**: AI prompt templates
-- **`ai/ApiKeyProvider.kt`**: Secure API key management
+- **`ai/ApiKeyProvider.kt`**: API key provider interface
+- **`ai/SharedPreferencesApiKeyProvider.kt`**: Encrypted API key storage
+- **`ai/AIModel.kt`**: AI model definitions
+- **`ai/AIProvider.kt`**: AI provider enum
+- **`ai/MarketSignal.kt`**: Market signal data class
 
 ### Analysis
 - **`analysis/CorrelationAnalyzer.kt`**: ETF flow vs market correlation
@@ -876,17 +896,25 @@ fun Screen(viewModel: ViewModel = hiltViewModel()) {
 
 ### Python Bridge
 - **`python/PyKrxClient.kt`**: Main Python integration (ETF/stock data)
-- **`python/OscillatorPyClient.kt`**: Technical oscillator calculations
 - **`python/MarketIndexPyClient.kt`**: Market index data fetcher
+- **`python/StockPredictorPyClient.kt`**: ML stock prediction client
 
 ### UI Theme
 - **`ui/theme/Theme.kt`**: Material Design 3 color schemes, typography
 - **`ui/theme/ThemeManager.kt`**: Global theme state (dark mode, font, colors)
 
-### Background Tasks
+### Background Tasks (7 workers)
 - **`worker/StockUpdateWorker.kt`**: Daily stock data refresh
 - **`worker/DataArchiveWorker.kt`**: Data archiving
+- **`worker/AdvancedAnalysisWorker.kt`**: Advanced analysis tasks
+- **`worker/MarketOscillatorUpdateWorker.kt`**: Market oscillator updates
+- **`worker/MarketDepositUpdateWorker.kt`**: Market deposit updates
+- **`worker/FearGreedUpdateWorker.kt`**: Fear & Greed index updates
+- **`worker/WorkManagerHelper.kt`**: WorkManager scheduling utilities
+
+### Services
 - **`service/DataCollectionService.kt`**: Foreground ETF sync service
+- **`service/CollectionState.kt`**: Collection state management
 
 ### Dependency Injection
 - **`di/DatabaseModule.kt`**: Database and DAO providers
@@ -1090,6 +1118,83 @@ dependencies {
 
 ---
 
+## Claude Code - Coding Guidelines
+
+### Core Philosophy: Minimal Engineering
+
+#### DO NOT Over-Engineer
+- Make ONLY changes that are directly requested or clearly necessary
+- Keep solutions simple and focused
+- Do NOT add unrequested features, refactor code, or make "improvements"
+- Bug fixes do NOT require cleaning up surrounding code
+- Simple features do NOT need additional configurability
+
+#### Trust the System
+- Do NOT add error handling, fallbacks, or validation for scenarios that cannot occur
+- Trust internal code and framework guarantees
+- Validate ONLY at system boundaries (user input, external APIs)
+
+#### Avoid Premature Abstraction
+- Do NOT create helpers, utilities, or abstractions for one-time tasks
+- Do NOT design for hypothetical future requirements
+- The correct complexity level is the MINIMUM required for the current task
+- Reuse existing abstractions when possible and follow DRY principles
+
+#### Quality Standards
+- Write high-quality, general-purpose solutions using available standard tools
+- Focus on understanding problem requirements and implementing the correct algorithm
+- Provide grounded, hallucination-free answers unless confident in the exact answer
+
+---
+
+### UI/UX Design Guidelines
+
+#### Typography
+- Choose beautiful, distinctive, and interesting fonts
+- AVOID generic fonts like Arial, Inter, Roboto, system fonts
+- Select unique choices that enhance aesthetics
+
+#### Color & Theme
+- Commit to a cohesive aesthetic
+- Dominant colors with sharp accents perform better than timid, evenly-distributed palettes
+- Draw inspiration from IDE themes and cultural aesthetics
+- AVOID clichéd color schemes (especially purple gradients on white backgrounds)
+
+#### Motion & Animation
+- Use animations for effects and micro-interactions
+- Focus on high-impact moments
+- One well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions
+
+#### Backgrounds
+- Create atmosphere and depth rather than defaulting to solid colors
+- Layer gradients, use geometric patterns, or add contextual effects that match the overall aesthetic
+
+#### Avoid Generic AI Aesthetics
+- Overused font families (Inter, Roboto, Arial, system fonts)
+- Clichéd color schemes (purple gradients on white)
+- Predictable layouts and component patterns
+- Cookie-cutter designs lacking contextual character
+
+---
+
+### Summary Rules
+
+```
+✓ ONLY requested changes
+✓ Minimal complexity
+✓ Trust framework guarantees
+✓ Validate at boundaries only
+✓ Unique, beautiful design choices
+
+✗ NO unrequested features
+✗ NO premature abstraction
+✗ NO unnecessary error handling
+✗ NO hypothetical future design
+✗ NO generic AI aesthetics
+```
+
+---
+
 ## AI Assistant Guidelines
 
 ### When Working on This Project
@@ -1131,6 +1236,6 @@ Before submitting changes, verify:
 
 ---
 
-**Last Updated**: 2025-11-30
-**Codebase Version**: Schema v12, ~28,700 LOC
+**Last Updated**: 2025-12-06
+**Codebase Version**: Schema v14, ~39,900 LOC
 **Maintainer**: gmdjlee
