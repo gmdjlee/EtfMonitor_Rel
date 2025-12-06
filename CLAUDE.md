@@ -128,14 +128,15 @@ This is intentional for these complex configuration screens. New ViewModels shou
 ```
 EtfMonitor_Rel/
 ├── app/src/main/
-│   ├── java/com/example/etfmonitor/
+│   ├── java/com/etfmonitor/
 │   │   ├── MainActivity.kt              # Entry point
 │   │   ├── EtfMonitorApp.kt            # Hilt application
 │   │   ├── database/                    # Room (19 entities, 16 DAOs)
 │   │   │   ├── AppDatabase.kt
-│   │   │   ├── entities/
-│   │   │   ├── DAOs/
-│   │   │   └── Migrations (v1→v14)
+│   │   │   ├── entities/                # Entity classes (18 files, 19 entities)
+│   │   │   ├── *Dao.kt                  # DAO interfaces (16 files)
+│   │   │   ├── Converters.kt
+│   │   │   └── Migrations (inline in AppDatabase.kt, v1→v14)
 │   │   ├── di/                          # Hilt modules
 │   │   │   ├── DatabaseModule.kt
 │   │   │   ├── RepositoryModule.kt
@@ -489,7 +490,7 @@ data class NewEntity(
 
 2. **Create DAO**
 ```kotlin
-// In database/DAOs/NewEntityDao.kt
+// In database/NewEntityDao.kt
 @Dao
 interface NewEntityDao {
     @Query("SELECT * FROM new_table")
@@ -505,7 +506,7 @@ interface NewEntityDao {
 
 3. **Add Migration**
 ```kotlin
-// In database/Migrations/Migrations.kt
+// In database/AppDatabase.kt (migrations are inline)
 val MIGRATION_7_8 = object : Migration(7, 8) {
     override fun migrate(database: SupportSQLiteDatabase) {
         database.execSQL("""
@@ -1044,8 +1045,9 @@ _searchQuery
 ```
 
 ### Database
-- **`database/AppDatabase.kt`**: Room database (19 entities, 16 DAOs, 13 migrations v1→v14)
-- **`database/Migrations`**: Schema evolution (inline in AppDatabase.kt)
+- **`database/AppDatabase.kt`**: Room database (19 entities, 16 DAOs, 13 migrations v1→v14), migrations defined inline
+- **`database/entities/`**: 18 entity files (19 entities - AIChatSession defined in AIChatMessage.kt)
+- **`database/*Dao.kt`**: 16 DAO interfaces in database/ folder
 - **`database/Converters.kt`**: TypeConverters for `List<String>` and `List<Long>` (uses org.json.JSONArray)
 
 #### Database Entities (19 total)
@@ -1147,14 +1149,14 @@ _searchQuery
 - **`ui/theme/Theme.kt`**: Material Design 3 color schemes, typography
 - **`ui/theme/ThemeManager.kt`**: Global theme state (dark mode, font, colors)
 
-### Background Tasks (7 workers)
+### Background Tasks (6 workers + 1 utility)
 - **`worker/StockUpdateWorker.kt`**: Daily stock data refresh
 - **`worker/DataArchiveWorker.kt`**: Data archiving
 - **`worker/AdvancedAnalysisWorker.kt`**: Advanced analysis tasks
 - **`worker/MarketOscillatorUpdateWorker.kt`**: Market oscillator updates
 - **`worker/MarketDepositUpdateWorker.kt`**: Market deposit updates
 - **`worker/FearGreedUpdateWorker.kt`**: Fear & Greed index updates
-- **`worker/WorkManagerHelper.kt`**: WorkManager scheduling utilities
+- **`worker/WorkManagerHelper.kt`**: WorkManager scheduling utilities (not a Worker)
 
 ### Services
 - **`service/DataCollectionService.kt`**: Foreground ETF sync service
@@ -1279,8 +1281,8 @@ val shadowColor = if (isSystemInDarkTheme()) Color.White else Color.Black
 
 ### Build Variants
 
-- **Debug**: Development builds with logging
-- **Release**: Production builds (minification disabled currently)
+- **Debug**: Development builds with logging, no minification
+- **Release**: Production builds with minification and resource shrinking enabled
 
 ### ABI Support
 
@@ -1523,12 +1525,20 @@ Before submitting changes, verify:
 ---
 
 **Last Updated**: 2025-12-06
-**Codebase Version**: Schema v14, ~39,900 LOC
+**Codebase Version**: Schema v14, ~40,000 LOC
 **Maintainer**: gmdjlee
 
 ---
 
 ## Change History
+
+### 2025-12-06 - Package Name & Structure Corrections
+- Fixed package name from `com.example.etfmonitor` to `com.etfmonitor`
+- Corrected database structure: DAOs are in `database/` directly, not `database/DAOs/`
+- Clarified entity structure: 18 files containing 19 entities (AIChatSession in AIChatMessage.kt)
+- Updated migrations location: inline in AppDatabase.kt
+- Corrected workers count: 6 workers + 1 utility (WorkManagerHelper)
+- Updated release build info: minification and resource shrinking now enabled
 
 ### 2025-12-06 - Critical Implementation Notes Added
 - Added "Critical Implementation Notes" section at top of document
