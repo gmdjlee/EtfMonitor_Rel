@@ -11,6 +11,7 @@ import com.etfmonitor.database.entities.AIAnalysisResult
 import com.etfmonitor.database.entities.CorrelationAnalysisResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.util.UUID
@@ -97,15 +98,14 @@ class AIChatRepository @Inject constructor(
     /**
      * 모든 세션 조회
      */
-    fun getAllSessions(): Flow<List<AIChatSession>> {
-        return chatDao.getAllSessions()
-    }
+    fun getAllSessions(): Flow<List<AIChatSession>> =
+        chatDao.getAllSessions().flowOn(Dispatchers.IO)
 
     /**
      * 세션 조회
      */
-    suspend fun getSession(sessionId: String): AIChatSession? {
-        return chatDao.getSessionById(sessionId)
+    suspend fun getSession(sessionId: String): AIChatSession? = withContext(Dispatchers.IO) {
+        chatDao.getSessionById(sessionId)
     }
 
     /**
@@ -122,9 +122,8 @@ class AIChatRepository @Inject constructor(
     /**
      * 세션의 메시지 조회
      */
-    fun getMessages(sessionId: String): Flow<List<AIChatMessage>> {
-        return chatDao.getMessagesBySession(sessionId)
-    }
+    fun getMessages(sessionId: String): Flow<List<AIChatMessage>> =
+        chatDao.getMessagesBySession(sessionId).flowOn(Dispatchers.IO)
 
     /**
      * 메시지 전송 및 AI 응답 받기

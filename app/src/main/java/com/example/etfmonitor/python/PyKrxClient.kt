@@ -140,12 +140,14 @@ class PyKrxClient @Inject constructor(
             
              */
 
-            val jsonStr = etfModule.callAttr(
-                "get_etf_list_with_names",
-                date,
-                includeJson,
-                excludeJson
-            ).toString()
+            val jsonStr = withTimeout(TIMEOUT_MS) {
+                etfModule.callAttr(
+                    "get_etf_list_with_names",
+                    date,
+                    includeJson,
+                    excludeJson
+                ).toString()
+            }
 
             // STEP 4: Python 응답 확인
             Log.d(TAG, "\nSTEP 4: Python response")
@@ -190,7 +192,9 @@ class PyKrxClient @Inject constructor(
         try {
             Log.d(TAG, "getEtfList: $date")
 
-            val jsonStr = etfModule.callAttr("get_etf_list", date).toString()
+            val jsonStr = withTimeout(TIMEOUT_MS) {
+                etfModule.callAttr("get_etf_list", date).toString()
+            }
             val tickers = json.decodeFromString<List<String>>(jsonStr)
             Log.d(TAG, "Found ${tickers.size} tickers")
 
@@ -200,7 +204,9 @@ class PyKrxClient @Inject constructor(
 
             val etfs = tickers.mapNotNull { ticker ->
                 try {
-                    val name = etfModule.callAttr("get_etf_name", ticker).toString()
+                    val name = withTimeout(TIMEOUT_MS) {
+                        etfModule.callAttr("get_etf_name", ticker).toString()
+                    }
                     if (name.isNotEmpty() && name != "None") {
                         Etf(ticker, name)
                     } else {
@@ -274,7 +280,9 @@ class PyKrxClient @Inject constructor(
 
             Log.d(TAG, "Date range: $start to $end")
 
-            val jsonStr = coreModule.callAttr("get_business_days", start, end).toString()
+            val jsonStr = withTimeout(TIMEOUT_MS) {
+                coreModule.callAttr("get_business_days", start, end).toString()
+            }
             val datesList = json.decodeFromString<List<String>>(jsonStr)
 
             val businessDays = datesList
@@ -312,7 +320,9 @@ class PyKrxClient @Inject constructor(
 
     private suspend fun getStockName(ticker: String): String = withContext(Dispatchers.IO) {
         try {
-            val name = stockModule.callAttr("get_stock_name", ticker).toString()
+            val name = withTimeout(TIMEOUT_MS) {
+                stockModule.callAttr("get_stock_name", ticker).toString()
+            }
             if (name == "None" || name.isEmpty()) ticker else name
         } catch (e: Exception) {
             Log.e(TAG, "Error getting stock name for $ticker: ${e.message}")

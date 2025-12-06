@@ -10,7 +10,7 @@
 - **Min SDK**: 26 (Android 8.0) | **Target SDK**: 35 (Android 15)
 - **Architecture**: MVVM + Clean Architecture
 - **Dependency Injection**: Hilt 2.54
-- **Database**: Room 2.8.3 (14 schemas with migrations)
+- **Database**: Room 2.8.3 (19 entities, 16 DAOs, schema v14)
 - **AI Integration**: Claude & Gemini API for market analysis
 - **Unique Feature**: Embedded Python runtime (Chaquopy) for data collection & ML predictions
 
@@ -859,7 +859,7 @@ fun Screen(viewModel: ViewModel = hiltViewModel()) {
 - **`ui/Navigation.kt`**: All screen routes (14 screens), NavHost setup
 
 ### Database
-- **`database/AppDatabase.kt`**: Room database (19 entities, 14 migrations v1→v14)
+- **`database/AppDatabase.kt`**: Room database (19 entities, 16 DAOs, 13 migrations v1→v14)
 - **`database/Migrations`**: Schema evolution (inline in AppDatabase.kt)
 
 ### Repositories (13 total)

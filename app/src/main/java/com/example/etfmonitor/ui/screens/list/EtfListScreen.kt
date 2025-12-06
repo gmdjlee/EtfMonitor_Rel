@@ -87,7 +87,7 @@ fun EtfListScreen(
                 },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = viewModel::clearSearch) {
+                        IconButton(onClick = viewModel::onClearSearch) {
                             Icon(
                                 Icons.Default.Clear,
                                 contentDescription = "지우기",

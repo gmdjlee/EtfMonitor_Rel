@@ -72,7 +72,7 @@ class EtfListViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
-    fun clearSearch() {
+    fun onClearSearch() {
         _searchQuery.value = ""
     }
 }

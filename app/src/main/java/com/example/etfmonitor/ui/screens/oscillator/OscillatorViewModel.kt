@@ -132,7 +132,7 @@ class OscillatorViewModel @Inject constructor(
         }
     }
 
-    fun updateSearchQuery(query: String) {
+    fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
 
         // 검색어가 비어있으면 제안 초기화
@@ -163,7 +163,7 @@ class OscillatorViewModel @Inject constructor(
         }
     }
 
-    fun clearSuggestions() {
+    fun onClearSuggestions() {
         _suggestions.value = emptyList()
     }
 

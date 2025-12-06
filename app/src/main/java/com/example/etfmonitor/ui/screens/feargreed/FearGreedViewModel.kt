@@ -110,7 +110,7 @@ class FearGreedViewModel @Inject constructor(
         }
     }
 
-    fun setSelectedMarket(market: String) {
+    fun onSelectedMarketChanged(market: String) {
         _selectedMarket.value = market
         loadData()
         checkData()
