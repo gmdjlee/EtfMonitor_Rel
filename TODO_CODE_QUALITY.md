@@ -28,6 +28,17 @@
 - [x] `HomeScreen.kt` 분리 → `HomeSummaryCard.kt`, `HomeDialogs.kt`, `HomeQuickActions.kt`
 - [x] `DataRepository.kt` 분리 → `EtfDataRepository.kt`, `HoldingDataRepository.kt`
 
+### 5. String Resource 적용 (일부)
+- [x] `HomeScreen.kt` - 메뉴 아이템, 다이얼로그, 요약카드 → stringResource() 적용
+- [x] `HomeDialogs.kt` - 모든 다이얼로그 텍스트 → stringResource() 적용
+- [x] `HomeSummaryCard.kt` - 시장 현황 레이블 → stringResource() 적용
+- [x] `PredictionScreen.kt` - 예측 UI 텍스트 → stringResource() 적용
+
+### 6. Generic Exception 교체 (AI Clients)
+- [x] `ClaudeApiClient.kt` - ApiException, ApiAuthenticationException, DataParsingException 사용
+- [x] `GeminiApiClient.kt` - ApiException, ApiAuthenticationException, DataParsingException 사용
+- [x] `AIResponseParser.kt` - DataParsingException 사용
+
 ---
 
 ## 미완료 작업 📋
@@ -62,33 +73,20 @@ app/src/test/java/com/etfmonitor/
     └── MigrationTest.kt
 ```
 
-#### 2. Screen에 String Resource 적용
-`strings.xml`에 문자열은 추가되었으나, 실제 Compose Screen에서 아직 사용하지 않습니다.
+#### 2. Screen에 String Resource 적용 (나머지)
+HomeScreen과 PredictionScreen은 완료되었으며, 나머지 Screen에 적용 필요합니다.
 
 **대상 파일:**
-- [ ] `HomeScreen.kt` - 30+ hardcoded strings
 - [ ] `AdvancedDashboardScreen.kt` - 40+ hardcoded strings
 - [ ] `SettingsScreen.kt` - 50+ hardcoded strings
 - [ ] `StatisticsScreen.kt` - 20+ hardcoded strings
-- [ ] `PredictionScreen.kt` - 15+ hardcoded strings
-
-**변환 예시:**
-```kotlin
-// Before
-Text("네트워크 오류")
-
-// After
-Text(stringResource(R.string.error_network))
-```
 
 #### 3. 나머지 Generic Exception 교체
-현재 194개 중 일부만 교체되었습니다.
+AI Clients는 완료되었으며, Repository/ViewModel에 적용 필요합니다.
 
 **대상 파일:**
-- [ ] `MainActivity.kt` (3개)
-- [ ] `HomeViewModel.kt` (5개)
-- [ ] `ClaudeApiClient.kt` (2개)
-- [ ] `GeminiApiClient.kt` (2개)
+- [ ] `MainActivity.kt` (3개 catch blocks)
+- [ ] `HomeViewModel.kt` (5개 catch blocks)
 - [ ] `DataRepository.kt` (10+ 개)
 - [ ] `AdvancedAnalysisRepository.kt` (15+ 개)
 - [ ] 기타 Repository 파일들
