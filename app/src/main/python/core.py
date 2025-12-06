@@ -137,16 +137,21 @@ def days_ago(n: int) -> str:
 
 def market_date() -> str:
     """Get latest market date (most recent business day)."""
+    log = get_logger("core")
     # Try up to 7 days back to find a valid market date
     for i in range(7):
         d = days_ago(i)
         try:
             tickers = stock.get_market_ticker_list(d, market="KOSPI")
-            if tickers and len(tickers) > 0:
+            ticker_count = len(list(tickers)) if tickers is not None else 0
+            log.info("market_date: trying %s, got %d tickers", d, ticker_count)
+            if ticker_count > 0:
                 return d
-        except Exception:
+        except Exception as e:
+            log.warning("market_date: %s failed: %s", d, e)
             continue
     # Fallback to yesterday if nothing found
+    log.warning("market_date: no valid date found, using yesterday")
     return days_ago(1)
 
 
@@ -181,15 +186,21 @@ def get_business_days(start: str, end: str) -> str:
 # Stock utilities
 def get_tickers(market: Optional[str] = None, date: Optional[str] = None) -> List[str]:
     """Get stock tickers for market(s)."""
+    log = get_logger("core")
     d = date or market_date()
+    log.info("get_tickers: date=%s, market=%s", d, market)
     try:
         if market and market in MARKETS:
-            return list(stock.get_market_ticker_list(d, market=market))
+            result = list(stock.get_market_ticker_list(d, market=market))
+            log.info("get_tickers: %s returned %d tickers", market, len(result))
+            return result
         # All markets
         kospi = list(stock.get_market_ticker_list(d, market="KOSPI"))
         kosdaq = list(stock.get_market_ticker_list(d, market="KOSDAQ"))
+        log.info("get_tickers: KOSPI=%d, KOSDAQ=%d", len(kospi), len(kosdaq))
         return kospi + kosdaq
-    except Exception:
+    except Exception as e:
+        log.error("get_tickers error: %s", e)
         return []
 
 
