@@ -136,13 +136,18 @@ def days_ago(n: int) -> str:
 
 
 def market_date() -> str:
-    """Get latest market date (today or yesterday)."""
-    t = today()
-    try:
-        stock.get_market_ticker_list(t, market="KOSPI")
-        return t
-    except Exception:
-        return days_ago(1)
+    """Get latest market date (most recent business day)."""
+    # Try up to 7 days back to find a valid market date
+    for i in range(7):
+        d = days_ago(i)
+        try:
+            tickers = stock.get_market_ticker_list(d, market="KOSPI")
+            if tickers and len(tickers) > 0:
+                return d
+        except Exception:
+            continue
+    # Fallback to yesterday if nothing found
+    return days_ago(1)
 
 
 def is_business_day(date_str: str) -> bool:
