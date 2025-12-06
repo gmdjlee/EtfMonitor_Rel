@@ -10,7 +10,9 @@ import com.etfmonitor.oscillator.model.TrendSignalData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import org.json.JSONObject
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,6 +24,7 @@ import javax.inject.Singleton
  * - @Inject: 생성자 주입으로 의존성 명확화
  * - withTimeout: 모든 Python 호출에 30초 타임아웃 적용
  * - withContext(Dispatchers.IO): 모든 Python 호출을 IO 스레드에서 실행
+ * - kotlinx.serialization: 타입 안전한 JSON 파싱
  */
 @Singleton
 class OscillatorPyClient @Inject constructor(private val python: Python) {
@@ -31,6 +34,99 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         private const val TIMEOUT_MS = 30_000L
         private const val MARKET_OSCILLATOR_TIMEOUT_MS = 180_000L  // 3분 - 시장 전체 종목 분석에 필요
     }
+
+    // kotlinx.serialization 설정
+    private val json = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+        isLenient = true
+    }
+
+    // JSON 파싱용 DTO 클래스들
+    @Serializable
+    private data class SearchStockResponse(
+        val ticker: String = "",
+        val name: String = "",
+        val error: String? = null
+    )
+
+    @Serializable
+    private data class StockAnalysisResponse(
+        val ticker: String = "",
+        val name: String = "",
+        val dates: List<String> = emptyList(),
+        @SerialName("market_cap") val marketCap: List<Long> = emptyList(),
+        @SerialName("foreign_5d") val foreign5d: List<Long> = emptyList(),
+        @SerialName("institution_5d") val institution5d: List<Long> = emptyList(),
+        val error: String? = null
+    )
+
+    @Serializable
+    private data class MarketDepositResponse(
+        val dates: List<String> = emptyList(),
+        @SerialName("deposit_amounts") val depositAmounts: List<Double> = emptyList(),
+        @SerialName("deposit_changes") val depositChanges: List<Double> = emptyList(),
+        @SerialName("credit_amounts") val creditAmounts: List<Double> = emptyList(),
+        @SerialName("credit_changes") val creditChanges: List<Double> = emptyList(),
+        val error: String? = null
+    )
+
+    @Serializable
+    private data class StockListItem(
+        val ticker: String,
+        val name: String
+    )
+
+    @Serializable
+    private data class TrendSignalResponse(
+        val ticker: String = "",
+        val name: String = "",
+        val interval: String = "",
+        val dates: List<String> = emptyList(),
+        val open: List<Double> = emptyList(),
+        val high: List<Double> = emptyList(),
+        val low: List<Double> = emptyList(),
+        val close: List<Double> = emptyList(),
+        val volume: List<Long> = emptyList(),
+        val ma: List<Double> = emptyList(),
+        val cmf: List<Double> = emptyList(),
+        @SerialName("fear_greed") val fearGreed: List<Double> = emptyList(),
+        @SerialName("buy_signal") val buySignal: List<Int> = emptyList(),
+        @SerialName("aux_buy_signal") val auxBuySignal: List<Int> = emptyList(),
+        @SerialName("sell_signal") val sellSignal: List<Int> = emptyList(),
+        @SerialName("aux_sell_signal") val auxSellSignal: List<Int> = emptyList(),
+        val error: String? = null
+    )
+
+    @Serializable
+    private data class ElderImpulseResponse(
+        val ticker: String = "",
+        val name: String = "",
+        val interval: String = "",
+        val dates: List<String> = emptyList(),
+        val close: List<Double> = emptyList(),
+        @SerialName("market_cap") val marketCap: List<Long> = emptyList(),
+        val ema: List<Double> = emptyList(),
+        val macd: List<Double> = emptyList(),
+        @SerialName("macd_signal") val macdSignal: List<Double> = emptyList(),
+        @SerialName("macd_hist") val macdHist: List<Double> = emptyList(),
+        val impulse: List<Int> = emptyList(),
+        val error: String? = null
+    )
+
+    @Serializable
+    private data class DemarkTDResponse(
+        val ticker: String = "",
+        val name: String = "",
+        val interval: String = "",
+        @SerialName("interval_name") val intervalName: String = "",
+        val dates: List<String> = emptyList(),
+        val close: List<Double> = emptyList(),
+        @SerialName("market_cap") val marketCap: List<Long> = emptyList(),
+        @SerialName("td_sell") val tdSell: List<Int> = emptyList(),
+        @SerialName("td_buy") val tdBuy: List<Int> = emptyList(),
+        val error: String? = null
+    )
 
     private val stocksModule by lazy {
         Log.d(TAG, "Loading stocks module")
@@ -60,18 +156,15 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
             withTimeout(TIMEOUT_MS) {
                 Log.d(TAG, "searchStock: $query")
                 val jsonStr = stocksModule.callAttr("search_stock_wrapper", query).toString()
-                val jsonObj = JSONObject(jsonStr)
+                val response = json.decodeFromString<SearchStockResponse>(jsonStr)
 
-                if (jsonObj.has("error")) {
-                    Log.e(TAG, "Search error: ${jsonObj.getString("error")}")
+                if (response.error != null) {
+                    Log.e(TAG, "Search error: ${response.error}")
                     return@withTimeout null
                 }
 
-                val ticker = jsonObj.getString("ticker")
-                val name = jsonObj.getString("name")
-                Log.d(TAG, "Found stock: $ticker - $name")
-
-                Pair(ticker, name)
+                Log.d(TAG, "Found stock: ${response.ticker} - ${response.name}")
+                Pair(response.ticker, response.name)
             }
         } catch (e: Exception) {
             Log.e(TAG, "searchStock error", e)
@@ -88,38 +181,22 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                 withTimeout(TIMEOUT_MS) {
                     Log.d(TAG, "getStockAnalysis: $ticker, $days days")
                     val jsonStr = stocksModule.callAttr("get_stock_analysis", ticker, days).toString()
-                    val jsonObj = JSONObject(jsonStr)
+                    val response = json.decodeFromString<StockAnalysisResponse>(jsonStr)
 
-                    if (jsonObj.has("error")) {
-                        Log.e(TAG, "Analysis error: ${jsonObj.getString("error")}")
+                    if (response.error != null) {
+                        Log.e(TAG, "Analysis error: ${response.error}")
                         return@withTimeout null
                     }
 
-                    val dates = jsonObj.getJSONArray("dates").let { arr ->
-                        List(arr.length()) { arr.getString(it) }
-                    }
-
-                    val marketCap = jsonObj.getJSONArray("market_cap").let { arr ->
-                        List(arr.length()) { arr.getLong(it) }
-                    }
-
-                    val foreign5d = jsonObj.getJSONArray("foreign_5d").let { arr ->
-                        List(arr.length()) { arr.getLong(it) }
-                    }
-
-                    val institution5d = jsonObj.getJSONArray("institution_5d").let { arr ->
-                        List(arr.length()) { arr.getLong(it) }
-                    }
-
                     StockData(
-                        ticker = jsonObj.getString("ticker"),
-                        name = jsonObj.getString("name"),
-                        dates = dates,
-                        marketCap = marketCap,
-                        foreign5d = foreign5d,
-                        institution5d = institution5d
+                        ticker = response.ticker,
+                        name = response.name,
+                        dates = response.dates,
+                        marketCap = response.marketCap,
+                        foreign5d = response.foreign5d,
+                        institution5d = response.institution5d
                     ).also {
-                        Log.d(TAG, "Stock analysis complete: ${it.name}, ${dates.size} data points")
+                        Log.d(TAG, "Stock analysis complete: ${it.name}, ${response.dates.size} data points")
                     }
                 }
             } catch (e: Exception) {
@@ -137,41 +214,21 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                 withTimeout(TIMEOUT_MS) {
                     Log.d(TAG, "getMarketDepositData: $numPages pages")
                     val jsonStr = depositModule.callAttr("get_market_deposit_data", numPages).toString()
-                    val jsonObj = JSONObject(jsonStr)
+                    val response = json.decodeFromString<MarketDepositResponse>(jsonStr)
 
-                    if (jsonObj.has("error")) {
-                        Log.e(TAG, "Market data error: ${jsonObj.getString("error")}")
+                    if (response.error != null) {
+                        Log.e(TAG, "Market data error: ${response.error}")
                         return@withTimeout null
                     }
 
-                    val dates = jsonObj.getJSONArray("dates").let { arr ->
-                        List(arr.length()) { arr.getString(it) }
-                    }
-
-                    val depositAmounts = jsonObj.getJSONArray("deposit_amounts").let { arr ->
-                        List(arr.length()) { arr.getDouble(it) }
-                    }
-
-                    val depositChanges = jsonObj.getJSONArray("deposit_changes").let { arr ->
-                        List(arr.length()) { arr.getDouble(it) }
-                    }
-
-                    val creditAmounts = jsonObj.getJSONArray("credit_amounts").let { arr ->
-                        List(arr.length()) { arr.getDouble(it) }
-                    }
-
-                    val creditChanges = jsonObj.getJSONArray("credit_changes").let { arr ->
-                        List(arr.length()) { arr.getDouble(it) }
-                    }
-
                     MarketDepositData(
-                        dates = dates,
-                        depositAmounts = depositAmounts,
-                        depositChanges = depositChanges,
-                        creditAmounts = creditAmounts,
-                        creditChanges = creditChanges
+                        dates = response.dates,
+                        depositAmounts = response.depositAmounts,
+                        depositChanges = response.depositChanges,
+                        creditAmounts = response.creditAmounts,
+                        creditChanges = response.creditChanges
                     ).also {
-                        Log.d(TAG, "Market deposit data complete: ${dates.size} data points")
+                        Log.d(TAG, "Market deposit data complete: ${response.dates.size} data points")
                     }
                 }
             } catch (e: Exception) {
@@ -188,39 +245,19 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
             withTimeout(TIMEOUT_MS) {
                 Log.d(TAG, "getLatestMarketData")
                 val jsonStr = depositModule.callAttr("get_latest_market_data").toString()
-                val jsonObj = JSONObject(jsonStr)
+                val response = json.decodeFromString<MarketDepositResponse>(jsonStr)
 
-                if (jsonObj.has("error")) {
-                    Log.e(TAG, "Latest market data error: ${jsonObj.getString("error")}")
+                if (response.error != null) {
+                    Log.e(TAG, "Latest market data error: ${response.error}")
                     return@withTimeout null
                 }
 
-                val dates = jsonObj.getJSONArray("dates").let { arr ->
-                    List(arr.length()) { arr.getString(it) }
-                }
-
-                val depositAmounts = jsonObj.getJSONArray("deposit_amounts").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
-                val depositChanges = jsonObj.getJSONArray("deposit_changes").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
-                val creditAmounts = jsonObj.getJSONArray("credit_amounts").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
-                val creditChanges = jsonObj.getJSONArray("credit_changes").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
                 MarketDepositData(
-                    dates = dates,
-                    depositAmounts = depositAmounts,
-                    depositChanges = depositChanges,
-                    creditAmounts = creditAmounts,
-                    creditChanges = creditChanges
+                    dates = response.dates,
+                    depositAmounts = response.depositAmounts,
+                    depositChanges = response.depositChanges,
+                    creditAmounts = response.creditAmounts,
+                    creditChanges = response.creditChanges
                 )
             }
         } catch (e: Exception) {
@@ -243,11 +280,8 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                     return@withTimeout emptyList()
                 }
 
-                val jsonArray = org.json.JSONArray(jsonStr)
-                List(jsonArray.length()) { i ->
-                    val obj = jsonArray.getJSONObject(i)
-                    Pair(obj.getString("ticker"), obj.getString("name"))
-                }
+                val stockList = json.decodeFromString<List<StockListItem>>(jsonStr)
+                stockList.map { Pair(it.ticker, it.name) }
             }
         } catch (e: Exception) {
             Log.e(TAG, "getAllStocksList error", e)
@@ -311,84 +345,32 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                     interval
                 ).toString()
 
-                val jsonObj = JSONObject(jsonStr)
+                val response = json.decodeFromString<TrendSignalResponse>(jsonStr)
 
-                if (jsonObj.has("error")) {
-                    Log.e(TAG, "Trend signal error: ${jsonObj.getString("error")}")
+                if (response.error != null) {
+                    Log.e(TAG, "Trend signal error: ${response.error}")
                     return@withTimeout null
                 }
 
-                val dates = jsonObj.getJSONArray("dates").let { arr ->
-                    List(arr.length()) { arr.getString(it) }
-                }
-
-                val open = jsonObj.getJSONArray("open").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
-                val high = jsonObj.getJSONArray("high").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
-                val low = jsonObj.getJSONArray("low").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
-                val close = jsonObj.getJSONArray("close").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
-                val volume = jsonObj.getJSONArray("volume").let { arr ->
-                    List(arr.length()) { arr.getLong(it) }
-                }
-
-                val ma = jsonObj.getJSONArray("ma").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
-                val cmf = jsonObj.getJSONArray("cmf").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
-                val fearGreed = jsonObj.getJSONArray("fear_greed").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
-                val buySignal = jsonObj.getJSONArray("buy_signal").let { arr ->
-                    List(arr.length()) { arr.getInt(it) }
-                }
-
-                val auxBuySignal = jsonObj.getJSONArray("aux_buy_signal").let { arr ->
-                    List(arr.length()) { arr.getInt(it) }
-                }
-
-                val sellSignal = jsonObj.getJSONArray("sell_signal").let { arr ->
-                    List(arr.length()) { arr.getInt(it) }
-                }
-
-                val auxSellSignal = jsonObj.getJSONArray("aux_sell_signal").let { arr ->
-                    List(arr.length()) { arr.getInt(it) }
-                }
-
                 TrendSignalData(
-                    ticker = jsonObj.getString("ticker"),
-                    name = jsonObj.getString("name"),
-                    interval = jsonObj.getString("interval"),
-                    dates = dates,
-                    open = open,
-                    high = high,
-                    low = low,
-                    close = close,
-                    volume = volume,
-                    ma = ma,
-                    cmf = cmf,
-                    fearGreed = fearGreed,
-                    buySignal = buySignal,
-                    auxBuySignal = auxBuySignal,
-                    sellSignal = sellSignal,
-                    auxSellSignal = auxSellSignal
+                    ticker = response.ticker,
+                    name = response.name,
+                    interval = response.interval,
+                    dates = response.dates,
+                    open = response.open,
+                    high = response.high,
+                    low = response.low,
+                    close = response.close,
+                    volume = response.volume,
+                    ma = response.ma,
+                    cmf = response.cmf,
+                    fearGreed = response.fearGreed,
+                    buySignal = response.buySignal,
+                    auxBuySignal = response.auxBuySignal,
+                    sellSignal = response.sellSignal,
+                    auxSellSignal = response.auxSellSignal
                 ).also {
-                    Log.d(TAG, "Trend signal data complete: ${it.name}, ${dates.size} data points")
+                    Log.d(TAG, "Trend signal data complete: ${it.name}, ${response.dates.size} data points")
                 }
             }
         } catch (e: Exception) {
@@ -417,59 +399,27 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                     days
                 ).toString()
 
-                val jsonObj = JSONObject(jsonStr)
+                val response = json.decodeFromString<ElderImpulseResponse>(jsonStr)
 
-                if (jsonObj.has("error")) {
-                    Log.e(TAG, "Elder Impulse error: ${jsonObj.getString("error")}")
+                if (response.error != null) {
+                    Log.e(TAG, "Elder Impulse error: ${response.error}")
                     return@withTimeout null
                 }
 
-                val dates = jsonObj.getJSONArray("dates").let { arr ->
-                    List(arr.length()) { arr.getString(it) }
-                }
-
-                val close = jsonObj.getJSONArray("close").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
-                val marketCap = jsonObj.getJSONArray("market_cap").let { arr ->
-                    List(arr.length()) { arr.getLong(it) }
-                }
-
-                val ema = jsonObj.getJSONArray("ema").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
-                val macd = jsonObj.getJSONArray("macd").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
-                val macdSignal = jsonObj.getJSONArray("macd_signal").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
-                val macdHist = jsonObj.getJSONArray("macd_hist").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
-                val impulse = jsonObj.getJSONArray("impulse").let { arr ->
-                    List(arr.length()) { arr.getInt(it) }
-                }
-
                 ElderImpulseData(
-                    ticker = jsonObj.getString("ticker"),
-                    name = jsonObj.getString("name"),
-                    interval = jsonObj.getString("interval"),
-                    dates = dates,
-                    close = close,
-                    marketCap = marketCap,
-                    ema = ema,
-                    macd = macd,
-                    macdSignal = macdSignal,
-                    macdHist = macdHist,
-                    impulse = impulse
+                    ticker = response.ticker,
+                    name = response.name,
+                    interval = response.interval,
+                    dates = response.dates,
+                    close = response.close,
+                    marketCap = response.marketCap,
+                    ema = response.ema,
+                    macd = response.macd,
+                    macdSignal = response.macdSignal,
+                    macdHist = response.macdHist,
+                    impulse = response.impulse
                 ).also {
-                    Log.d(TAG, "Elder Impulse data complete: ${it.name}, ${dates.size} data points")
+                    Log.d(TAG, "Elder Impulse data complete: ${it.name}, ${response.dates.size} data points")
                 }
             }
         } catch (e: Exception) {
@@ -501,45 +451,25 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                     interval
                 ).toString()
 
-                val jsonObj = JSONObject(jsonStr)
+                val response = json.decodeFromString<DemarkTDResponse>(jsonStr)
 
-                if (jsonObj.has("error")) {
-                    Log.e(TAG, "DeMark TD error: ${jsonObj.getString("error")}")
+                if (response.error != null) {
+                    Log.e(TAG, "DeMark TD error: ${response.error}")
                     return@withTimeout null
                 }
 
-                val dates = jsonObj.getJSONArray("dates").let { arr ->
-                    List(arr.length()) { arr.getString(it) }
-                }
-
-                val close = jsonObj.getJSONArray("close").let { arr ->
-                    List(arr.length()) { arr.getDouble(it) }
-                }
-
-                val marketCap = jsonObj.getJSONArray("market_cap").let { arr ->
-                    List(arr.length()) { arr.getLong(it) }
-                }
-
-                val tdSell = jsonObj.getJSONArray("td_sell").let { arr ->
-                    List(arr.length()) { arr.getInt(it) }
-                }
-
-                val tdBuy = jsonObj.getJSONArray("td_buy").let { arr ->
-                    List(arr.length()) { arr.getInt(it) }
-                }
-
                 DemarkTDData(
-                    ticker = jsonObj.getString("ticker"),
-                    name = jsonObj.getString("name"),
-                    interval = jsonObj.getString("interval"),
-                    intervalName = jsonObj.getString("interval_name"),
-                    dates = dates,
-                    close = close,
-                    marketCap = marketCap,
-                    tdSell = tdSell,
-                    tdBuy = tdBuy
+                    ticker = response.ticker,
+                    name = response.name,
+                    interval = response.interval,
+                    intervalName = response.intervalName,
+                    dates = response.dates,
+                    close = response.close,
+                    marketCap = response.marketCap,
+                    tdSell = response.tdSell,
+                    tdBuy = response.tdBuy
                 ).also {
-                    Log.d(TAG, "DeMark TD data complete: ${it.name}, ${dates.size} data points, ${it.intervalName}")
+                    Log.d(TAG, "DeMark TD data complete: ${it.name}, ${response.dates.size} data points, ${it.intervalName}")
                 }
             }
         } catch (e: Exception) {

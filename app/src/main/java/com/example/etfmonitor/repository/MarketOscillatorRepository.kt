@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.time.LocalDate
@@ -66,15 +67,15 @@ class MarketOscillatorRepository @Inject constructor(
     /**
      * 특정 시장의 최신 데이터 조회
      */
-    suspend fun getLatestData(market: String): MarketOscillatorData? {
-        return dao.getLatestData(market)
+    suspend fun getLatestData(market: String): MarketOscillatorData? = withContext(Dispatchers.IO) {
+        dao.getLatestData(market)
     }
 
     /**
      * 특정 시장의 데이터 개수 조회
      */
-    suspend fun getDataCount(market: String): Int {
-        return dao.getDataCount(market)
+    suspend fun getDataCount(market: String): Int = withContext(Dispatchers.IO) {
+        dao.getDataCount(market)
     }
 
     /**
@@ -84,8 +85,8 @@ class MarketOscillatorRepository @Inject constructor(
         market: String,
         days: Int = 365,
         onProgress: ((String, Int) -> Unit)? = null
-    ): Result<Int> {
-        return try {
+    ): Result<Int> = withContext(Dispatchers.IO) {
+        try {
             Log.d(TAG, "Initializing $market data for $days days")
             onProgress?.invoke("$market 데이터 수집 준비 중...", 0)
 
@@ -105,7 +106,7 @@ class MarketOscillatorRepository @Inject constructor(
 
             if (response.error != null) {
                 Log.e(TAG, "Error fetching market data: ${response.error}")
-                return Result.failure(Exception(response.error))
+                return@withContext Result.failure(Exception(response.error))
             }
 
             onProgress?.invoke("$market 데이터 처리 중...", 70)
@@ -113,7 +114,7 @@ class MarketOscillatorRepository @Inject constructor(
             // 데이터 검증
             if (response.dates.isEmpty() || response.index.isEmpty() || response.oscillator.isEmpty()) {
                 Log.e(TAG, "Empty data received from Python")
-                return Result.failure(Exception("데이터를 가져오지 못했습니다"))
+                return@withContext Result.failure(Exception("데이터를 가져오지 못했습니다"))
             }
 
             val dates = response.dates
@@ -148,8 +149,8 @@ class MarketOscillatorRepository @Inject constructor(
     /**
      * 데이터 업데이트 (최근 30일)
      */
-    suspend fun updateMarketData(market: String): Result<Int> {
-        return try {
+    suspend fun updateMarketData(market: String): Result<Int> = withContext(Dispatchers.IO) {
+        try {
             Log.d(TAG, "Updating $market data")
 
             // 최근 30일 데이터 수집
@@ -166,13 +167,13 @@ class MarketOscillatorRepository @Inject constructor(
 
             if (response.error != null) {
                 Log.e(TAG, "Error updating market data: ${response.error}")
-                return Result.failure(Exception(response.error))
+                return@withContext Result.failure(Exception(response.error))
             }
 
             // 데이터 검증
             if (response.dates.isEmpty() || response.index.isEmpty() || response.oscillator.isEmpty()) {
                 Log.e(TAG, "Empty data received from Python")
-                return Result.failure(Exception("데이터를 가져오지 못했습니다"))
+                return@withContext Result.failure(Exception("데이터를 가져오지 못했습니다"))
             }
 
             val dates = response.dates
@@ -208,14 +209,14 @@ class MarketOscillatorRepository @Inject constructor(
     /**
      * 특정 시장 데이터 삭제
      */
-    suspend fun deleteMarketData(market: String) {
+    suspend fun deleteMarketData(market: String) = withContext(Dispatchers.IO) {
         dao.deleteMarketData(market)
     }
 
     /**
      * 모든 데이터 삭제
      */
-    suspend fun deleteAll() {
+    suspend fun deleteAll() = withContext(Dispatchers.IO) {
         dao.deleteAll()
     }
 }
