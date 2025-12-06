@@ -138,17 +138,30 @@ def days_ago(n: int) -> str:
 def market_date() -> str:
     """Get latest market date (most recent business day)."""
     log = get_logger("core")
+
+    # Test network connectivity first
+    try:
+        import requests
+        resp = requests.get("https://www.google.com", timeout=5)
+        log.info("market_date: network test OK (status=%d)", resp.status_code)
+    except Exception as e:
+        log.error("market_date: network test FAILED: %s", e)
+
     # Try up to 7 days back to find a valid market date
     for i in range(7):
         d = days_ago(i)
         try:
+            log.info("market_date: calling pykrx for %s...", d)
             tickers = stock.get_market_ticker_list(d, market="KOSPI")
+            log.info("market_date: pykrx returned type=%s", type(tickers))
             ticker_count = len(list(tickers)) if tickers is not None else 0
             log.info("market_date: trying %s, got %d tickers", d, ticker_count)
             if ticker_count > 0:
                 return d
         except Exception as e:
-            log.warning("market_date: %s failed: %s", d, e)
+            log.warning("market_date: %s failed: %s (type=%s)", d, e, type(e).__name__)
+            import traceback
+            log.warning("market_date: traceback: %s", traceback.format_exc())
             continue
     # Fallback to yesterday if nothing found
     log.warning("market_date: no valid date found, using yesterday")
