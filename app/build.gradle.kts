@@ -85,6 +85,10 @@ chaquopy {
             install("requests")
             install("beautifulsoup4")
             install("scikit-learn")
+
+            // Enhanced ML prediction packages (v2)
+            install("imbalanced-learn")  // SMOTE for class balancing
+            install("joblib")            // Model serialization
         }
     }
 }

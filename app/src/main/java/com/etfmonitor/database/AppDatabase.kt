@@ -24,6 +24,8 @@ import com.etfmonitor.database.entities.StockPrediction
 import com.etfmonitor.database.entities.SectorAnalysis
 import com.etfmonitor.database.entities.EtfCorrelationCache
 import com.etfmonitor.database.entities.LiquidityAnalysis
+import com.etfmonitor.database.entities.PriceCache
+import com.etfmonitor.database.entities.EnhancedPrediction
 
 @Database(
     entities = [
@@ -45,9 +47,11 @@ import com.etfmonitor.database.entities.LiquidityAnalysis
         StockPrediction::class,
         SectorAnalysis::class,
         EtfCorrelationCache::class,
-        LiquidityAnalysis::class
+        LiquidityAnalysis::class,
+        PriceCache::class,
+        EnhancedPrediction::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -68,6 +72,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun sectorAnalysisDao(): SectorAnalysisDao
     abstract fun etfCorrelationDao(): EtfCorrelationDao
     abstract fun liquidityAnalysisDao(): LiquidityAnalysisDao
+    abstract fun priceCacheDao(): PriceCacheDao
+    abstract fun enhancedPredictionDao(): EnhancedPredictionDao
 }
 
 /**
@@ -611,5 +617,61 @@ val MIGRATION_13_14 = object : Migration(13, 14) {
             )
             """.trimIndent()
         )
+    }
+}
+
+/**
+ * Migration from version 14 to 15: Add Enhanced ML Prediction tables
+ * - PriceCache: ML 예측용 가격 캐시
+ * - EnhancedPrediction: 28개 Feature 기반 향상된 예측 결과
+ */
+val MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // 1. PriceCache 테이블 생성
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS price_cache (
+                ticker TEXT NOT NULL,
+                date TEXT NOT NULL,
+                closePrice REAL NOT NULL,
+                priceChange5d REAL,
+                priceChange10d REAL,
+                updatedAt INTEGER NOT NULL,
+                PRIMARY KEY (ticker, date)
+            )
+            """.trimIndent()
+        )
+
+        // PriceCache 인덱스
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_price_cache_date ON price_cache(date)")
+
+        // 2. EnhancedPrediction 테이블 생성
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS enhanced_predictions (
+                id TEXT PRIMARY KEY NOT NULL,
+                ticker TEXT NOT NULL,
+                name TEXT NOT NULL,
+                predictionDate TEXT NOT NULL,
+                confidence REAL NOT NULL,
+                status TEXT NOT NULL,
+                keyFactors TEXT NOT NULL,
+                riskScore REAL NOT NULL,
+                featureValues TEXT NOT NULL,
+                modelType TEXT NOT NULL,
+                daysAfter INTEGER NOT NULL DEFAULT 5,
+                priceThreshold REAL NOT NULL DEFAULT 3.0,
+                actualPriceChange REAL,
+                wasCorrect INTEGER,
+                createdAt INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // EnhancedPrediction 인덱스
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_predictions_date ON enhanced_predictions(predictionDate DESC)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_predictions_ticker ON enhanced_predictions(ticker)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_predictions_confidence ON enhanced_predictions(confidence DESC)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_predictions_status ON enhanced_predictions(status)")
     }
 }
