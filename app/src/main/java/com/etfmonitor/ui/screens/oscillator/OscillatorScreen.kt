@@ -22,7 +22,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
 import com.etfmonitor.ui.components.MarketCapOscillatorChart
@@ -70,6 +74,7 @@ fun OscillatorScreen(
     ) { padding ->
         var textFieldValue by remember { mutableStateOf("") }
         var showHistoryDialog by remember { mutableStateOf(false) }
+        val keyboardController = LocalSoftwareKeyboardController.current
 
         Column(
             modifier = Modifier
@@ -142,7 +147,9 @@ fun OscillatorScreen(
                             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                             focusedBorderColor = MaterialTheme.colorScheme.outline,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        )
+                        ),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() })
                     )
                 }
 

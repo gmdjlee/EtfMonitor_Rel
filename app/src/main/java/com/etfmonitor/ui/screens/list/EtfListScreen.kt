@@ -14,7 +14,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.database.entities.Etf
 import com.etfmonitor.ui.theme.*
@@ -33,6 +37,7 @@ fun EtfListScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     Scaffold(
         topBar = {
@@ -103,7 +108,9 @@ fun EtfListScreen(
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     focusedBorderColor = MaterialTheme.colorScheme.outline,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                )
+                ),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() })
             )
 
             // Content

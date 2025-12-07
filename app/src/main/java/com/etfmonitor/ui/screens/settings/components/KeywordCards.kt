@@ -8,7 +8,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import com.etfmonitor.R
 import com.etfmonitor.ui.theme.*
 
@@ -80,6 +84,7 @@ fun ThemeCard(
     }
 
     if (showDialog) {
+        val keyboardController = LocalSoftwareKeyboardController.current
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text(stringResource(R.string.settings_add_theme)) },
@@ -105,7 +110,10 @@ fun ThemeCard(
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                         focusedBorderColor = MaterialTheme.colorScheme.outline,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    )
+                    ),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() })
                 )
             },
             confirmButton = {
@@ -194,6 +202,7 @@ fun ExclusionCard(
     }
 
     if (showDialog) {
+        val keyboardController = LocalSoftwareKeyboardController.current
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text(stringResource(R.string.settings_add_exclusion)) },
@@ -219,7 +228,10 @@ fun ExclusionCard(
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                         focusedBorderColor = MaterialTheme.colorScheme.outline,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    )
+                    ),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() })
                 )
             },
             confirmButton = {

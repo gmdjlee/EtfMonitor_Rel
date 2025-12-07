@@ -17,9 +17,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
 import com.etfmonitor.database.entities.MarketOscillatorData
@@ -564,6 +568,7 @@ private fun SettingsDialog(
     var days by remember { mutableStateOf(displayDays) }
     var overbought by remember { mutableStateOf(overboughtThreshold.toString()) }
     var oversold by remember { mutableStateOf(oversoldThreshold.toString()) }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -612,7 +617,9 @@ private fun SettingsDialog(
                             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                             focusedBorderColor = MaterialTheme.colorScheme.outline,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        )
+                        ),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() })
                     )
                 }
 
@@ -636,7 +643,9 @@ private fun SettingsDialog(
                             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                             focusedBorderColor = MaterialTheme.colorScheme.outline,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        )
+                        ),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() })
                     )
                 }
 
