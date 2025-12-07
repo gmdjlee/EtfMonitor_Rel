@@ -40,7 +40,7 @@ class GeminiApiClient @Inject constructor(
         private const val API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val MODELS_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val MODEL = "gemini-2.0-flash-exp" // Default model - Gemini 2.0 Flash (experimental)
-        private const val MAX_OUTPUT_TOKENS = 2048
+        private const val MAX_OUTPUT_TOKENS = 200000
         private const val TIMEOUT_SECONDS = 60L
     }
 
@@ -112,6 +112,7 @@ class GeminiApiClient @Inject constructor(
             put("generationConfig", JSONObject().apply {
                 put("temperature", temperature)
                 put("maxOutputTokens", MAX_OUTPUT_TOKENS)
+                put("responseMimeType", "application/json")
             })
         }
 
@@ -152,7 +153,7 @@ class GeminiApiClient @Inject constructor(
 
             val candidate = candidates.getJSONObject(0)
 
-            // Check finishReason for blocked responses
+            // Check finishReason for blocked or truncated responses
             val finishReason = candidate.optString("finishReason", "")
             if (finishReason == "SAFETY") {
                 logger.w("Response blocked by safety filter")
@@ -161,6 +162,10 @@ class GeminiApiClient @Inject constructor(
             if (finishReason == "RECITATION") {
                 logger.w("Response blocked due to recitation")
                 throw ApiException("Gemini", 403, "저작권 정책으로 인해 응답이 차단되었습니다.")
+            }
+            if (finishReason == "MAX_TOKENS") {
+                logger.w("Response truncated due to max tokens limit")
+                throw ApiException("Gemini", 413, "AI 응답이 최대 토큰 제한으로 인해 잘렸습니다. 분석 기간을 줄이거나 다시 시도해 주세요.")
             }
 
             val content = candidate.optJSONObject("content")
@@ -317,7 +322,7 @@ class GeminiApiClient @Inject constructor(
 
             val candidate = candidates.getJSONObject(0)
 
-            // Check finishReason for blocked responses
+            // Check finishReason for blocked or truncated responses
             val finishReason = candidate.optString("finishReason", "")
             if (finishReason == "SAFETY") {
                 logger.w("Chat response blocked by safety filter")
@@ -326,6 +331,10 @@ class GeminiApiClient @Inject constructor(
             if (finishReason == "RECITATION") {
                 logger.w("Chat response blocked due to recitation")
                 throw ApiException("Gemini", 403, "저작권 정책으로 인해 응답이 차단되었습니다.")
+            }
+            if (finishReason == "MAX_TOKENS") {
+                logger.w("Chat response truncated due to max tokens limit")
+                throw ApiException("Gemini", 413, "AI 응답이 최대 토큰 제한으로 인해 잘렸습니다. 질문을 짧게 하거나 다시 시도해 주세요.")
             }
 
             val content = candidate.optJSONObject("content")

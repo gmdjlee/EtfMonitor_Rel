@@ -69,6 +69,39 @@ class NewAIAnalysisViewModel @Inject constructor(
     init {
         checkApiKey()
         loadSelectedProvider()
+        loadLatestResults()
+    }
+
+    /**
+     * 최신 분석 결과 로드
+     */
+    private fun loadLatestResults() {
+        viewModelScope.launch {
+            val market = _selectedMarket.value
+
+            // 최신 상관관계 결과 로드
+            val latestCorrelation = correlationAnalysisRepository.getLatestCorrelationResult(market)
+
+            if (latestCorrelation != null) {
+                // 해당 상관관계에 대한 AI 결과 로드
+                val latestAI = correlationAnalysisRepository.getLatestAIResult(market)
+
+                _analysisResult.value = FullAnalysisResult(
+                    correlationResult = latestCorrelation,
+                    aiResult = latestAI,
+                    errorMessage = null
+                )
+
+                // 상태 업데이트
+                _state.value = if (latestAI != null) {
+                    NewAIAnalysisState.FullAnalysisComplete(
+                        FullAnalysisResult(latestCorrelation, latestAI, null)
+                    )
+                } else {
+                    NewAIAnalysisState.CorrelationComplete(latestCorrelation)
+                }
+            }
+        }
     }
 
     // ========== 설정 관련 ==========
@@ -88,6 +121,8 @@ class NewAIAnalysisViewModel @Inject constructor(
 
     fun selectMarket(market: String) {
         _selectedMarket.value = market
+        // 선택된 시장의 최신 결과 로드
+        loadLatestResults()
     }
 
     fun selectProvider(provider: AIProvider) {
