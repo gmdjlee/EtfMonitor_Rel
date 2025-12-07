@@ -98,7 +98,7 @@ class MarketDepositRepository @Inject constructor(
             onProgress?.invoke("완료", 100)
             Result.success(deposits.size)
         } catch (e: kotlinx.coroutines.CancellationException) {
-            Log.w(TAG, "Initialization cancelled")
+            logger.w("Initialization cancelled")
             throw e // CancellationException은 다시 던져야 함
         } catch (e: Exception) {
             logger.e( "Error initializing market deposits", e)
@@ -176,7 +176,7 @@ class MarketDepositRepository @Inject constructor(
             val updatedDeposits = marketDepositDao.getRecentDeposits(limit).first()
             convertToMarketDepositData(updatedDeposits)
         } catch (e: kotlinx.coroutines.CancellationException) {
-            Log.w(TAG, "Market data fetch cancelled")
+            logger.w("Market data fetch cancelled")
             throw e // CancellationException은 다시 던져야 함
         } catch (e: Exception) {
             logger.e( "Error getting or updating market data", e)
