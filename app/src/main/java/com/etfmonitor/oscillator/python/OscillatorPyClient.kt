@@ -93,9 +93,9 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         val ticker: String = "",
         val name: String = "",
         val dates: List<String> = emptyList(),
-        @SerialName("market_cap") val marketCap: List<Long> = emptyList(),
-        @SerialName("foreign_5d") val foreign5d: List<Long> = emptyList(),
-        @SerialName("institution_5d") val institution5d: List<Long> = emptyList(),
+        @SerialName("market_cap") val marketCap: List<Double> = emptyList(),
+        @SerialName("foreign_5d") val foreign5d: List<Double> = emptyList(),
+        @SerialName("institution_5d") val institution5d: List<Double> = emptyList(),
         val error: String? = null
     )
 
@@ -236,9 +236,9 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
                         ticker = response.ticker,
                         name = response.name,
                         dates = response.dates,
-                        marketCap = response.marketCap,
-                        foreign5d = response.foreign5d,
-                        institution5d = response.institution5d
+                        marketCap = response.marketCap.map { it.toLong() },
+                        foreign5d = response.foreign5d.map { it.toLong() },
+                        institution5d = response.institution5d.map { it.toLong() }
                     ).also {
                         logger.d( "Stock analysis complete: ${it.name}, ${response.dates.size} data points")
                     }
