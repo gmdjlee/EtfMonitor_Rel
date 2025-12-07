@@ -8,8 +8,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
@@ -229,6 +232,7 @@ fun ColorPickerDialog(
         mutableStateOf(String.format("%06X", currentColor and 0xFFFFFF))
     }
     var isHexInputError by remember { mutableStateOf(false) }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     // RGB 값이 변경되면 selectedColor 업데이트
     LaunchedEffect(redValue, greenValue, blueValue) {
@@ -454,7 +458,11 @@ fun ColorPickerDialog(
                     supportingText = if (isHexInputError) {
                         { Text("6자리 16진수를 입력하세요 (예: FF5500)") }
                     } else null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Ascii,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() }),
                     textStyle = MaterialTheme.typography.bodyMedium
                 )
             }

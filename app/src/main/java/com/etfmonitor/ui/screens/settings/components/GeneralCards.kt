@@ -9,7 +9,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import com.etfmonitor.R
 import com.etfmonitor.ai.AIModel
 import com.etfmonitor.ai.AIProvider
@@ -574,6 +578,7 @@ fun ApiKeyInputDialog(
     onConfirm: (String) -> Unit
 ) {
     var apiKey by remember { mutableStateOf("") }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -592,7 +597,9 @@ fun ApiKeyInputDialog(
                     placeholder = { Text(placeholder) },
                     singleLine = false,
                     maxLines = 3,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() })
                 )
 
                 Surface(

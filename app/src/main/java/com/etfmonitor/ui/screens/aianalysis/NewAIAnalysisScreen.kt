@@ -20,7 +20,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.ai.AIProvider
 import com.etfmonitor.analysis.SignalType
@@ -652,6 +656,7 @@ private fun ChatScreen(
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     // 새 메시지가 오면 스크롤
     LaunchedEffect(messages.size) {
@@ -723,7 +728,15 @@ private fun ChatScreen(
                     modifier = Modifier.weight(1f),
                     placeholder = { Text("메시지를 입력하세요") },
                     maxLines = 3,
-                    enabled = !isSending
+                    enabled = !isSending,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = {
+                        if (inputText.isNotBlank()) {
+                            keyboardController?.hide()
+                            onSendMessage(inputText)
+                            inputText = ""
+                        }
+                    })
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -731,6 +744,7 @@ private fun ChatScreen(
                 IconButton(
                     onClick = {
                         if (inputText.isNotBlank()) {
+                            keyboardController?.hide()
                             onSendMessage(inputText)
                             inputText = ""
                         }
