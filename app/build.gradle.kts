@@ -87,7 +87,8 @@ chaquopy {
             install("scikit-learn")
 
             // Enhanced ML prediction packages (v2)
-            install("imbalanced-learn")  // SMOTE for class balancing
+            // Note: imbalanced-learn removed due to scipy version conflict with Chaquopy
+            // SMOTE functionality is optional and handled via try-except in Python
             install("joblib")            // Model serialization
         }
     }
