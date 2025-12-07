@@ -181,6 +181,10 @@ class AdvancedDashboardViewModel @Inject constructor(
     private val _sectorAccuracy = MutableStateFlow<Map<String, PredictionAccuracy>>(emptyMap())
     val sectorAccuracy: StateFlow<Map<String, PredictionAccuracy>> = _sectorAccuracy.asStateFlow()
 
+    // ETF 상관관계 계산 상태
+    private val _isCalculatingCorrelation = MutableStateFlow(false)
+    val isCalculatingCorrelation: StateFlow<Boolean> = _isCalculatingCorrelation.asStateFlow()
+
     init {
         loadDashboard()
         loadHistoryData()
@@ -620,6 +624,36 @@ class AdvancedDashboardViewModel @Inject constructor(
                 loadDashboard()
             } catch (e: Exception) {
                 logger.e("Error recalculating analysis", e)
+            }
+        }
+    }
+
+    /**
+     * ETF 상관관계 계산 (UI에서 직접 호출용)
+     */
+    fun calculateEtfCorrelation() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                _isCalculatingCorrelation.value = true
+
+                val dates = etfDao.getAllDistinctDates()
+                if (dates.size < 2) {
+                    logger.w("Insufficient date data for ETF correlation")
+                    return@launch
+                }
+
+                val currentDate = dates.first()
+                logger.d("Calculating ETF correlations for date: $currentDate")
+
+                val results = advancedRepository.calculateAllEtfCorrelations(currentDate)
+                logger.d("ETF correlation calculation returned ${results.size} results")
+
+                // 대시보드 갱신
+                loadDashboard()
+            } catch (e: Exception) {
+                logger.e("Error calculating ETF correlation", e)
+            } finally {
+                _isCalculatingCorrelation.value = false
             }
         }
     }

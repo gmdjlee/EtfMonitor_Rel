@@ -120,6 +120,9 @@ fun AdvancedDashboardScreen(
                         val marketCapFlowAccuracy by viewModel.marketCapFlowAccuracy.collectAsState()
                         val liquidityAccuracy by viewModel.liquidityAccuracy.collectAsState()
 
+                        // ETF 상관관계 계산 상태
+                        val isCalculatingCorrelation by viewModel.isCalculatingCorrelation.collectAsState()
+
                         HorizontalPager(
                             state = pagerState,
                             modifier = Modifier.fillMaxSize()
@@ -138,7 +141,11 @@ fun AdvancedDashboardScreen(
                                     accuracy = liquidityAccuracy
                                 )
                                 AdvancedTab.SECTOR_FG -> SectorFearGreedTab(currentState.data, sectorHistory)
-                                AdvancedTab.ETF_CORRELATION -> EtfCorrelationTab(currentState.data)
+                                AdvancedTab.ETF_CORRELATION -> EtfCorrelationTab(
+                                    data = currentState.data,
+                                    isCalculating = isCalculatingCorrelation,
+                                    onCalculate = { viewModel.calculateEtfCorrelation() }
+                                )
                             }
                         }
                     }

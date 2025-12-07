@@ -670,14 +670,16 @@
 
     <!-- AdvancedDashboard - ETF Correlation Tab -->
     <string name="advanced_needs_correlation_data">ETF 상관관계 분석 데이터가 필요합니다</string>
+    <string name="advanced_calculate_correlation">상관관계 계산</string>
+    <string name="advanced_calculating_correlation">상관관계 계산 중…</string>
     <string name="advanced_high_overlap_pairs">높은 중복률 ETF 쌍</string>
-    <string name="advanced_overlap_desc">중복률 70%% 이상인 ETF 쌍은 분산 효과가 낮습니다</string>
+    <string name="advanced_overlap_desc">중복률 70% 이상인 ETF 쌍은 분산 효과가 낮습니다</string>
     <string name="advanced_diversification_advice">분산 투자 권고</string>
-    <string name="advanced_diversification_warning">80%% 이상 중복되는 ETF가 있습니다. 동일 종목에 과도하게 투자될 수 있으니 포트폴리오 재검토를 권장합니다.</string>
+    <string name="advanced_diversification_warning">80% 이상 중복되는 ETF가 있습니다. 동일 종목에 과도하게 투자될 수 있으니 포트폴리오 재검토를 권장합니다.</string>
     <string name="advanced_correlation_legend">상관관계 범례</string>
-    <string name="advanced_correlation_high">높음 >70%%</string>
-    <string name="advanced_correlation_medium">보통 40-70%%</string>
-    <string name="advanced_correlation_low">낮음 &lt;40%%</string>
+    <string name="advanced_correlation_high">높음 >70%</string>
+    <string name="advanced_correlation_medium">보통 40-70%</string>
+    <string name="advanced_correlation_low">낮음 &lt;40%</string>
     <string name="advanced_common_stocks">공통 %d종목</string>
 
     <!-- Market Cap Size -->

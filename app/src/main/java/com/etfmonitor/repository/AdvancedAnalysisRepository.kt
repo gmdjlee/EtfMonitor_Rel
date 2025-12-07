@@ -268,13 +268,22 @@ class AdvancedAnalysisRepository @Inject constructor(
      */
     suspend fun calculateAndSaveLiquidityAnalysis(date: String): LiquidityAnalysis? = withContext(Dispatchers.IO) {
         try {
-            // 1. 예탁금 데이터 조회
-            val deposit = marketDepositDao.getDepositByDate(date)
+            // 1. 예탁금 데이터 조회 (정확한 날짜 우선, 없으면 최신 데이터 사용)
+            var deposit = marketDepositDao.getDepositByDate(date)
+            var effectiveDate = date
             if (deposit == null) {
-                logger.w( "No deposit data found for date: $date")
+                logger.d("No deposit data for exact date: $date, trying latest")
+                deposit = marketDepositDao.getLatestDeposit()
+                if (deposit != null) {
+                    effectiveDate = deposit.date
+                    logger.d("Using latest deposit data from: $effectiveDate")
+                }
+            }
+            if (deposit == null) {
+                logger.w("No deposit data found")
                 return@withContext null
             }
-            logger.d( "Deposit data: amount=${deposit.depositAmount}, credit=${deposit.creditAmount}")
+            logger.d("Deposit data: amount=${deposit.depositAmount}, credit=${deposit.creditAmount}")
 
             // 2. 시가총액 계산
             val (kospiCap, kosdaqCap) = calculateTotalMarketCap(date)
@@ -299,7 +308,7 @@ class AdvancedAnalysisRepository @Inject constructor(
             val signal = LiquiditySignal.calculate(deposit.depositChange, deposit.creditChange, creditRatio)
 
             val analysis = LiquidityAnalysis(
-                date = date,
+                date = effectiveDate,
                 depositAmount = deposit.depositAmount,
                 creditAmount = deposit.creditAmount,
                 totalMarketCap = totalCap / 100_000_000,  // 억원
@@ -534,7 +543,10 @@ class AdvancedAnalysisRepository @Inject constructor(
             val holdings1 = etfDao.getHoldings(etf1Ticker, date)
             val holdings2 = etfDao.getHoldings(etf2Ticker, date)
 
-            if (holdings1.isEmpty() || holdings2.isEmpty()) return@withContext null
+            if (holdings1.isEmpty() || holdings2.isEmpty()) {
+                // 로그는 너무 많아지므로 생략
+                return@withContext null
+            }
 
             // 3. 종목 중복률 계산
             val stocks1 = holdings1.map { it.stockTicker }.toSet()
@@ -574,14 +586,7 @@ class AdvancedAnalysisRepository @Inject constructor(
                 commonStockCount = intersection.size,
                 etf1StockCount = stocks1.size,
                 etf2StockCount = stocks2.size,
-                topCommonStocks = json.encodeToString(commonStocks.map {
-                    mapOf(
-                        "ticker" to it.ticker,
-                        "name" to it.name,
-                        "w1" to it.etf1Weight,
-                        "w2" to it.etf2Weight
-                    )
-                })
+                topCommonStocks = json.encodeToString(commonStocks)
             )
 
             // 저장
@@ -599,17 +604,22 @@ class AdvancedAnalysisRepository @Inject constructor(
     suspend fun calculateAllEtfCorrelations(date: String): List<EtfCorrelationCache> = withContext(Dispatchers.IO) {
         try {
             val etfs = etfDao.getAllEtfs().first()
+            logger.d("Starting ETF correlation calculation for ${etfs.size} ETFs on $date")
             val results = mutableListOf<EtfCorrelationCache>()
+            var skippedCount = 0
 
             for (i in etfs.indices) {
                 for (j in i + 1 until etfs.size) {
                     val correlation = calculateAndSaveEtfCorrelation(etfs[i].ticker, etfs[j].ticker, date)
                     if (correlation != null) {
                         results.add(correlation)
+                    } else {
+                        skippedCount++
                     }
                 }
             }
 
+            logger.d("ETF correlation completed: ${results.size} calculated, $skippedCount skipped")
             results
         } catch (e: Exception) {
             logger.e( "Error calculating all ETF correlations", e)
@@ -618,13 +628,16 @@ class AdvancedAnalysisRepository @Inject constructor(
     }
 
     /**
-     * 높은 중복률 ETF 쌍 조회
+     * ETF 쌍 중복률 조회
+     * threshold를 낮춰서 모든 상관관계 결과를 표시
      */
     suspend fun getHighOverlapEtfPairs(
         date: String,
-        threshold: Double = 0.7
+        threshold: Double = 0.1
     ): List<EtfCorrelationCache> = withContext(Dispatchers.IO) {
-        etfCorrelationDao.getHighOverlapPairs(date, threshold)
+        val results = etfCorrelationDao.getHighOverlapPairs(date, threshold)
+        logger.d("ETF overlap pairs for $date with threshold $threshold: ${results.size} found")
+        results
     }
 
     /**
