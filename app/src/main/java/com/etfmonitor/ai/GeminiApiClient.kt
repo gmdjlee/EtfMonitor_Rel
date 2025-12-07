@@ -40,7 +40,7 @@ class GeminiApiClient @Inject constructor(
         private const val API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val MODELS_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val MODEL = "gemini-2.0-flash-exp" // Default model - Gemini 2.0 Flash (experimental)
-        private const val MAX_OUTPUT_TOKENS = 4096
+        private const val MAX_OUTPUT_TOKENS = 200000
         private const val TIMEOUT_SECONDS = 60L
     }
 
