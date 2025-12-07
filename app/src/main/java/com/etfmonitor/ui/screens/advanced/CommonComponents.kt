@@ -58,11 +58,27 @@ internal fun ErrorContent(message: String, onRetry: () -> Unit) {
 
 @Composable
 internal fun EmptyStateCard(message: String, icon: ImageVector) {
+    EmptyStateCard(message, icon, null, null)
+}
+
+@Composable
+internal fun EmptyStateCard(
+    message: String,
+    icon: ImageVector,
+    actionLabel: String?,
+    onAction: (() -> Unit)?
+) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.outline)
             Spacer(modifier = Modifier.height(16.dp))
             Text(message, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            if (actionLabel != null && onAction != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = onAction) {
+                    Text(actionLabel)
+                }
+            }
         }
     }
 }

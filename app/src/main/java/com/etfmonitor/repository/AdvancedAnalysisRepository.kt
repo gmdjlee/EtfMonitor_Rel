@@ -268,13 +268,22 @@ class AdvancedAnalysisRepository @Inject constructor(
      */
     suspend fun calculateAndSaveLiquidityAnalysis(date: String): LiquidityAnalysis? = withContext(Dispatchers.IO) {
         try {
-            // 1. 예탁금 데이터 조회
-            val deposit = marketDepositDao.getDepositByDate(date)
+            // 1. 예탁금 데이터 조회 (정확한 날짜 우선, 없으면 최신 데이터 사용)
+            var deposit = marketDepositDao.getDepositByDate(date)
+            var effectiveDate = date
             if (deposit == null) {
-                logger.w( "No deposit data found for date: $date")
+                logger.d("No deposit data for exact date: $date, trying latest")
+                deposit = marketDepositDao.getLatestDeposit()
+                if (deposit != null) {
+                    effectiveDate = deposit.date
+                    logger.d("Using latest deposit data from: $effectiveDate")
+                }
+            }
+            if (deposit == null) {
+                logger.w("No deposit data found")
                 return@withContext null
             }
-            logger.d( "Deposit data: amount=${deposit.depositAmount}, credit=${deposit.creditAmount}")
+            logger.d("Deposit data: amount=${deposit.depositAmount}, credit=${deposit.creditAmount}")
 
             // 2. 시가총액 계산
             val (kospiCap, kosdaqCap) = calculateTotalMarketCap(date)
@@ -299,7 +308,7 @@ class AdvancedAnalysisRepository @Inject constructor(
             val signal = LiquiditySignal.calculate(deposit.depositChange, deposit.creditChange, creditRatio)
 
             val analysis = LiquidityAnalysis(
-                date = date,
+                date = effectiveDate,
                 depositAmount = deposit.depositAmount,
                 creditAmount = deposit.creditAmount,
                 totalMarketCap = totalCap / 100_000_000,  // 억원

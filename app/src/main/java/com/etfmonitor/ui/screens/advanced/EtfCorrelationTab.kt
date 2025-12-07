@@ -27,11 +27,30 @@ import com.etfmonitor.database.entities.*
  */
 
 @Composable
-internal fun EtfCorrelationTab(data: AdvancedDashboardData) {
+internal fun EtfCorrelationTab(
+    data: AdvancedDashboardData,
+    isCalculating: Boolean = false,
+    onCalculate: (() -> Unit)? = null
+) {
     val overlaps = data.highOverlapEtfs
 
     if (overlaps.isEmpty()) {
-        EmptyStateCard(stringResource(R.string.advanced_needs_correlation_data), Icons.Default.GridView)
+        if (isCalculating) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(stringResource(R.string.advanced_calculating_correlation))
+                }
+            }
+        } else {
+            EmptyStateCard(
+                message = stringResource(R.string.advanced_needs_correlation_data),
+                icon = Icons.Default.GridView,
+                actionLabel = stringResource(R.string.advanced_calculate_correlation),
+                onAction = onCalculate
+            )
+        }
         return
     }
 
