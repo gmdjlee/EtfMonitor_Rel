@@ -3,6 +3,7 @@ package com.etfmonitor.database.entities
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * ETF 간 상관관계 캐시
@@ -61,6 +62,7 @@ data class EtfCorrelation(
 /**
  * 공통 종목 정보
  */
+@Serializable
 data class CommonStock(
     val ticker: String,
     val name: String,

@@ -583,14 +583,7 @@ class AdvancedAnalysisRepository @Inject constructor(
                 commonStockCount = intersection.size,
                 etf1StockCount = stocks1.size,
                 etf2StockCount = stocks2.size,
-                topCommonStocks = json.encodeToString(commonStocks.map {
-                    mapOf(
-                        "ticker" to it.ticker,
-                        "name" to it.name,
-                        "w1" to it.etf1Weight,
-                        "w2" to it.etf2Weight
-                    )
-                })
+                topCommonStocks = json.encodeToString(commonStocks)
             )
 
             // 저장
