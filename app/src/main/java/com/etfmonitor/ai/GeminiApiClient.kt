@@ -112,6 +112,7 @@ class GeminiApiClient @Inject constructor(
             put("generationConfig", JSONObject().apply {
                 put("temperature", temperature)
                 put("maxOutputTokens", MAX_OUTPUT_TOKENS)
+                put("responseMimeType", "application/json")
             })
         }
 
