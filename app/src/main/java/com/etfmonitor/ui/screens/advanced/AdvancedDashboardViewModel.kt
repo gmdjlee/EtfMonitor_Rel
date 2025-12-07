@@ -645,7 +645,8 @@ class AdvancedDashboardViewModel @Inject constructor(
                 val currentDate = dates.first()
                 logger.d("Calculating ETF correlations for date: $currentDate")
 
-                advancedRepository.calculateAllEtfCorrelations(currentDate)
+                val results = advancedRepository.calculateAllEtfCorrelations(currentDate)
+                logger.d("ETF correlation calculation returned ${results.size} results")
 
                 // 대시보드 갱신
                 loadDashboard()

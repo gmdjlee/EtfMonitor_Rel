@@ -543,7 +543,10 @@ class AdvancedAnalysisRepository @Inject constructor(
             val holdings1 = etfDao.getHoldings(etf1Ticker, date)
             val holdings2 = etfDao.getHoldings(etf2Ticker, date)
 
-            if (holdings1.isEmpty() || holdings2.isEmpty()) return@withContext null
+            if (holdings1.isEmpty() || holdings2.isEmpty()) {
+                // 로그는 너무 많아지므로 생략
+                return@withContext null
+            }
 
             // 3. 종목 중복률 계산
             val stocks1 = holdings1.map { it.stockTicker }.toSet()
@@ -601,17 +604,22 @@ class AdvancedAnalysisRepository @Inject constructor(
     suspend fun calculateAllEtfCorrelations(date: String): List<EtfCorrelationCache> = withContext(Dispatchers.IO) {
         try {
             val etfs = etfDao.getAllEtfs().first()
+            logger.d("Starting ETF correlation calculation for ${etfs.size} ETFs on $date")
             val results = mutableListOf<EtfCorrelationCache>()
+            var skippedCount = 0
 
             for (i in etfs.indices) {
                 for (j in i + 1 until etfs.size) {
                     val correlation = calculateAndSaveEtfCorrelation(etfs[i].ticker, etfs[j].ticker, date)
                     if (correlation != null) {
                         results.add(correlation)
+                    } else {
+                        skippedCount++
                     }
                 }
             }
 
+            logger.d("ETF correlation completed: ${results.size} calculated, $skippedCount skipped")
             results
         } catch (e: Exception) {
             logger.e( "Error calculating all ETF correlations", e)
@@ -620,13 +628,16 @@ class AdvancedAnalysisRepository @Inject constructor(
     }
 
     /**
-     * 높은 중복률 ETF 쌍 조회
+     * ETF 쌍 중복률 조회
+     * threshold를 낮춰서 모든 상관관계 결과를 표시
      */
     suspend fun getHighOverlapEtfPairs(
         date: String,
-        threshold: Double = 0.7
+        threshold: Double = 0.1
     ): List<EtfCorrelationCache> = withContext(Dispatchers.IO) {
-        etfCorrelationDao.getHighOverlapPairs(date, threshold)
+        val results = etfCorrelationDao.getHighOverlapPairs(date, threshold)
+        logger.d("ETF overlap pairs for $date with threshold $threshold: ${results.size} found")
+        results
     }
 
     /**
