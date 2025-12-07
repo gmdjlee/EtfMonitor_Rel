@@ -15,9 +15,11 @@ import com.etfmonitor.database.entities.StockTechData
 import com.etfmonitor.utils.AppLogger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -63,28 +65,16 @@ class EnhancedPredictorClient @Inject constructor(
             withTimeout(TIMEOUT_MS) {
                 // 1. 시장 컨텍스트 데이터 수집
                 val marketContext = collectMarketContext()
-                val marketDataJson = json.encodeToString(MarketDataDto.serializer(), marketContext.toDto())
+                val marketDataJson = json.encodeToString(marketContext.toDto())
 
                 // 2. 종목별 기술적 데이터 수집
                 val allTickers = (historicalChanges.map { it.ticker } + currentChanges.map { it.ticker }).distinct()
                 val stockData = collectStockData(allTickers)
-                val stockDataJson = json.encodeToString(
-                    kotlinx.serialization.builtins.MapSerializer(
-                        kotlinx.serialization.builtins.serializer<String>(),
-                        StockDataDto.serializer()
-                    ),
-                    stockData.mapValues { it.value.toDto() }
-                )
+                val stockDataJson = json.encodeToString(stockData.mapValues { it.value.toDto() })
 
                 // 3. 변화 데이터 JSON 생성
-                val histJson = json.encodeToString(
-                    kotlinx.serialization.builtins.ListSerializer(StockChangeDataDto.serializer()),
-                    historicalChanges.map { it.toDto() }
-                )
-                val currJson = json.encodeToString(
-                    kotlinx.serialization.builtins.ListSerializer(StockChangeDataDto.serializer()),
-                    currentChanges.map { it.toDto() }
-                )
+                val histJson = json.encodeToString(historicalChanges.map { it.toDto() })
+                val currJson = json.encodeToString(currentChanges.map { it.toDto() })
 
                 // 4. Python 호출
                 val result = module.callAttr(
@@ -121,18 +111,9 @@ class EnhancedPredictorClient @Inject constructor(
                         predictionDate = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE),
                         confidence = dto.confidence,
                         status = dto.status,
-                        keyFactors = json.encodeToString(
-                            kotlinx.serialization.builtins.ListSerializer(kotlinx.serialization.builtins.serializer<String>()),
-                            dto.key_factors
-                        ),
+                        keyFactors = json.encodeToString(dto.key_factors),
                         riskScore = dto.risk_score,
-                        featureValues = json.encodeToString(
-                            kotlinx.serialization.builtins.MapSerializer(
-                                kotlinx.serialization.builtins.serializer<String>(),
-                                kotlinx.serialization.builtins.serializer<Double>()
-                            ),
-                            dto.feature_values
-                        ),
+                        featureValues = json.encodeToString(dto.feature_values),
                         modelType = config.modelType,
                         daysAfter = config.daysAfter,
                         priceThreshold = config.priceThreshold
@@ -179,16 +160,19 @@ class EnhancedPredictorClient @Inject constructor(
      */
     private suspend fun collectMarketContext(): MarketContextData {
         return try {
-            val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-
             // 시장 오실레이터
-            val oscillator = marketOscillatorDao.getLatestByMarket("KOSPI")?.oscillator ?: 50.0
+            val oscillator = marketOscillatorDao.getLatestData("KOSPI")?.oscillator ?: 50.0
 
-            // Fear & Greed
-            val fearGreed = fearGreedDao.getLatestByMarket("KOSPI")?.fearGreedValue ?: 0.5
+            // Fear & Greed - 최신 날짜 조회 후 해당 날짜 데이터 조회
+            val latestFearGreedDate = fearGreedDao.getLatestDate("KOSPI")
+            val fearGreed = if (latestFearGreedDate != null) {
+                fearGreedDao.getByMarketAndDate("KOSPI", latestFearGreedDate)?.fearGreedValue ?: 0.5
+            } else {
+                0.5
+            }
 
-            // 시장 수익률 (5일)
-            val recentIndices = marketIndexDao.getRecentByMarket("KOSPI", 6)
+            // 시장 수익률 (5일) - Flow에서 첫 번째 값 조회
+            val recentIndices = marketIndexDao.getRecentByMarket("KOSPI", 6).firstOrNull() ?: emptyList()
             val marketReturn5d = if (recentIndices.size >= 2) {
                 val latest = recentIndices.first().closePrice
                 val prev = recentIndices.last().closePrice
