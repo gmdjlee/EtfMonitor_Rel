@@ -134,9 +134,9 @@ def get_stock_data(ticker: str, days: int = 180) -> str:
             "ticker": ticker,
             "name": get_name(ticker) or ticker,
             "dates": df.index.strftime("%Y-%m-%d").tolist(),
-            "market_cap": df["market_cap"].tolist(),
-            "foreign_5d": df["foreign_5d"].tolist(),
-            "institution_5d": df["institution_5d"].tolist()
+            "market_cap": [int(v) for v in df["market_cap"]],
+            "foreign_5d": [int(v) for v in df["foreign_5d"]],
+            "institution_5d": [int(v) for v in df["institution_5d"]]
         }
 
         log.info("Stock data %s: %d records", ticker, len(result["dates"]))

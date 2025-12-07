@@ -16,6 +16,7 @@ import com.etfmonitor.repository.StockAnalysisRepository
 import com.etfmonitor.repository.StockRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -98,6 +99,9 @@ class OscillatorViewModel @Inject constructor(
                 searchHistoryDao.getRecentSearches(limit).collect { history ->
                     _searchHistory.value = history
                 }
+            } catch (e: CancellationException) {
+                // Structured concurrency: rethrow cancellation exceptions
+                throw e
             } catch (e: Exception) {
                 android.util.Log.e("OscillatorViewModel", "Error loading search history", e)
             }
@@ -127,6 +131,8 @@ class OscillatorViewModel @Inject constructor(
             // 오래된 히스토리 삭제 (limit 개수 초과분)
             searchHistoryDao.deleteOldSearches(limit)
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             android.util.Log.e("OscillatorViewModel", "Error saving search history", e)
         }
