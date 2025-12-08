@@ -15,6 +15,7 @@ import com.etfmonitor.oscillator.python.OscillatorPyClient
 import com.etfmonitor.repository.StockAnalysisRepository
 import com.etfmonitor.repository.StockRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -98,6 +99,9 @@ class OscillatorViewModel @Inject constructor(
                 searchHistoryDao.getRecentSearches(limit).collect { history ->
                     _searchHistory.value = history
                 }
+            } catch (e: CancellationException) {
+                // Expected when ViewModel is cleared, rethrow to propagate cancellation
+                throw e
             } catch (e: Exception) {
                 android.util.Log.e("OscillatorViewModel", "Error loading search history", e)
             }

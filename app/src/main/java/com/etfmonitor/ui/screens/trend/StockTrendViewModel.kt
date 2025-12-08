@@ -3,6 +3,8 @@ package com.etfmonitor.ui.screens.trend
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etfmonitor.database.EtfDao
+import com.etfmonitor.oscillator.python.OscillatorPyClient
 import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.repository.StockTrend
 import com.etfmonitor.utils.AppLogger
@@ -29,24 +31,31 @@ import javax.inject.Inject
 @HiltViewModel
 class StockTrendViewModel @Inject constructor(
     private val repository: DataRepository,
+    private val etfDao: EtfDao,
+    val pyClient: OscillatorPyClient,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     companion object {
         private val logger = AppLogger.getLogger("StockTrendViewModel")
+        private const val QUICK_CHART_ANALYSIS_KEY = "quick_chart_analysis_enabled"
     }
 
     private val etfTicker: String = savedStateHandle.get<String>("etfTicker")
         ?: throw IllegalArgumentException("etfTicker is required")
 
-    private val stockTicker: String = savedStateHandle.get<String>("stockTicker")
+    val stockTicker: String = savedStateHandle.get<String>("stockTicker")
         ?: throw IllegalArgumentException("stockTicker is required")
 
     private val _state = MutableStateFlow<TrendState>(TrendState.Loading)
     val state: StateFlow<TrendState> = _state.asStateFlow()
 
+    private val _quickChartAnalysisEnabled = MutableStateFlow(false)
+    val quickChartAnalysisEnabled: StateFlow<Boolean> = _quickChartAnalysisEnabled.asStateFlow()
+
     init {
         loadTrend()
+        loadQuickChartAnalysisSetting()
     }
 
     private fun loadTrend() {
@@ -61,6 +70,17 @@ class StockTrendViewModel @Inject constructor(
             } catch (e: Exception) {
                 logger.e("Error loading trend for ETF: $etfTicker, Stock: $stockTicker", e)
                 _state.value = TrendState.Error(e.message ?: "오류 발생")
+            }
+        }
+    }
+
+    private fun loadQuickChartAnalysisSetting() {
+        viewModelScope.launch {
+            try {
+                val enabled = etfDao.getSetting(QUICK_CHART_ANALYSIS_KEY) == "true"
+                _quickChartAnalysisEnabled.value = enabled
+            } catch (e: Exception) {
+                logger.e("Error loading quick chart analysis setting", e)
             }
         }
     }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,9 +39,11 @@ fun StockTrendScreen(
     etfTicker: String,
     stockTicker: String,
     onNavigateBack: () -> Unit,
+    onNavigateToOscillator: ((String) -> Unit)? = null,
     viewModel: StockTrendViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
 
     Scaffold(
         topBar = {
@@ -69,6 +72,17 @@ fun StockTrendScreen(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             )
+        },
+        floatingActionButton = {
+            if (quickChartAnalysisEnabled && onNavigateToOscillator != null) {
+                ExtendedFloatingActionButton(
+                    onClick = { onNavigateToOscillator(viewModel.stockTicker) },
+                    icon = { Icon(Icons.Default.ShowChart, contentDescription = null) },
+                    text = { Text(stringResource(R.string.go_to_oscillator_analysis)) },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
         }
     ) { padding ->
         when (val s = state) {
@@ -111,6 +125,7 @@ private fun TrendContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         SummaryCard(trend.timeSeries)
+
         StockTrendChartCard(
             title = stringResource(R.string.stock_trend_weight_chart),
             data = trend.timeSeries,

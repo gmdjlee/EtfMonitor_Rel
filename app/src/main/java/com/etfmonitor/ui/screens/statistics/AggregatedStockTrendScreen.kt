@@ -5,11 +5,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color as ComposeColor
@@ -17,6 +19,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.etfmonitor.R
 import com.etfmonitor.database.entities.StockAggregatedTimePoint
 import com.etfmonitor.database.entities.StockAggregatedTrend
 import com.etfmonitor.repository.DataRepository
@@ -49,7 +52,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun AggregatedStockTrendScreen(
     stockTicker: String,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToOscillator: ((String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val factory = EntryPointAccessors.fromApplication(
@@ -64,6 +68,7 @@ fun AggregatedStockTrendScreen(
         )
     )
     val state by viewModel.state.collectAsState()
+    val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
 
     Scaffold(
         topBar = {
@@ -92,6 +97,17 @@ fun AggregatedStockTrendScreen(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             )
+        },
+        floatingActionButton = {
+            if (quickChartAnalysisEnabled && onNavigateToOscillator != null) {
+                ExtendedFloatingActionButton(
+                    onClick = { onNavigateToOscillator(viewModel.stockTicker) },
+                    icon = { Icon(Icons.Default.ShowChart, contentDescription = null) },
+                    text = { Text(stringResource(R.string.go_to_oscillator_analysis)) },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
         }
     ) { padding ->
         when (val s = state) {
@@ -134,6 +150,7 @@ private fun AggregatedTrendContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         AggregatedSummaryCard(trend.timeSeries)
+
         AggregatedChartCard(
             title = "총 평가금액 추이 (억원)",
             data = trend.timeSeries,
@@ -365,8 +382,10 @@ private fun AggregatedDataTable(timeSeries: List<StockAggregatedTimePoint>) {
  * - EtfMonitorApp.instance 제거: 메모리 누수 위험 제거
  */
 class AggregatedStockTrendViewModel @AssistedInject constructor(
-    @Assisted private val stockTicker: String,
-    private val repository: DataRepository
+    @Assisted val stockTicker: String,
+    private val repository: DataRepository,
+    private val etfDao: com.etfmonitor.database.EtfDao,
+    val pyClient: com.etfmonitor.oscillator.python.OscillatorPyClient
 ) : ViewModel() {
 
     @AssistedFactory
@@ -374,11 +393,29 @@ class AggregatedStockTrendViewModel @AssistedInject constructor(
         fun create(stockTicker: String): AggregatedStockTrendViewModel
     }
 
+    companion object {
+        private const val QUICK_CHART_ANALYSIS_KEY = "quick_chart_analysis_enabled"
+
+        fun provideFactory(
+            assistedFactory: Factory,
+            stockTicker: String
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return assistedFactory.create(stockTicker) as T
+            }
+        }
+    }
+
     private val _state = MutableStateFlow<AggregatedTrendState>(AggregatedTrendState.Loading)
     val state: StateFlow<AggregatedTrendState> = _state.asStateFlow()
 
+    private val _quickChartAnalysisEnabled = MutableStateFlow(false)
+    val quickChartAnalysisEnabled: StateFlow<Boolean> = _quickChartAnalysisEnabled.asStateFlow()
+
     init {
         loadTrend()
+        loadQuickChartAnalysisSetting()
     }
 
     private fun loadTrend() {
@@ -396,14 +433,13 @@ class AggregatedStockTrendViewModel @AssistedInject constructor(
         }
     }
 
-    companion object {
-        fun provideFactory(
-            assistedFactory: Factory,
-            stockTicker: String
-        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return assistedFactory.create(stockTicker) as T
+    private fun loadQuickChartAnalysisSetting() {
+        viewModelScope.launch {
+            try {
+                val enabled = etfDao.getSetting(QUICK_CHART_ANALYSIS_KEY) == "true"
+                _quickChartAnalysisEnabled.value = enabled
+            } catch (e: Exception) {
+                // Ignore error, keep default value
             }
         }
     }

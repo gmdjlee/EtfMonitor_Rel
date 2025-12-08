@@ -38,7 +38,13 @@ sealed class Screen(val route: String) {
         fun createRoute(stockTicker: String) = "aggregated_trend/$stockTicker"
     }
     // ✅ 수급 오실레이터 (차트 분석)
-    object Oscillator : Screen("oscillator")
+    object Oscillator : Screen("oscillator?ticker={ticker}") {
+        fun createRoute(ticker: String? = null) = if (ticker != null) {
+            "oscillator?ticker=$ticker"
+        } else {
+            "oscillator"
+        }
+    }
     // ✅ 증시 자금 동향
     object MarketDeposit : Screen("market_deposit")
     // ✅ Fear & Greed Index
@@ -66,7 +72,7 @@ fun Navigation() {
                 onNavigateToList = { navController.navigate(Screen.List.route) },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                 onNavigateToStatistics = { navController.navigate(Screen.Statistics.route) },
-                onNavigateToOscillator = { navController.navigate(Screen.Oscillator.route) },
+                onNavigateToOscillator = { navController.navigate(Screen.Oscillator.createRoute()) },
                 onNavigateToMarketDeposit = { navController.navigate(Screen.MarketDeposit.route) },
                 onNavigateToFearGreed = { navController.navigate(Screen.FearGreed.route) },
                 onNavigateToMarketOscillator = { navController.navigate(Screen.MarketOscillator.route) },
@@ -117,7 +123,10 @@ fun Navigation() {
             StockTrendScreen(
                 etfTicker = etfTicker,
                 stockTicker = stockTicker,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToOscillator = { ticker ->
+                    navController.navigate(Screen.Oscillator.createRoute(ticker))
+                }
             )
         }
 
@@ -140,14 +149,28 @@ fun Navigation() {
             val stockTicker = backStackEntry.arguments?.getString("stockTicker") ?: ""
             AggregatedStockTrendScreen(
                 stockTicker = stockTicker,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToOscillator = { ticker ->
+                    navController.navigate(Screen.Oscillator.createRoute(ticker))
+                }
             )
         }
 
         // ✅ 수급 오실레이터 화면 (차트 분석)
-        composable(Screen.Oscillator.route) {
+        composable(
+            route = Screen.Oscillator.route,
+            arguments = listOf(
+                navArgument("ticker") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val ticker = backStackEntry.arguments?.getString("ticker")
             OscillatorScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                initialTicker = ticker
             )
         }
 

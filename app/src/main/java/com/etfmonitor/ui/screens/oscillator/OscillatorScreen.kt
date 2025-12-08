@@ -48,6 +48,7 @@ import com.etfmonitor.ui.theme.*
 @Composable
 fun OscillatorScreen(
     onNavigateBack: () -> Unit,
+    initialTicker: String? = null,
     viewModel: OscillatorViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -55,6 +56,13 @@ fun OscillatorScreen(
     val suggestions by viewModel.suggestions.collectAsState()
     val searchHistory by viewModel.searchHistory.collectAsState()
     val demarkTDInterval by viewModel.demarkTDInterval.collectAsState()
+
+    // Auto-analyze if initialTicker is provided
+    LaunchedEffect(initialTicker) {
+        if (initialTicker != null && state is OscillatorState.Idle) {
+            viewModel.analyzeStock(initialTicker)
+        }
+    }
 
     Scaffold(
         topBar = {
