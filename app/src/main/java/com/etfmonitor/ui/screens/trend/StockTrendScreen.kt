@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,7 +18,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
 import com.etfmonitor.ui.components.ChartCard
-import com.etfmonitor.ui.components.QuickChartAnalysisSection
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
@@ -72,6 +72,17 @@ fun StockTrendScreen(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             )
+        },
+        floatingActionButton = {
+            if (quickChartAnalysisEnabled && onNavigateToOscillator != null) {
+                ExtendedFloatingActionButton(
+                    onClick = { onNavigateToOscillator(viewModel.stockTicker) },
+                    icon = { Icon(Icons.Default.ShowChart, contentDescription = null) },
+                    text = { Text(stringResource(R.string.go_to_oscillator_analysis)) },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
         }
     ) { padding ->
         when (val s = state) {
@@ -86,10 +97,6 @@ fun StockTrendScreen(
             is TrendState.Success -> {
                 TrendContent(
                     trend = s.trend,
-                    stockTicker = viewModel.stockTicker,
-                    pyClient = viewModel.pyClient,
-                    quickChartAnalysisEnabled = quickChartAnalysisEnabled,
-                    onNavigateToOscillator = onNavigateToOscillator,
                     modifier = Modifier.padding(padding)
                 )
             }
@@ -108,10 +115,6 @@ fun StockTrendScreen(
 @Composable
 private fun TrendContent(
     trend: com.etfmonitor.repository.StockTrend,
-    stockTicker: String,
-    pyClient: com.etfmonitor.oscillator.python.OscillatorPyClient,
-    quickChartAnalysisEnabled: Boolean,
-    onNavigateToOscillator: ((String) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -122,15 +125,6 @@ private fun TrendContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         SummaryCard(trend.timeSeries)
-
-        // Quick Chart Analysis Section (if enabled)
-        if (quickChartAnalysisEnabled) {
-            QuickChartAnalysisSection(
-                stockTicker = stockTicker,
-                pyClient = pyClient,
-                onNavigateToOscillator = onNavigateToOscillator
-            )
-        }
 
         StockTrendChartCard(
             title = stringResource(R.string.stock_trend_weight_chart),

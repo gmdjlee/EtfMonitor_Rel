@@ -5,11 +5,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color as ComposeColor
@@ -17,12 +19,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.etfmonitor.R
 import com.etfmonitor.database.entities.StockAggregatedTimePoint
 import com.etfmonitor.database.entities.StockAggregatedTrend
 import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.ui.utils.AmountFormatter
 import com.etfmonitor.ui.components.ChartCard
-import com.etfmonitor.ui.components.QuickChartAnalysisSection
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -95,6 +97,17 @@ fun AggregatedStockTrendScreen(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             )
+        },
+        floatingActionButton = {
+            if (quickChartAnalysisEnabled && onNavigateToOscillator != null) {
+                ExtendedFloatingActionButton(
+                    onClick = { onNavigateToOscillator(viewModel.stockTicker) },
+                    icon = { Icon(Icons.Default.ShowChart, contentDescription = null) },
+                    text = { Text(stringResource(R.string.go_to_oscillator_analysis)) },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
         }
     ) { padding ->
         when (val s = state) {
@@ -109,10 +122,6 @@ fun AggregatedStockTrendScreen(
             is AggregatedTrendState.Success -> {
                 AggregatedTrendContent(
                     trend = s.trend,
-                    stockTicker = viewModel.stockTicker,
-                    pyClient = viewModel.pyClient,
-                    quickChartAnalysisEnabled = quickChartAnalysisEnabled,
-                    onNavigateToOscillator = onNavigateToOscillator,
                     modifier = Modifier.padding(padding)
                 )
             }
@@ -131,10 +140,6 @@ fun AggregatedStockTrendScreen(
 @Composable
 private fun AggregatedTrendContent(
     trend: StockAggregatedTrend,
-    stockTicker: String,
-    pyClient: com.etfmonitor.oscillator.python.OscillatorPyClient,
-    quickChartAnalysisEnabled: Boolean,
-    onNavigateToOscillator: ((String) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -145,15 +150,6 @@ private fun AggregatedTrendContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         AggregatedSummaryCard(trend.timeSeries)
-
-        // Quick Chart Analysis Section (if enabled)
-        if (quickChartAnalysisEnabled) {
-            QuickChartAnalysisSection(
-                stockTicker = stockTicker,
-                pyClient = pyClient,
-                onNavigateToOscillator = onNavigateToOscillator
-            )
-        }
 
         AggregatedChartCard(
             title = "총 평가금액 추이 (억원)",
