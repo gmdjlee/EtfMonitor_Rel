@@ -93,9 +93,6 @@ class HomeViewModel @Inject constructor(
     private val _showUnifiedInitDialog = MutableStateFlow(false)
     val showUnifiedInitDialog: StateFlow<Boolean> = _showUnifiedInitDialog.asStateFlow()
 
-    private val _etfInitializationCompleted = MutableStateFlow(false)
-    val etfInitializationCompleted: StateFlow<Boolean> = _etfInitializationCompleted.asStateFlow()
-
     init {
         checkData()
         observeCollectionState()  // ✅ 전역 상태 구독
@@ -262,7 +259,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    // ✅ 전역 수집 상태 관찰 (DataCollectionService - ETF 데이터만 처리)
+    // ✅ 전역 수집 상태 관찰 (DataCollectionService가 모든 초기화 처리)
     private fun observeCollectionState() {
         viewModelScope.launch {
             combine(
@@ -285,20 +282,8 @@ class HomeViewModel @Inject constructor(
                     val wasUpdating = _state.value is HomeState.Updating
 
                     if (wasInitializing || wasUpdating) {
-                        // ETF 초기화가 완료된 경우 나머지 통합 초기화 진행
-                        if (wasInitializing && _etfInitializationCompleted.value) {
-                            _etfInitializationCompleted.value = false  // 리셋
-                            // 대기 중인 초기화가 있으면 계속 진행
-                            if (_pendingDepositPages.value != null ||
-                                _pendingFearGreedDays.value != null ||
-                                _pendingOscillatorDays.value != null) {
-                                continueUnifiedInitialization()
-                            } else {
-                                checkData()
-                            }
-                        } else {
-                            checkData()
-                        }
+                        // Service에서 모든 초기화를 처리하므로 여기서는 데이터 상태만 확인
+                        checkData()
                     }
                 }
             }
@@ -371,7 +356,7 @@ class HomeViewModel @Inject constructor(
     fun initialize(days: Int? = null) {
         viewModelScope.launch {
             val daysToUse = days ?: repository.getDefaultDays()
-            _etfInitializationCompleted.value = true  // ETF 초기화 시작 표시
+            // DataCollectionService가 WakeLock을 사용하여 백그라운드에서도 안전하게 동작
             DataCollectionService.startInitialize(context, daysToUse)
         }
     }
@@ -388,6 +373,10 @@ class HomeViewModel @Inject constructor(
 
     /**
      * 통합 초기화 - 모든 데이터 타입을 한 번에 초기화
+     *
+     * 이 함수는 DataCollectionService.startInitializeAll()을 호출하여
+     * 모든 초기화 작업을 Foreground Service에서 처리합니다.
+     * 화면이 꺼지거나 앱이 백그라운드로 가도 안전하게 동작합니다.
      */
     fun initializeAll(
         etfDays: Int,
@@ -404,100 +393,16 @@ class HomeViewModel @Inject constructor(
 
             _showUnifiedInitDialog.value = false
 
-            // 1. ETF 데이터 초기화
-            _state.value = HomeState.Initializing("ETF 데이터 수집 시작...", 0)
-            DataCollectionService.startInitialize(context, etfDays)
-
-            // ETF 완료 후 나머지 초기화를 진행하기 위해 플래그 설정
-            // (observeCollectionState에서 ETF 완료 감지 후 나머지 초기화 실행)
-            _pendingDepositPages.value = depositPages
-            _pendingFearGreedDays.value = fearGreedDays
-            _pendingOscillatorDays.value = oscillatorDays
-            _etfInitializationCompleted.value = true
-        }
-    }
-
-    // 통합 초기화에서 ETF 완료 후 실행할 대기중인 초기화 파라미터
-    private val _pendingDepositPages = MutableStateFlow<Int?>(null)
-    val pendingDepositPages: StateFlow<Int?> = _pendingDepositPages.asStateFlow()
-
-    private val _pendingFearGreedDays = MutableStateFlow<Int?>(null)
-    val pendingFearGreedDays: StateFlow<Int?> = _pendingFearGreedDays.asStateFlow()
-
-    private val _pendingOscillatorDays = MutableStateFlow<Int?>(null)
-    val pendingOscillatorDays: StateFlow<Int?> = _pendingOscillatorDays.asStateFlow()
-
-    /**
-     * ETF 초기화 완료 후 나머지 데이터 초기화 실행
-     */
-    private fun continueUnifiedInitialization() {
-        viewModelScope.launch {
-            val depositPages = _pendingDepositPages.value
-            val fearGreedDays = _pendingFearGreedDays.value
-            val oscillatorDays = _pendingOscillatorDays.value
-
-            // 대기 값 초기화
-            _pendingDepositPages.value = null
-            _pendingFearGreedDays.value = null
-            _pendingOscillatorDays.value = null
-
-            var totalSteps = 0
-            var currentStep = 0
-            if (depositPages != null) totalSteps++
-            if (fearGreedDays != null) totalSteps++
-            if (oscillatorDays != null) totalSteps++
-
-            if (totalSteps == 0) {
-                checkData()
-                return@launch
-            }
-
-            // 2. 증시 자금 동향 초기화
-            if (depositPages != null) {
-                currentStep++
-                _state.value = HomeState.Initializing("증시 자금 동향 수집 중... ($currentStep/$totalSteps)", 0)
-                val result = marketDepositRepository.initializeDeposits(depositPages) { message, progress ->
-                    _state.value = HomeState.Initializing(message, progress)
-                }
-                if (result.isFailure) {
-                    android.util.Log.e("HomeViewModel", "Market deposit init failed: ${result.exceptionOrNull()?.message}")
-                }
-            }
-
-            // 3. Fear & Greed 초기화
-            if (fearGreedDays != null) {
-                currentStep++
-                _state.value = HomeState.Initializing("Fear & Greed Index 수집 중... ($currentStep/$totalSteps)", 0)
-                val result = fearGreedRepository.initializeFearGreed(fearGreedDays) { message, progress ->
-                    _state.value = HomeState.Initializing(message, progress)
-                }
-                if (result.isFailure) {
-                    android.util.Log.e("HomeViewModel", "Fear & Greed init failed: ${result.exceptionOrNull()?.message}")
-                }
-            }
-
-            // 4. 과매수/과매도 초기화
-            if (oscillatorDays != null) {
-                currentStep++
-                _state.value = HomeState.Initializing("과매수/과매도 지표 수집 중... ($currentStep/$totalSteps)", 0)
-
-                val kospiResult = marketOscillatorRepository.initializeMarketData("KOSPI", oscillatorDays) { message, progress ->
-                    _state.value = HomeState.Initializing("KOSPI $message", progress / 2)
-                }
-                val kosdaqResult = marketOscillatorRepository.initializeMarketData("KOSDAQ", oscillatorDays) { message, progress ->
-                    _state.value = HomeState.Initializing("KOSDAQ $message", 50 + progress / 2)
-                }
-
-                if (kospiResult.isFailure) {
-                    android.util.Log.e("HomeViewModel", "KOSPI oscillator init failed: ${kospiResult.exceptionOrNull()?.message}")
-                }
-                if (kosdaqResult.isFailure) {
-                    android.util.Log.e("HomeViewModel", "KOSDAQ oscillator init failed: ${kosdaqResult.exceptionOrNull()?.message}")
-                }
-            }
-
-            _state.value = HomeState.Success("모든 데이터 초기화 완료")
-            checkData()
+            // 모든 초기화를 Foreground Service에서 처리 (WakeLock 포함)
+            // 화면이 꺼지거나 앱이 백그라운드로 가도 안전하게 동작
+            _state.value = HomeState.Initializing("데이터 수집 시작...", 0)
+            DataCollectionService.startInitializeAll(
+                context = context,
+                etfDays = etfDays,
+                depositPages = depositPages,
+                fearGreedDays = fearGreedDays,
+                oscillatorDays = oscillatorDays
+            )
         }
     }
 
