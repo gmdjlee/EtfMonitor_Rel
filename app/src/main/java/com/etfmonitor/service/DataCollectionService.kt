@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.etfmonitor.utils.AppLogger
 import com.etfmonitor.MainActivity
@@ -15,6 +16,7 @@ import com.etfmonitor.R
 import com.etfmonitor.repository.DataProgress
 import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.repository.FearGreedRepository
+import com.etfmonitor.repository.MarketDepositRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,26 +48,71 @@ class DataCollectionService : Service() {
     @Inject
     lateinit var marketIndexRepository: com.etfmonitor.repository.MarketIndexRepository
 
+    @Inject
+    lateinit var marketDepositRepository: MarketDepositRepository
+
     private val serviceScope = CoroutineScope(Dispatchers.Default + Job())
     private val notificationManager by lazy {
         getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     }
+
+    // WakeLock to keep CPU awake during background data sync
+    private var wakeLock: PowerManager.WakeLock? = null
+    private val powerManager by lazy {
+        getSystemService(Context.POWER_SERVICE) as PowerManager
+    }
+
+    // Unified initialization parameters (stored from intent extras)
+    private var pendingDepositPages: Int? = null
+    private var pendingFearGreedDays: Int? = null
+    private var pendingOscillatorDays: Int? = null
 
     companion object {
         private val logger = AppLogger.getLogger("DataCollectSvc")
         private const val NOTIFICATION_ID = 1001
         private const val CHANNEL_ID = "data_collection_channel"
         private const val CHANNEL_NAME = "데이터 수집"
+        private const val WAKELOCK_TAG = "EtfMonitor:DataCollectionWakeLock"
+        private const val WAKELOCK_TIMEOUT_MS = 30 * 60 * 1000L  // 30 minutes max
 
         const val ACTION_INITIALIZE = "action_initialize"
+        const val ACTION_INITIALIZE_ALL = "action_initialize_all"
         const val ACTION_UPDATE = "action_update"
         const val ACTION_STOP = "action_stop"
         const val EXTRA_DAYS = "extra_days"
+        const val EXTRA_DEPOSIT_PAGES = "extra_deposit_pages"
+        const val EXTRA_FEAR_GREED_DAYS = "extra_fear_greed_days"
+        const val EXTRA_OSCILLATOR_DAYS = "extra_oscillator_days"
 
         fun startInitialize(context: Context, days: Int) {
             val intent = Intent(context, DataCollectionService::class.java).apply {
                 action = ACTION_INITIALIZE
                 putExtra(EXTRA_DAYS, days)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+
+        /**
+         * Unified initialization - handles all data types in background
+         * This method is safe for screen-off and app background scenarios
+         */
+        fun startInitializeAll(
+            context: Context,
+            etfDays: Int,
+            depositPages: Int?,
+            fearGreedDays: Int?,
+            oscillatorDays: Int?
+        ) {
+            val intent = Intent(context, DataCollectionService::class.java).apply {
+                action = ACTION_INITIALIZE_ALL
+                putExtra(EXTRA_DAYS, etfDays)
+                depositPages?.let { putExtra(EXTRA_DEPOSIT_PAGES, it) }
+                fearGreedDays?.let { putExtra(EXTRA_FEAR_GREED_DAYS, it) }
+                oscillatorDays?.let { putExtra(EXTRA_OSCILLATOR_DAYS, it) }
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -105,22 +152,64 @@ class DataCollectionService : Service() {
         when (intent?.action) {
             ACTION_INITIALIZE -> {
                 val days = intent.getIntExtra(EXTRA_DAYS, 25)
-                CollectionState.startCollection(isInitialize = true)  // ✅ 전역 상태 업데이트
+                acquireWakeLock()
+                CollectionState.startCollection(isInitialize = true)
                 startForeground(NOTIFICATION_ID, createNotification("초기화 준비 중...", 0))
                 startInitialization(days)
             }
+            ACTION_INITIALIZE_ALL -> {
+                val etfDays = intent.getIntExtra(EXTRA_DAYS, 25)
+                pendingDepositPages = if (intent.hasExtra(EXTRA_DEPOSIT_PAGES)) {
+                    intent.getIntExtra(EXTRA_DEPOSIT_PAGES, 5)
+                } else null
+                pendingFearGreedDays = if (intent.hasExtra(EXTRA_FEAR_GREED_DAYS)) {
+                    intent.getIntExtra(EXTRA_FEAR_GREED_DAYS, 90)
+                } else null
+                pendingOscillatorDays = if (intent.hasExtra(EXTRA_OSCILLATOR_DAYS)) {
+                    intent.getIntExtra(EXTRA_OSCILLATOR_DAYS, 365)
+                } else null
+                acquireWakeLock()
+                CollectionState.startCollection(isInitialize = true)
+                startForeground(NOTIFICATION_ID, createNotification("통합 초기화 준비 중...", 0))
+                startUnifiedInitialization(etfDays)
+            }
             ACTION_UPDATE -> {
-                CollectionState.startCollection(isInitialize = false)  // ✅ 전역 상태 업데이트
+                acquireWakeLock()
+                CollectionState.startCollection(isInitialize = false)
                 startForeground(NOTIFICATION_ID, createNotification("업데이트 준비 중...", 0))
                 startUpdate()
             }
             ACTION_STOP -> {
-                CollectionState.reset()  // ✅ 전역 상태 리셋
+                CollectionState.reset()
+                releaseWakeLock()
                 stopSelf()
             }
         }
 
         return START_NOT_STICKY
+    }
+
+    private fun acquireWakeLock() {
+        if (wakeLock == null) {
+            wakeLock = powerManager.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                WAKELOCK_TAG
+            ).apply {
+                setReferenceCounted(false)
+                acquire(WAKELOCK_TIMEOUT_MS)
+            }
+            logger.d("WakeLock acquired")
+        }
+    }
+
+    private fun releaseWakeLock() {
+        wakeLock?.let {
+            if (it.isHeld) {
+                it.release()
+                logger.d("WakeLock released")
+            }
+        }
+        wakeLock = null
     }
 
     private fun startInitialization(days: Int) {
@@ -183,9 +272,190 @@ class DataCollectionService : Service() {
                 CollectionState.error(errorMsg)
                 updateNotification(errorMsg, 0, isError = true)
             } finally {
+                releaseWakeLock()
                 stopSelf()
             }
         }
+    }
+
+    /**
+     * Unified initialization - runs all data collection in sequence within the service
+     * This is safe for screen-off and app background scenarios
+     */
+    private fun startUnifiedInitialization(etfDays: Int) {
+        serviceScope.launch {
+            logger.d("Starting unified initialization - ETF: $etfDays days, " +
+                     "Deposit: $pendingDepositPages pages, " +
+                     "FearGreed: $pendingFearGreedDays days, " +
+                     "Oscillator: $pendingOscillatorDays days")
+
+            // Step 1: ETF 데이터 초기화
+            repository.initializeData(etfDays)
+                .catch { e ->
+                    logger.e("Error in ETF initialization", e)
+                    val errorMsg = "ETF 초기화 실패: ${e.message}"
+                    CollectionState.error(errorMsg)
+                    updateNotification(errorMsg, 0, isError = true)
+                    releaseWakeLock()
+                    stopSelf()
+                }
+                .collect { progress ->
+                    when (progress) {
+                        is DataProgress.Loading -> {
+                            CollectionState.updateProgress(progress.message, (progress.progress * 0.3).toInt())
+                            updateNotification(progress.message, (progress.progress * 0.3).toInt())
+                        }
+                        is DataProgress.Success -> {
+                            logger.d("ETF initialization completed: ${progress.message}")
+                            // Continue to Market Index
+                            initializeMarketIndexForUnified(etfDays)
+                        }
+                        is DataProgress.Error -> {
+                            CollectionState.error(progress.message)
+                            updateNotification(progress.message, 0, isError = true)
+                            releaseWakeLock()
+                            stopSelf()
+                        }
+                    }
+                }
+        }
+    }
+
+    private fun initializeMarketIndexForUnified(days: Int) {
+        serviceScope.launch {
+            try {
+                logger.d("Starting Market Index initialization (unified)")
+                CollectionState.updateProgress("시장 지수 데이터 수집 중...", 35)
+                updateNotification("시장 지수 데이터 수집 중...", 35)
+
+                val result = marketIndexRepository.initializeMarketIndex(days)
+
+                if (result.isSuccess) {
+                    val count = result.getOrNull() ?: 0
+                    logger.d("Market Index initialization completed: $count records")
+                    // Continue to next step
+                    continueWithDeposit()
+                } else {
+                    val errorMsg = "시장 지수 초기화 실패: ${result.exceptionOrNull()?.message}"
+                    logger.e(errorMsg)
+                    // Log error but continue with next step
+                    continueWithDeposit()
+                }
+            } catch (e: Exception) {
+                logger.e("Error in Market Index initialization", e)
+                // Log error but continue with next step
+                continueWithDeposit()
+            }
+        }
+    }
+
+    private fun continueWithDeposit() {
+        serviceScope.launch {
+            val depositPages = pendingDepositPages
+            if (depositPages != null) {
+                try {
+                    logger.d("Starting Market Deposit initialization: $depositPages pages")
+                    CollectionState.updateProgress("증시 자금 동향 수집 중...", 45)
+                    updateNotification("증시 자금 동향 수집 중...", 45)
+
+                    val result = marketDepositRepository.initializeDeposits(depositPages) { message, progress ->
+                        val adjustedProgress = 45 + (progress * 0.1).toInt()
+                        CollectionState.updateProgress(message, adjustedProgress)
+                        updateNotification(message, adjustedProgress)
+                    }
+
+                    if (result.isSuccess) {
+                        logger.d("Market Deposit initialization completed: ${result.getOrNull()} records")
+                    } else {
+                        logger.e("Market Deposit initialization failed: ${result.exceptionOrNull()?.message}")
+                    }
+                } catch (e: Exception) {
+                    logger.e("Error in Market Deposit initialization", e)
+                }
+            }
+            // Continue to Fear & Greed
+            continueWithFearGreed()
+        }
+    }
+
+    private fun continueWithFearGreed() {
+        serviceScope.launch {
+            val fearGreedDays = pendingFearGreedDays
+            if (fearGreedDays != null) {
+                try {
+                    logger.d("Starting Fear & Greed initialization: $fearGreedDays days")
+                    CollectionState.updateProgress("Fear & Greed Index 수집 중...", 60)
+                    updateNotification("Fear & Greed Index 수집 중...", 60)
+
+                    val result = fearGreedRepository.initializeFearGreed(fearGreedDays) { message, progress ->
+                        val adjustedProgress = 60 + (progress * 0.2).toInt()
+                        CollectionState.updateProgress(message, adjustedProgress)
+                        updateNotification(message, adjustedProgress)
+                    }
+
+                    if (result.isSuccess) {
+                        logger.d("Fear & Greed initialization completed: ${result.getOrNull()} records")
+                    } else {
+                        logger.e("Fear & Greed initialization failed: ${result.exceptionOrNull()?.message}")
+                    }
+                } catch (e: Exception) {
+                    logger.e("Error in Fear & Greed initialization", e)
+                }
+            }
+            // Continue to Market Oscillator
+            continueWithOscillator()
+        }
+    }
+
+    private fun continueWithOscillator() {
+        serviceScope.launch {
+            val oscillatorDays = pendingOscillatorDays
+            if (oscillatorDays != null) {
+                try {
+                    logger.d("Starting Market Oscillator initialization: $oscillatorDays days")
+                    CollectionState.updateProgress("과매수/과매도 지표 수집 중...", 85)
+                    updateNotification("과매수/과매도 지표 수집 중...", 85)
+
+                    val kospiResult = marketOscillatorRepository.initializeMarketData("KOSPI", oscillatorDays) { message, progress ->
+                        val adjustedProgress = 85 + (progress * 0.075).toInt()
+                        CollectionState.updateProgress("KOSPI $message", adjustedProgress)
+                        updateNotification("KOSPI $message", adjustedProgress)
+                    }
+
+                    val kosdaqResult = marketOscillatorRepository.initializeMarketData("KOSDAQ", oscillatorDays) { message, progress ->
+                        val adjustedProgress = 92 + (progress * 0.075).toInt()
+                        CollectionState.updateProgress("KOSDAQ $message", adjustedProgress)
+                        updateNotification("KOSDAQ $message", adjustedProgress)
+                    }
+
+                    if (kospiResult.isSuccess && kosdaqResult.isSuccess) {
+                        val totalCount = (kospiResult.getOrNull() ?: 0) + (kosdaqResult.getOrNull() ?: 0)
+                        logger.d("Market Oscillator initialization completed: $totalCount records")
+                    } else {
+                        logger.e("Market Oscillator initialization failed")
+                    }
+                } catch (e: Exception) {
+                    logger.e("Error in Market Oscillator initialization", e)
+                }
+            }
+            // All done
+            finishUnifiedInitialization()
+        }
+    }
+
+    private fun finishUnifiedInitialization() {
+        val successMsg = "모든 데이터 초기화 완료"
+        logger.d(successMsg)
+        CollectionState.complete(successMsg)
+        updateNotification(successMsg, 100, isComplete = true)
+
+        // Clear pending values
+        pendingDepositPages = null
+        pendingFearGreedDays = null
+        pendingOscillatorDays = null
+
+        releaseWakeLock()
+        stopSelf()
     }
 
     private fun startUpdate() {
@@ -311,6 +581,7 @@ class DataCollectionService : Service() {
                 CollectionState.error(errorMsg)
                 updateNotification(errorMsg, 0, isError = true)
             } finally {
+                releaseWakeLock()
                 stopSelf()
             }
         }
@@ -374,6 +645,7 @@ class DataCollectionService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         logger.d("Service destroyed")
+        releaseWakeLock()
         serviceScope.cancel()
     }
 
