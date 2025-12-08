@@ -85,6 +85,11 @@ chaquopy {
             install("requests")
             install("beautifulsoup4")
             install("scikit-learn")
+
+            // Enhanced ML prediction packages (v2)
+            // Note: imbalanced-learn removed due to scipy version conflict with Chaquopy
+            // SMOTE functionality is optional and handled via try-except in Python
+            install("joblib")            // Model serialization
         }
     }
 }

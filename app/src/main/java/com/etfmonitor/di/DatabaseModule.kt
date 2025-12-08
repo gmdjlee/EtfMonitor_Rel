@@ -53,7 +53,8 @@ object DatabaseModule {
                 MIGRATION_10_11,
                 MIGRATION_11_12,
                 MIGRATION_12_13,
-                MIGRATION_13_14
+                MIGRATION_13_14,
+                MIGRATION_14_15
             )
             .build()
     }
@@ -216,5 +217,25 @@ object DatabaseModule {
     @Singleton
     fun provideLiquidityAnalysisDao(database: AppDatabase): LiquidityAnalysisDao {
         return database.liquidityAnalysisDao()
+    }
+
+    /**
+     * Price Cache DAO 제공
+     * ML 예측용 가격 캐시 데이터를 관리하는 DAO
+     */
+    @Provides
+    @Singleton
+    fun providePriceCacheDao(database: AppDatabase): PriceCacheDao {
+        return database.priceCacheDao()
+    }
+
+    /**
+     * Enhanced Prediction DAO 제공
+     * 28개 Feature 기반 향상된 예측 결과를 관리하는 DAO
+     */
+    @Provides
+    @Singleton
+    fun provideEnhancedPredictionDao(database: AppDatabase): EnhancedPredictionDao {
+        return database.enhancedPredictionDao()
     }
 }
