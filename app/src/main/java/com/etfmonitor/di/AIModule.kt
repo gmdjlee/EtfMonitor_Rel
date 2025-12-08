@@ -9,6 +9,7 @@ import com.etfmonitor.repository.AIAnalysisRepository
 import com.etfmonitor.repository.AIChatRepository
 import com.etfmonitor.repository.CorrelationAnalysisRepository
 import com.etfmonitor.repository.MarketIndexRepository
+import com.etfmonitor.repository.TimeSeriesAnalysisRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -176,6 +177,30 @@ object AIModule {
             chatDao,
             aiAnalysisDao,
             correlationAnalysisDao,
+            aiApiClientFactory
+        )
+    }
+
+    /**
+     * TimeSeriesAnalysisRepository
+     * 시계열 데이터 수집 및 분석 Repository
+     */
+    @Provides
+    @Singleton
+    fun provideTimeSeriesAnalysisRepository(
+        marketIndexDao: MarketIndexDao,
+        fearGreedDao: FearGreedDao,
+        marketOscillatorDao: MarketOscillatorDao,
+        marketDepositDao: MarketDepositDao,
+        dailyEtfStatisticsDao: DailyEtfStatisticsDao,
+        aiApiClientFactory: AIApiClientFactory
+    ): TimeSeriesAnalysisRepository {
+        return TimeSeriesAnalysisRepository(
+            marketIndexDao,
+            fearGreedDao,
+            marketOscillatorDao,
+            marketDepositDao,
+            dailyEtfStatisticsDao,
             aiApiClientFactory
         )
     }
