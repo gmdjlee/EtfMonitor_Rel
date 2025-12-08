@@ -72,7 +72,7 @@ fun Navigation() {
                 onNavigateToList = { navController.navigate(Screen.List.route) },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                 onNavigateToStatistics = { navController.navigate(Screen.Statistics.route) },
-                onNavigateToOscillator = { navController.navigate(Screen.Oscillator.route) },
+                onNavigateToOscillator = { navController.navigate(Screen.Oscillator.createRoute()) },
                 onNavigateToMarketDeposit = { navController.navigate(Screen.MarketDeposit.route) },
                 onNavigateToFearGreed = { navController.navigate(Screen.FearGreed.route) },
                 onNavigateToMarketOscillator = { navController.navigate(Screen.MarketOscillator.route) },
