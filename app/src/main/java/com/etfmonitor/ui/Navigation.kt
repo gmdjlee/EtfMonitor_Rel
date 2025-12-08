@@ -117,7 +117,8 @@ fun Navigation() {
             StockTrendScreen(
                 etfTicker = etfTicker,
                 stockTicker = stockTicker,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToOscillator = { navController.navigate(Screen.Oscillator.route) }
             )
         }
 
@@ -140,7 +141,8 @@ fun Navigation() {
             val stockTicker = backStackEntry.arguments?.getString("stockTicker") ?: ""
             AggregatedStockTrendScreen(
                 stockTicker = stockTicker,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToOscillator = { navController.navigate(Screen.Oscillator.route) }
             )
         }
 

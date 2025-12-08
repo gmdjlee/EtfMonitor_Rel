@@ -115,6 +115,7 @@ class SettingsViewModel @Inject constructor(
             const val FEAR_GREED_PERIOD = "fear_greed_period_days"
             const val OSCILLATOR_PERIOD = "market_oscillator_period_days"
             const val DARK_THEME = "dark_theme"
+            const val QUICK_CHART_ANALYSIS = "quick_chart_analysis_enabled"
 
             fun updateHour(type: String) = "${type}_update_hour"
             fun updateMinute(type: String) = "${type}_update_minute"
@@ -160,6 +161,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _isDarkTheme = MutableStateFlow<Boolean?>(null)
     val isDarkTheme: StateFlow<Boolean?> = _isDarkTheme.asStateFlow()
+
+    private val _quickChartAnalysisEnabled = MutableStateFlow(false)
+    val quickChartAnalysisEnabled: StateFlow<Boolean> = _quickChartAnalysisEnabled.asStateFlow()
 
     private val _fontScaleSettings = MutableStateFlow(FontScaleSettings())
     val fontScaleSettings: StateFlow<FontScaleSettings> = _fontScaleSettings.asStateFlow()
@@ -292,6 +296,8 @@ class SettingsViewModel @Inject constructor(
             "false" -> false
             else -> null
         }
+
+        _quickChartAnalysisEnabled.value = etfDao.getSetting(Keys.QUICK_CHART_ANALYSIS) == "true"
 
         _fontScaleSettings.value = FontScaleSettings(
             displayScale = etfDao.getSetting(Keys.fontScale("display"))?.toFloatOrNull() ?: 1.0f,
@@ -622,6 +628,14 @@ class SettingsViewModel @Inject constructor(
         etfDao.saveSetting(Setting(Keys.DARK_THEME, value))
         _isDarkTheme.value = isDark
         themeManager.setDarkTheme(isDark)
+    }
+
+    fun setQuickChartAnalysisEnabled(enabled: Boolean) = saveSetting(
+        if (enabled) "종목 추이 화면에서 차트 분석을 표시합니다"
+        else "종목 추이 화면에서 차트 분석을 숨깁니다"
+    ) {
+        etfDao.saveSetting(Setting(Keys.QUICK_CHART_ANALYSIS, enabled.toString()))
+        _quickChartAnalysisEnabled.value = enabled
     }
 
     fun setDisplayScale(scale: Float) = setFontScale("display", scale, "Display") { _fontScaleSettings.value.copy(displayScale = scale) }

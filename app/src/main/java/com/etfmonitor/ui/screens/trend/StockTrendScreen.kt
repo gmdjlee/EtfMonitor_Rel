@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
 import com.etfmonitor.ui.components.ChartCard
+import com.etfmonitor.ui.components.QuickChartAnalysisSection
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
@@ -38,9 +39,11 @@ fun StockTrendScreen(
     etfTicker: String,
     stockTicker: String,
     onNavigateBack: () -> Unit,
+    onNavigateToOscillator: ((String) -> Unit)? = null,
     viewModel: StockTrendViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
 
     Scaffold(
         topBar = {
@@ -83,6 +86,10 @@ fun StockTrendScreen(
             is TrendState.Success -> {
                 TrendContent(
                     trend = s.trend,
+                    stockTicker = viewModel.stockTicker,
+                    pyClient = viewModel.pyClient,
+                    quickChartAnalysisEnabled = quickChartAnalysisEnabled,
+                    onNavigateToOscillator = onNavigateToOscillator,
                     modifier = Modifier.padding(padding)
                 )
             }
@@ -101,6 +108,10 @@ fun StockTrendScreen(
 @Composable
 private fun TrendContent(
     trend: com.etfmonitor.repository.StockTrend,
+    stockTicker: String,
+    pyClient: com.etfmonitor.oscillator.python.OscillatorPyClient,
+    quickChartAnalysisEnabled: Boolean,
+    onNavigateToOscillator: ((String) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -111,6 +122,16 @@ private fun TrendContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         SummaryCard(trend.timeSeries)
+
+        // Quick Chart Analysis Section (if enabled)
+        if (quickChartAnalysisEnabled) {
+            QuickChartAnalysisSection(
+                stockTicker = stockTicker,
+                pyClient = pyClient,
+                onNavigateToOscillator = onNavigateToOscillator
+            )
+        }
+
         StockTrendChartCard(
             title = stringResource(R.string.stock_trend_weight_chart),
             data = trend.timeSeries,

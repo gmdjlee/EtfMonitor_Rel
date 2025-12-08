@@ -22,6 +22,7 @@ import com.etfmonitor.database.entities.StockAggregatedTrend
 import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.ui.utils.AmountFormatter
 import com.etfmonitor.ui.components.ChartCard
+import com.etfmonitor.ui.components.QuickChartAnalysisSection
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -49,7 +50,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun AggregatedStockTrendScreen(
     stockTicker: String,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToOscillator: ((String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val factory = EntryPointAccessors.fromApplication(
@@ -64,6 +66,7 @@ fun AggregatedStockTrendScreen(
         )
     )
     val state by viewModel.state.collectAsState()
+    val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
 
     Scaffold(
         topBar = {
@@ -106,6 +109,10 @@ fun AggregatedStockTrendScreen(
             is AggregatedTrendState.Success -> {
                 AggregatedTrendContent(
                     trend = s.trend,
+                    stockTicker = viewModel.stockTicker,
+                    pyClient = viewModel.pyClient,
+                    quickChartAnalysisEnabled = quickChartAnalysisEnabled,
+                    onNavigateToOscillator = onNavigateToOscillator,
                     modifier = Modifier.padding(padding)
                 )
             }
@@ -124,6 +131,10 @@ fun AggregatedStockTrendScreen(
 @Composable
 private fun AggregatedTrendContent(
     trend: StockAggregatedTrend,
+    stockTicker: String,
+    pyClient: com.etfmonitor.oscillator.python.OscillatorPyClient,
+    quickChartAnalysisEnabled: Boolean,
+    onNavigateToOscillator: ((String) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -134,6 +145,16 @@ private fun AggregatedTrendContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         AggregatedSummaryCard(trend.timeSeries)
+
+        // Quick Chart Analysis Section (if enabled)
+        if (quickChartAnalysisEnabled) {
+            QuickChartAnalysisSection(
+                stockTicker = stockTicker,
+                pyClient = pyClient,
+                onNavigateToOscillator = onNavigateToOscillator
+            )
+        }
+
         AggregatedChartCard(
             title = "총 평가금액 추이 (억원)",
             data = trend.timeSeries,
@@ -365,8 +386,10 @@ private fun AggregatedDataTable(timeSeries: List<StockAggregatedTimePoint>) {
  * - EtfMonitorApp.instance 제거: 메모리 누수 위험 제거
  */
 class AggregatedStockTrendViewModel @AssistedInject constructor(
-    @Assisted private val stockTicker: String,
-    private val repository: DataRepository
+    @Assisted val stockTicker: String,
+    private val repository: DataRepository,
+    private val etfDao: com.etfmonitor.database.EtfDao,
+    val pyClient: com.etfmonitor.oscillator.python.OscillatorPyClient
 ) : ViewModel() {
 
     @AssistedFactory
@@ -374,11 +397,29 @@ class AggregatedStockTrendViewModel @AssistedInject constructor(
         fun create(stockTicker: String): AggregatedStockTrendViewModel
     }
 
+    companion object {
+        private const val QUICK_CHART_ANALYSIS_KEY = "quick_chart_analysis_enabled"
+
+        fun provideFactory(
+            assistedFactory: Factory,
+            stockTicker: String
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return assistedFactory.create(stockTicker) as T
+            }
+        }
+    }
+
     private val _state = MutableStateFlow<AggregatedTrendState>(AggregatedTrendState.Loading)
     val state: StateFlow<AggregatedTrendState> = _state.asStateFlow()
 
+    private val _quickChartAnalysisEnabled = MutableStateFlow(false)
+    val quickChartAnalysisEnabled: StateFlow<Boolean> = _quickChartAnalysisEnabled.asStateFlow()
+
     init {
         loadTrend()
+        loadQuickChartAnalysisSetting()
     }
 
     private fun loadTrend() {
@@ -396,14 +437,13 @@ class AggregatedStockTrendViewModel @AssistedInject constructor(
         }
     }
 
-    companion object {
-        fun provideFactory(
-            assistedFactory: Factory,
-            stockTicker: String
-        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return assistedFactory.create(stockTicker) as T
+    private fun loadQuickChartAnalysisSetting() {
+        viewModelScope.launch {
+            try {
+                val enabled = etfDao.getSetting(QUICK_CHART_ANALYSIS_KEY) == "true"
+                _quickChartAnalysisEnabled.value = enabled
+            } catch (e: Exception) {
+                // Ignore error, keep default value
             }
         }
     }

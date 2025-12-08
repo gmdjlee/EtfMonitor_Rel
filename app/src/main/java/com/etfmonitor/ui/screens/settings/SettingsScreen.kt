@@ -54,6 +54,7 @@ fun SettingsScreen(
     // General settings
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
     val fontScaleSettings by viewModel.fontScaleSettings.collectAsState()
+    val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
 
     // Chart color settings
     val chartColorSettings by viewModel.chartColorSettings.collectAsState()
@@ -131,6 +132,7 @@ fun SettingsScreen(
                 0 -> GeneralTab(
                     isDarkTheme = isDarkTheme,
                     fontScaleSettings = fontScaleSettings,
+                    quickChartAnalysisEnabled = quickChartAnalysisEnabled,
                     viewModel = viewModel
                 )
                 1 -> KeywordTab(
@@ -166,6 +168,7 @@ fun SettingsScreen(
 private fun GeneralTab(
     isDarkTheme: Boolean?,
     fontScaleSettings: com.etfmonitor.ui.theme.FontScaleSettings,
+    quickChartAnalysisEnabled: Boolean,
     viewModel: SettingsViewModel
 ) {
     val selectedProvider by viewModel.selectedProvider.collectAsState()
@@ -190,6 +193,14 @@ private fun GeneralTab(
             ThemeSettingCard(
                 isDarkTheme = isDarkTheme,
                 onThemeChange = { viewModel.setDarkTheme(it) }
+            )
+        }
+
+        // 빠른 차트 분석 설정
+        item {
+            QuickChartAnalysisCard(
+                isEnabled = quickChartAnalysisEnabled,
+                onEnabledChange = { viewModel.setQuickChartAnalysisEnabled(it) }
             )
         }
 

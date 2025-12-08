@@ -267,6 +267,16 @@
     <string name="settings_theme_dark">다크 모드</string>
     <string name="settings_theme_dark_desc">어두운 테마를 사용합니다</string>
 
+    <!-- Settings - Quick Chart Analysis -->
+    <string name="settings_quick_chart_analysis_title">빠른 차트 분석</string>
+    <string name="settings_quick_chart_analysis_desc">종목 추이 화면에서 차트 분석 결과를 확인할 수 있습니다</string>
+    <string name="settings_quick_chart_analysis_enable">차트 분석 표시</string>
+    <string name="settings_quick_chart_analysis_enable_desc">ETF 테마목록, 전체 통계에서 종목 클릭 시 차트 분석 결과를 함께 표시합니다</string>
+    <string name="quick_chart_analysis_section_title">차트 분석</string>
+    <string name="quick_chart_analysis_loading">차트 분석 데이터 로딩 중…</string>
+    <string name="quick_chart_analysis_error">차트 분석 데이터를 가져올 수 없습니다</string>
+    <string name="quick_chart_analysis_view_detail">상세 분석 보기</string>
+
     <!-- Settings - AI API -->
     <string name="settings_ai_api_title">AI API 설정</string>
     <string name="settings_ai_api_desc">AI 시장 분석 기능을 사용하려면 API 키가 필요합니다</string>
