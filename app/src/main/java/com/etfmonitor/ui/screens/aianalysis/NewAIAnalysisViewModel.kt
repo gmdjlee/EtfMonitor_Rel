@@ -5,21 +5,16 @@ import androidx.lifecycle.viewModelScope
 import com.etfmonitor.ai.AIApiClientFactory
 import com.etfmonitor.ai.AIProvider
 import com.etfmonitor.ai.ApiKeyProvider
-import com.etfmonitor.analysis.AnalysisTargetType
-import com.etfmonitor.analysis.FullStockTimeSeriesResult
+import com.etfmonitor.analysis.FullStockIndicatorCorrelationResult
 import com.etfmonitor.analysis.SignalType
-import com.etfmonitor.analysis.StockTimeSeriesAnalysisResult
-import com.etfmonitor.analysis.TimeSeriesAnalysisResult
-import com.etfmonitor.analysis.TimeSeriesData
+import com.etfmonitor.analysis.StockIndicatorCorrelationResult
 import com.etfmonitor.database.entities.AIChatMessage
 import com.etfmonitor.database.entities.AIChatSession
 import com.etfmonitor.database.entities.AIAnalysisResult
 import com.etfmonitor.database.entities.CorrelationAnalysisResult
 import com.etfmonitor.repository.AIChatRepository
-import com.etfmonitor.repository.AITimeSeriesInterpretation
 import com.etfmonitor.repository.CorrelationAnalysisRepository
 import com.etfmonitor.repository.FullAnalysisResult
-import com.etfmonitor.repository.FullTimeSeriesAnalysisResult
 import com.etfmonitor.repository.TimeSeriesAnalysisRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -28,7 +23,7 @@ import javax.inject.Inject
 
 /**
  * 새로운 AI 분석 화면 ViewModel
- * 상관관계 분석 + AI 해석 + 시계열 분석 + 채팅 기능 통합
+ * 상관관계 분석 + AI 해석 + 종목-지표 상관관계 분석 + 채팅 기능 통합
  */
 @HiltViewModel
 class NewAIAnalysisViewModel @Inject constructor(
@@ -50,25 +45,17 @@ class NewAIAnalysisViewModel @Inject constructor(
     private val _analysisResult = MutableStateFlow<FullAnalysisResult?>(null)
     val analysisResult: StateFlow<FullAnalysisResult?> = _analysisResult.asStateFlow()
 
-    // 시계열 분석 결과
-    private val _timeSeriesResult = MutableStateFlow<FullTimeSeriesAnalysisResult?>(null)
-    val timeSeriesResult: StateFlow<FullTimeSeriesAnalysisResult?> = _timeSeriesResult.asStateFlow()
+    // 종목-지표 상관관계 분석 결과
+    private val _stockIndicatorCorrelationResult = MutableStateFlow<FullStockIndicatorCorrelationResult?>(null)
+    val stockIndicatorCorrelationResult: StateFlow<FullStockIndicatorCorrelationResult?> = _stockIndicatorCorrelationResult.asStateFlow()
 
     // 분석 기간 (일)
     private val _analysisPeriod = MutableStateFlow(30)
     val analysisPeriod: StateFlow<Int> = _analysisPeriod.asStateFlow()
 
-    // 분석 대상 타입 (지수 vs 종목)
-    private val _analysisTargetType = MutableStateFlow(AnalysisTargetType.INDEX)
-    val analysisTargetType: StateFlow<AnalysisTargetType> = _analysisTargetType.asStateFlow()
-
     // 선택된 종목
     private val _selectedStock = MutableStateFlow<Pair<String, String>?>(null)  // ticker, name
     val selectedStock: StateFlow<Pair<String, String>?> = _selectedStock.asStateFlow()
-
-    // 종목 시계열 분석 결과
-    private val _stockTimeSeriesResult = MutableStateFlow<FullStockTimeSeriesResult?>(null)
-    val stockTimeSeriesResult: StateFlow<FullStockTimeSeriesResult?> = _stockTimeSeriesResult.asStateFlow()
 
     // 종목 검색 결과
     private val _stockSearchResults = MutableStateFlow<List<Pair<String, String>>>(emptyList())
@@ -263,140 +250,13 @@ class NewAIAnalysisViewModel @Inject constructor(
         }
     }
 
-    // ========== 시계열 분석 ==========
+    // ========== 종목-지표 상관관계 분석 ==========
 
     /**
      * 분석 기간 설정
      */
     fun setAnalysisPeriod(days: Int) {
         _analysisPeriod.value = days.coerceIn(7, 365)
-    }
-
-    /**
-     * 시계열 데이터 수집 (로컬 분석만)
-     */
-    fun collectTimeSeriesData() {
-        viewModelScope.launch {
-            _state.value = NewAIAnalysisState.CollectingTimeSeries
-
-            val result = timeSeriesAnalysisRepository.collectTimeSeriesData(
-                market = _selectedMarket.value,
-                periodDays = _analysisPeriod.value
-            )
-
-            if (result.isSuccess) {
-                val data = result.getOrThrow()
-
-                // 로컬 분석 수행
-                val analysisResult = timeSeriesAnalysisRepository.analyzeTimeSeries(data)
-
-                if (analysisResult.isSuccess) {
-                    val analysis = analysisResult.getOrThrow()
-                    _timeSeriesResult.value = FullTimeSeriesAnalysisResult(
-                        analysisResult = analysis,
-                        aiInterpretation = null,
-                        errorMessage = null
-                    )
-                    _state.value = NewAIAnalysisState.TimeSeriesComplete(analysis)
-                } else {
-                    _state.value = NewAIAnalysisState.Error(
-                        analysisResult.exceptionOrNull()?.message ?: "시계열 분석 실패"
-                    )
-                }
-            } else {
-                _state.value = NewAIAnalysisState.Error(
-                    result.exceptionOrNull()?.message ?: "시계열 데이터 수집 실패"
-                )
-            }
-        }
-    }
-
-    /**
-     * 전체 시계열 분석 실행 (데이터 수집 + 로컬 분석 + AI 해석)
-     */
-    fun runFullTimeSeriesAnalysis() {
-        viewModelScope.launch {
-            if (!_isApiKeyConfigured.value) {
-                _state.value = NewAIAnalysisState.Error(
-                    "API 키가 설정되지 않았습니다. 설정에서 ${_selectedProvider.value.name} API 키를 등록해주세요."
-                )
-                return@launch
-            }
-
-            _state.value = NewAIAnalysisState.AnalyzingTimeSeries
-
-            val result = timeSeriesAnalysisRepository.runFullTimeSeriesAnalysis(
-                market = _selectedMarket.value,
-                periodDays = _analysisPeriod.value
-            )
-
-            if (result.isSuccess) {
-                val fullResult = result.getOrThrow()
-                _timeSeriesResult.value = fullResult
-                _state.value = NewAIAnalysisState.TimeSeriesAIComplete(fullResult)
-            } else {
-                _state.value = NewAIAnalysisState.Error(
-                    result.exceptionOrNull()?.message ?: "시계열 분석 실패"
-                )
-            }
-        }
-    }
-
-    /**
-     * 기존 시계열 분석에 AI 해석 추가
-     */
-    fun interpretTimeSeriesWithAI() {
-        val currentResult = _timeSeriesResult.value?.analysisResult ?: return
-
-        viewModelScope.launch {
-            if (!_isApiKeyConfigured.value) {
-                _state.value = NewAIAnalysisState.Error("API 키가 설정되지 않았습니다.")
-                return@launch
-            }
-
-            _state.value = NewAIAnalysisState.InterpretingTimeSeries
-
-            val result = timeSeriesAnalysisRepository.interpretWithAI(currentResult)
-
-            if (result.isSuccess) {
-                val aiInterpretation = result.getOrThrow()
-                _timeSeriesResult.value = FullTimeSeriesAnalysisResult(
-                    analysisResult = currentResult,
-                    aiInterpretation = aiInterpretation,
-                    errorMessage = null
-                )
-                _state.value = NewAIAnalysisState.TimeSeriesAIComplete(
-                    FullTimeSeriesAnalysisResult(currentResult, aiInterpretation, null)
-                )
-            } else {
-                _state.value = NewAIAnalysisState.Error(
-                    result.exceptionOrNull()?.message ?: "AI 해석 실패"
-                )
-            }
-        }
-    }
-
-    /**
-     * 시계열 분석 결과 초기화
-     */
-    fun clearTimeSeriesResult() {
-        _timeSeriesResult.value = null
-    }
-
-    // ========== 종목 주가 시계열 분석 ==========
-
-    /**
-     * 분석 대상 타입 설정
-     */
-    fun setAnalysisTargetType(type: AnalysisTargetType) {
-        _analysisTargetType.value = type
-        // 타입 변경 시 결과 초기화
-        if (type == AnalysisTargetType.INDEX) {
-            _stockTimeSeriesResult.value = null
-            _selectedStock.value = null
-        } else {
-            _timeSeriesResult.value = null
-        }
     }
 
     /**
@@ -438,54 +298,47 @@ class NewAIAnalysisViewModel @Inject constructor(
      */
     fun clearSelectedStock() {
         _selectedStock.value = null
-        _stockTimeSeriesResult.value = null
+        _stockIndicatorCorrelationResult.value = null
     }
 
     /**
-     * 종목 시계열 데이터 수집 및 분석 (로컬만)
+     * 종목-지표 상관관계 분석 (로컬만)
      */
-    fun collectStockTimeSeriesData() {
+    fun analyzeStockIndicatorCorrelation() {
         val stock = _selectedStock.value ?: return
 
         viewModelScope.launch {
-            _state.value = NewAIAnalysisState.CollectingStockTimeSeries
+            _state.value = NewAIAnalysisState.AnalyzingStockIndicatorCorrelation
 
-            val result = timeSeriesAnalysisRepository.collectStockTimeSeriesData(
-                ticker = stock.first,
-                periodDays = _analysisPeriod.value
+            val result = timeSeriesAnalysisRepository.analyzeStockIndicatorCorrelations(
+                com.etfmonitor.analysis.StockIndicatorCorrelationRequest(
+                    ticker = stock.first,
+                    name = stock.second,
+                    market = _selectedMarket.value,
+                    periodDays = _analysisPeriod.value
+                )
             )
 
             if (result.isSuccess) {
-                val data = result.getOrThrow()
-
-                // 로컬 분석 수행
-                val analysisResult = timeSeriesAnalysisRepository.analyzeStockTimeSeries(data)
-
-                if (analysisResult.isSuccess) {
-                    val analysis = analysisResult.getOrThrow()
-                    _stockTimeSeriesResult.value = FullStockTimeSeriesResult(
-                        analysisResult = analysis,
-                        aiInterpretation = null,
-                        errorMessage = null
-                    )
-                    _state.value = NewAIAnalysisState.StockTimeSeriesComplete(analysis)
-                } else {
-                    _state.value = NewAIAnalysisState.Error(
-                        analysisResult.exceptionOrNull()?.message ?: "종목 분석 실패"
-                    )
-                }
+                val correlationResult = result.getOrThrow()
+                _stockIndicatorCorrelationResult.value = FullStockIndicatorCorrelationResult(
+                    correlationResult = correlationResult,
+                    aiInterpretation = null,
+                    errorMessage = null
+                )
+                _state.value = NewAIAnalysisState.StockIndicatorCorrelationComplete(correlationResult)
             } else {
                 _state.value = NewAIAnalysisState.Error(
-                    result.exceptionOrNull()?.message ?: "종목 데이터 수집 실패"
+                    result.exceptionOrNull()?.message ?: "종목-지표 상관관계 분석 실패"
                 )
             }
         }
     }
 
     /**
-     * 전체 종목 시계열 분석 실행 (데이터 수집 + 로컬 분석 + AI 해석)
+     * 전체 종목-지표 상관관계 분석 실행 (분석 + AI 해석)
      */
-    fun runFullStockTimeSeriesAnalysis() {
+    fun runFullStockIndicatorCorrelationAnalysis() {
         val stock = _selectedStock.value ?: return
 
         viewModelScope.launch {
@@ -496,30 +349,32 @@ class NewAIAnalysisViewModel @Inject constructor(
                 return@launch
             }
 
-            _state.value = NewAIAnalysisState.AnalyzingStockTimeSeries
+            _state.value = NewAIAnalysisState.AnalyzingStockIndicatorCorrelationFull
 
-            val result = timeSeriesAnalysisRepository.runFullStockTimeSeriesAnalysis(
+            val result = timeSeriesAnalysisRepository.runFullStockIndicatorCorrelationAnalysis(
                 ticker = stock.first,
+                name = stock.second,
+                market = _selectedMarket.value,
                 periodDays = _analysisPeriod.value
             )
 
             if (result.isSuccess) {
                 val fullResult = result.getOrThrow()
-                _stockTimeSeriesResult.value = fullResult
-                _state.value = NewAIAnalysisState.StockTimeSeriesAIComplete(fullResult)
+                _stockIndicatorCorrelationResult.value = fullResult
+                _state.value = NewAIAnalysisState.StockIndicatorCorrelationAIComplete(fullResult)
             } else {
                 _state.value = NewAIAnalysisState.Error(
-                    result.exceptionOrNull()?.message ?: "종목 시계열 분석 실패"
+                    result.exceptionOrNull()?.message ?: "종목-지표 상관관계 분석 실패"
                 )
             }
         }
     }
 
     /**
-     * 기존 종목 분석에 AI 해석 추가
+     * 기존 종목-지표 상관관계 분석에 AI 해석 추가
      */
-    fun interpretStockTimeSeriesWithAI() {
-        val currentResult = _stockTimeSeriesResult.value?.analysisResult ?: return
+    fun interpretStockIndicatorCorrelationWithAI() {
+        val currentResult = _stockIndicatorCorrelationResult.value?.correlationResult ?: return
 
         viewModelScope.launch {
             if (!_isApiKeyConfigured.value) {
@@ -527,19 +382,19 @@ class NewAIAnalysisViewModel @Inject constructor(
                 return@launch
             }
 
-            _state.value = NewAIAnalysisState.InterpretingStockTimeSeries
+            _state.value = NewAIAnalysisState.InterpretingStockIndicatorCorrelation
 
-            val result = timeSeriesAnalysisRepository.interpretStockWithAI(currentResult)
+            val result = timeSeriesAnalysisRepository.interpretStockIndicatorCorrelationsWithAI(currentResult)
 
             if (result.isSuccess) {
                 val aiInterpretation = result.getOrThrow()
-                _stockTimeSeriesResult.value = FullStockTimeSeriesResult(
-                    analysisResult = currentResult,
+                _stockIndicatorCorrelationResult.value = FullStockIndicatorCorrelationResult(
+                    correlationResult = currentResult,
                     aiInterpretation = aiInterpretation,
                     errorMessage = null
                 )
-                _state.value = NewAIAnalysisState.StockTimeSeriesAIComplete(
-                    FullStockTimeSeriesResult(currentResult, aiInterpretation, null)
+                _state.value = NewAIAnalysisState.StockIndicatorCorrelationAIComplete(
+                    FullStockIndicatorCorrelationResult(currentResult, aiInterpretation, null)
                 )
             } else {
                 _state.value = NewAIAnalysisState.Error(
@@ -550,10 +405,10 @@ class NewAIAnalysisViewModel @Inject constructor(
     }
 
     /**
-     * 종목 시계열 분석 결과 초기화
+     * 종목-지표 상관관계 분석 결과 초기화
      */
-    fun clearStockTimeSeriesResult() {
-        _stockTimeSeriesResult.value = null
+    fun clearStockIndicatorCorrelationResult() {
+        _stockIndicatorCorrelationResult.value = null
     }
 
     // ========== 채팅 기능 ==========
@@ -691,23 +546,14 @@ sealed class NewAIAnalysisState {
     data class FullAnalysisComplete(val result: FullAnalysisResult) : NewAIAnalysisState()
     data class AIInterpretationComplete(val result: AIAnalysisResult) : NewAIAnalysisState()
 
-    // 시계열 분석 진행 중
-    object CollectingTimeSeries : NewAIAnalysisState()
-    object AnalyzingTimeSeries : NewAIAnalysisState()
-    object InterpretingTimeSeries : NewAIAnalysisState()
+    // 종목-지표 상관관계 분석 진행 중
+    object AnalyzingStockIndicatorCorrelation : NewAIAnalysisState()
+    object AnalyzingStockIndicatorCorrelationFull : NewAIAnalysisState()
+    object InterpretingStockIndicatorCorrelation : NewAIAnalysisState()
 
-    // 시계열 분석 완료
-    data class TimeSeriesComplete(val result: TimeSeriesAnalysisResult) : NewAIAnalysisState()
-    data class TimeSeriesAIComplete(val result: FullTimeSeriesAnalysisResult) : NewAIAnalysisState()
-
-    // 종목 시계열 분석 진행 중
-    object CollectingStockTimeSeries : NewAIAnalysisState()
-    object AnalyzingStockTimeSeries : NewAIAnalysisState()
-    object InterpretingStockTimeSeries : NewAIAnalysisState()
-
-    // 종목 시계열 분석 완료
-    data class StockTimeSeriesComplete(val result: StockTimeSeriesAnalysisResult) : NewAIAnalysisState()
-    data class StockTimeSeriesAIComplete(val result: FullStockTimeSeriesResult) : NewAIAnalysisState()
+    // 종목-지표 상관관계 분석 완료
+    data class StockIndicatorCorrelationComplete(val result: StockIndicatorCorrelationResult) : NewAIAnalysisState()
+    data class StockIndicatorCorrelationAIComplete(val result: FullStockIndicatorCorrelationResult) : NewAIAnalysisState()
 
     // 채팅
     data class ChatActive(val session: AIChatSession) : NewAIAnalysisState()
