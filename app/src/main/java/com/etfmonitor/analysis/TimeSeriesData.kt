@@ -1,5 +1,6 @@
 package com.etfmonitor.analysis
 
+import com.etfmonitor.database.entities.TrendDirection
 import kotlinx.serialization.Serializable
 
 /**
@@ -223,10 +224,6 @@ data class TrendAnalysis(
     val recentChange: Double,   // 최근 변화율
     val description: String
 )
-
-enum class TrendDirection {
-    STRONG_UP, UP, SIDEWAYS, DOWN, STRONG_DOWN
-}
 
 /**
  * 상관관계 쌍

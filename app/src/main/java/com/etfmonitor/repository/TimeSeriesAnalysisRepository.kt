@@ -280,7 +280,7 @@ class TimeSeriesAnalysisRepository @Inject constructor(
 
     private fun calculateTrend(values: List<Double>): TrendResult {
         if (values.isEmpty()) {
-            return TrendResult(TrendDirection.SIDEWAYS, 0.0, 0.0, "데이터 부족")
+            return TrendResult(TrendDirection.STABLE, 0.0, 0.0, "데이터 부족")
         }
 
         val n = values.size
@@ -318,16 +318,10 @@ class TimeSeriesAnalysisRepository @Inject constructor(
             normalizedSlope > 0.1 -> TrendDirection.UP
             normalizedSlope < -0.3 -> TrendDirection.STRONG_DOWN
             normalizedSlope < -0.1 -> TrendDirection.DOWN
-            else -> TrendDirection.SIDEWAYS
+            else -> TrendDirection.STABLE
         }
 
-        val description = when (direction) {
-            TrendDirection.STRONG_UP -> "강한 상승세"
-            TrendDirection.UP -> "상승세"
-            TrendDirection.SIDEWAYS -> "횡보"
-            TrendDirection.DOWN -> "하락세"
-            TrendDirection.STRONG_DOWN -> "강한 하락세"
-        }
+        val description = direction.displayName
 
         return TrendResult(direction, normalizedSlope, recentChange, description)
     }
@@ -477,7 +471,7 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                 val arrow = when (trend.direction) {
                     TrendDirection.STRONG_UP -> "⬆⬆"
                     TrendDirection.UP -> "⬆"
-                    TrendDirection.SIDEWAYS -> "➡"
+                    TrendDirection.STABLE -> "➡"
                     TrendDirection.DOWN -> "⬇"
                     TrendDirection.STRONG_DOWN -> "⬇⬇"
                 }
