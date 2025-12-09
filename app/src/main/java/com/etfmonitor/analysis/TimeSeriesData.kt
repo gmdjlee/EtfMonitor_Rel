@@ -338,3 +338,181 @@ data class AIStockTimeSeriesInterpretation(
     val recommendation: String,
     val reasoning: String
 )
+
+// ============================================================
+// 종목-지표 상관관계 분석 모델
+// ============================================================
+
+/**
+ * 종목-시장지표 상관관계 분석용 지표 타입
+ */
+enum class MarketIndicatorType(val displayName: String, val category: String) {
+    // Fear & Greed 계열
+    FEAR_GREED("Fear & Greed Index", "심리"),
+    FEAR_GREED_RSI("RSI", "심리"),
+    FEAR_GREED_MOMENTUM("모멘텀", "심리"),
+
+    // 시장 Oscillator 계열
+    OSCILLATOR("시장 과매수/과매도", "기술"),
+
+    // 자금 동향 계열
+    DEPOSIT_AMOUNT("고객예탁금", "자금"),
+    DEPOSIT_CHANGE("예탁금 변화", "자금"),
+    CREDIT_AMOUNT("신용잔고", "자금"),
+    CREDIT_CHANGE("신용 변화", "자금"),
+
+    // ETF 통계 계열
+    ETF_NEW_STOCK_COUNT("ETF 신규편입 수", "ETF"),
+    ETF_NEW_STOCK_AMOUNT("ETF 신규편입 금액", "ETF"),
+    ETF_REMOVED_STOCK_COUNT("ETF 편출 수", "ETF"),
+    ETF_REMOVED_STOCK_AMOUNT("ETF 편출 금액", "ETF"),
+    ETF_INCREASED_COUNT("ETF 비중증가 수", "ETF"),
+    ETF_DECREASED_COUNT("ETF 비중감소 수", "ETF"),
+    ETF_NET_FLOW("ETF 순편입", "ETF"),
+    ETF_CASH_DEPOSIT("ETF 원화예금", "ETF");
+
+    companion object {
+        fun getByCategory(category: String): List<MarketIndicatorType> =
+            entries.filter { it.category == category }
+
+        val categories: List<String> = entries.map { it.category }.distinct()
+    }
+}
+
+/**
+ * 종목 가격 지표 타입
+ */
+enum class StockMetricType(val displayName: String) {
+    CLOSE_PRICE("종가"),
+    CHANGE_RATE("등락률"),
+    VOLUME("거래량"),
+    MARKET_CAP("시가총액")    // ETF 보유금액 기준
+}
+
+/**
+ * 종목-지표 상관관계 분석 요청
+ */
+data class StockIndicatorCorrelationRequest(
+    val ticker: String,
+    val name: String,
+    val market: String = "KOSPI",  // Fear&Greed, Oscillator가 사용할 시장
+    val periodDays: Int = 30
+)
+
+/**
+ * 단일 지표-종목 상관관계 결과
+ */
+@Serializable
+data class IndicatorStockCorrelation(
+    val indicatorType: String,          // MarketIndicatorType.name
+    val stockMetricType: String,        // StockMetricType.name
+    val correlation: Double,            // 상관계수 (-1 ~ 1)
+    val significance: Double,           // 유의성 (p-value 근사)
+    val dataPoints: Int,                // 분석에 사용된 데이터 포인트 수
+    val leadLagDays: Int = 0,           // 선행/후행 일수 (양수: 지표 선행, 음수: 주가 선행)
+    val description: String             // 상관관계 해석
+)
+
+/**
+ * 지표 카테고리별 상관관계 요약
+ */
+@Serializable
+data class IndicatorCategoryCorrelation(
+    val category: String,               // "심리", "기술", "자금", "ETF"
+    val correlations: List<IndicatorStockCorrelation>,
+    val summary: String                 // 카테고리별 요약
+)
+
+/**
+ * 종목-지표 상관관계 전체 분석 결과
+ */
+@Serializable
+data class StockIndicatorCorrelationResult(
+    val ticker: String,
+    val stockName: String,
+    val market: String,
+    val startDate: String,
+    val endDate: String,
+    val totalDataPoints: Int,
+
+    // 카테고리별 상관관계
+    val fearGreedCorrelations: List<IndicatorStockCorrelation>,
+    val oscillatorCorrelations: List<IndicatorStockCorrelation>,
+    val depositCorrelations: List<IndicatorStockCorrelation>,
+    val etfCorrelations: List<IndicatorStockCorrelation>,
+
+    // 가장 강한 상관관계 Top N
+    val topPositiveCorrelations: List<IndicatorStockCorrelation>,
+    val topNegativeCorrelations: List<IndicatorStockCorrelation>,
+
+    // 분석 요약
+    val summary: String
+)
+
+/**
+ * AI 해석이 포함된 종목-지표 상관관계 분석 결과
+ */
+data class FullStockIndicatorCorrelationResult(
+    val correlationResult: StockIndicatorCorrelationResult,
+    val aiInterpretation: AIStockIndicatorInterpretation?,
+    val errorMessage: String?
+)
+
+/**
+ * AI 종목-지표 상관관계 해석
+ */
+data class AIStockIndicatorInterpretation(
+    val ticker: String,
+    val name: String,
+    val period: String,
+    val signal: String,
+    val confidence: Double,
+    val upProbability: Double,
+    val downProbability: Double,
+    val riskLevel: String,
+    val keyCorrelations: List<String>,      // 핵심 상관관계 설명
+    val marketSentimentImpact: String,      // 시장 심리 영향 분석
+    val fundFlowImpact: String,             // 자금 흐름 영향 분석
+    val etfFlowImpact: String,              // ETF 수급 영향 분석
+    val recommendation: String,
+    val reasoning: String
+)
+
+/**
+ * 종목별 ETF 보유 추이 데이터 (시계열)
+ */
+@Serializable
+data class StockEtfHoldingTimeSeries(
+    val ticker: String,
+    val name: String,
+    val dataPoints: List<StockEtfHoldingPoint>
+) {
+    val totalDays: Int get() = dataPoints.size
+
+    fun getDates(): List<String> = dataPoints.map { it.date }
+    fun getTotalAmounts(): List<Double> = dataPoints.map { it.totalAmount }
+    fun getEtfCounts(): List<Int> = dataPoints.map { it.etfCount }
+    fun getAmountChanges(): List<Double> = dataPoints.mapIndexed { index, point ->
+        if (index == 0) 0.0
+        else {
+            val prev = dataPoints[index - 1].totalAmount
+            if (prev != 0.0) ((point.totalAmount - prev) / prev) * 100 else 0.0
+        }
+    }
+}
+
+/**
+ * 종목별 ETF 보유 데이터 포인트
+ */
+@Serializable
+data class StockEtfHoldingPoint(
+    val date: String,
+    val totalAmount: Double,        // 전체 ETF 보유 금액
+    val etfCount: Int,              // 보유 ETF 수
+    val maxWeight: Double,          // 최대 비중
+    val avgWeight: Double,          // 평균 비중
+    val newEtfCount: Int = 0,       // 신규 편입 ETF 수
+    val increasedCount: Int = 0,    // 비중 증가 ETF 수
+    val decreasedCount: Int = 0,    // 비중 감소 ETF 수
+    val removedCount: Int = 0       // 편출 ETF 수
+)

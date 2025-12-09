@@ -33,7 +33,8 @@ class TimeSeriesAnalysisRepository @Inject constructor(
     private val marketDepositDao: MarketDepositDao,
     private val dailyEtfStatisticsDao: DailyEtfStatisticsDao,
     private val aiApiClientFactory: AIApiClientFactory,
-    private val oscillatorPyClient: OscillatorPyClient
+    private val oscillatorPyClient: OscillatorPyClient,
+    private val etfDao: EtfDao
 ) {
     companion object {
         private val logger = AppLogger.getLogger("TimeSeriesRepo")
@@ -979,6 +980,914 @@ class TimeSeriesAnalysisRepository @Inject constructor(
         }
     }
 
+    // ========== 종목-지표 상관관계 분석 ==========
+
+    /**
+     * 종목의 ETF 보유 시계열 데이터 수집
+     */
+    suspend fun collectStockEtfHoldingTimeSeries(
+        ticker: String,
+        periodDays: Int = DEFAULT_PERIOD_DAYS
+    ): Result<StockEtfHoldingTimeSeries> = withContext(Dispatchers.IO) {
+        try {
+            logger.d("Collecting stock ETF holding time series for $ticker, $periodDays days")
+
+            val stockName = etfDao.getStockName(ticker) ?: ticker
+            val trendData = etfDao.getStockAggregatedTrend(ticker)
+
+            if (trendData.isEmpty()) {
+                return@withContext Result.failure(Exception("해당 종목의 ETF 보유 데이터가 없습니다: $ticker"))
+            }
+
+            // 최근 periodDays 일간 데이터만 필터링
+            val endDate = LocalDate.now()
+            val startDate = endDate.minusDays(periodDays.toLong())
+            val startDateStr = startDate.format(dateFormatter)
+
+            val filteredData = trendData.filter { it.date >= startDateStr }
+                .sortedBy { it.date }
+
+            val dataPoints = filteredData.map { point ->
+                StockEtfHoldingPoint(
+                    date = point.date,
+                    totalAmount = point.totalAmount.toDouble(),
+                    etfCount = point.etfCount,
+                    maxWeight = point.maxWeight.toDouble(),
+                    avgWeight = point.avgWeight.toDouble()
+                )
+            }
+
+            Result.success(
+                StockEtfHoldingTimeSeries(
+                    ticker = ticker,
+                    name = stockName,
+                    dataPoints = dataPoints
+                )
+            )
+        } catch (e: Exception) {
+            logger.e("Failed to collect stock ETF holding time series", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 종목-시장지표 상관관계 전체 분석
+     */
+    suspend fun analyzeStockIndicatorCorrelations(
+        request: StockIndicatorCorrelationRequest
+    ): Result<StockIndicatorCorrelationResult> = withContext(Dispatchers.IO) {
+        try {
+            logger.d("Analyzing stock-indicator correlations for ${request.ticker}")
+
+            val endDate = LocalDate.now()
+            val startDate = endDate.minusDays(request.periodDays.toLong())
+            val startDateStr = startDate.format(dateFormatter)
+            val endDateStr = endDate.format(dateFormatter)
+
+            // 1. 종목 주가 데이터 수집
+            val stockData = oscillatorPyClient.getStockOhlcv(request.ticker, request.periodDays, "d")
+            if (stockData == null || stockData.dates.isEmpty()) {
+                return@withContext Result.failure(Exception("종목 주가 데이터를 가져올 수 없습니다: ${request.ticker}"))
+            }
+
+            // 2. 종목의 ETF 보유 데이터 수집
+            val etfHoldingResult = collectStockEtfHoldingTimeSeries(request.ticker, request.periodDays)
+            val etfHoldingData = etfHoldingResult.getOrNull()
+
+            // 3. 시장 지표 데이터 수집 (병렬)
+            val (fearGreedData, oscillatorData, depositData, etfStatsData) = coroutineScope {
+                val fearGreedDeferred = async {
+                    fearGreedDao.getByMarketAndDateRange(request.market, startDateStr, endDateStr).first()
+                }
+                val oscillatorDeferred = async {
+                    marketOscillatorDao.getDataByDateRange(request.market, startDateStr, endDateStr).first()
+                }
+                val depositDeferred = async {
+                    marketDepositDao.getAllDeposits().first()
+                        .filter { it.date in startDateStr..endDateStr }
+                }
+                val etfStatsDeferred = async {
+                    dailyEtfStatisticsDao.getByDateRangeSuspend(startDateStr, endDateStr)
+                }
+
+                Tuple4(
+                    fearGreedDeferred.await(),
+                    oscillatorDeferred.await(),
+                    depositDeferred.await(),
+                    etfStatsDeferred.await()
+                )
+            }
+
+            // 4. 날짜 기준 데이터 정렬
+            val stockPrices = stockData.dates.zip(stockData.close).toMap()
+            val stockChanges = stockData.dates.mapIndexed { index, date ->
+                val change = if (index == 0) 0.0 else {
+                    val prev = stockData.close[index - 1]
+                    if (prev != 0.0) ((stockData.close[index] - prev) / prev) * 100 else 0.0
+                }
+                date to change
+            }.toMap()
+
+            val etfAmounts = etfHoldingData?.dataPoints?.associate { it.date to it.totalAmount } ?: emptyMap()
+
+            // 5. Fear & Greed 상관관계 계산
+            val fearGreedCorrelations = calculateFearGreedCorrelations(
+                fearGreedData, stockPrices, stockChanges, etfAmounts
+            )
+
+            // 6. Oscillator 상관관계 계산
+            val oscillatorCorrelations = calculateOscillatorCorrelations(
+                oscillatorData, stockPrices, stockChanges, etfAmounts
+            )
+
+            // 7. 예탁금/신용 상관관계 계산
+            val depositCorrelations = calculateDepositCorrelations(
+                depositData, stockPrices, stockChanges, etfAmounts
+            )
+
+            // 8. ETF 통계 상관관계 계산
+            val etfCorrelations = calculateEtfStatsCorrelations(
+                etfStatsData, stockPrices, stockChanges, etfAmounts
+            )
+
+            // 9. Top 상관관계 추출
+            val allCorrelations = fearGreedCorrelations + oscillatorCorrelations +
+                    depositCorrelations + etfCorrelations
+
+            val topPositive = allCorrelations
+                .filter { it.correlation > 0 && it.dataPoints >= 10 }
+                .sortedByDescending { it.correlation }
+                .take(5)
+
+            val topNegative = allCorrelations
+                .filter { it.correlation < 0 && it.dataPoints >= 10 }
+                .sortedBy { it.correlation }
+                .take(5)
+
+            // 10. 요약 생성
+            val summary = generateCorrelationSummary(
+                request.name, fearGreedCorrelations, oscillatorCorrelations,
+                depositCorrelations, etfCorrelations
+            )
+
+            Result.success(
+                StockIndicatorCorrelationResult(
+                    ticker = request.ticker,
+                    stockName = request.name,
+                    market = request.market,
+                    startDate = stockData.dates.firstOrNull() ?: startDateStr,
+                    endDate = stockData.dates.lastOrNull() ?: endDateStr,
+                    totalDataPoints = stockData.dates.size,
+                    fearGreedCorrelations = fearGreedCorrelations,
+                    oscillatorCorrelations = oscillatorCorrelations,
+                    depositCorrelations = depositCorrelations,
+                    etfCorrelations = etfCorrelations,
+                    topPositiveCorrelations = topPositive,
+                    topNegativeCorrelations = topNegative,
+                    summary = summary
+                )
+            )
+        } catch (e: Exception) {
+            logger.e("Failed to analyze stock-indicator correlations", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * AI를 활용한 종목-지표 상관관계 해석
+     */
+    suspend fun interpretStockIndicatorCorrelationsWithAI(
+        correlationResult: StockIndicatorCorrelationResult
+    ): Result<AIStockIndicatorInterpretation> = withContext(Dispatchers.IO) {
+        try {
+            logger.d("Interpreting stock-indicator correlations with AI for ${correlationResult.stockName}")
+
+            val client = aiApiClientFactory.getClient()
+            val prompt = createStockIndicatorCorrelationPrompt(correlationResult)
+
+            val signalResult = client.analyzeMarket(prompt, temperature = 0.5)
+
+            if (signalResult.isFailure) {
+                return@withContext Result.failure(
+                    signalResult.exceptionOrNull() ?: Exception("AI 분석 실패")
+                )
+            }
+
+            val signal = signalResult.getOrThrow()
+
+            val interpretation = AIStockIndicatorInterpretation(
+                ticker = correlationResult.ticker,
+                name = correlationResult.stockName,
+                period = "${correlationResult.startDate} ~ ${correlationResult.endDate}",
+                signal = signal.signal.name,
+                confidence = signal.confidence,
+                upProbability = signal.upProbability,
+                downProbability = signal.downProbability,
+                riskLevel = signal.riskLevel.name,
+                keyCorrelations = extractKeyCorrelations(correlationResult),
+                marketSentimentImpact = extractSentimentImpact(signal.reasoning),
+                fundFlowImpact = extractFundFlowImpact(signal.reasoning),
+                etfFlowImpact = extractEtfFlowImpact(signal.reasoning),
+                recommendation = signal.recommendation,
+                reasoning = signal.reasoning
+            )
+
+            Result.success(interpretation)
+        } catch (e: Exception) {
+            logger.e("Failed to interpret stock-indicator correlations with AI", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 전체 종목-지표 상관관계 분석 실행 (데이터 수집 + 분석 + AI 해석)
+     */
+    suspend fun runFullStockIndicatorCorrelationAnalysis(
+        ticker: String,
+        name: String,
+        market: String = "KOSPI",
+        periodDays: Int = DEFAULT_PERIOD_DAYS
+    ): Result<FullStockIndicatorCorrelationResult> = withContext(Dispatchers.IO) {
+        try {
+            val request = StockIndicatorCorrelationRequest(
+                ticker = ticker,
+                name = name,
+                market = market,
+                periodDays = periodDays
+            )
+
+            // 1. 상관관계 분석 수행
+            val correlationResult = analyzeStockIndicatorCorrelations(request)
+            if (correlationResult.isFailure) {
+                return@withContext Result.failure(
+                    correlationResult.exceptionOrNull() ?: Exception("상관관계 분석 실패")
+                )
+            }
+            val correlation = correlationResult.getOrThrow()
+
+            // 2. AI 해석
+            val aiResult = interpretStockIndicatorCorrelationsWithAI(correlation)
+
+            Result.success(
+                FullStockIndicatorCorrelationResult(
+                    correlationResult = correlation,
+                    aiInterpretation = aiResult.getOrNull(),
+                    errorMessage = aiResult.exceptionOrNull()?.message
+                )
+            )
+        } catch (e: Exception) {
+            logger.e("Failed to run full stock-indicator correlation analysis", e)
+            Result.failure(e)
+        }
+    }
+
+    // ========== Fear & Greed 상관관계 계산 ==========
+
+    private fun calculateFearGreedCorrelations(
+        fearGreedData: List<FearGreedIndex>,
+        stockPrices: Map<String, Double>,
+        stockChanges: Map<String, Double>,
+        etfAmounts: Map<String, Double>
+    ): List<IndicatorStockCorrelation> {
+        val correlations = mutableListOf<IndicatorStockCorrelation>()
+        val fearGreedMap = fearGreedData.associateBy { it.date }
+
+        // Fear & Greed vs 종가
+        val commonDates = stockPrices.keys.filter { fearGreedMap.containsKey(it) }.sorted()
+        if (commonDates.size >= 10) {
+            val fgValues = commonDates.map { fearGreedMap[it]!!.fearGreedValue }
+            val priceValues = commonDates.map { stockPrices[it]!! }
+            val corr = calculatePearsonCorrelation(fgValues, priceValues)
+
+            if (!corr.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.FEAR_GREED.name,
+                        stockMetricType = StockMetricType.CLOSE_PRICE.name,
+                        correlation = corr,
+                        significance = calculateSignificance(corr, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corr, "Fear & Greed", "주가")
+                    )
+                )
+            }
+
+            // Fear & Greed vs 등락률
+            val changeValues = commonDates.map { stockChanges[it] ?: 0.0 }
+            val corrChange = calculatePearsonCorrelation(fgValues, changeValues)
+            if (!corrChange.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.FEAR_GREED.name,
+                        stockMetricType = StockMetricType.CHANGE_RATE.name,
+                        correlation = corrChange,
+                        significance = calculateSignificance(corrChange, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corrChange, "Fear & Greed", "등락률")
+                    )
+                )
+            }
+
+            // Fear & Greed vs ETF 보유금액
+            if (etfAmounts.isNotEmpty()) {
+                val etfCommonDates = commonDates.filter { etfAmounts.containsKey(it) }
+                if (etfCommonDates.size >= 10) {
+                    val fgValuesEtf = etfCommonDates.map { fearGreedMap[it]!!.fearGreedValue }
+                    val etfValues = etfCommonDates.map { etfAmounts[it]!! }
+                    val corrEtf = calculatePearsonCorrelation(fgValuesEtf, etfValues)
+                    if (!corrEtf.isNaN()) {
+                        correlations.add(
+                            IndicatorStockCorrelation(
+                                indicatorType = MarketIndicatorType.FEAR_GREED.name,
+                                stockMetricType = StockMetricType.MARKET_CAP.name,
+                                correlation = corrEtf,
+                                significance = calculateSignificance(corrEtf, etfCommonDates.size),
+                                dataPoints = etfCommonDates.size,
+                                description = describeCorrelation(corrEtf, "Fear & Greed", "ETF 보유금액")
+                            )
+                        )
+                    }
+                }
+            }
+
+            // RSI vs 주가
+            val rsiValues = commonDates.map { fearGreedMap[it]!!.rsi }
+            val corrRsi = calculatePearsonCorrelation(rsiValues, priceValues)
+            if (!corrRsi.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.FEAR_GREED_RSI.name,
+                        stockMetricType = StockMetricType.CLOSE_PRICE.name,
+                        correlation = corrRsi,
+                        significance = calculateSignificance(corrRsi, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corrRsi, "RSI", "주가")
+                    )
+                )
+            }
+
+            // 모멘텀 vs 주가
+            val momentumValues = commonDates.map { fearGreedMap[it]!!.momentum }
+            val corrMomentum = calculatePearsonCorrelation(momentumValues, priceValues)
+            if (!corrMomentum.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.FEAR_GREED_MOMENTUM.name,
+                        stockMetricType = StockMetricType.CLOSE_PRICE.name,
+                        correlation = corrMomentum,
+                        significance = calculateSignificance(corrMomentum, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corrMomentum, "모멘텀", "주가")
+                    )
+                )
+            }
+        }
+
+        return correlations
+    }
+
+    // ========== Oscillator 상관관계 계산 ==========
+
+    private fun calculateOscillatorCorrelations(
+        oscillatorData: List<MarketOscillatorData>,
+        stockPrices: Map<String, Double>,
+        stockChanges: Map<String, Double>,
+        etfAmounts: Map<String, Double>
+    ): List<IndicatorStockCorrelation> {
+        val correlations = mutableListOf<IndicatorStockCorrelation>()
+        val oscillatorMap = oscillatorData.associateBy { it.date }
+
+        val commonDates = stockPrices.keys.filter { oscillatorMap.containsKey(it) }.sorted()
+        if (commonDates.size >= 10) {
+            val oscValues = commonDates.map { oscillatorMap[it]!!.oscillator }
+            val priceValues = commonDates.map { stockPrices[it]!! }
+
+            // Oscillator vs 종가
+            val corr = calculatePearsonCorrelation(oscValues, priceValues)
+            if (!corr.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.OSCILLATOR.name,
+                        stockMetricType = StockMetricType.CLOSE_PRICE.name,
+                        correlation = corr,
+                        significance = calculateSignificance(corr, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corr, "시장 과매수/과매도", "주가")
+                    )
+                )
+            }
+
+            // Oscillator vs 등락률
+            val changeValues = commonDates.map { stockChanges[it] ?: 0.0 }
+            val corrChange = calculatePearsonCorrelation(oscValues, changeValues)
+            if (!corrChange.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.OSCILLATOR.name,
+                        stockMetricType = StockMetricType.CHANGE_RATE.name,
+                        correlation = corrChange,
+                        significance = calculateSignificance(corrChange, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corrChange, "시장 과매수/과매도", "등락률")
+                    )
+                )
+            }
+
+            // Oscillator vs ETF 보유금액
+            if (etfAmounts.isNotEmpty()) {
+                val etfCommonDates = commonDates.filter { etfAmounts.containsKey(it) }
+                if (etfCommonDates.size >= 10) {
+                    val oscValuesEtf = etfCommonDates.map { oscillatorMap[it]!!.oscillator }
+                    val etfValues = etfCommonDates.map { etfAmounts[it]!! }
+                    val corrEtf = calculatePearsonCorrelation(oscValuesEtf, etfValues)
+                    if (!corrEtf.isNaN()) {
+                        correlations.add(
+                            IndicatorStockCorrelation(
+                                indicatorType = MarketIndicatorType.OSCILLATOR.name,
+                                stockMetricType = StockMetricType.MARKET_CAP.name,
+                                correlation = corrEtf,
+                                significance = calculateSignificance(corrEtf, etfCommonDates.size),
+                                dataPoints = etfCommonDates.size,
+                                description = describeCorrelation(corrEtf, "시장 과매수/과매도", "ETF 보유금액")
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        return correlations
+    }
+
+    // ========== 예탁금/신용 상관관계 계산 ==========
+
+    private fun calculateDepositCorrelations(
+        depositData: List<MarketDeposit>,
+        stockPrices: Map<String, Double>,
+        stockChanges: Map<String, Double>,
+        etfAmounts: Map<String, Double>
+    ): List<IndicatorStockCorrelation> {
+        val correlations = mutableListOf<IndicatorStockCorrelation>()
+        val depositMap = depositData.associateBy { it.date }
+
+        val commonDates = stockPrices.keys.filter { depositMap.containsKey(it) }.sorted()
+        if (commonDates.size >= 10) {
+            val priceValues = commonDates.map { stockPrices[it]!! }
+            val changeValues = commonDates.map { stockChanges[it] ?: 0.0 }
+
+            // 예탁금 vs 종가
+            val depositAmounts = commonDates.map { depositMap[it]!!.depositAmount }
+            val corrDepositPrice = calculatePearsonCorrelation(depositAmounts, priceValues)
+            if (!corrDepositPrice.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.DEPOSIT_AMOUNT.name,
+                        stockMetricType = StockMetricType.CLOSE_PRICE.name,
+                        correlation = corrDepositPrice,
+                        significance = calculateSignificance(corrDepositPrice, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corrDepositPrice, "고객예탁금", "주가")
+                    )
+                )
+            }
+
+            // 예탁금 변화 vs 등락률
+            val depositChanges = commonDates.map { depositMap[it]!!.depositChange }
+            val corrDepositChange = calculatePearsonCorrelation(depositChanges, changeValues)
+            if (!corrDepositChange.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.DEPOSIT_CHANGE.name,
+                        stockMetricType = StockMetricType.CHANGE_RATE.name,
+                        correlation = corrDepositChange,
+                        significance = calculateSignificance(corrDepositChange, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corrDepositChange, "예탁금 변화", "등락률")
+                    )
+                )
+            }
+
+            // 신용잔고 vs 종가
+            val creditAmounts = commonDates.map { depositMap[it]!!.creditAmount }
+            val corrCreditPrice = calculatePearsonCorrelation(creditAmounts, priceValues)
+            if (!corrCreditPrice.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.CREDIT_AMOUNT.name,
+                        stockMetricType = StockMetricType.CLOSE_PRICE.name,
+                        correlation = corrCreditPrice,
+                        significance = calculateSignificance(corrCreditPrice, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corrCreditPrice, "신용잔고", "주가")
+                    )
+                )
+            }
+
+            // 신용 변화 vs 등락률
+            val creditChanges = commonDates.map { depositMap[it]!!.creditChange }
+            val corrCreditChange = calculatePearsonCorrelation(creditChanges, changeValues)
+            if (!corrCreditChange.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.CREDIT_CHANGE.name,
+                        stockMetricType = StockMetricType.CHANGE_RATE.name,
+                        correlation = corrCreditChange,
+                        significance = calculateSignificance(corrCreditChange, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corrCreditChange, "신용 변화", "등락률")
+                    )
+                )
+            }
+
+            // ETF 보유금액과의 상관관계
+            if (etfAmounts.isNotEmpty()) {
+                val etfCommonDates = commonDates.filter { etfAmounts.containsKey(it) }
+                if (etfCommonDates.size >= 10) {
+                    val depositAmountsEtf = etfCommonDates.map { depositMap[it]!!.depositAmount }
+                    val etfValues = etfCommonDates.map { etfAmounts[it]!! }
+                    val corrDepositEtf = calculatePearsonCorrelation(depositAmountsEtf, etfValues)
+                    if (!corrDepositEtf.isNaN()) {
+                        correlations.add(
+                            IndicatorStockCorrelation(
+                                indicatorType = MarketIndicatorType.DEPOSIT_AMOUNT.name,
+                                stockMetricType = StockMetricType.MARKET_CAP.name,
+                                correlation = corrDepositEtf,
+                                significance = calculateSignificance(corrDepositEtf, etfCommonDates.size),
+                                dataPoints = etfCommonDates.size,
+                                description = describeCorrelation(corrDepositEtf, "고객예탁금", "ETF 보유금액")
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        return correlations
+    }
+
+    // ========== ETF 통계 상관관계 계산 ==========
+
+    private fun calculateEtfStatsCorrelations(
+        etfStatsData: List<DailyEtfStatistics>,
+        stockPrices: Map<String, Double>,
+        stockChanges: Map<String, Double>,
+        etfAmounts: Map<String, Double>
+    ): List<IndicatorStockCorrelation> {
+        val correlations = mutableListOf<IndicatorStockCorrelation>()
+        val statsMap = etfStatsData.associateBy { it.date }
+
+        val commonDates = stockPrices.keys.filter { statsMap.containsKey(it) }.sorted()
+        if (commonDates.size >= 10) {
+            val priceValues = commonDates.map { stockPrices[it]!! }
+            val changeValues = commonDates.map { stockChanges[it] ?: 0.0 }
+
+            // 신규편입 수 vs 종가
+            val newStockCounts = commonDates.map { statsMap[it]!!.newStockCount.toDouble() }
+            val corrNewCount = calculatePearsonCorrelation(newStockCounts, priceValues)
+            if (!corrNewCount.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.ETF_NEW_STOCK_COUNT.name,
+                        stockMetricType = StockMetricType.CLOSE_PRICE.name,
+                        correlation = corrNewCount,
+                        significance = calculateSignificance(corrNewCount, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corrNewCount, "ETF 신규편입 수", "주가")
+                    )
+                )
+            }
+
+            // 신규편입 금액 vs 종가
+            val newStockAmounts = commonDates.map { statsMap[it]!!.newStockAmount.toDouble() }
+            val corrNewAmount = calculatePearsonCorrelation(newStockAmounts, priceValues)
+            if (!corrNewAmount.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.ETF_NEW_STOCK_AMOUNT.name,
+                        stockMetricType = StockMetricType.CLOSE_PRICE.name,
+                        correlation = corrNewAmount,
+                        significance = calculateSignificance(corrNewAmount, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corrNewAmount, "ETF 신규편입 금액", "주가")
+                    )
+                )
+            }
+
+            // 편출 수 vs 등락률
+            val removedCounts = commonDates.map { statsMap[it]!!.removedStockCount.toDouble() }
+            val corrRemoved = calculatePearsonCorrelation(removedCounts, changeValues)
+            if (!corrRemoved.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.ETF_REMOVED_STOCK_COUNT.name,
+                        stockMetricType = StockMetricType.CHANGE_RATE.name,
+                        correlation = corrRemoved,
+                        significance = calculateSignificance(corrRemoved, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corrRemoved, "ETF 편출 수", "등락률")
+                    )
+                )
+            }
+
+            // 비중증가 수 vs 종가
+            val increasedCounts = commonDates.map { statsMap[it]!!.increasedStockCount.toDouble() }
+            val corrIncreased = calculatePearsonCorrelation(increasedCounts, priceValues)
+            if (!corrIncreased.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.ETF_INCREASED_COUNT.name,
+                        stockMetricType = StockMetricType.CLOSE_PRICE.name,
+                        correlation = corrIncreased,
+                        significance = calculateSignificance(corrIncreased, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corrIncreased, "ETF 비중증가 수", "주가")
+                    )
+                )
+            }
+
+            // 비중감소 수 vs 등락률
+            val decreasedCounts = commonDates.map { statsMap[it]!!.decreasedStockCount.toDouble() }
+            val corrDecreased = calculatePearsonCorrelation(decreasedCounts, changeValues)
+            if (!corrDecreased.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.ETF_DECREASED_COUNT.name,
+                        stockMetricType = StockMetricType.CHANGE_RATE.name,
+                        correlation = corrDecreased,
+                        significance = calculateSignificance(corrDecreased, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corrDecreased, "ETF 비중감소 수", "등락률")
+                    )
+                )
+            }
+
+            // 순편입 (신규 - 편출) vs 종가
+            val netFlows = commonDates.map {
+                (statsMap[it]!!.newStockCount - statsMap[it]!!.removedStockCount).toDouble()
+            }
+            val corrNetFlow = calculatePearsonCorrelation(netFlows, priceValues)
+            if (!corrNetFlow.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.ETF_NET_FLOW.name,
+                        stockMetricType = StockMetricType.CLOSE_PRICE.name,
+                        correlation = corrNetFlow,
+                        significance = calculateSignificance(corrNetFlow, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corrNetFlow, "ETF 순편입", "주가")
+                    )
+                )
+            }
+
+            // ETF 원화예금 vs 종가
+            val cashDeposits = commonDates.map { statsMap[it]!!.cashDepositAmount.toDouble() }
+            val corrCash = calculatePearsonCorrelation(cashDeposits, priceValues)
+            if (!corrCash.isNaN()) {
+                correlations.add(
+                    IndicatorStockCorrelation(
+                        indicatorType = MarketIndicatorType.ETF_CASH_DEPOSIT.name,
+                        stockMetricType = StockMetricType.CLOSE_PRICE.name,
+                        correlation = corrCash,
+                        significance = calculateSignificance(corrCash, commonDates.size),
+                        dataPoints = commonDates.size,
+                        description = describeCorrelation(corrCash, "ETF 원화예금", "주가")
+                    )
+                )
+            }
+
+            // ETF 보유금액과의 상관관계
+            if (etfAmounts.isNotEmpty()) {
+                val etfCommonDates = commonDates.filter { etfAmounts.containsKey(it) }
+                if (etfCommonDates.size >= 10) {
+                    // 순편입 vs ETF 보유금액
+                    val netFlowsEtf = etfCommonDates.map {
+                        (statsMap[it]!!.newStockCount - statsMap[it]!!.removedStockCount).toDouble()
+                    }
+                    val etfValues = etfCommonDates.map { etfAmounts[it]!! }
+                    val corrNetFlowEtf = calculatePearsonCorrelation(netFlowsEtf, etfValues)
+                    if (!corrNetFlowEtf.isNaN()) {
+                        correlations.add(
+                            IndicatorStockCorrelation(
+                                indicatorType = MarketIndicatorType.ETF_NET_FLOW.name,
+                                stockMetricType = StockMetricType.MARKET_CAP.name,
+                                correlation = corrNetFlowEtf,
+                                significance = calculateSignificance(corrNetFlowEtf, etfCommonDates.size),
+                                dataPoints = etfCommonDates.size,
+                                description = describeCorrelation(corrNetFlowEtf, "ETF 순편입", "ETF 보유금액")
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        return correlations
+    }
+
+    // ========== 상관관계 설명 생성 ==========
+
+    private fun describeCorrelation(correlation: Double, indicator: String, metric: String): String {
+        val strength = when {
+            abs(correlation) >= 0.7 -> "강한"
+            abs(correlation) >= 0.4 -> "중간"
+            abs(correlation) >= 0.2 -> "약한"
+            else -> "거의 없는"
+        }
+        val direction = if (correlation >= 0) "양의" else "음의"
+
+        return when {
+            abs(correlation) < 0.2 -> "$indicator 와 $metric 간에 유의미한 상관관계가 없습니다."
+            correlation >= 0.4 -> "$indicator 이(가) 상승하면 $metric 도 함께 상승하는 $strength $direction 상관관계 (${String.format("%.2f", correlation)})"
+            correlation <= -0.4 -> "$indicator 이(가) 상승하면 $metric 이(가) 하락하는 $strength $direction 상관관계 (${String.format("%.2f", correlation)})"
+            correlation > 0 -> "$indicator 와 $metric 간 $strength $direction 상관관계 (${String.format("%.2f", correlation)})"
+            else -> "$indicator 와 $metric 간 $strength $direction 상관관계 (${String.format("%.2f", correlation)})"
+        }
+    }
+
+    private fun generateCorrelationSummary(
+        stockName: String,
+        fearGreedCorrelations: List<IndicatorStockCorrelation>,
+        oscillatorCorrelations: List<IndicatorStockCorrelation>,
+        depositCorrelations: List<IndicatorStockCorrelation>,
+        etfCorrelations: List<IndicatorStockCorrelation>
+    ): String {
+        val sb = StringBuilder()
+        sb.appendLine("## $stockName 종목-지표 상관관계 분석 요약\n")
+
+        // 심리 지표 요약
+        val significantFg = fearGreedCorrelations.filter { abs(it.correlation) >= 0.3 }
+        if (significantFg.isNotEmpty()) {
+            sb.appendLine("### 시장 심리 지표 (Fear & Greed)")
+            significantFg.forEach { sb.appendLine("- ${it.description}") }
+            sb.appendLine()
+        }
+
+        // 기술 지표 요약
+        val significantOsc = oscillatorCorrelations.filter { abs(it.correlation) >= 0.3 }
+        if (significantOsc.isNotEmpty()) {
+            sb.appendLine("### 기술 지표 (과매수/과매도)")
+            significantOsc.forEach { sb.appendLine("- ${it.description}") }
+            sb.appendLine()
+        }
+
+        // 자금 동향 요약
+        val significantDeposit = depositCorrelations.filter { abs(it.correlation) >= 0.3 }
+        if (significantDeposit.isNotEmpty()) {
+            sb.appendLine("### 자금 동향 (예탁금/신용)")
+            significantDeposit.forEach { sb.appendLine("- ${it.description}") }
+            sb.appendLine()
+        }
+
+        // ETF 수급 요약
+        val significantEtf = etfCorrelations.filter { abs(it.correlation) >= 0.3 }
+        if (significantEtf.isNotEmpty()) {
+            sb.appendLine("### ETF 수급 동향")
+            significantEtf.forEach { sb.appendLine("- ${it.description}") }
+            sb.appendLine()
+        }
+
+        if (significantFg.isEmpty() && significantOsc.isEmpty() &&
+            significantDeposit.isEmpty() && significantEtf.isEmpty()) {
+            sb.appendLine("분석 기간 내 유의미한 상관관계가 발견되지 않았습니다.")
+        }
+
+        return sb.toString()
+    }
+
+    // ========== AI 프롬프트 생성 ==========
+
+    private fun createStockIndicatorCorrelationPrompt(result: StockIndicatorCorrelationResult): String {
+        return buildString {
+            appendLine("당신은 한국 주식 시장 전문 애널리스트입니다.")
+            appendLine("다음 종목의 시장지표 상관관계 분석 결과를 해석하여 투자 전망을 제공해주세요.")
+            appendLine()
+            appendLine("## 종목 정보")
+            appendLine("- 종목명: ${result.stockName}")
+            appendLine("- 종목코드: ${result.ticker}")
+            appendLine("- 분석 시장: ${result.market}")
+            appendLine("- 분석 기간: ${result.startDate} ~ ${result.endDate}")
+            appendLine("- 데이터 포인트: ${result.totalDataPoints}일")
+            appendLine()
+
+            // Fear & Greed 상관관계
+            if (result.fearGreedCorrelations.isNotEmpty()) {
+                appendLine("## 시장 심리 지표 상관관계 (Fear & Greed)")
+                result.fearGreedCorrelations.forEach { corr ->
+                    appendLine("- ${MarketIndicatorType.valueOf(corr.indicatorType).displayName} vs ${StockMetricType.valueOf(corr.stockMetricType).displayName}: ${String.format("%.3f", corr.correlation)}")
+                }
+                appendLine()
+            }
+
+            // Oscillator 상관관계
+            if (result.oscillatorCorrelations.isNotEmpty()) {
+                appendLine("## 시장 과매수/과매도 상관관계")
+                result.oscillatorCorrelations.forEach { corr ->
+                    appendLine("- ${MarketIndicatorType.valueOf(corr.indicatorType).displayName} vs ${StockMetricType.valueOf(corr.stockMetricType).displayName}: ${String.format("%.3f", corr.correlation)}")
+                }
+                appendLine()
+            }
+
+            // 예탁금/신용 상관관계
+            if (result.depositCorrelations.isNotEmpty()) {
+                appendLine("## 자금 동향 상관관계 (예탁금/신용)")
+                result.depositCorrelations.forEach { corr ->
+                    appendLine("- ${MarketIndicatorType.valueOf(corr.indicatorType).displayName} vs ${StockMetricType.valueOf(corr.stockMetricType).displayName}: ${String.format("%.3f", corr.correlation)}")
+                }
+                appendLine()
+            }
+
+            // ETF 통계 상관관계
+            if (result.etfCorrelations.isNotEmpty()) {
+                appendLine("## ETF 수급 상관관계")
+                result.etfCorrelations.forEach { corr ->
+                    appendLine("- ${MarketIndicatorType.valueOf(corr.indicatorType).displayName} vs ${StockMetricType.valueOf(corr.stockMetricType).displayName}: ${String.format("%.3f", corr.correlation)}")
+                }
+                appendLine()
+            }
+
+            // Top 상관관계
+            if (result.topPositiveCorrelations.isNotEmpty()) {
+                appendLine("## 가장 강한 양의 상관관계 Top 5")
+                result.topPositiveCorrelations.forEach { corr ->
+                    appendLine("- ${corr.description}")
+                }
+                appendLine()
+            }
+
+            if (result.topNegativeCorrelations.isNotEmpty()) {
+                appendLine("## 가장 강한 음의 상관관계 Top 5")
+                result.topNegativeCorrelations.forEach { corr ->
+                    appendLine("- ${corr.description}")
+                }
+                appendLine()
+            }
+
+            appendLine("## 분석 요청")
+            appendLine("위 상관관계 분석 결과를 종합하여 다음 JSON 형식으로 투자 신호를 제공해주세요:")
+            appendLine()
+            appendLine("```json")
+            appendLine("{")
+            appendLine("  \"signal\": \"STRONG_BUY|BUY|NEUTRAL|SELL|STRONG_SELL\",")
+            appendLine("  \"confidence\": 0.0-1.0,")
+            appendLine("  \"upProbability\": 0-100,")
+            appendLine("  \"downProbability\": 0-100,")
+            appendLine("  \"reasoning\": \"상관관계 분석 기반 상세 근거 (시장 심리, 자금 흐름, ETF 수급 각각 분석)\",")
+            appendLine("  \"keyFactors\": [\"핵심 상관관계 1\", \"핵심 상관관계 2\", \"핵심 상관관계 3\"],")
+            appendLine("  \"recommendation\": \"상관관계 기반 투자 권장사항\",")
+            appendLine("  \"riskLevel\": \"LOW|MEDIUM|HIGH\"")
+            appendLine("}")
+            appendLine("```")
+            appendLine()
+            appendLine("**분석 시 고려사항:**")
+            appendLine("1. 시장 심리(Fear & Greed)와 종목 간 상관관계가 높으면 시장 전체 흐름에 민감한 종목")
+            appendLine("2. 예탁금/신용잔고와의 상관관계는 개인투자자 자금 흐름과의 연관성 시사")
+            appendLine("3. ETF 수급과의 상관관계는 기관/패시브 자금 흐름과의 연관성 시사")
+            appendLine("4. 양/음의 상관관계 방향과 강도를 종합하여 투자 타이밍 판단")
+            appendLine("5. 상관관계가 낮은 경우 해당 종목은 시장 지표와 독립적으로 움직일 수 있음")
+        }
+    }
+
+    // ========== Helper 메서드 ==========
+
+    private fun extractKeyCorrelations(result: StockIndicatorCorrelationResult): List<String> {
+        val allCorrelations = result.topPositiveCorrelations + result.topNegativeCorrelations
+        return allCorrelations
+            .filter { abs(it.correlation) >= 0.3 }
+            .sortedByDescending { abs(it.correlation) }
+            .take(5)
+            .map { it.description }
+    }
+
+    private fun extractSentimentImpact(reasoning: String): String {
+        val keywords = listOf("심리", "Fear", "Greed", "RSI", "모멘텀", "감정", "공포", "탐욕")
+        val sentences = reasoning.split(".")
+        return sentences
+            .filter { sentence -> keywords.any { keyword -> sentence.contains(keyword, ignoreCase = true) } }
+            .take(2)
+            .joinToString(". ")
+            .ifEmpty { "시장 심리 지표와의 상관관계를 참고하세요." }
+    }
+
+    private fun extractFundFlowImpact(reasoning: String): String {
+        val keywords = listOf("예탁금", "신용", "자금", "유동성", "개인투자자", "자금흐름")
+        val sentences = reasoning.split(".")
+        return sentences
+            .filter { sentence -> keywords.any { keyword -> sentence.contains(keyword, ignoreCase = true) } }
+            .take(2)
+            .joinToString(". ")
+            .ifEmpty { "자금 동향 지표와의 상관관계를 참고하세요." }
+    }
+
+    private fun extractEtfFlowImpact(reasoning: String): String {
+        val keywords = listOf("ETF", "편입", "편출", "비중", "패시브", "기관")
+        val sentences = reasoning.split(".")
+        return sentences
+            .filter { sentence -> keywords.any { keyword -> sentence.contains(keyword, ignoreCase = true) } }
+            .take(2)
+            .joinToString(". ")
+            .ifEmpty { "ETF 수급 지표와의 상관관계를 참고하세요." }
+    }
+
     // 엔티티 -> 데이터 포인트 변환 확장 함수
     private fun MarketIndex.toPoint() = MarketIndexPoint(
         closePrice = closePrice,
@@ -1030,6 +1939,16 @@ private data class TrendResult(
     val strength: Double,
     val recentChange: Double,
     val description: String
+)
+
+/**
+ * 4개 값 튜플 (병렬 수집용)
+ */
+private data class Tuple4<A, B, C, D>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D
 )
 
 /**
