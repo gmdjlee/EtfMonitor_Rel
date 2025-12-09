@@ -26,6 +26,48 @@ data class StockData(
 )
 
 /**
+ * 주식 OHLCV 데이터
+ */
+data class StockOhlcvData(
+    val ticker: String,
+    val name: String,
+    val dates: List<String>,
+    val open: List<Double>,
+    val high: List<Double>,
+    val low: List<Double>,
+    val close: List<Double>,
+    val volume: List<Long>
+) {
+    /**
+     * 등락률 계산 (%)
+     */
+    fun getChangeRates(): List<Double> {
+        if (close.size < 2) return emptyList()
+        return close.mapIndexed { index, price ->
+            if (index == 0) 0.0
+            else ((price - close[index - 1]) / close[index - 1]) * 100
+        }
+    }
+
+    /**
+     * 최근 N일 데이터 추출
+     */
+    fun takeLast(n: Int): StockOhlcvData {
+        val count = minOf(n, dates.size)
+        return StockOhlcvData(
+            ticker = ticker,
+            name = name,
+            dates = dates.takeLast(count),
+            open = open.takeLast(count),
+            high = high.takeLast(count),
+            low = low.takeLast(count),
+            close = close.takeLast(count),
+            volume = volume.takeLast(count)
+        )
+    }
+}
+
+/**
  * 증시 자금 동향 데이터
  */
 data class MarketDepositData(

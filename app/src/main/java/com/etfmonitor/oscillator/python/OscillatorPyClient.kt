@@ -6,6 +6,7 @@ import com.etfmonitor.oscillator.model.DemarkTDData
 import com.etfmonitor.oscillator.model.ElderImpulseData
 import com.etfmonitor.oscillator.model.MarketDepositData
 import com.etfmonitor.oscillator.model.StockData
+import com.etfmonitor.oscillator.model.StockOhlcvData
 import com.etfmonitor.oscillator.model.TrendSignalData
 import com.etfmonitor.utils.DataParsingException
 import com.etfmonitor.utils.PythonRuntimeException
@@ -163,6 +164,19 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         @SerialName("market_cap") val marketCap: List<Long> = emptyList(),
         @SerialName("td_sell") val tdSell: List<Int> = emptyList(),
         @SerialName("td_buy") val tdBuy: List<Int> = emptyList(),
+        val error: String? = null
+    )
+
+    @Serializable
+    private data class StockOhlcvResponse(
+        val ticker: String = "",
+        val name: String = "",
+        val dates: List<String> = emptyList(),
+        val open: List<Double> = emptyList(),
+        val high: List<Double> = emptyList(),
+        val low: List<Double> = emptyList(),
+        val close: List<Double> = emptyList(),
+        val volume: List<Long> = emptyList(),
         val error: String? = null
     )
 
@@ -336,6 +350,55 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         } catch (e: Exception) {
             logger.e( "getAllStocksList error", e)
             emptyList()
+        }
+    }
+
+    /**
+     * 종목 OHLCV 데이터 조회
+     *
+     * @param ticker 종목 코드
+     * @param days 분석 기간 (일)
+     * @param interval 주기 ("d"=일별, "w"=주별)
+     * @return StockOhlcvData 또는 null
+     */
+    suspend fun getStockOhlcv(
+        ticker: String,
+        days: Int = 180,
+        interval: String = "d"
+    ): StockOhlcvData? = withContext(Dispatchers.IO) {
+        try {
+            withTimeout(TIMEOUT_MS) {
+                logger.d("getStockOhlcv: $ticker, $days days, interval: $interval")
+                val jsonStr = stocksModule.callAttr("get_stock_ohlcv", ticker, days, interval).toString()
+                val response = json.decodeFromString<StockOhlcvResponse>(jsonStr)
+
+                if (response.error != null) {
+                    logger.e("OHLCV error: ${response.error}")
+                    return@withTimeout null
+                }
+
+                StockOhlcvData(
+                    ticker = response.ticker,
+                    name = response.name,
+                    dates = response.dates,
+                    open = response.open,
+                    high = response.high,
+                    low = response.low,
+                    close = response.close,
+                    volume = response.volume
+                ).also {
+                    logger.d("OHLCV data complete: ${it.name}, ${response.dates.size} data points")
+                }
+            }
+        } catch (e: TimeoutCancellationException) {
+            logger.e("getStockOhlcv timeout", PythonTimeoutException(TIMEOUT_MS, "stocks", "get_stock_ohlcv"))
+            null
+        } catch (e: SerializationException) {
+            logger.e("getStockOhlcv parse error", DataParsingException("OHLCV JSON 파싱 실패: $ticker", cause = e))
+            null
+        } catch (e: Exception) {
+            logger.e("getStockOhlcv error", PythonRuntimeException("OHLCV 조회 실패: $ticker", "stocks", "get_stock_ohlcv", cause = e))
+            null
         }
     }
 
