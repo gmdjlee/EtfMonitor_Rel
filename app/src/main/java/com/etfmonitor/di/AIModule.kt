@@ -10,6 +10,7 @@ import com.etfmonitor.repository.AIChatRepository
 import com.etfmonitor.repository.CorrelationAnalysisRepository
 import com.etfmonitor.repository.MarketIndexRepository
 import com.etfmonitor.repository.TimeSeriesAnalysisRepository
+import com.etfmonitor.oscillator.python.OscillatorPyClient
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -193,7 +194,9 @@ object AIModule {
         marketOscillatorDao: MarketOscillatorDao,
         marketDepositDao: MarketDepositDao,
         dailyEtfStatisticsDao: DailyEtfStatisticsDao,
-        aiApiClientFactory: AIApiClientFactory
+        aiApiClientFactory: AIApiClientFactory,
+        oscillatorPyClient: OscillatorPyClient,
+        etfDao: EtfDao
     ): TimeSeriesAnalysisRepository {
         return TimeSeriesAnalysisRepository(
             marketIndexDao,
@@ -201,7 +204,9 @@ object AIModule {
             marketOscillatorDao,
             marketDepositDao,
             dailyEtfStatisticsDao,
-            aiApiClientFactory
+            aiApiClientFactory,
+            oscillatorPyClient,
+            etfDao
         )
     }
 }
