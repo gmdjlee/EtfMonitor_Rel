@@ -4,6 +4,8 @@ import com.etfmonitor.ai.AIApiClientFactory
 import com.etfmonitor.analysis.*
 import com.etfmonitor.database.*
 import com.etfmonitor.database.entities.*
+import com.etfmonitor.oscillator.model.StockOhlcvData
+import com.etfmonitor.oscillator.python.OscillatorPyClient
 import com.etfmonitor.utils.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -30,7 +32,8 @@ class TimeSeriesAnalysisRepository @Inject constructor(
     private val marketOscillatorDao: MarketOscillatorDao,
     private val marketDepositDao: MarketDepositDao,
     private val dailyEtfStatisticsDao: DailyEtfStatisticsDao,
-    private val aiApiClientFactory: AIApiClientFactory
+    private val aiApiClientFactory: AIApiClientFactory,
+    private val oscillatorPyClient: OscillatorPyClient
 ) {
     companion object {
         private val logger = AppLogger.getLogger("TimeSeriesRepo")
@@ -606,6 +609,374 @@ class TimeSeriesAnalysisRepository @Inject constructor(
             .take(2)
             .joinToString(". ")
             .ifEmpty { "추세 분석 결과를 참고하세요." }
+    }
+
+    // ========== 종목 주가 시계열 분석 ==========
+
+    /**
+     * 종목 검색
+     */
+    suspend fun searchStock(query: String): Pair<String, String>? = withContext(Dispatchers.IO) {
+        oscillatorPyClient.searchStock(query)
+    }
+
+    /**
+     * 전체 종목 리스트 가져오기
+     */
+    suspend fun getAllStocksList(): List<Pair<String, String>> = withContext(Dispatchers.IO) {
+        oscillatorPyClient.getAllStocksList()
+    }
+
+    /**
+     * 종목 OHLCV 시계열 데이터 수집
+     */
+    suspend fun collectStockTimeSeriesData(
+        ticker: String,
+        periodDays: Int = DEFAULT_PERIOD_DAYS
+    ): Result<StockTimeSeriesData> = withContext(Dispatchers.IO) {
+        try {
+            logger.d("Collecting stock time series data for $ticker, $periodDays days")
+
+            val ohlcvData = oscillatorPyClient.getStockOhlcv(ticker, periodDays, "d")
+
+            if (ohlcvData == null || ohlcvData.dates.isEmpty()) {
+                return@withContext Result.failure(Exception("종목 데이터를 가져올 수 없습니다: $ticker"))
+            }
+
+            // OHLCV 데이터를 시계열 포인트로 변환
+            val dataPoints = ohlcvData.dates.mapIndexed { index, date ->
+                val changeRate = if (index == 0) 0.0 else {
+                    val prevClose = ohlcvData.close[index - 1]
+                    if (prevClose != 0.0) {
+                        ((ohlcvData.close[index] - prevClose) / prevClose) * 100
+                    } else 0.0
+                }
+
+                StockTimeSeriesPoint(
+                    date = date,
+                    open = ohlcvData.open[index],
+                    high = ohlcvData.high[index],
+                    low = ohlcvData.low[index],
+                    close = ohlcvData.close[index],
+                    volume = ohlcvData.volume[index],
+                    changeRate = changeRate
+                )
+            }
+
+            val stockTimeSeriesData = StockTimeSeriesData(
+                ticker = ohlcvData.ticker,
+                name = ohlcvData.name,
+                startDate = ohlcvData.dates.firstOrNull() ?: "",
+                endDate = ohlcvData.dates.lastOrNull() ?: "",
+                dataPoints = dataPoints
+            )
+
+            logger.d("Collected ${dataPoints.size} stock data points for ${ohlcvData.name}")
+            Result.success(stockTimeSeriesData)
+
+        } catch (e: Exception) {
+            logger.e("Failed to collect stock time series data", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 종목 시계열 데이터 분석
+     */
+    suspend fun analyzeStockTimeSeries(
+        stockData: StockTimeSeriesData
+    ): Result<StockTimeSeriesAnalysisResult> = withContext(Dispatchers.Default) {
+        try {
+            logger.d("Analyzing stock time series data for ${stockData.name}")
+
+            val closePrices = stockData.getClosePrices()
+            val volumes = stockData.getVolumes()
+            val changeRates = stockData.getChangeRates()
+
+            // 가격 추세 분석
+            val priceTrend = calculateTrend(closePrices)
+
+            // 거래량 추세 분석
+            val volumeTrend = calculateTrend(volumes.map { it.toDouble() })
+
+            // 변동성 계산 (표준편차)
+            val volatility = calculateStdDev(changeRates)
+
+            // 평균 거래량
+            val avgVolume = if (volumes.isNotEmpty()) volumes.average().toLong() else 0L
+
+            // 가격 범위
+            val priceRange = Pair(
+                closePrices.minOrNull() ?: 0.0,
+                closePrices.maxOrNull() ?: 0.0
+            )
+
+            // 이상치 탐지 (등락률 기준)
+            val anomalies = detectStockAnomalies(stockData)
+
+            // 요약 생성
+            val summary = generateStockSummary(stockData, priceTrend, volumeTrend, volatility)
+
+            Result.success(
+                StockTimeSeriesAnalysisResult(
+                    stockData = stockData,
+                    priceTrend = TrendAnalysis(
+                        indicator = "주가",
+                        direction = priceTrend.direction,
+                        strength = priceTrend.strength,
+                        recentChange = priceTrend.recentChange,
+                        description = priceTrend.description
+                    ),
+                    volumeTrend = TrendAnalysis(
+                        indicator = "거래량",
+                        direction = volumeTrend.direction,
+                        strength = volumeTrend.strength,
+                        recentChange = volumeTrend.recentChange,
+                        description = volumeTrend.description
+                    ),
+                    volatility = volatility,
+                    avgVolume = avgVolume,
+                    priceRange = priceRange,
+                    anomalies = anomalies,
+                    summary = summary
+                )
+            )
+        } catch (e: Exception) {
+            logger.e("Failed to analyze stock time series", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 종목 시계열 AI 해석
+     */
+    suspend fun interpretStockWithAI(
+        analysisResult: StockTimeSeriesAnalysisResult
+    ): Result<AIStockTimeSeriesInterpretation> = withContext(Dispatchers.IO) {
+        try {
+            logger.d("Interpreting stock time series with AI for ${analysisResult.stockData.name}")
+
+            val client = aiApiClientFactory.getClient()
+            val prompt = createStockTimeSeriesPrompt(analysisResult)
+
+            val signalResult = client.analyzeMarket(prompt, temperature = 0.5)
+
+            if (signalResult.isFailure) {
+                return@withContext Result.failure(
+                    signalResult.exceptionOrNull() ?: Exception("AI 분석 실패")
+                )
+            }
+
+            val signal = signalResult.getOrThrow()
+
+            val interpretation = AIStockTimeSeriesInterpretation(
+                ticker = analysisResult.stockData.ticker,
+                name = analysisResult.stockData.name,
+                period = "${analysisResult.stockData.startDate} ~ ${analysisResult.stockData.endDate}",
+                signal = signal.signal.name,
+                confidence = signal.confidence,
+                upProbability = signal.upProbability,
+                downProbability = signal.downProbability,
+                riskLevel = signal.riskLevel.name,
+                trendSummary = extractTrendSummary(signal.reasoning),
+                keyInsights = signal.keyFactors,
+                recommendation = signal.recommendation,
+                reasoning = signal.reasoning
+            )
+
+            Result.success(interpretation)
+        } catch (e: Exception) {
+            logger.e("Failed to interpret stock with AI", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 전체 종목 시계열 분석 실행 (데이터 수집 + 분석 + AI 해석)
+     */
+    suspend fun runFullStockTimeSeriesAnalysis(
+        ticker: String,
+        periodDays: Int = DEFAULT_PERIOD_DAYS
+    ): Result<FullStockTimeSeriesResult> = withContext(Dispatchers.IO) {
+        try {
+            // 1. 데이터 수집
+            val dataResult = collectStockTimeSeriesData(ticker, periodDays)
+            if (dataResult.isFailure) {
+                return@withContext Result.failure(
+                    dataResult.exceptionOrNull() ?: Exception("데이터 수집 실패")
+                )
+            }
+            val stockData = dataResult.getOrThrow()
+
+            // 2. 분석 수행
+            val analysisResult = analyzeStockTimeSeries(stockData)
+            if (analysisResult.isFailure) {
+                return@withContext Result.failure(
+                    analysisResult.exceptionOrNull() ?: Exception("분석 실패")
+                )
+            }
+            val analysis = analysisResult.getOrThrow()
+
+            // 3. AI 해석
+            val aiResult = interpretStockWithAI(analysis)
+
+            Result.success(
+                FullStockTimeSeriesResult(
+                    analysisResult = analysis,
+                    aiInterpretation = aiResult.getOrNull(),
+                    errorMessage = aiResult.exceptionOrNull()?.message
+                )
+            )
+        } catch (e: Exception) {
+            logger.e("Failed to run full stock time series analysis", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 종목 이상치 탐지
+     */
+    private fun detectStockAnomalies(data: StockTimeSeriesData): List<AnomalyPoint> {
+        val anomalies = mutableListOf<AnomalyPoint>()
+        val changeRates = data.getChangeRates()
+
+        if (changeRates.size < 10) return anomalies
+
+        val mean = changeRates.average()
+        val stdDev = calculateStdDev(changeRates)
+
+        data.dataPoints.forEachIndexed { index, point ->
+            val zScore = if (stdDev != 0.0) abs(point.changeRate - mean) / stdDev else 0.0
+
+            if (zScore > 2.0) {
+                val severity = when {
+                    zScore > 3.0 -> AnomalySeverity.HIGH
+                    zScore > 2.5 -> AnomalySeverity.MEDIUM
+                    else -> AnomalySeverity.LOW
+                }
+
+                anomalies.add(
+                    AnomalyPoint(
+                        date = point.date,
+                        indicator = "등락률",
+                        value = point.changeRate,
+                        expectedRange = Pair(mean - 2 * stdDev, mean + 2 * stdDev),
+                        severity = severity
+                    )
+                )
+            }
+        }
+
+        return anomalies.sortedByDescending { it.severity.ordinal }
+    }
+
+    /**
+     * 종목 분석 요약 생성
+     */
+    private fun generateStockSummary(
+        data: StockTimeSeriesData,
+        priceTrend: TrendResult,
+        volumeTrend: TrendResult,
+        volatility: Double
+    ): String {
+        val sb = StringBuilder()
+
+        sb.appendLine("## ${data.name} (${data.ticker}) 시계열 분석 요약")
+        sb.appendLine("분석 기간: ${data.startDate} ~ ${data.endDate} (${data.totalDays}일)")
+        sb.appendLine()
+
+        sb.appendLine("### 가격 추세")
+        sb.appendLine("- 추세: ${priceTrend.description}")
+        sb.appendLine("- 최근 변화율: ${String.format("%+.1f", priceTrend.recentChange)}%")
+        sb.appendLine()
+
+        sb.appendLine("### 거래량 추세")
+        sb.appendLine("- 추세: ${volumeTrend.description}")
+        sb.appendLine("- 최근 변화율: ${String.format("%+.1f", volumeTrend.recentChange)}%")
+        sb.appendLine()
+
+        sb.appendLine("### 변동성")
+        val volatilityLevel = when {
+            volatility > 3.0 -> "높음"
+            volatility > 1.5 -> "보통"
+            else -> "낮음"
+        }
+        sb.appendLine("- 일별 변동성: ${String.format("%.2f", volatility)}% ($volatilityLevel)")
+
+        return sb.toString()
+    }
+
+    /**
+     * 종목 시계열 AI 프롬프트 생성
+     */
+    private fun createStockTimeSeriesPrompt(result: StockTimeSeriesAnalysisResult): String {
+        return buildString {
+            appendLine("당신은 한국 주식 시장 전문 애널리스트입니다.")
+            appendLine("다음 종목의 시계열 데이터를 분석하여 투자 전망을 제공해주세요.")
+            appendLine()
+            appendLine("## 종목 정보")
+            appendLine("- 종목명: ${result.stockData.name}")
+            appendLine("- 종목코드: ${result.stockData.ticker}")
+            appendLine("- 분석 기간: ${result.stockData.startDate} ~ ${result.stockData.endDate}")
+            appendLine("- 총 데이터: ${result.stockData.totalDays}일")
+            appendLine()
+
+            appendLine("## 가격 분석")
+            appendLine("- 가격 추세: ${result.priceTrend.description}")
+            appendLine("- 추세 강도: ${String.format("%.2f", result.priceTrend.strength)}")
+            appendLine("- 최근 변화율: ${String.format("%+.1f", result.priceTrend.recentChange)}%")
+            appendLine("- 가격 범위: ${String.format("%.0f", result.priceRange.first)} ~ ${String.format("%.0f", result.priceRange.second)}원")
+            appendLine()
+
+            appendLine("## 거래량 분석")
+            appendLine("- 거래량 추세: ${result.volumeTrend.description}")
+            appendLine("- 평균 거래량: ${String.format("%,d", result.avgVolume)}주")
+            appendLine()
+
+            appendLine("## 변동성")
+            appendLine("- 일별 변동성: ${String.format("%.2f", result.volatility)}%")
+            appendLine()
+
+            // 최근 데이터 포인트
+            val recentPoints = result.stockData.dataPoints.takeLast(10)
+            appendLine("## 최근 10일 데이터")
+            recentPoints.forEach { point ->
+                appendLine("- ${point.date}: ${String.format("%.0f", point.close)}원 (${String.format("%+.2f", point.changeRate)}%), 거래량: ${String.format("%,d", point.volume)}")
+            }
+            appendLine()
+
+            // 이상치 정보
+            val highAnomalies = result.anomalies.filter { it.severity == AnomalySeverity.HIGH }
+            if (highAnomalies.isNotEmpty()) {
+                appendLine("## 주요 이상치")
+                highAnomalies.take(3).forEach { anomaly ->
+                    appendLine("- ${anomaly.date}: 등락률 ${String.format("%+.2f", anomaly.value)}%")
+                }
+                appendLine()
+            }
+
+            appendLine("## 분석 요청")
+            appendLine("위 시계열 데이터를 종합적으로 분석하여 다음 JSON 형식으로 투자 신호를 제공해주세요:")
+            appendLine()
+            appendLine("```json")
+            appendLine("{")
+            appendLine("  \"signal\": \"STRONG_BUY|BUY|NEUTRAL|SELL|STRONG_SELL\",")
+            appendLine("  \"confidence\": 0.0-1.0,")
+            appendLine("  \"upProbability\": 0-100,")
+            appendLine("  \"downProbability\": 0-100,")
+            appendLine("  \"reasoning\": \"시계열 분석 기반 상세 근거\",")
+            appendLine("  \"keyFactors\": [\"주요 요인 1\", \"주요 요인 2\", \"주요 요인 3\"],")
+            appendLine("  \"recommendation\": \"투자 권장사항\",")
+            appendLine("  \"riskLevel\": \"LOW|MEDIUM|HIGH\"")
+            appendLine("}")
+            appendLine("```")
+            appendLine()
+            appendLine("**분석 시 고려사항:**")
+            appendLine("1. 가격 추세와 거래량 추세의 일치/괴리 분석")
+            appendLine("2. 변동성 수준에 따른 리스크 평가")
+            appendLine("3. 최근 가격 움직임의 지속 가능성 판단")
+            appendLine("4. 이상치 발생 패턴의 의미 해석")
+        }
     }
 
     // 엔티티 -> 데이터 포인트 변환 확장 함수

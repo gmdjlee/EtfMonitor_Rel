@@ -251,3 +251,90 @@ data class AnomalyPoint(
 enum class AnomalySeverity {
     LOW, MEDIUM, HIGH
 }
+
+// ============================================================
+// 종목 주가 시계열 분석 모델
+// ============================================================
+
+/**
+ * 분석 대상 타입
+ */
+enum class AnalysisTargetType(val displayName: String) {
+    INDEX("지수"),       // KOSPI/KOSDAQ 지수
+    STOCK("종목")        // 개별 종목
+}
+
+/**
+ * 종목 OHLCV 시계열 데이터
+ */
+@Serializable
+data class StockTimeSeriesData(
+    val ticker: String,
+    val name: String,
+    val startDate: String,
+    val endDate: String,
+    val dataPoints: List<StockTimeSeriesPoint>
+) {
+    val totalDays: Int get() = dataPoints.size
+
+    fun getDates(): List<String> = dataPoints.map { it.date }
+    fun getClosePrices(): List<Double> = dataPoints.map { it.close }
+    fun getVolumes(): List<Long> = dataPoints.map { it.volume }
+    fun getChangeRates(): List<Double> = dataPoints.map { it.changeRate }
+}
+
+/**
+ * 종목 주가 데이터 포인트
+ */
+@Serializable
+data class StockTimeSeriesPoint(
+    val date: String,
+    val open: Double,
+    val high: Double,
+    val low: Double,
+    val close: Double,
+    val volume: Long,
+    val changeRate: Double
+)
+
+/**
+ * 종목 시계열 분석 결과
+ */
+@Serializable
+data class StockTimeSeriesAnalysisResult(
+    val stockData: StockTimeSeriesData,
+    val priceTrend: TrendAnalysis,
+    val volumeTrend: TrendAnalysis,
+    val volatility: Double,
+    val avgVolume: Long,
+    val priceRange: Pair<Double, Double>,
+    val anomalies: List<AnomalyPoint>,
+    val summary: String
+)
+
+/**
+ * 전체 종목 시계열 분석 결과 (데이터 + 분석 + AI 해석)
+ */
+data class FullStockTimeSeriesResult(
+    val analysisResult: StockTimeSeriesAnalysisResult,
+    val aiInterpretation: AIStockTimeSeriesInterpretation?,
+    val errorMessage: String?
+)
+
+/**
+ * AI 종목 시계열 해석 결과
+ */
+data class AIStockTimeSeriesInterpretation(
+    val ticker: String,
+    val name: String,
+    val period: String,
+    val signal: String,
+    val confidence: Double,
+    val upProbability: Double,
+    val downProbability: Double,
+    val riskLevel: String,
+    val trendSummary: String,
+    val keyInsights: List<String>,
+    val recommendation: String,
+    val reasoning: String
+)
