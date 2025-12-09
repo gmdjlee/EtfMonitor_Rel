@@ -6,6 +6,7 @@ import com.etfmonitor.oscillator.model.DemarkTDData
 import com.etfmonitor.oscillator.model.ElderImpulseData
 import com.etfmonitor.oscillator.model.MarketDepositData
 import com.etfmonitor.oscillator.model.StockData
+import com.etfmonitor.oscillator.model.StockOhlcvData
 import com.etfmonitor.oscillator.model.TrendSignalData
 import com.etfmonitor.utils.DataParsingException
 import com.etfmonitor.utils.PythonRuntimeException
