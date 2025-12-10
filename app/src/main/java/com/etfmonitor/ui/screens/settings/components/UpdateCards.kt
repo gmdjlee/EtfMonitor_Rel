@@ -304,32 +304,207 @@ fun MarketOscillatorUpdateCard(
 
 /**
  * ETF 데이터 자동 업데이트 카드
+ * DataManagementCard와 통합된 버전 - 초기화/업데이트/스케쥴링 모두 포함
  */
 @Composable
-fun EtfUpdateCard(
+fun EtfDataManagementCard(
     settings: EtfUpdateSettings,
+    onInitialize: (Int) -> Unit,
+    onUpdate: () -> Unit,
     onTimeChange: (Int, Int) -> Unit,
     onUpdateNow: () -> Unit
 ) {
-    val config = DataUpdateCardConfig(
-        title = stringResource(R.string.settings_etf_update),
-        icon = Icons.Default.CloudDownload,
-        description = stringResource(R.string.settings_etf_update_desc),
-        updateHour = settings.updateHour,
-        updateMinute = settings.updateMinute,
-        lastUpdateTime = settings.lastUpdateTime,
-        isUpdating = settings.isUpdating,
-        stats = listOf(
-            StatItem(stringResource(R.string.settings_etf_count), stringResource(R.string.label_etf_count_unit, settings.etfCount)),
-            StatItem(stringResource(R.string.settings_holding_count), stringResource(R.string.label_etf_count_unit, settings.holdingCount))
-        )
-    )
+    var showTimePicker by remember { mutableStateOf(false) }
+    var showDaysDialog by remember { mutableStateOf(false) }
 
-    DataUpdateCard(
-        config = config,
-        onTimeChange = onTimeChange,
-        onUpdateNow = onUpdateNow
-    )
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // 헤더
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.CloudDownload,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(stringResource(R.string.settings_etf_data_management), style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            // 설명
+            Text(
+                stringResource(R.string.settings_etf_data_management_desc),
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            // 통계 정보
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            stringResource(R.string.settings_etf_count),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            stringResource(R.string.label_etf_count_unit, settings.etfCount),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            stringResource(R.string.settings_holding_count),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            stringResource(R.string.label_etf_count_unit, settings.holdingCount),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    settings.lastUpdateTime?.let { time ->
+                        val dateStr = SimpleDateFormat(
+                            "yyyy-MM-dd HH:mm",
+                            Locale.getDefault()
+                        ).format(Date(time))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                stringResource(R.string.settings_last_update),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                dateStr,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 초기화/업데이트 버튼
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { showDaysDialog = true },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.settings_data_init))
+                }
+
+                OutlinedButton(
+                    onClick = onUpdate,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.settings_data_update))
+                }
+            }
+
+            HorizontalDivider()
+
+            // 자동 업데이트 시간 설정
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        stringResource(R.string.settings_auto_update_time),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "${String.format("%02d", settings.updateHour)}:${String.format("%02d", settings.updateMinute)}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Button(onClick = { showTimePicker = true }) {
+                    Text(stringResource(R.string.settings_action_change))
+                }
+            }
+
+            // 백그라운드 업데이트 버튼
+            OutlinedButton(
+                onClick = onUpdateNow,
+                enabled = !settings.isUpdating,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (settings.isUpdating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.settings_updating))
+                } else {
+                    Icon(Icons.Default.Schedule, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.settings_schedule_update_now))
+                }
+            }
+
+            // 힌트
+            Surface(
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Text(
+                    stringResource(R.string.settings_etf_data_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+        }
+    }
+
+    if (showTimePicker) {
+        TimePickerDialog(
+            currentHour = settings.updateHour,
+            currentMinute = settings.updateMinute,
+            onDismiss = { showTimePicker = false },
+            onConfirm = { hour, minute ->
+                onTimeChange(hour, minute)
+                showTimePicker = false
+            }
+        )
+    }
+
+    if (showDaysDialog) {
+        DaysSelectionDialog(
+            currentDays = 25,
+            onDismiss = { showDaysDialog = false },
+            onConfirm = { days ->
+                onInitialize(days)
+                showDaysDialog = false
+            }
+        )
+    }
 }
 
 /**
