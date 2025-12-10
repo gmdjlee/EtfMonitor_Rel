@@ -303,19 +303,18 @@ fun MarketOscillatorUpdateCard(
 }
 
 /**
- * ETF 데이터 자동 업데이트 카드
- * DataManagementCard와 통합된 버전 - 초기화/업데이트/스케쥴링 모두 포함
+ * ETF 데이터 관리 카드
+ * 수동 업데이트 및 자동 스케쥴링 지원
+ * 참고: ETF 데이터 초기화는 DatabaseCard의 데이터베이스 초기화에서 지원됨
  */
 @Composable
 fun EtfDataManagementCard(
     settings: EtfUpdateSettings,
-    onInitialize: (Int) -> Unit,
     onUpdate: () -> Unit,
     onTimeChange: (Int, Int) -> Unit,
     onUpdateNow: () -> Unit
 ) {
     var showTimePicker by remember { mutableStateOf(false) }
-    var showDaysDialog by remember { mutableStateOf(false) }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -399,28 +398,14 @@ fun EtfDataManagementCard(
                 }
             }
 
-            // 초기화/업데이트 버튼
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            // 수동 업데이트 버튼
+            Button(
+                onClick = onUpdate,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Button(
-                    onClick = { showDaysDialog = true },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.settings_data_init))
-                }
-
-                OutlinedButton(
-                    onClick = onUpdate,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.settings_data_update))
-                }
+                Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.settings_data_update))
             }
 
             HorizontalDivider()
@@ -491,17 +476,6 @@ fun EtfDataManagementCard(
             onConfirm = { hour, minute ->
                 onTimeChange(hour, minute)
                 showTimePicker = false
-            }
-        )
-    }
-
-    if (showDaysDialog) {
-        DaysSelectionDialog(
-            currentDays = 25,
-            onDismiss = { showDaysDialog = false },
-            onConfirm = { days ->
-                onInitialize(days)
-                showDaysDialog = false
             }
         )
     }

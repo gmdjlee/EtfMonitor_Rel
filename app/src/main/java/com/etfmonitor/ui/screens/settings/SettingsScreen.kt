@@ -294,11 +294,11 @@ private fun DataUpdateTab(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ETF 데이터 관리 (초기화/업데이트/스케쥴링 통합)
+        // ETF 데이터 관리 (업데이트/스케쥴링)
+        // 참고: ETF 데이터 초기화는 하단의 DatabaseCard에서 지원됨
         item {
             EtfDataManagementCard(
                 settings = etfUpdateSettings,
-                onInitialize = { days -> viewModel.initializeData(days) },
                 onUpdate = { viewModel.updateData() },
                 onTimeChange = { hour, minute -> viewModel.setEtfUpdateTime(hour, minute) },
                 onUpdateNow = { viewModel.updateEtfNow() }
