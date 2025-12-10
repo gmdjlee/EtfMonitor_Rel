@@ -12,6 +12,7 @@ import com.etfmonitor.database.entities.AIChatMessage
 import com.etfmonitor.database.entities.AIChatSession
 import com.etfmonitor.database.entities.AIAnalysisResult
 import com.etfmonitor.database.entities.CorrelationAnalysisResult
+import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.repository.AIChatRepository
 import com.etfmonitor.repository.CorrelationAnalysisRepository
 import com.etfmonitor.repository.FullAnalysisResult
@@ -303,6 +304,7 @@ class NewAIAnalysisViewModel @Inject constructor(
 
     /**
      * 종목-지표 상관관계 분석 (로컬만)
+     * 시장은 종목 티커에서 자동 감지
      */
     fun analyzeStockIndicatorCorrelation() {
         val stock = _selectedStock.value ?: return
@@ -310,11 +312,14 @@ class NewAIAnalysisViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = NewAIAnalysisState.AnalyzingStockIndicatorCorrelation
 
+            // 종목 티커로 시장 자동 감지 (KOSPI: 0,1,2,3으로 시작, 나머지: KOSDAQ)
+            val detectedMarket = Stock.inferMarket(stock.first)
+
             val result = timeSeriesAnalysisRepository.analyzeStockIndicatorCorrelations(
                 com.etfmonitor.analysis.StockIndicatorCorrelationRequest(
                     ticker = stock.first,
                     name = stock.second,
-                    market = _selectedMarket.value,
+                    market = detectedMarket,
                     periodDays = _analysisPeriod.value
                 )
             )
@@ -337,6 +342,7 @@ class NewAIAnalysisViewModel @Inject constructor(
 
     /**
      * 전체 종목-지표 상관관계 분석 실행 (분석 + AI 해석)
+     * 시장은 종목 티커에서 자동 감지
      */
     fun runFullStockIndicatorCorrelationAnalysis() {
         val stock = _selectedStock.value ?: return
@@ -351,10 +357,13 @@ class NewAIAnalysisViewModel @Inject constructor(
 
             _state.value = NewAIAnalysisState.AnalyzingStockIndicatorCorrelationFull
 
+            // 종목 티커로 시장 자동 감지 (KOSPI: 0,1,2,3으로 시작, 나머지: KOSDAQ)
+            val detectedMarket = Stock.inferMarket(stock.first)
+
             val result = timeSeriesAnalysisRepository.runFullStockIndicatorCorrelationAnalysis(
                 ticker = stock.first,
                 name = stock.second,
-                market = _selectedMarket.value,
+                market = detectedMarket,
                 periodDays = _analysisPeriod.value
             )
 

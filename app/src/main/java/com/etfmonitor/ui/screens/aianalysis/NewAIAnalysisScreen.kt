@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -35,6 +36,7 @@ import com.etfmonitor.analysis.SignalType
 import com.etfmonitor.analysis.StockIndicatorCorrelationResult
 import com.etfmonitor.analysis.StockMetricType
 import com.etfmonitor.database.entities.AIChatMessage
+import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.AIChatSession
 import com.etfmonitor.database.entities.CorrelationAnalysisResult
 import com.etfmonitor.repository.FullAnalysisResult
@@ -160,14 +162,12 @@ fun NewAIAnalysisScreen(
                             AnalysisTab.STOCK_INDICATOR -> {
                                 StockIndicatorCorrelationScreen(
                                     state = state,
-                                    selectedMarket = selectedMarket,
                                     analysisPeriod = analysisPeriod,
                                     isApiKeyConfigured = isApiKeyConfigured,
                                     selectedStock = selectedStock,
                                     stockIndicatorCorrelationResult = stockIndicatorCorrelationResult,
                                     stockSearchResults = stockSearchResults,
                                     isSearching = isSearching,
-                                    onMarketSelect = { viewModel.selectMarket(it) },
                                     onPeriodChange = { viewModel.setAnalysisPeriod(it) },
                                     onSearchStock = { viewModel.searchStock(it) },
                                     onSelectStock = { ticker, name -> viewModel.selectStock(ticker, name) },
@@ -384,18 +384,17 @@ private fun CorrelationAnalysisScreen(
 
 /**
  * 종목-지표 상관관계 분석 화면
+ * 시장은 종목 티커에 따라 자동 감지됨 (KOSPI: 0,1,2,3으로 시작, 나머지: KOSDAQ)
  */
 @Composable
 private fun StockIndicatorCorrelationScreen(
     state: NewAIAnalysisState,
-    selectedMarket: String,
     analysisPeriod: Int,
     isApiKeyConfigured: Boolean,
     selectedStock: Pair<String, String>?,
     stockIndicatorCorrelationResult: FullStockIndicatorCorrelationResult?,
     stockSearchResults: List<Pair<String, String>>,
     isSearching: Boolean,
-    onMarketSelect: (String) -> Unit,
     onPeriodChange: (Int) -> Unit,
     onSearchStock: (String) -> Unit,
     onSelectStock: (String, String) -> Unit,
@@ -412,20 +411,15 @@ private fun StockIndicatorCorrelationScreen(
 
     var searchQuery by remember { mutableStateOf("") }
 
+    // 선택된 종목의 시장 자동 감지
+    val detectedMarket = selectedStock?.let { Stock.inferMarket(it.first) }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 시장 선택
-        item {
-            AnalysisMarketSelector(
-                selectedMarket = selectedMarket,
-                onMarketSelect = onMarketSelect
-            )
-        }
-
         // 종목 검색
         item {
             StockSearchSection(
@@ -437,6 +431,7 @@ private fun StockIndicatorCorrelationScreen(
                 searchResults = stockSearchResults,
                 isSearching = isSearching,
                 selectedStock = selectedStock,
+                detectedMarket = detectedMarket,
                 onSelectStock = { ticker, name ->
                     onSelectStock(ticker, name)
                     searchQuery = ""
@@ -605,6 +600,7 @@ private fun StockSearchSection(
     searchResults: List<Pair<String, String>>,
     isSearching: Boolean,
     selectedStock: Pair<String, String>?,
+    detectedMarket: String? = null,
     onSelectStock: (String, String) -> Unit,
     onClearStock: () -> Unit
 ) {
@@ -631,13 +627,36 @@ private fun StockSearchSection(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                selectedStock.second,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium
+                            )
+                            // 감지된 시장 표시
+                            if (detectedMarket != null) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    color = if (detectedMarket == "KOSPI")
+                                        Color(0xFF1976D2).copy(alpha = 0.15f)
+                                    else
+                                        Color(0xFFE64A19).copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = detectedMarket,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (detectedMarket == "KOSPI")
+                                            Color(0xFF1976D2)
+                                        else
+                                            Color(0xFFE64A19),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
                         Text(
-                            selectedStock.second,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            selectedStock.first,
+                            "${selectedStock.first}${if (detectedMarket != null) " • ${detectedMarket} 지표로 분석" else ""}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                         )
@@ -866,6 +885,7 @@ private fun CorrelationCategoryCard(
                     label = getIndicatorDisplayName(correlation.indicatorType) +
                             " vs " + getMetricDisplayName(correlation.stockMetricType),
                     value = correlation.correlation,
+                    leadLagDays = correlation.leadLagDays,
                     color = color
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -876,23 +896,69 @@ private fun CorrelationCategoryCard(
 
 /**
  * 상관관계 바 아이템
+ * leadLagDays: 양수면 지표가 주가보다 선행, 음수면 후행
  */
 @Composable
 private fun CorrelationBarItem(
     label: String,
     value: Double,
+    leadLagDays: Int = 0,
     color: Color
 ) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                label,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.weight(1f)
-            )
+            // 레이블과 선행/후행 표시
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                // 선행/후행 배지
+                if (leadLagDays != 0) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    val isLeading = leadLagDays > 0
+                    Surface(
+                        color = if (isLeading)
+                            Color(0xFF2196F3).copy(alpha = 0.15f)
+                        else
+                            Color(0xFFFF9800).copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (isLeading)
+                                    Icons.Default.TrendingUp
+                                else
+                                    Icons.Default.TrendingDown,
+                                contentDescription = null,
+                                modifier = Modifier.size(10.dp),
+                                tint = if (isLeading) Color(0xFF2196F3) else Color(0xFFFF9800)
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = if (isLeading)
+                                    "${leadLagDays}일 선행"
+                                else
+                                    "${-leadLagDays}일 후행",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isLeading) Color(0xFF2196F3) else Color(0xFFFF9800),
+                                fontSize = 9.sp
+                            )
+                        }
+                    }
+                }
+            }
+            // 상관계수 값
             Text(
                 String.format("%+.3f", value),
                 style = MaterialTheme.typography.bodySmall,
