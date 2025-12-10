@@ -3,6 +3,7 @@ package com.etfmonitor.ui.screens.statistics
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +37,7 @@ import com.etfmonitor.database.entities.HoldingStatus
 fun StatisticsScreen(
     onNavigateBack: () -> Unit,
     onStockClick: (String) -> Unit,
+    onNavigateToOscillator: ((String) -> Unit)? = null,
     viewModel: StatisticsViewModel = hiltViewModel()
 ) {
     val dates by viewModel.dates.collectAsState()
@@ -52,8 +54,15 @@ fun StatisticsScreen(
     val searchResults by viewModel.searchResults.collectAsState()
     val analysisResult by viewModel.analysisResult.collectAsState()
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
+    val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
 
     var selectedTab by remember { mutableStateOf(0) }
+
+    // FAB 표시 조건: 분석 탭에서 분석 결과가 있을 때
+    val showFab = quickChartAnalysisEnabled &&
+            onNavigateToOscillator != null &&
+            selectedTab == 6 &&  // 분석 탭
+            analysisResult != null
     val tabs = listOf(
         stringResource(R.string.statistics_tab_amount_ranking),
         stringResource(R.string.statistics_tab_new),
@@ -94,6 +103,22 @@ fun StatisticsScreen(
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
+        },
+        floatingActionButton = {
+            if (showFab && analysisResult != null) {
+                ExtendedFloatingActionButton(
+                    onClick = { onNavigateToOscillator?.invoke(analysisResult!!.stockTicker) },
+                    icon = {
+                        Icon(
+                            Icons.Default.ShowChart,
+                            contentDescription = null
+                        )
+                    },
+                    text = { Text("차트 분석") },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->

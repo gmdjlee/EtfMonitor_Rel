@@ -32,13 +32,22 @@ class NewAIAnalysisViewModel @Inject constructor(
     private val timeSeriesAnalysisRepository: TimeSeriesAnalysisRepository,
     private val chatRepository: AIChatRepository,
     private val apiKeyProvider: ApiKeyProvider,
-    private val aiApiClientFactory: AIApiClientFactory
+    private val aiApiClientFactory: AIApiClientFactory,
+    private val etfDao: com.etfmonitor.database.EtfDao
 ) : ViewModel() {
+
+    companion object {
+        private const val QUICK_CHART_ANALYSIS_KEY = "quick_chart_analysis_enabled"
+    }
 
     // ========== 상태 관리 ==========
 
     private val _state = MutableStateFlow<NewAIAnalysisState>(NewAIAnalysisState.Idle)
     val state: StateFlow<NewAIAnalysisState> = _state.asStateFlow()
+
+    // 빠른 차트 분석 설정
+    private val _quickChartAnalysisEnabled = MutableStateFlow(false)
+    val quickChartAnalysisEnabled: StateFlow<Boolean> = _quickChartAnalysisEnabled.asStateFlow()
 
     private val _selectedMarket = MutableStateFlow("KOSPI")
     val selectedMarket: StateFlow<String> = _selectedMarket.asStateFlow()
@@ -95,6 +104,21 @@ class NewAIAnalysisViewModel @Inject constructor(
         checkApiKey()
         loadSelectedProvider()
         loadLatestResults()
+        loadQuickChartAnalysisSetting()
+    }
+
+    /**
+     * 빠른 차트 분석 설정 로드
+     */
+    private fun loadQuickChartAnalysisSetting() {
+        viewModelScope.launch {
+            try {
+                val enabled = etfDao.getSetting(QUICK_CHART_ANALYSIS_KEY) == "true"
+                _quickChartAnalysisEnabled.value = enabled
+            } catch (e: Exception) {
+                // Ignore error, keep default value
+            }
+        }
     }
 
     /**

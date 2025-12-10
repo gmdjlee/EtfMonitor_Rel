@@ -60,6 +60,7 @@ enum class AnalysisTab(val title: String) {
 @Composable
 fun NewAIAnalysisScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToOscillator: ((String) -> Unit)? = null,
     viewModel: NewAIAnalysisViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -76,10 +77,19 @@ fun NewAIAnalysisScreen(
     val chatMessages by viewModel.chatMessages.collectAsState()
     val isSendingMessage by viewModel.isSendingMessage.collectAsState()
     val chatSessions by viewModel.chatSessions.collectAsState(initial = emptyList())
+    val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
 
     var showProviderDialog by remember { mutableStateOf(false) }
     var showHistorySheet by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(AnalysisTab.CORRELATION) }
+
+    // FAB 표시 조건: 종목-지표 탭에서 종목이 선택되고 분석 결과가 있을 때
+    val showFab = quickChartAnalysisEnabled &&
+            onNavigateToOscillator != null &&
+            selectedTab == AnalysisTab.STOCK_INDICATOR &&
+            selectedStock != null &&
+            stockIndicatorCorrelationResult?.correlationResult != null &&
+            currentSession == null
 
     Scaffold(
         topBar = {
@@ -114,6 +124,17 @@ fun NewAIAnalysisScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            if (showFab && selectedStock != null) {
+                ExtendedFloatingActionButton(
+                    onClick = { onNavigateToOscillator?.invoke(selectedStock!!.first) },
+                    icon = { Icon(Icons.Default.ShowChart, contentDescription = null) },
+                    text = { Text("차트 분석") },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
         }
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues)) {
