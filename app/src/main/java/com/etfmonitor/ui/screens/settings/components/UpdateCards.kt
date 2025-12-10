@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.etfmonitor.R
+import com.etfmonitor.ui.screens.settings.EtfUpdateSettings
 import com.etfmonitor.ui.screens.settings.FearGreedUpdateSettings
 import com.etfmonitor.ui.screens.settings.MarketDepositUpdateSettings
 import com.etfmonitor.ui.screens.settings.MarketOscillatorUpdateSettings
@@ -291,6 +292,38 @@ fun MarketOscillatorUpdateCard(
         stats = listOf(
             StatItem(stringResource(R.string.settings_kospi_count), stringResource(R.string.label_etf_count_unit, settings.kospiCount)),
             StatItem(stringResource(R.string.settings_kosdaq_count), stringResource(R.string.label_etf_count_unit, settings.kosdaqCount))
+        )
+    )
+
+    DataUpdateCard(
+        config = config,
+        onTimeChange = onTimeChange,
+        onUpdateNow = onUpdateNow
+    )
+}
+
+/**
+ * ETF 데이터 자동 업데이트 카드
+ * 다른 데이터 업데이트 카드와 동일한 형식
+ * 참고: ETF 데이터 초기화는 DatabaseCard의 데이터베이스 초기화에서 지원됨
+ */
+@Composable
+fun EtfDataManagementCard(
+    settings: EtfUpdateSettings,
+    onTimeChange: (Int, Int) -> Unit,
+    onUpdateNow: () -> Unit
+) {
+    val config = DataUpdateCardConfig(
+        title = stringResource(R.string.settings_etf_data_management),
+        icon = Icons.Default.CloudDownload,
+        description = stringResource(R.string.settings_etf_data_management_desc),
+        updateHour = settings.updateHour,
+        updateMinute = settings.updateMinute,
+        lastUpdateTime = settings.lastUpdateTime,
+        isUpdating = settings.isUpdating,
+        stats = listOf(
+            StatItem(stringResource(R.string.settings_etf_count), stringResource(R.string.label_etf_count_unit, settings.etfCount)),
+            StatItem(stringResource(R.string.settings_holding_count), stringResource(R.string.label_etf_count_unit, settings.holdingCount))
         )
     )
 

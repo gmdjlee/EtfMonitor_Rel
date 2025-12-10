@@ -49,6 +49,7 @@ fun SettingsScreen(
     val marketDepositUpdateSettings by viewModel.marketDepositUpdateSettings.collectAsState()
     val fearGreedUpdateSettings by viewModel.fearGreedUpdateSettings.collectAsState()
     val marketOscillatorUpdateSettings by viewModel.marketOscillatorUpdateSettings.collectAsState()
+    val etfUpdateSettings by viewModel.etfUpdateSettings.collectAsState()
     val message by viewModel.message.collectAsState()
 
     // General settings
@@ -145,6 +146,7 @@ fun SettingsScreen(
                     marketDepositUpdateSettings = marketDepositUpdateSettings,
                     fearGreedUpdateSettings = fearGreedUpdateSettings,
                     marketOscillatorUpdateSettings = marketOscillatorUpdateSettings,
+                    etfUpdateSettings = etfUpdateSettings,
                     viewModel = viewModel
                 )
                 3 -> DataPeriodTab(
@@ -284,6 +286,7 @@ private fun DataUpdateTab(
     marketDepositUpdateSettings: MarketDepositUpdateSettings,
     fearGreedUpdateSettings: FearGreedUpdateSettings,
     marketOscillatorUpdateSettings: MarketOscillatorUpdateSettings,
+    etfUpdateSettings: EtfUpdateSettings,
     viewModel: SettingsViewModel
 ) {
     LazyColumn(
@@ -291,11 +294,13 @@ private fun DataUpdateTab(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 데이터 관리
+        // ETF 데이터 자동 업데이트 설정
+        // 참고: ETF 데이터 초기화는 하단의 DatabaseCard에서 지원됨
         item {
-            DataManagementCard(
-                onInitialize = { days -> viewModel.initializeData(days) },
-                onUpdate = { viewModel.updateData() }
+            EtfDataManagementCard(
+                settings = etfUpdateSettings,
+                onTimeChange = { hour, minute -> viewModel.setEtfUpdateTime(hour, minute) },
+                onUpdateNow = { viewModel.updateEtfNow() }
             )
         }
 

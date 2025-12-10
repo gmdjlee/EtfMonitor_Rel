@@ -14,84 +14,12 @@ import androidx.compose.ui.unit.dp
 import com.etfmonitor.R
 
 /**
- * Settings Screen - Data Tab Card Components
- * Contains DataManagementCard, DefaultDaysCard, SearchHistoryLimitCard, DatabaseCard
+ * Settings Screen - Data Period Tab Card Components
+ * Contains DefaultDaysCard, SearchHistoryLimitCard, DatabaseCard
  * and their related dialogs
+ *
+ * Note: ETF 데이터 관리 기능은 UpdateCards.kt의 EtfDataManagementCard에서 제공
  */
-
-@Composable
-fun DataManagementCard(
-    onInitialize: (Int) -> Unit,
-    onUpdate: () -> Unit
-) {
-    var showDaysDialog by remember { mutableStateOf(false) }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    Icons.Default.Storage,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Text(stringResource(R.string.settings_data_management), style = MaterialTheme.typography.titleMedium)
-            }
-
-            HorizontalDivider()
-
-            Text(
-                stringResource(R.string.settings_data_management_desc),
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            Button(
-                onClick = { showDaysDialog = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.Download, null)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.settings_data_init))
-            }
-
-            OutlinedButton(
-                onClick = onUpdate,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.Refresh, null)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.settings_data_update))
-            }
-
-            Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                shape = MaterialTheme.shapes.small
-            ) {
-                Text(
-                    stringResource(R.string.settings_data_init_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(8.dp)
-                )
-            }
-        }
-    }
-
-    if (showDaysDialog) {
-        DaysSelectionDialog(
-            currentDays = 25,
-            onDismiss = { showDaysDialog = false },
-            onConfirm = { days ->
-                onInitialize(days)
-                showDaysDialog = false
-            }
-        )
-    }
-}
 
 @Composable
 fun DefaultDaysCard(

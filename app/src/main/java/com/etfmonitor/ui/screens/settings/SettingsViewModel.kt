@@ -70,6 +70,15 @@ data class AdvancedAnalysisSettings(
     val isUpdating: Boolean = false
 )
 
+data class EtfUpdateSettings(
+    val updateHour: Int = 0,
+    val updateMinute: Int = 30,
+    val lastUpdateTime: Long? = null,
+    val etfCount: Int = 0,
+    val holdingCount: Int = 0,
+    val isUpdating: Boolean = false
+)
+
 sealed class ApiKeyTestState {
     object Idle : ApiKeyTestState()
     object Testing : ApiKeyTestState()
@@ -149,6 +158,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _advancedAnalysisSettings = MutableStateFlow(AdvancedAnalysisSettings())
     val advancedAnalysisSettings: StateFlow<AdvancedAnalysisSettings> = _advancedAnalysisSettings.asStateFlow()
+
+    private val _etfUpdateSettings = MutableStateFlow(EtfUpdateSettings())
+    val etfUpdateSettings: StateFlow<EtfUpdateSettings> = _etfUpdateSettings.asStateFlow()
 
     private val _searchHistoryLimit = MutableStateFlow(15)
     val searchHistoryLimit: StateFlow<Int> = _searchHistoryLimit.asStateFlow()
@@ -288,6 +300,14 @@ class SettingsViewModel @Inject constructor(
             updateHour = advHour, updateMinute = advMinute
         )
         WorkManagerHelper.scheduleAdvancedAnalysis(context, advHour, advMinute)
+
+        // ETF data update (default 00:30)
+        val etfHour = etfDao.getSetting(Keys.updateHour("etf"))?.toIntOrNull() ?: 0
+        val etfMinute = etfDao.getSetting(Keys.updateMinute("etf"))?.toIntOrNull() ?: 30
+        _etfUpdateSettings.value = _etfUpdateSettings.value.copy(
+            updateHour = etfHour, updateMinute = etfMinute
+        )
+        WorkManagerHelper.scheduleEtfUpdate(context, etfHour, etfMinute)
     }
 
     private suspend fun loadThemeSettings() {
@@ -354,6 +374,16 @@ class SettingsViewModel @Inject constructor(
     private fun loadDataInfo() {
         viewModelScope.launch {
             try {
+                // ETF info
+                val etfCount = etfDao.getEtfCount()
+                val holdingCount = etfDao.getHoldingCount()
+                val latestDate = etfDao.getLatestDate()
+                _etfUpdateSettings.value = _etfUpdateSettings.value.copy(
+                    etfCount = etfCount,
+                    holdingCount = holdingCount,
+                    lastUpdateTime = latestDate?.let { parseDate(it) }
+                )
+
                 // Stock info
                 _stockUpdateSettings.value = _stockUpdateSettings.value.copy(
                     stockCount = stockRepository.getStockCount(),
@@ -446,6 +476,15 @@ class SettingsViewModel @Inject constructor(
         return "$name 데이터 수집 기간이 ${period}로 설정되었습니다"
     }
 
+    private fun parseDate(dateStr: String): Long? {
+        return try {
+            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                .parse(dateStr)?.time
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     // ==================== Update Time Settings ====================
 
     fun setUpdateTime(hour: Int, minute: Int) = setSchedule("stock", hour, minute, "업데이트") {
@@ -471,6 +510,11 @@ class SettingsViewModel @Inject constructor(
     fun setAdvancedAnalysisUpdateTime(hour: Int, minute: Int) = setSchedule("advanced_analysis", hour, minute, "고급 분석 업데이트") {
         _advancedAnalysisSettings.value = _advancedAnalysisSettings.value.copy(updateHour = hour, updateMinute = minute)
         WorkManagerHelper.scheduleAdvancedAnalysis(context, hour, minute)
+    }
+
+    fun setEtfUpdateTime(hour: Int, minute: Int) = setSchedule("etf", hour, minute, "ETF 데이터 업데이트") {
+        _etfUpdateSettings.value = _etfUpdateSettings.value.copy(updateHour = hour, updateMinute = minute)
+        WorkManagerHelper.scheduleEtfUpdate(context, hour, minute)
     }
 
     private inline fun setSchedule(type: String, hour: Int, minute: Int, name: String, crossinline onSchedule: () -> Unit) {
@@ -603,6 +647,27 @@ class SettingsViewModel @Inject constructor(
             } finally {
                 // 백그라운드 작업이므로 바로 isUpdating을 false로
                 _advancedAnalysisSettings.value = _advancedAnalysisSettings.value.copy(isUpdating = false)
+            }
+        }
+    }
+
+    /**
+     * ETF 데이터 수동 업데이트
+     * - 마지막 수집일 이후의 새로운 영업일 데이터 수집
+     */
+    fun updateEtfNow() {
+        viewModelScope.launch {
+            _etfUpdateSettings.value = _etfUpdateSettings.value.copy(isUpdating = true)
+            _message.value = "ETF 데이터 업데이트 중..."
+            try {
+                // WorkManager를 통해 백그라운드에서 실행
+                WorkManagerHelper.runEtfUpdateNow(context)
+                _message.value = "ETF 업데이트가 백그라운드에서 시작되었습니다"
+            } catch (e: Exception) {
+                _message.value = "오류 발생: ${e.message}"
+            } finally {
+                // 백그라운드 작업이므로 바로 isUpdating을 false로
+                _etfUpdateSettings.value = _etfUpdateSettings.value.copy(isUpdating = false)
             }
         }
     }
