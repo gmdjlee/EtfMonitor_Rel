@@ -131,6 +131,42 @@ object WorkManagerHelper {
         runUpdateNow<StockUpdateWorker>(context, "stock")
     }
 
+    // ==================== ETF Update Worker ====================
+
+    /**
+     * 매일 지정된 시간에 ETF 데이터 업데이트 작업 스케줄링
+     *
+     * ETF Holdings 데이터를 매일 자동으로 업데이트합니다.
+     * 마지막 수집일 이후의 새로운 영업일 데이터만 수집합니다.
+     *
+     * @param context Context
+     * @param hour 업데이트할 시간 (0-23), 기본값: 0 (자정)
+     * @param minute 업데이트할 분 (0-59), 기본값: 30
+     */
+    fun scheduleEtfUpdate(context: Context, hour: Int = 0, minute: Int = 30) {
+        scheduleDailyUpdate<EtfUpdateWorker>(
+            context = context,
+            hour = hour,
+            minute = minute,
+            workName = EtfUpdateWorker.WORK_NAME,
+            taskName = "etf"
+        )
+    }
+
+    /**
+     * ETF 데이터 스케줄링 취소
+     */
+    fun cancelEtfUpdate(context: Context) {
+        cancelUpdate(context, EtfUpdateWorker.WORK_NAME, "etf")
+    }
+
+    /**
+     * 즉시 ETF 데이터 수동 업데이트 실행
+     */
+    fun runEtfUpdateNow(context: Context) {
+        runUpdateNow<EtfUpdateWorker>(context, "etf")
+    }
+
     /**
      * 매일 지정된 시간에 증시 자금 DB 업데이트 작업 스케줄링
      *

@@ -25,6 +25,9 @@ interface EtfDao {
     @Query("SELECT COUNT(*) FROM etfs")
     suspend fun getEtfCount(): Int
 
+    @Query("SELECT COUNT(*) FROM holdings WHERE date = (SELECT MAX(date) FROM holdings)")
+    suspend fun getHoldingCount(): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEtf(etf: Etf)
 
