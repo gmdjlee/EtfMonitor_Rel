@@ -32,7 +32,13 @@ sealed class Screen(val route: String) {
         fun createRoute(etfTicker: String, stockTicker: String) =
             "trend/$etfTicker/$stockTicker"
     }
-    object Statistics : Screen("statistics")
+    object Statistics : Screen("statistics?stockTicker={stockTicker}") {
+        fun createRoute(stockTicker: String? = null) = if (stockTicker != null) {
+            "statistics?stockTicker=$stockTicker"
+        } else {
+            "statistics"
+        }
+    }
     // ✅ 전체 ETF 통합 종목 추이
     object AggregatedStockTrend : Screen("aggregated_trend/{stockTicker}") {
         fun createRoute(stockTicker: String) = "aggregated_trend/$stockTicker"
@@ -130,15 +136,26 @@ fun Navigation() {
             )
         }
 
-        composable(Screen.Statistics.route) {
+        composable(
+            route = Screen.Statistics.route,
+            arguments = listOf(
+                navArgument("stockTicker") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val initialStockTicker = backStackEntry.arguments?.getString("stockTicker")
             StatisticsScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onStockClick = { stockTicker ->  // ✅ 추가
+                onStockClick = { stockTicker ->
                     navController.navigate(Screen.AggregatedStockTrend.createRoute(stockTicker))
                 },
                 onNavigateToOscillator = { ticker ->
                     navController.navigate(Screen.Oscillator.createRoute(ticker))
-                }
+                },
+                initialStockTicker = initialStockTicker
             )
         }
 
@@ -173,7 +190,10 @@ fun Navigation() {
             val ticker = backStackEntry.arguments?.getString("ticker")
             OscillatorScreen(
                 onNavigateBack = { navController.popBackStack() },
-                initialTicker = ticker
+                initialTicker = ticker,
+                onNavigateToStatistics = { stockTicker ->
+                    navController.navigate(Screen.Statistics.createRoute(stockTicker))
+                }
             )
         }
 

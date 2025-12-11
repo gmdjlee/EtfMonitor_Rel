@@ -38,6 +38,7 @@ fun StatisticsScreen(
     onNavigateBack: () -> Unit,
     onStockClick: (String) -> Unit,
     onNavigateToOscillator: ((String) -> Unit)? = null,
+    initialStockTicker: String? = null,
     viewModel: StatisticsViewModel = hiltViewModel()
 ) {
     val dates by viewModel.dates.collectAsState()
@@ -56,7 +57,15 @@ fun StatisticsScreen(
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
     val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
 
-    var selectedTab by remember { mutableStateOf(0) }
+    // initialStockTicker가 있으면 분석 탭(6)으로 시작, 아니면 0
+    var selectedTab by remember { mutableStateOf(if (initialStockTicker != null) 6 else 0) }
+
+    // initialStockTicker가 전달되면 자동으로 분석 실행
+    LaunchedEffect(initialStockTicker) {
+        if (initialStockTicker != null) {
+            viewModel.analyzeStock(initialStockTicker)
+        }
+    }
 
     // FAB 표시 조건: 분석 탭에서 분석 결과가 있을 때
     val showFab = quickChartAnalysisEnabled &&

@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
@@ -49,6 +50,7 @@ import com.etfmonitor.ui.theme.*
 fun OscillatorScreen(
     onNavigateBack: () -> Unit,
     initialTicker: String? = null,
+    onNavigateToStatistics: ((String) -> Unit)? = null,
     viewModel: OscillatorViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -56,6 +58,12 @@ fun OscillatorScreen(
     val suggestions by viewModel.suggestions.collectAsState()
     val searchHistory by viewModel.searchHistory.collectAsState()
     val demarkTDInterval by viewModel.demarkTDInterval.collectAsState()
+    val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
+
+    // FAB 표시 조건: 설정이 활성화되어 있고, Success 상태일 때
+    val showFab = quickChartAnalysisEnabled &&
+            onNavigateToStatistics != null &&
+            state is OscillatorState.Success
 
     // Auto-analyze if initialTicker is provided
     LaunchedEffect(initialTicker) {
@@ -78,6 +86,23 @@ fun OscillatorScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
+        },
+        floatingActionButton = {
+            if (showFab && state is OscillatorState.Success) {
+                val successState = state as OscillatorState.Success
+                ExtendedFloatingActionButton(
+                    onClick = { onNavigateToStatistics?.invoke(successState.stockData.ticker) },
+                    icon = {
+                        Icon(
+                            Icons.Default.Analytics,
+                            contentDescription = null
+                        )
+                    },
+                    text = { Text(stringResource(R.string.fab_etf_analysis)) },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
         }
     ) { padding ->
         var textFieldValue by remember { mutableStateOf("") }
