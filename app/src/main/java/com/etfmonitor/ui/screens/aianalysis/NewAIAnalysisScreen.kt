@@ -39,6 +39,7 @@ import com.etfmonitor.database.entities.AIChatMessage
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.AIChatSession
 import com.etfmonitor.database.entities.CorrelationAnalysisResult
+import com.etfmonitor.database.entities.StockIndicatorAIResult
 import com.etfmonitor.repository.FullAnalysisResult
 import com.etfmonitor.ui.components.*
 import kotlinx.coroutines.launch
@@ -77,10 +78,12 @@ fun NewAIAnalysisScreen(
     val chatMessages by viewModel.chatMessages.collectAsState()
     val isSendingMessage by viewModel.isSendingMessage.collectAsState()
     val chatSessions by viewModel.chatSessions.collectAsState(initial = emptyList())
+    val stockIndicatorAIHistory by viewModel.stockIndicatorAIHistory.collectAsState(initial = emptyList())
     val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
 
     var showProviderDialog by remember { mutableStateOf(false) }
     var showHistorySheet by remember { mutableStateOf(false) }
+    var showStockIndicatorHistorySheet by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(AnalysisTab.CORRELATION) }
 
     // FAB 표시 조건: 종목-지표 탭에서 종목이 선택되고 분석 결과가 있을 때
@@ -189,6 +192,7 @@ fun NewAIAnalysisScreen(
                                     stockIndicatorCorrelationResult = stockIndicatorCorrelationResult,
                                     stockSearchResults = stockSearchResults,
                                     isSearching = isSearching,
+                                    historyCount = stockIndicatorAIHistory.size,
                                     onPeriodChange = { viewModel.setAnalysisPeriod(it) },
                                     onSearchStock = { viewModel.searchStock(it) },
                                     onSelectStock = { ticker, name -> viewModel.selectStock(ticker, name) },
@@ -197,7 +201,8 @@ fun NewAIAnalysisScreen(
                                     onRunFullAnalysis = { viewModel.runFullStockIndicatorCorrelationAnalysis() },
                                     onInterpretWithAI = { viewModel.interpretStockIndicatorCorrelationWithAI() },
                                     onStartChat = { viewModel.startNewChat() },
-                                    onClearError = { viewModel.clearError() }
+                                    onClearError = { viewModel.clearError() },
+                                    onShowHistory = { showStockIndicatorHistorySheet = true }
                                 )
                             }
                         }
@@ -280,6 +285,160 @@ fun NewAIAnalysisScreen(
                 Spacer(modifier = Modifier.height(32.dp))
             }
         }
+    }
+
+    // 종목-지표 분석 이력 바텀 시트
+    if (showStockIndicatorHistorySheet) {
+        ModalBottomSheet(onDismissRequest = { showStockIndicatorHistorySheet = false }) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    "AI 분석 이력",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                if (stockIndicatorAIHistory.isEmpty()) {
+                    Text(
+                        "저장된 분석 결과가 없습니다",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 400.dp)
+                    ) {
+                        items(stockIndicatorAIHistory) { historyItem ->
+                            StockIndicatorAIHistoryItem(
+                                item = historyItem,
+                                onClick = {
+                                    viewModel.loadFromHistory(historyItem)
+                                    showStockIndicatorHistorySheet = false
+                                },
+                                onDelete = { viewModel.deleteHistoryItem(historyItem.id) }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+}
+
+/**
+ * 종목-지표 AI 분석 히스토리 아이템
+ */
+@Composable
+private fun StockIndicatorAIHistoryItem(
+    item: StockIndicatorAIResult,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 신호 아이콘
+            val signalColor = when (item.signal) {
+                "STRONG_BUY" -> Color(0xFF4CAF50)
+                "BUY" -> Color(0xFF8BC34A)
+                "NEUTRAL" -> Color(0xFFFFB300)
+                "SELL" -> Color(0xFFFF9800)
+                "STRONG_SELL" -> Color(0xFFF44336)
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(signalColor.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = when (item.signal) {
+                        "STRONG_BUY", "BUY" -> Icons.Default.TrendingUp
+                        "STRONG_SELL", "SELL" -> Icons.Default.TrendingDown
+                        else -> Icons.Default.TrendingFlat
+                    },
+                    contentDescription = null,
+                    tint = signalColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "${item.stockName} (${item.ticker})",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    "${item.analysisDate} | ${item.market}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        item.signal.replace("_", " "),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = signalColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "신뢰도 ${(item.confidence * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            IconButton(onClick = { showDeleteConfirm = true }) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "삭제",
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+
+    // 삭제 확인 다이얼로그
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("분석 결과 삭제") },
+            text = { Text("${item.stockName}의 분석 결과를 삭제하시겠습니까?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete()
+                    showDeleteConfirm = false
+                }) {
+                    Text("삭제", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("취소")
+                }
+            }
+        )
     }
 }
 
@@ -416,6 +575,7 @@ private fun StockIndicatorCorrelationScreen(
     stockIndicatorCorrelationResult: FullStockIndicatorCorrelationResult?,
     stockSearchResults: List<Pair<String, String>>,
     isSearching: Boolean,
+    historyCount: Int,
     onPeriodChange: (Int) -> Unit,
     onSearchStock: (String) -> Unit,
     onSelectStock: (String, String) -> Unit,
@@ -424,7 +584,8 @@ private fun StockIndicatorCorrelationScreen(
     onRunFullAnalysis: () -> Unit,
     onInterpretWithAI: () -> Unit,
     onStartChat: () -> Unit,
-    onClearError: () -> Unit
+    onClearError: () -> Unit,
+    onShowHistory: () -> Unit
 ) {
     val isLoading = state is NewAIAnalysisState.AnalyzingStockIndicatorCorrelation ||
             state is NewAIAnalysisState.AnalyzingStockIndicatorCorrelationFull ||
@@ -459,6 +620,48 @@ private fun StockIndicatorCorrelationScreen(
                 },
                 onClearStock = onClearStock
             )
+        }
+
+        // 분석 이력 버튼
+        item {
+            OutlinedCard(
+                onClick = onShowHistory,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.History,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                "AI 분석 이력",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                if (historyCount > 0) "저장된 분석 결과 ${historyCount}개" else "저장된 분석 결과 없음",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
 
         // 분석 기간 선택

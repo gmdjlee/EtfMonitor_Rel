@@ -19,6 +19,7 @@ import com.etfmonitor.repository.CorrelationAnalysisRepository
 import com.etfmonitor.repository.FullAnalysisResult
 import com.etfmonitor.repository.TimeSeriesAnalysisRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -27,6 +28,7 @@ import javax.inject.Inject
  * 새로운 AI 분석 화면 ViewModel
  * 상관관계 분석 + AI 해석 + 종목-지표 상관관계 분석 + 채팅 기능 통합
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class NewAIAnalysisViewModel @Inject constructor(
     private val correlationAnalysisRepository: CorrelationAnalysisRepository,
