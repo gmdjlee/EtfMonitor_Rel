@@ -401,6 +401,76 @@ class TimeSeriesAnalysisRepository @Inject constructor(
         return (1 - abs(correlation)).coerceIn(0.0, 1.0)
     }
 
+    /**
+     * 선행/후행 상관관계 계산 (Cross-correlation)
+     * 지표 시계열과 주가 시계열 간의 시차 상관관계를 계산하여
+     * 최적의 시차(lag)를 찾음
+     *
+     * @param indicatorValues 지표 시계열 값
+     * @param stockValues 주가 시계열 값
+     * @param maxLag 최대 검사할 시차 (일)
+     * @return LeadLagResult (최적 시차, 해당 상관계수, 동시 상관계수)
+     */
+    private fun calculateLeadLagCorrelation(
+        indicatorValues: List<Double>,
+        stockValues: List<Double>,
+        maxLag: Int = 5
+    ): LeadLagResult {
+        if (indicatorValues.size != stockValues.size || indicatorValues.size < maxLag * 2 + 10) {
+            return LeadLagResult(0, 0.0, 0.0)
+        }
+
+        // 동시 상관관계 계산
+        val simultaneousCorr = calculatePearsonCorrelation(indicatorValues, stockValues)
+
+        var bestLag = 0
+        var bestCorrelation = simultaneousCorr
+        var bestAbsCorrelation = abs(simultaneousCorr)
+
+        // 양수 lag: 지표가 선행 (지표 변화 → 주가 변화)
+        // 음수 lag: 지표가 후행 (주가 변화 → 지표 변화)
+        for (lag in -maxLag..maxLag) {
+            if (lag == 0) continue
+
+            val (shiftedIndicator, shiftedStock) = if (lag > 0) {
+                // 지표 선행: 과거 지표값과 현재 주가 비교
+                val indicator = indicatorValues.dropLast(lag)
+                val stock = stockValues.drop(lag)
+                Pair(indicator, stock)
+            } else {
+                // 지표 후행: 현재 지표값과 과거 주가 비교
+                val indicator = indicatorValues.drop(-lag)
+                val stock = stockValues.dropLast(-lag)
+                Pair(indicator, stock)
+            }
+
+            if (shiftedIndicator.size >= 10 && shiftedStock.size >= 10) {
+                val minSize = minOf(shiftedIndicator.size, shiftedStock.size)
+                val corr = calculatePearsonCorrelation(
+                    shiftedIndicator.takeLast(minSize),
+                    shiftedStock.takeLast(minSize)
+                )
+
+                if (!corr.isNaN() && abs(corr) > bestAbsCorrelation) {
+                    bestAbsCorrelation = abs(corr)
+                    bestCorrelation = corr
+                    bestLag = lag
+                }
+            }
+        }
+
+        return LeadLagResult(bestLag, bestCorrelation, simultaneousCorr)
+    }
+
+    /**
+     * 선행/후행 분석 결과
+     */
+    private data class LeadLagResult(
+        val optimalLag: Int,      // 최적 시차 (양수: 지표 선행, 음수: 지표 후행)
+        val optimalCorrelation: Double,  // 최적 시차의 상관계수
+        val simultaneousCorrelation: Double  // 동시 상관계수
+    )
+
     private fun detectAnomalies(data: TimeSeriesData): List<AnomalyPoint> {
         val anomalies = mutableListOf<AnomalyPoint>()
 
@@ -1257,7 +1327,13 @@ class TimeSeriesAnalysisRepository @Inject constructor(
         if (commonDates.size >= 10) {
             val fgValues = commonDates.map { fearGreedMap[it]!!.fearGreedValue }
             val priceValues = commonDates.map { stockPrices[it]!! }
-            val corr = calculatePearsonCorrelation(fgValues, priceValues)
+
+            // 선행/후행 상관관계 계산
+            val leadLag = calculateLeadLagCorrelation(fgValues, priceValues)
+            val corr = if (abs(leadLag.optimalCorrelation) > abs(leadLag.simultaneousCorrelation))
+                leadLag.optimalCorrelation else leadLag.simultaneousCorrelation
+            val optimalLag = if (abs(leadLag.optimalCorrelation) > abs(leadLag.simultaneousCorrelation))
+                leadLag.optimalLag else 0
 
             if (!corr.isNaN()) {
                 correlations.add(
@@ -1267,14 +1343,20 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corr,
                         significance = calculateSignificance(corr, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corr, "Fear & Greed", "주가")
+                        leadLagDays = optimalLag,
+                        description = describeCorrelation(corr, "Fear & Greed", "주가", optimalLag)
                     )
                 )
             }
 
             // Fear & Greed vs 등락률
             val changeValues = commonDates.map { stockChanges[it] ?: 0.0 }
-            val corrChange = calculatePearsonCorrelation(fgValues, changeValues)
+            val leadLagChange = calculateLeadLagCorrelation(fgValues, changeValues)
+            val corrChange = if (abs(leadLagChange.optimalCorrelation) > abs(leadLagChange.simultaneousCorrelation))
+                leadLagChange.optimalCorrelation else leadLagChange.simultaneousCorrelation
+            val lagChange = if (abs(leadLagChange.optimalCorrelation) > abs(leadLagChange.simultaneousCorrelation))
+                leadLagChange.optimalLag else 0
+
             if (!corrChange.isNaN()) {
                 correlations.add(
                     IndicatorStockCorrelation(
@@ -1283,7 +1365,8 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corrChange,
                         significance = calculateSignificance(corrChange, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corrChange, "Fear & Greed", "등락률")
+                        leadLagDays = lagChange,
+                        description = describeCorrelation(corrChange, "Fear & Greed", "등락률", lagChange)
                     )
                 )
             }
@@ -1294,7 +1377,12 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                 if (etfCommonDates.size >= 10) {
                     val fgValuesEtf = etfCommonDates.map { fearGreedMap[it]!!.fearGreedValue }
                     val etfValues = etfCommonDates.map { etfAmounts[it]!! }
-                    val corrEtf = calculatePearsonCorrelation(fgValuesEtf, etfValues)
+                    val leadLagEtf = calculateLeadLagCorrelation(fgValuesEtf, etfValues)
+                    val corrEtf = if (abs(leadLagEtf.optimalCorrelation) > abs(leadLagEtf.simultaneousCorrelation))
+                        leadLagEtf.optimalCorrelation else leadLagEtf.simultaneousCorrelation
+                    val lagEtf = if (abs(leadLagEtf.optimalCorrelation) > abs(leadLagEtf.simultaneousCorrelation))
+                        leadLagEtf.optimalLag else 0
+
                     if (!corrEtf.isNaN()) {
                         correlations.add(
                             IndicatorStockCorrelation(
@@ -1303,7 +1391,8 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                                 correlation = corrEtf,
                                 significance = calculateSignificance(corrEtf, etfCommonDates.size),
                                 dataPoints = etfCommonDates.size,
-                                description = describeCorrelation(corrEtf, "Fear & Greed", "ETF 보유금액")
+                                leadLagDays = lagEtf,
+                                description = describeCorrelation(corrEtf, "Fear & Greed", "ETF 보유금액", lagEtf)
                             )
                         )
                     }
@@ -1312,7 +1401,12 @@ class TimeSeriesAnalysisRepository @Inject constructor(
 
             // RSI vs 주가
             val rsiValues = commonDates.map { fearGreedMap[it]!!.rsi }
-            val corrRsi = calculatePearsonCorrelation(rsiValues, priceValues)
+            val leadLagRsi = calculateLeadLagCorrelation(rsiValues, priceValues)
+            val corrRsi = if (abs(leadLagRsi.optimalCorrelation) > abs(leadLagRsi.simultaneousCorrelation))
+                leadLagRsi.optimalCorrelation else leadLagRsi.simultaneousCorrelation
+            val lagRsi = if (abs(leadLagRsi.optimalCorrelation) > abs(leadLagRsi.simultaneousCorrelation))
+                leadLagRsi.optimalLag else 0
+
             if (!corrRsi.isNaN()) {
                 correlations.add(
                     IndicatorStockCorrelation(
@@ -1321,14 +1415,20 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corrRsi,
                         significance = calculateSignificance(corrRsi, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corrRsi, "RSI", "주가")
+                        leadLagDays = lagRsi,
+                        description = describeCorrelation(corrRsi, "RSI", "주가", lagRsi)
                     )
                 )
             }
 
             // 모멘텀 vs 주가
             val momentumValues = commonDates.map { fearGreedMap[it]!!.momentum }
-            val corrMomentum = calculatePearsonCorrelation(momentumValues, priceValues)
+            val leadLagMomentum = calculateLeadLagCorrelation(momentumValues, priceValues)
+            val corrMomentum = if (abs(leadLagMomentum.optimalCorrelation) > abs(leadLagMomentum.simultaneousCorrelation))
+                leadLagMomentum.optimalCorrelation else leadLagMomentum.simultaneousCorrelation
+            val lagMomentum = if (abs(leadLagMomentum.optimalCorrelation) > abs(leadLagMomentum.simultaneousCorrelation))
+                leadLagMomentum.optimalLag else 0
+
             if (!corrMomentum.isNaN()) {
                 correlations.add(
                     IndicatorStockCorrelation(
@@ -1337,7 +1437,8 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corrMomentum,
                         significance = calculateSignificance(corrMomentum, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corrMomentum, "모멘텀", "주가")
+                        leadLagDays = lagMomentum,
+                        description = describeCorrelation(corrMomentum, "모멘텀", "주가", lagMomentum)
                     )
                 )
             }
@@ -1362,8 +1463,13 @@ class TimeSeriesAnalysisRepository @Inject constructor(
             val oscValues = commonDates.map { oscillatorMap[it]!!.oscillator }
             val priceValues = commonDates.map { stockPrices[it]!! }
 
-            // Oscillator vs 종가
-            val corr = calculatePearsonCorrelation(oscValues, priceValues)
+            // Oscillator vs 종가 (선행/후행 분석)
+            val leadLag = calculateLeadLagCorrelation(oscValues, priceValues)
+            val corr = if (abs(leadLag.optimalCorrelation) > abs(leadLag.simultaneousCorrelation))
+                leadLag.optimalCorrelation else leadLag.simultaneousCorrelation
+            val optimalLag = if (abs(leadLag.optimalCorrelation) > abs(leadLag.simultaneousCorrelation))
+                leadLag.optimalLag else 0
+
             if (!corr.isNaN()) {
                 correlations.add(
                     IndicatorStockCorrelation(
@@ -1372,14 +1478,20 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corr,
                         significance = calculateSignificance(corr, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corr, "시장 과매수/과매도", "주가")
+                        leadLagDays = optimalLag,
+                        description = describeCorrelation(corr, "시장 과매수/과매도", "주가", optimalLag)
                     )
                 )
             }
 
             // Oscillator vs 등락률
             val changeValues = commonDates.map { stockChanges[it] ?: 0.0 }
-            val corrChange = calculatePearsonCorrelation(oscValues, changeValues)
+            val leadLagChange = calculateLeadLagCorrelation(oscValues, changeValues)
+            val corrChange = if (abs(leadLagChange.optimalCorrelation) > abs(leadLagChange.simultaneousCorrelation))
+                leadLagChange.optimalCorrelation else leadLagChange.simultaneousCorrelation
+            val lagChange = if (abs(leadLagChange.optimalCorrelation) > abs(leadLagChange.simultaneousCorrelation))
+                leadLagChange.optimalLag else 0
+
             if (!corrChange.isNaN()) {
                 correlations.add(
                     IndicatorStockCorrelation(
@@ -1388,7 +1500,8 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corrChange,
                         significance = calculateSignificance(corrChange, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corrChange, "시장 과매수/과매도", "등락률")
+                        leadLagDays = lagChange,
+                        description = describeCorrelation(corrChange, "시장 과매수/과매도", "등락률", lagChange)
                     )
                 )
             }
@@ -1399,7 +1512,12 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                 if (etfCommonDates.size >= 10) {
                     val oscValuesEtf = etfCommonDates.map { oscillatorMap[it]!!.oscillator }
                     val etfValues = etfCommonDates.map { etfAmounts[it]!! }
-                    val corrEtf = calculatePearsonCorrelation(oscValuesEtf, etfValues)
+                    val leadLagEtf = calculateLeadLagCorrelation(oscValuesEtf, etfValues)
+                    val corrEtf = if (abs(leadLagEtf.optimalCorrelation) > abs(leadLagEtf.simultaneousCorrelation))
+                        leadLagEtf.optimalCorrelation else leadLagEtf.simultaneousCorrelation
+                    val lagEtf = if (abs(leadLagEtf.optimalCorrelation) > abs(leadLagEtf.simultaneousCorrelation))
+                        leadLagEtf.optimalLag else 0
+
                     if (!corrEtf.isNaN()) {
                         correlations.add(
                             IndicatorStockCorrelation(
@@ -1408,7 +1526,8 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                                 correlation = corrEtf,
                                 significance = calculateSignificance(corrEtf, etfCommonDates.size),
                                 dataPoints = etfCommonDates.size,
-                                description = describeCorrelation(corrEtf, "시장 과매수/과매도", "ETF 보유금액")
+                                leadLagDays = lagEtf,
+                                description = describeCorrelation(corrEtf, "시장 과매수/과매도", "ETF 보유금액", lagEtf)
                             )
                         )
                     }
@@ -1437,7 +1556,12 @@ class TimeSeriesAnalysisRepository @Inject constructor(
 
             // 예탁금 vs 종가
             val depositAmounts = commonDates.map { depositMap[it]!!.depositAmount }
-            val corrDepositPrice = calculatePearsonCorrelation(depositAmounts, priceValues)
+            val leadLagDeposit = calculateLeadLagCorrelation(depositAmounts, priceValues)
+            val corrDepositPrice = if (abs(leadLagDeposit.optimalCorrelation) > abs(leadLagDeposit.simultaneousCorrelation))
+                leadLagDeposit.optimalCorrelation else leadLagDeposit.simultaneousCorrelation
+            val lagDeposit = if (abs(leadLagDeposit.optimalCorrelation) > abs(leadLagDeposit.simultaneousCorrelation))
+                leadLagDeposit.optimalLag else 0
+
             if (!corrDepositPrice.isNaN()) {
                 correlations.add(
                     IndicatorStockCorrelation(
@@ -1446,14 +1570,20 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corrDepositPrice,
                         significance = calculateSignificance(corrDepositPrice, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corrDepositPrice, "고객예탁금", "주가")
+                        leadLagDays = lagDeposit,
+                        description = describeCorrelation(corrDepositPrice, "고객예탁금", "주가", lagDeposit)
                     )
                 )
             }
 
             // 예탁금 변화 vs 등락률
             val depositChanges = commonDates.map { depositMap[it]!!.depositChange }
-            val corrDepositChange = calculatePearsonCorrelation(depositChanges, changeValues)
+            val leadLagDepositChange = calculateLeadLagCorrelation(depositChanges, changeValues)
+            val corrDepositChange = if (abs(leadLagDepositChange.optimalCorrelation) > abs(leadLagDepositChange.simultaneousCorrelation))
+                leadLagDepositChange.optimalCorrelation else leadLagDepositChange.simultaneousCorrelation
+            val lagDepositChange = if (abs(leadLagDepositChange.optimalCorrelation) > abs(leadLagDepositChange.simultaneousCorrelation))
+                leadLagDepositChange.optimalLag else 0
+
             if (!corrDepositChange.isNaN()) {
                 correlations.add(
                     IndicatorStockCorrelation(
@@ -1462,14 +1592,20 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corrDepositChange,
                         significance = calculateSignificance(corrDepositChange, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corrDepositChange, "예탁금 변화", "등락률")
+                        leadLagDays = lagDepositChange,
+                        description = describeCorrelation(corrDepositChange, "예탁금 변화", "등락률", lagDepositChange)
                     )
                 )
             }
 
             // 신용잔고 vs 종가
             val creditAmounts = commonDates.map { depositMap[it]!!.creditAmount }
-            val corrCreditPrice = calculatePearsonCorrelation(creditAmounts, priceValues)
+            val leadLagCredit = calculateLeadLagCorrelation(creditAmounts, priceValues)
+            val corrCreditPrice = if (abs(leadLagCredit.optimalCorrelation) > abs(leadLagCredit.simultaneousCorrelation))
+                leadLagCredit.optimalCorrelation else leadLagCredit.simultaneousCorrelation
+            val lagCredit = if (abs(leadLagCredit.optimalCorrelation) > abs(leadLagCredit.simultaneousCorrelation))
+                leadLagCredit.optimalLag else 0
+
             if (!corrCreditPrice.isNaN()) {
                 correlations.add(
                     IndicatorStockCorrelation(
@@ -1478,14 +1614,20 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corrCreditPrice,
                         significance = calculateSignificance(corrCreditPrice, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corrCreditPrice, "신용잔고", "주가")
+                        leadLagDays = lagCredit,
+                        description = describeCorrelation(corrCreditPrice, "신용잔고", "주가", lagCredit)
                     )
                 )
             }
 
             // 신용 변화 vs 등락률
             val creditChanges = commonDates.map { depositMap[it]!!.creditChange }
-            val corrCreditChange = calculatePearsonCorrelation(creditChanges, changeValues)
+            val leadLagCreditChange = calculateLeadLagCorrelation(creditChanges, changeValues)
+            val corrCreditChange = if (abs(leadLagCreditChange.optimalCorrelation) > abs(leadLagCreditChange.simultaneousCorrelation))
+                leadLagCreditChange.optimalCorrelation else leadLagCreditChange.simultaneousCorrelation
+            val lagCreditChange = if (abs(leadLagCreditChange.optimalCorrelation) > abs(leadLagCreditChange.simultaneousCorrelation))
+                leadLagCreditChange.optimalLag else 0
+
             if (!corrCreditChange.isNaN()) {
                 correlations.add(
                     IndicatorStockCorrelation(
@@ -1494,7 +1636,8 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corrCreditChange,
                         significance = calculateSignificance(corrCreditChange, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corrCreditChange, "신용 변화", "등락률")
+                        leadLagDays = lagCreditChange,
+                        description = describeCorrelation(corrCreditChange, "신용 변화", "등락률", lagCreditChange)
                     )
                 )
             }
@@ -1505,7 +1648,12 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                 if (etfCommonDates.size >= 10) {
                     val depositAmountsEtf = etfCommonDates.map { depositMap[it]!!.depositAmount }
                     val etfValues = etfCommonDates.map { etfAmounts[it]!! }
-                    val corrDepositEtf = calculatePearsonCorrelation(depositAmountsEtf, etfValues)
+                    val leadLagDepositEtf = calculateLeadLagCorrelation(depositAmountsEtf, etfValues)
+                    val corrDepositEtf = if (abs(leadLagDepositEtf.optimalCorrelation) > abs(leadLagDepositEtf.simultaneousCorrelation))
+                        leadLagDepositEtf.optimalCorrelation else leadLagDepositEtf.simultaneousCorrelation
+                    val lagDepositEtf = if (abs(leadLagDepositEtf.optimalCorrelation) > abs(leadLagDepositEtf.simultaneousCorrelation))
+                        leadLagDepositEtf.optimalLag else 0
+
                     if (!corrDepositEtf.isNaN()) {
                         correlations.add(
                             IndicatorStockCorrelation(
@@ -1514,7 +1662,8 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                                 correlation = corrDepositEtf,
                                 significance = calculateSignificance(corrDepositEtf, etfCommonDates.size),
                                 dataPoints = etfCommonDates.size,
-                                description = describeCorrelation(corrDepositEtf, "고객예탁금", "ETF 보유금액")
+                                leadLagDays = lagDepositEtf,
+                                description = describeCorrelation(corrDepositEtf, "고객예탁금", "ETF 보유금액", lagDepositEtf)
                             )
                         )
                     }
@@ -1543,7 +1692,12 @@ class TimeSeriesAnalysisRepository @Inject constructor(
 
             // 신규편입 수 vs 종가
             val newStockCounts = commonDates.map { statsMap[it]!!.newStockCount.toDouble() }
-            val corrNewCount = calculatePearsonCorrelation(newStockCounts, priceValues)
+            val leadLagNewCount = calculateLeadLagCorrelation(newStockCounts, priceValues)
+            val corrNewCount = if (abs(leadLagNewCount.optimalCorrelation) > abs(leadLagNewCount.simultaneousCorrelation))
+                leadLagNewCount.optimalCorrelation else leadLagNewCount.simultaneousCorrelation
+            val lagNewCount = if (abs(leadLagNewCount.optimalCorrelation) > abs(leadLagNewCount.simultaneousCorrelation))
+                leadLagNewCount.optimalLag else 0
+
             if (!corrNewCount.isNaN()) {
                 correlations.add(
                     IndicatorStockCorrelation(
@@ -1552,14 +1706,20 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corrNewCount,
                         significance = calculateSignificance(corrNewCount, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corrNewCount, "ETF 신규편입 수", "주가")
+                        leadLagDays = lagNewCount,
+                        description = describeCorrelation(corrNewCount, "ETF 신규편입 수", "주가", lagNewCount)
                     )
                 )
             }
 
             // 신규편입 금액 vs 종가
             val newStockAmounts = commonDates.map { statsMap[it]!!.newStockAmount.toDouble() }
-            val corrNewAmount = calculatePearsonCorrelation(newStockAmounts, priceValues)
+            val leadLagNewAmount = calculateLeadLagCorrelation(newStockAmounts, priceValues)
+            val corrNewAmount = if (abs(leadLagNewAmount.optimalCorrelation) > abs(leadLagNewAmount.simultaneousCorrelation))
+                leadLagNewAmount.optimalCorrelation else leadLagNewAmount.simultaneousCorrelation
+            val lagNewAmount = if (abs(leadLagNewAmount.optimalCorrelation) > abs(leadLagNewAmount.simultaneousCorrelation))
+                leadLagNewAmount.optimalLag else 0
+
             if (!corrNewAmount.isNaN()) {
                 correlations.add(
                     IndicatorStockCorrelation(
@@ -1568,14 +1728,20 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corrNewAmount,
                         significance = calculateSignificance(corrNewAmount, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corrNewAmount, "ETF 신규편입 금액", "주가")
+                        leadLagDays = lagNewAmount,
+                        description = describeCorrelation(corrNewAmount, "ETF 신규편입 금액", "주가", lagNewAmount)
                     )
                 )
             }
 
             // 편출 수 vs 등락률
             val removedCounts = commonDates.map { statsMap[it]!!.removedStockCount.toDouble() }
-            val corrRemoved = calculatePearsonCorrelation(removedCounts, changeValues)
+            val leadLagRemoved = calculateLeadLagCorrelation(removedCounts, changeValues)
+            val corrRemoved = if (abs(leadLagRemoved.optimalCorrelation) > abs(leadLagRemoved.simultaneousCorrelation))
+                leadLagRemoved.optimalCorrelation else leadLagRemoved.simultaneousCorrelation
+            val lagRemoved = if (abs(leadLagRemoved.optimalCorrelation) > abs(leadLagRemoved.simultaneousCorrelation))
+                leadLagRemoved.optimalLag else 0
+
             if (!corrRemoved.isNaN()) {
                 correlations.add(
                     IndicatorStockCorrelation(
@@ -1584,14 +1750,20 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corrRemoved,
                         significance = calculateSignificance(corrRemoved, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corrRemoved, "ETF 편출 수", "등락률")
+                        leadLagDays = lagRemoved,
+                        description = describeCorrelation(corrRemoved, "ETF 편출 수", "등락률", lagRemoved)
                     )
                 )
             }
 
             // 비중증가 수 vs 종가
             val increasedCounts = commonDates.map { statsMap[it]!!.increasedStockCount.toDouble() }
-            val corrIncreased = calculatePearsonCorrelation(increasedCounts, priceValues)
+            val leadLagIncreased = calculateLeadLagCorrelation(increasedCounts, priceValues)
+            val corrIncreased = if (abs(leadLagIncreased.optimalCorrelation) > abs(leadLagIncreased.simultaneousCorrelation))
+                leadLagIncreased.optimalCorrelation else leadLagIncreased.simultaneousCorrelation
+            val lagIncreased = if (abs(leadLagIncreased.optimalCorrelation) > abs(leadLagIncreased.simultaneousCorrelation))
+                leadLagIncreased.optimalLag else 0
+
             if (!corrIncreased.isNaN()) {
                 correlations.add(
                     IndicatorStockCorrelation(
@@ -1600,14 +1772,20 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corrIncreased,
                         significance = calculateSignificance(corrIncreased, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corrIncreased, "ETF 비중증가 수", "주가")
+                        leadLagDays = lagIncreased,
+                        description = describeCorrelation(corrIncreased, "ETF 비중증가 수", "주가", lagIncreased)
                     )
                 )
             }
 
             // 비중감소 수 vs 등락률
             val decreasedCounts = commonDates.map { statsMap[it]!!.decreasedStockCount.toDouble() }
-            val corrDecreased = calculatePearsonCorrelation(decreasedCounts, changeValues)
+            val leadLagDecreased = calculateLeadLagCorrelation(decreasedCounts, changeValues)
+            val corrDecreased = if (abs(leadLagDecreased.optimalCorrelation) > abs(leadLagDecreased.simultaneousCorrelation))
+                leadLagDecreased.optimalCorrelation else leadLagDecreased.simultaneousCorrelation
+            val lagDecreased = if (abs(leadLagDecreased.optimalCorrelation) > abs(leadLagDecreased.simultaneousCorrelation))
+                leadLagDecreased.optimalLag else 0
+
             if (!corrDecreased.isNaN()) {
                 correlations.add(
                     IndicatorStockCorrelation(
@@ -1616,7 +1794,8 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corrDecreased,
                         significance = calculateSignificance(corrDecreased, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corrDecreased, "ETF 비중감소 수", "등락률")
+                        leadLagDays = lagDecreased,
+                        description = describeCorrelation(corrDecreased, "ETF 비중감소 수", "등락률", lagDecreased)
                     )
                 )
             }
@@ -1625,7 +1804,12 @@ class TimeSeriesAnalysisRepository @Inject constructor(
             val netFlows = commonDates.map {
                 (statsMap[it]!!.newStockCount - statsMap[it]!!.removedStockCount).toDouble()
             }
-            val corrNetFlow = calculatePearsonCorrelation(netFlows, priceValues)
+            val leadLagNetFlow = calculateLeadLagCorrelation(netFlows, priceValues)
+            val corrNetFlow = if (abs(leadLagNetFlow.optimalCorrelation) > abs(leadLagNetFlow.simultaneousCorrelation))
+                leadLagNetFlow.optimalCorrelation else leadLagNetFlow.simultaneousCorrelation
+            val lagNetFlow = if (abs(leadLagNetFlow.optimalCorrelation) > abs(leadLagNetFlow.simultaneousCorrelation))
+                leadLagNetFlow.optimalLag else 0
+
             if (!corrNetFlow.isNaN()) {
                 correlations.add(
                     IndicatorStockCorrelation(
@@ -1634,14 +1818,20 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corrNetFlow,
                         significance = calculateSignificance(corrNetFlow, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corrNetFlow, "ETF 순편입", "주가")
+                        leadLagDays = lagNetFlow,
+                        description = describeCorrelation(corrNetFlow, "ETF 순편입", "주가", lagNetFlow)
                     )
                 )
             }
 
             // ETF 원화예금 vs 종가
             val cashDeposits = commonDates.map { statsMap[it]!!.cashDepositAmount.toDouble() }
-            val corrCash = calculatePearsonCorrelation(cashDeposits, priceValues)
+            val leadLagCash = calculateLeadLagCorrelation(cashDeposits, priceValues)
+            val corrCash = if (abs(leadLagCash.optimalCorrelation) > abs(leadLagCash.simultaneousCorrelation))
+                leadLagCash.optimalCorrelation else leadLagCash.simultaneousCorrelation
+            val lagCash = if (abs(leadLagCash.optimalCorrelation) > abs(leadLagCash.simultaneousCorrelation))
+                leadLagCash.optimalLag else 0
+
             if (!corrCash.isNaN()) {
                 correlations.add(
                     IndicatorStockCorrelation(
@@ -1650,7 +1840,8 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         correlation = corrCash,
                         significance = calculateSignificance(corrCash, commonDates.size),
                         dataPoints = commonDates.size,
-                        description = describeCorrelation(corrCash, "ETF 원화예금", "주가")
+                        leadLagDays = lagCash,
+                        description = describeCorrelation(corrCash, "ETF 원화예금", "주가", lagCash)
                     )
                 )
             }
@@ -1664,7 +1855,12 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                         (statsMap[it]!!.newStockCount - statsMap[it]!!.removedStockCount).toDouble()
                     }
                     val etfValues = etfCommonDates.map { etfAmounts[it]!! }
-                    val corrNetFlowEtf = calculatePearsonCorrelation(netFlowsEtf, etfValues)
+                    val leadLagNetFlowEtf = calculateLeadLagCorrelation(netFlowsEtf, etfValues)
+                    val corrNetFlowEtf = if (abs(leadLagNetFlowEtf.optimalCorrelation) > abs(leadLagNetFlowEtf.simultaneousCorrelation))
+                        leadLagNetFlowEtf.optimalCorrelation else leadLagNetFlowEtf.simultaneousCorrelation
+                    val lagNetFlowEtf = if (abs(leadLagNetFlowEtf.optimalCorrelation) > abs(leadLagNetFlowEtf.simultaneousCorrelation))
+                        leadLagNetFlowEtf.optimalLag else 0
+
                     if (!corrNetFlowEtf.isNaN()) {
                         correlations.add(
                             IndicatorStockCorrelation(
@@ -1673,7 +1869,8 @@ class TimeSeriesAnalysisRepository @Inject constructor(
                                 correlation = corrNetFlowEtf,
                                 significance = calculateSignificance(corrNetFlowEtf, etfCommonDates.size),
                                 dataPoints = etfCommonDates.size,
-                                description = describeCorrelation(corrNetFlowEtf, "ETF 순편입", "ETF 보유금액")
+                                leadLagDays = lagNetFlowEtf,
+                                description = describeCorrelation(corrNetFlowEtf, "ETF 순편입", "ETF 보유금액", lagNetFlowEtf)
                             )
                         )
                     }
@@ -1686,7 +1883,15 @@ class TimeSeriesAnalysisRepository @Inject constructor(
 
     // ========== 상관관계 설명 생성 ==========
 
-    private fun describeCorrelation(correlation: Double, indicator: String, metric: String): String {
+    /**
+     * 상관관계 설명 생성 (선행/후행 정보 포함)
+     */
+    private fun describeCorrelation(
+        correlation: Double,
+        indicator: String,
+        metric: String,
+        leadLagDays: Int = 0
+    ): String {
         val strength = when {
             abs(correlation) >= 0.7 -> "강한"
             abs(correlation) >= 0.4 -> "중간"
@@ -1695,12 +1900,19 @@ class TimeSeriesAnalysisRepository @Inject constructor(
         }
         val direction = if (correlation >= 0) "양의" else "음의"
 
+        // 선행/후행 정보
+        val leadLagInfo = when {
+            leadLagDays > 0 -> " [지표 ${leadLagDays}일 선행]"
+            leadLagDays < 0 -> " [지표 ${-leadLagDays}일 후행]"
+            else -> ""
+        }
+
         return when {
             abs(correlation) < 0.2 -> "$indicator 와 $metric 간에 유의미한 상관관계가 없습니다."
-            correlation >= 0.4 -> "$indicator 이(가) 상승하면 $metric 도 함께 상승하는 $strength $direction 상관관계 (${String.format("%.2f", correlation)})"
-            correlation <= -0.4 -> "$indicator 이(가) 상승하면 $metric 이(가) 하락하는 $strength $direction 상관관계 (${String.format("%.2f", correlation)})"
-            correlation > 0 -> "$indicator 와 $metric 간 $strength $direction 상관관계 (${String.format("%.2f", correlation)})"
-            else -> "$indicator 와 $metric 간 $strength $direction 상관관계 (${String.format("%.2f", correlation)})"
+            correlation >= 0.4 -> "$indicator 이(가) 상승하면 $metric 도 함께 상승하는 $strength $direction 상관관계 (${String.format("%.2f", correlation)})$leadLagInfo"
+            correlation <= -0.4 -> "$indicator 이(가) 상승하면 $metric 이(가) 하락하는 $strength $direction 상관관계 (${String.format("%.2f", correlation)})$leadLagInfo"
+            correlation > 0 -> "$indicator 와 $metric 간 $strength $direction 상관관계 (${String.format("%.2f", correlation)})$leadLagInfo"
+            else -> "$indicator 와 $metric 간 $strength $direction 상관관계 (${String.format("%.2f", correlation)})$leadLagInfo"
         }
     }
 

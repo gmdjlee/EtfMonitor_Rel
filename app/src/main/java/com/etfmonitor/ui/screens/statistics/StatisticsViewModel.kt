@@ -28,11 +28,20 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class StatisticsViewModel @Inject constructor(
-    private val repository: DataRepository
+    private val repository: DataRepository,
+    private val etfDao: com.etfmonitor.database.EtfDao
 ) : ViewModel() {
+
+    companion object {
+        private const val QUICK_CHART_ANALYSIS_KEY = "quick_chart_analysis_enabled"
+    }
 
     private val _dates = MutableStateFlow<Pair<String, String>?>(null)
     val dates: StateFlow<Pair<String, String>?> = _dates.asStateFlow()
+
+    // 빠른 차트 분석 설정
+    private val _quickChartAnalysisEnabled = MutableStateFlow(false)
+    val quickChartAnalysisEnabled: StateFlow<Boolean> = _quickChartAnalysisEnabled.asStateFlow()
 
     private val _amountRanking = MutableStateFlow<List<StockAmountRanking>>(emptyList())
     val amountRanking: StateFlow<List<StockAmountRanking>> = _amountRanking.asStateFlow()
@@ -79,6 +88,21 @@ class StatisticsViewModel @Inject constructor(
 
     init {
         loadStatistics()
+        loadQuickChartAnalysisSetting()
+    }
+
+    /**
+     * 빠른 차트 분석 설정 로드
+     */
+    private fun loadQuickChartAnalysisSetting() {
+        viewModelScope.launch {
+            try {
+                val enabled = etfDao.getSetting(QUICK_CHART_ANALYSIS_KEY) == "true"
+                _quickChartAnalysisEnabled.value = enabled
+            } catch (e: Exception) {
+                // Ignore error, keep default value
+            }
+        }
     }
 
     private fun loadStatistics() {

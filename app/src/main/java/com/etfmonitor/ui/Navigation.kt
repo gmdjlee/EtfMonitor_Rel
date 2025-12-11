@@ -135,6 +135,9 @@ fun Navigation() {
                 onNavigateBack = { navController.popBackStack() },
                 onStockClick = { stockTicker ->  // ✅ 추가
                     navController.navigate(Screen.AggregatedStockTrend.createRoute(stockTicker))
+                },
+                onNavigateToOscillator = { ticker ->
+                    navController.navigate(Screen.Oscillator.createRoute(ticker))
                 }
             )
         }
@@ -198,7 +201,10 @@ fun Navigation() {
         // ✅ AI Analysis 화면 (AI 시장 분석 - 새 버전)
         composable(Screen.AIAnalysis.route) {
             NewAIAnalysisScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToOscillator = { ticker ->
+                    navController.navigate(Screen.Oscillator.createRoute(ticker))
+                }
             )
         }
 
