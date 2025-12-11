@@ -722,7 +722,7 @@ private fun StockIndicatorCorrelationScreen(
             else -> {}
         }
 
-        // 상관관계 분석 결과
+        // 상관관계 분석 결과 (correlationResult가 있을 때만 표시)
         stockIndicatorCorrelationResult?.correlationResult?.let { result ->
             // 종목 정보 요약 카드
             item {
@@ -790,12 +790,12 @@ private fun StockIndicatorCorrelationScreen(
                     )
                 }
             }
+        }
 
-            // AI 해석 결과
-            stockIndicatorCorrelationResult.aiInterpretation?.let { aiResult ->
-                item {
-                    StockIndicatorAIInterpretationCard(interpretation = aiResult)
-                }
+        // AI 해석 결과 (correlationResult 없이도 표시 가능 - 히스토리에서 로드 시)
+        stockIndicatorCorrelationResult?.aiInterpretation?.let { aiResult ->
+            item {
+                StockIndicatorAIInterpretationCard(interpretation = aiResult)
             }
 
             // 채팅 시작 버튼
@@ -807,7 +807,7 @@ private fun StockIndicatorCorrelationScreen(
                 ) {
                     Icon(Icons.Default.Chat, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("상관관계 분석 결과로 대화하기")
+                    Text("분석 결과로 대화하기")
                 }
             }
         }
