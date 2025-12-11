@@ -54,7 +54,8 @@ object DatabaseModule {
                 MIGRATION_11_12,
                 MIGRATION_12_13,
                 MIGRATION_13_14,
-                MIGRATION_14_15
+                MIGRATION_14_15,
+                MIGRATION_15_16
             )
             .build()
     }
@@ -237,5 +238,15 @@ object DatabaseModule {
     @Singleton
     fun provideEnhancedPredictionDao(database: AppDatabase): EnhancedPredictionDao {
         return database.enhancedPredictionDao()
+    }
+
+    /**
+     * Stock Indicator AI Result DAO 제공
+     * 종목-지표 상관관계 AI 분석 결과를 관리하는 DAO
+     */
+    @Provides
+    @Singleton
+    fun provideStockIndicatorAIResultDao(database: AppDatabase): StockIndicatorAIResultDao {
+        return database.stockIndicatorAIResultDao()
     }
 }

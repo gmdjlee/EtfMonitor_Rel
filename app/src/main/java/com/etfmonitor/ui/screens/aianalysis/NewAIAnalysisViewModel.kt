@@ -13,6 +13,7 @@ import com.etfmonitor.database.entities.AIChatSession
 import com.etfmonitor.database.entities.AIAnalysisResult
 import com.etfmonitor.database.entities.CorrelationAnalysisResult
 import com.etfmonitor.database.entities.Stock
+import com.etfmonitor.database.entities.StockIndicatorAIResult
 import com.etfmonitor.repository.AIChatRepository
 import com.etfmonitor.repository.CorrelationAnalysisRepository
 import com.etfmonitor.repository.FullAnalysisResult
@@ -99,6 +100,21 @@ class NewAIAnalysisViewModel @Inject constructor(
         _selectedMarket.flatMapLatest { market ->
             correlationAnalysisRepository.getCorrelationResults(market)
         }
+
+    // 종목-지표 AI 분석 히스토리 (선택된 종목에 따라 자동 업데이트)
+    val stockIndicatorAIHistory: Flow<List<StockIndicatorAIResult>> =
+        _selectedStock.flatMapLatest { stock ->
+            if (stock != null) {
+                timeSeriesAnalysisRepository.getStockIndicatorAIHistory(stock.first)
+            } else {
+                // 선택된 종목이 없으면 전체 최근 히스토리 표시
+                timeSeriesAnalysisRepository.getAllStockIndicatorAIHistory(20)
+            }
+        }
+
+    // 전체 종목-지표 AI 분석 히스토리
+    val allStockIndicatorAIHistory: Flow<List<StockIndicatorAIResult>> =
+        timeSeriesAnalysisRepository.getAllStockIndicatorAIHistory(50)
 
     init {
         checkApiKey()
@@ -442,6 +458,55 @@ class NewAIAnalysisViewModel @Inject constructor(
      */
     fun clearStockIndicatorCorrelationResult() {
         _stockIndicatorCorrelationResult.value = null
+    }
+
+    /**
+     * 히스토리에서 분석 결과 로드
+     */
+    fun loadFromHistory(historyItem: StockIndicatorAIResult) {
+        // 종목 선택
+        _selectedStock.value = Pair(historyItem.ticker, historyItem.stockName)
+
+        // AI 해석 결과만 생성 (상관관계 데이터는 없지만 표시 가능)
+        val aiInterpretation = com.etfmonitor.analysis.AIStockIndicatorInterpretation(
+            ticker = historyItem.ticker,
+            name = historyItem.stockName,
+            period = historyItem.period,
+            signal = historyItem.signal,
+            confidence = historyItem.confidence,
+            upProbability = historyItem.upProbability,
+            downProbability = historyItem.downProbability,
+            riskLevel = historyItem.riskLevel,
+            keyCorrelations = try {
+                kotlinx.serialization.json.Json.decodeFromString(historyItem.keyCorrelations)
+            } catch (e: Exception) {
+                emptyList()
+            },
+            marketSentimentImpact = historyItem.marketSentimentImpact,
+            fundFlowImpact = historyItem.fundFlowImpact,
+            etfFlowImpact = historyItem.etfFlowImpact,
+            recommendation = historyItem.recommendation,
+            reasoning = historyItem.reasoning
+        )
+
+        _stockIndicatorCorrelationResult.value = FullStockIndicatorCorrelationResult(
+            correlationResult = null,  // 히스토리에서 로드시 상관관계 데이터 없음
+            aiInterpretation = aiInterpretation,
+            errorMessage = null
+        )
+
+        _state.value = NewAIAnalysisState.StockIndicatorCorrelationAIComplete(
+            _stockIndicatorCorrelationResult.value!!
+        )
+    }
+
+    /**
+     * 히스토리 항목 삭제
+     */
+    fun deleteHistoryItem(id: String) {
+        viewModelScope.launch {
+            timeSeriesAnalysisRepository.deleteStockIndicatorAIHistory(id)
+        }
     }
 
     // ========== 채팅 기능 ==========

@@ -62,4 +62,19 @@ class AIApiClientFactory @Inject constructor(
             AIProvider.GEMINI -> "gemini-2.0-flash-exp"
         }
     }
+
+    /**
+     * 현재 선택된 AI 제공자명 반환
+     */
+    fun getSelectedProviderName(): String {
+        return apiKeyProvider.getSelectedProvider().name
+    }
+
+    /**
+     * 현재 선택된 AI 모델 ID 반환
+     */
+    fun getSelectedModelId(): String {
+        val provider = apiKeyProvider.getSelectedProvider()
+        return getSelectedModel(provider)
+    }
 }
