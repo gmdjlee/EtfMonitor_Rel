@@ -53,11 +53,11 @@ class MarketDepositViewModel @Inject constructor(
             try {
                 _state.value = MarketDepositState.Loading
 
-                // DB에서 데이터 가져오기 (필요시 자동 업데이트)
-                val marketData = repository.getOrUpdateMarketData(limit = 100)
+                // DB에서만 데이터 가져오기 (자동 업데이트 없음)
+                val marketData = repository.getMarketDataFromDB(limit = 100)
 
                 if (marketData == null) {
-                    _state.value = MarketDepositState.Error("저장된 데이터가 없습니다. 설정에서 데이터를 업데이트해주세요.")
+                    _state.value = MarketDepositState.Error("저장된 데이터가 없습니다. 설정 > 데이터 업데이트에서 데이터를 수집해주세요.")
                     return@launch
                 }
 

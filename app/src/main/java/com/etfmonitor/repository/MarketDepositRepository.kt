@@ -114,9 +114,30 @@ class MarketDepositRepository @Inject constructor(
     }
 
     /**
+     * DB에서만 증시 자금 데이터 가져오기 (업데이트 없음)
+     * 화면 진입 시 사용 - 자동 업데이트 없이 캐시된 데이터만 반환
+     */
+    suspend fun getMarketDataFromDB(limit: Int = 100): MarketDepositData? = withContext(Dispatchers.IO) {
+        try {
+            val deposits = marketDepositDao.getRecentDeposits(limit).first()
+            if (deposits.isEmpty()) {
+                logger.d("No cached market deposit data")
+                return@withContext null
+            }
+            logger.d("Loaded ${deposits.size} market deposit records from DB")
+            convertToMarketDepositData(deposits)
+        } catch (e: Exception) {
+            logger.e("Error loading market data from DB", e)
+            null
+        }
+    }
+
+    /**
      * 증시 자금 데이터 가져오기 (스마트 업데이트)
      * DB에 데이터가 있고 최신이면 DB에서, 없거나 오래되면 업데이트
+     * @deprecated 설정에서만 업데이트하도록 변경됨. getMarketDataFromDB() 사용 권장
      */
+    @Deprecated("Use getMarketDataFromDB() instead. Updates should only be triggered from Settings.")
     suspend fun getOrUpdateMarketData(limit: Int = 100): MarketDepositData? = withContext(Dispatchers.IO) {
         try {
             // 1. DB에서 기존 데이터 확인
