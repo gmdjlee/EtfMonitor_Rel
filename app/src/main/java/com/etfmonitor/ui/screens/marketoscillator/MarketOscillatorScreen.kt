@@ -8,7 +8,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -101,12 +100,6 @@ fun MarketOscillatorScreen(
                 actions = {
                     IconButton(onClick = { showSettingsDialog = true }) {
                         Icon(Icons.Default.Settings, stringResource(R.string.nav_settings))
-                    }
-                    val currentState = state
-                    if (currentState is MarketOscillatorState.Idle && currentState.hasData) {
-                        IconButton(onClick = { viewModel.update() }) {
-                            Icon(Icons.Default.Refresh, stringResource(R.string.nav_update))
-                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
