@@ -5,7 +5,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,14 +34,6 @@ fun MarketDepositScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.nav_back))
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { viewModel.refreshData() },
-                        enabled = state !is MarketDepositState.Loading
-                    ) {
-                        Icon(Icons.Default.Refresh, stringResource(R.string.nav_refresh))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
