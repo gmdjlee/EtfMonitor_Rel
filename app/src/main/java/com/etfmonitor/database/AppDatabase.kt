@@ -26,6 +26,7 @@ import com.etfmonitor.database.entities.EtfCorrelationCache
 import com.etfmonitor.database.entities.LiquidityAnalysis
 import com.etfmonitor.database.entities.PriceCache
 import com.etfmonitor.database.entities.EnhancedPrediction
+import com.etfmonitor.database.entities.StockIndicatorAIResult
 
 @Database(
     entities = [
@@ -49,9 +50,10 @@ import com.etfmonitor.database.entities.EnhancedPrediction
         EtfCorrelationCache::class,
         LiquidityAnalysis::class,
         PriceCache::class,
-        EnhancedPrediction::class
+        EnhancedPrediction::class,
+        StockIndicatorAIResult::class
     ],
-    version = 15,
+    version = 16,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -74,6 +76,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun liquidityAnalysisDao(): LiquidityAnalysisDao
     abstract fun priceCacheDao(): PriceCacheDao
     abstract fun enhancedPredictionDao(): EnhancedPredictionDao
+    abstract fun stockIndicatorAIResultDao(): StockIndicatorAIResultDao
 }
 
 /**
@@ -673,5 +676,47 @@ val MIGRATION_14_15 = object : Migration(14, 15) {
         database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_predictions_ticker ON enhanced_predictions(ticker)")
         database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_predictions_confidence ON enhanced_predictions(confidence DESC)")
         database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_predictions_status ON enhanced_predictions(status)")
+    }
+}
+
+/**
+ * Migration from version 15 to 16: Add StockIndicatorAIResult table
+ * 종목-지표 상관관계 AI 분석 결과 저장 테이블 추가
+ */
+val MIGRATION_15_16 = object : Migration(15, 16) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // StockIndicatorAIResult 테이블 생성
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS stock_indicator_ai_result (
+                id TEXT PRIMARY KEY NOT NULL,
+                ticker TEXT NOT NULL,
+                stockName TEXT NOT NULL,
+                market TEXT NOT NULL,
+                analysisDate TEXT NOT NULL,
+                period TEXT NOT NULL,
+                periodDays INTEGER NOT NULL,
+                aiProvider TEXT NOT NULL,
+                aiModel TEXT NOT NULL,
+                signal TEXT NOT NULL,
+                confidence REAL NOT NULL,
+                upProbability REAL NOT NULL,
+                downProbability REAL NOT NULL,
+                riskLevel TEXT NOT NULL,
+                keyCorrelations TEXT NOT NULL,
+                marketSentimentImpact TEXT NOT NULL,
+                fundFlowImpact TEXT NOT NULL,
+                etfFlowImpact TEXT NOT NULL,
+                reasoning TEXT NOT NULL,
+                recommendation TEXT NOT NULL,
+                createdAt INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // 인덱스 생성
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_stock_indicator_ai_result_ticker ON stock_indicator_ai_result(ticker)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_stock_indicator_ai_result_ticker_date ON stock_indicator_ai_result(ticker, analysisDate)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_stock_indicator_ai_result_createdAt ON stock_indicator_ai_result(createdAt)")
     }
 }

@@ -16,6 +16,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.abs
@@ -34,7 +35,8 @@ class TimeSeriesAnalysisRepository @Inject constructor(
     private val dailyEtfStatisticsDao: DailyEtfStatisticsDao,
     private val aiApiClientFactory: AIApiClientFactory,
     private val oscillatorPyClient: OscillatorPyClient,
-    private val etfDao: EtfDao
+    private val etfDao: EtfDao,
+    private val stockIndicatorAIResultDao: StockIndicatorAIResultDao
 ) {
     companion object {
         private val logger = AppLogger.getLogger("TimeSeriesRepo")
@@ -1245,22 +1247,64 @@ class TimeSeriesAnalysisRepository @Inject constructor(
 
             val signal = signalResult.getOrThrow()
 
+            val keyCorrelations = extractKeyCorrelations(correlationResult)
+            val marketSentimentImpact = extractSentimentImpact(signal.reasoning)
+            val fundFlowImpact = extractFundFlowImpact(signal.reasoning)
+            val etfFlowImpact = extractEtfFlowImpact(signal.reasoning)
+            val period = "${correlationResult.startDate} ~ ${correlationResult.endDate}"
+
             val interpretation = AIStockIndicatorInterpretation(
                 ticker = correlationResult.ticker,
                 name = correlationResult.stockName,
-                period = "${correlationResult.startDate} ~ ${correlationResult.endDate}",
+                period = period,
                 signal = signal.signal.name,
                 confidence = signal.confidence,
                 upProbability = signal.upProbability,
                 downProbability = signal.downProbability,
                 riskLevel = signal.riskLevel.name,
-                keyCorrelations = extractKeyCorrelations(correlationResult),
-                marketSentimentImpact = extractSentimentImpact(signal.reasoning),
-                fundFlowImpact = extractFundFlowImpact(signal.reasoning),
-                etfFlowImpact = extractEtfFlowImpact(signal.reasoning),
+                keyCorrelations = keyCorrelations,
+                marketSentimentImpact = marketSentimentImpact,
+                fundFlowImpact = fundFlowImpact,
+                etfFlowImpact = etfFlowImpact,
                 recommendation = signal.recommendation,
                 reasoning = signal.reasoning
             )
+
+            // 분석 결과를 데이터베이스에 저장
+            try {
+                val aiProvider = aiApiClientFactory.getSelectedProviderName()
+                val aiModel = aiApiClientFactory.getSelectedModelId()
+                val periodDays = correlationResult.totalDataPoints
+
+                val dbResult = StockIndicatorAIResult(
+                    id = UUID.randomUUID().toString(),
+                    ticker = correlationResult.ticker,
+                    stockName = correlationResult.stockName,
+                    market = correlationResult.market,
+                    analysisDate = correlationResult.endDate,
+                    period = period,
+                    periodDays = periodDays,
+                    aiProvider = aiProvider,
+                    aiModel = aiModel,
+                    signal = signal.signal.name,
+                    confidence = signal.confidence,
+                    upProbability = signal.upProbability,
+                    downProbability = signal.downProbability,
+                    riskLevel = signal.riskLevel.name,
+                    keyCorrelations = json.encodeToString(keyCorrelations),
+                    marketSentimentImpact = marketSentimentImpact,
+                    fundFlowImpact = fundFlowImpact,
+                    etfFlowImpact = etfFlowImpact,
+                    reasoning = signal.reasoning,
+                    recommendation = signal.recommendation
+                )
+
+                stockIndicatorAIResultDao.insert(dbResult)
+                logger.d("Saved stock-indicator AI analysis result: ${dbResult.id}")
+            } catch (e: Exception) {
+                logger.e("Failed to save stock-indicator AI analysis result", e)
+                // 저장 실패해도 분석 결과는 반환
+            }
 
             Result.success(interpretation)
         } catch (e: Exception) {
@@ -1309,6 +1353,35 @@ class TimeSeriesAnalysisRepository @Inject constructor(
             logger.e("Failed to run full stock-indicator correlation analysis", e)
             Result.failure(e)
         }
+    }
+
+    // ========== AI 분석 히스토리 조회 ==========
+
+    /**
+     * 특정 종목의 AI 분석 히스토리 조회 (Flow)
+     */
+    fun getStockIndicatorAIHistory(ticker: String, limit: Int = 10) =
+        stockIndicatorAIResultDao.getRecentByTicker(ticker, limit)
+
+    /**
+     * 모든 AI 분석 히스토리 조회 (Flow)
+     */
+    fun getAllStockIndicatorAIHistory(limit: Int = 20) =
+        stockIndicatorAIResultDao.getRecent(limit)
+
+    /**
+     * 특정 종목의 최신 AI 분석 결과 조회
+     */
+    suspend fun getLatestStockIndicatorAIResult(ticker: String): StockIndicatorAIResult? =
+        withContext(Dispatchers.IO) {
+            stockIndicatorAIResultDao.getLatestByTicker(ticker)
+        }
+
+    /**
+     * AI 분석 히스토리 삭제
+     */
+    suspend fun deleteStockIndicatorAIHistory(id: String) = withContext(Dispatchers.IO) {
+        stockIndicatorAIResultDao.deleteById(id)
     }
 
     // ========== Fear & Greed 상관관계 계산 ==========

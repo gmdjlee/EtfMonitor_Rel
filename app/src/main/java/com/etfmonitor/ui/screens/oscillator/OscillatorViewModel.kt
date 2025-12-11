@@ -64,6 +64,10 @@ class OscillatorViewModel @Inject constructor(
     private val etfDao: EtfDao
 ) : ViewModel() {
 
+    companion object {
+        private const val QUICK_CHART_ANALYSIS_KEY = "quick_chart_analysis_enabled"
+    }
+
     private val _state = MutableStateFlow<OscillatorState>(OscillatorState.Idle)
     val state: StateFlow<OscillatorState> = _state.asStateFlow()
 
@@ -80,10 +84,29 @@ class OscillatorViewModel @Inject constructor(
     private val _demarkTDInterval = MutableStateFlow("w")
     val demarkTDInterval: StateFlow<String> = _demarkTDInterval.asStateFlow()
 
+    // 빠른 차트 분석 설정 (FAB 표시용)
+    private val _quickChartAnalysisEnabled = MutableStateFlow(false)
+    val quickChartAnalysisEnabled: StateFlow<Boolean> = _quickChartAnalysisEnabled.asStateFlow()
+
     private var searchJob: Job? = null
 
     init {
         loadSearchHistory()
+        loadQuickChartAnalysisSetting()
+    }
+
+    /**
+     * 빠른 차트 분석 설정 로드
+     */
+    private fun loadQuickChartAnalysisSetting() {
+        viewModelScope.launch {
+            try {
+                val enabled = etfDao.getSetting(QUICK_CHART_ANALYSIS_KEY) == "true"
+                _quickChartAnalysisEnabled.value = enabled
+            } catch (e: Exception) {
+                // Ignore error, keep default value
+            }
+        }
     }
 
     /**

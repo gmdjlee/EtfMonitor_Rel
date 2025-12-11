@@ -453,7 +453,7 @@ data class StockIndicatorCorrelationResult(
  * AI 해석이 포함된 종목-지표 상관관계 분석 결과
  */
 data class FullStockIndicatorCorrelationResult(
-    val correlationResult: StockIndicatorCorrelationResult,
+    val correlationResult: StockIndicatorCorrelationResult?,
     val aiInterpretation: AIStockIndicatorInterpretation?,
     val errorMessage: String?
 )
