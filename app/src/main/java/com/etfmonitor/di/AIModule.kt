@@ -196,7 +196,8 @@ object AIModule {
         dailyEtfStatisticsDao: DailyEtfStatisticsDao,
         aiApiClientFactory: AIApiClientFactory,
         oscillatorPyClient: OscillatorPyClient,
-        etfDao: EtfDao
+        etfDao: EtfDao,
+        stockIndicatorAIResultDao: StockIndicatorAIResultDao
     ): TimeSeriesAnalysisRepository {
         return TimeSeriesAnalysisRepository(
             marketIndexDao,
@@ -206,7 +207,8 @@ object AIModule {
             dailyEtfStatisticsDao,
             aiApiClientFactory,
             oscillatorPyClient,
-            etfDao
+            etfDao,
+            stockIndicatorAIResultDao
         )
     }
 }
