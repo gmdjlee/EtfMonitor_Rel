@@ -177,7 +177,7 @@ private fun AIAnalysisHubContent(
 
                         analysisResult?.aiResult?.let { aiResult ->
                             Text(
-                                text = aiResult.signal.name,
+                                text = aiResult.signal,
                                 style = MaterialTheme.typography.headlineSmall.copy(
                                     fontWeight = FontWeight.Bold
                                 ),
