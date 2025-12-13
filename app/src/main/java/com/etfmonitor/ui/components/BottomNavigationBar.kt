@@ -253,15 +253,6 @@ fun TabNavigationBar(
         containerColor = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.primary,
         edgePadding = 16.dp,
-        indicator = { tabPositions ->
-            if (selectedIndex < tabPositions.size) {
-                TabRowDefaults.SecondaryIndicator(
-                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
-                    height = 3.dp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        },
         divider = {}
     ) {
         tabs.forEachIndexed { index, title ->

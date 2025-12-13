@@ -34,12 +34,12 @@ fun StocksHubScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
-    val searchResults by viewModel.searchResults.collectAsState()
+    val suggestions by viewModel.suggestions.collectAsState()
 
     // Set initial ticker if provided
     LaunchedEffect(initialTicker) {
         initialTicker?.let { ticker ->
-            viewModel.setInitialTicker(ticker)
+            viewModel.analyzeStock(ticker)
         }
     }
 
@@ -77,7 +77,10 @@ fun StocksHubScreen(
             },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { viewModel.onClearSearch() }) {
+                    IconButton(onClick = {
+                        viewModel.onSearchQueryChanged("")
+                        viewModel.onClearSuggestions()
+                    }) {
                         Icon(
                             Icons.Default.Clear,
                             contentDescription = "지우기",
@@ -113,7 +116,7 @@ fun StocksHubScreen(
                 }
                 is OscillatorState.Success -> {
                     // Display analysis data
-                    val data = s.oscillatorData
+                    val stockData = s.stockData
 
                     // Stock Info Card
                     Surface(
@@ -125,14 +128,14 @@ fun StocksHubScreen(
                             modifier = Modifier.padding(20.dp)
                         ) {
                             Text(
-                                text = data.name,
+                                text = stockData.name,
                                 style = MaterialTheme.typography.headlineSmall.copy(
                                     fontWeight = FontWeight.Bold
                                 ),
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                             Text(
-                                text = data.ticker,
+                                text = stockData.ticker,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                             )
@@ -140,7 +143,7 @@ fun StocksHubScreen(
                     }
 
                     // Trend Analysis Card
-                    if (s.trendSignalData != null) {
+                    if (s.trendSignalAnalysis != null) {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.large,
@@ -172,7 +175,7 @@ fun StocksHubScreen(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Text(
-                                            text = s.trendSignalData?.signal ?: "—",
+                                            text = s.trendSignalAnalysis?.signal?.name ?: "—",
                                             style = MaterialTheme.typography.titleMedium.copy(
                                                 fontWeight = FontWeight.Bold
                                             ),
@@ -181,12 +184,12 @@ fun StocksHubScreen(
                                     }
                                     Column(horizontalAlignment = Alignment.End) {
                                         Text(
-                                            text = "추세 강도",
+                                            text = "추세 설명",
                                             style = MaterialTheme.typography.labelMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Text(
-                                            text = s.trendSignalData?.trendStrength ?: "—",
+                                            text = s.trendSignalAnalysis?.trendDescription ?: "—",
                                             style = MaterialTheme.typography.titleMedium.copy(
                                                 fontWeight = FontWeight.Bold
                                             ),
@@ -200,7 +203,7 @@ fun StocksHubScreen(
 
                     // Quick action to statistics
                     Button(
-                        onClick = { onNavigateToStatistics(data.ticker) },
+                        onClick = { onNavigateToStatistics(stockData.ticker) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.large
                     ) {
@@ -236,7 +239,7 @@ fun StocksHubScreen(
                 }
                 is OscillatorState.Idle -> {
                     // Show search results or empty state
-                    if (searchResults.isNotEmpty()) {
+                    if (suggestions.isNotEmpty()) {
                         Text(
                             text = "검색 결과",
                             style = MaterialTheme.typography.titleMedium.copy(
@@ -244,10 +247,10 @@ fun StocksHubScreen(
                             ),
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        searchResults.forEach { stock ->
+                        suggestions.forEach { stock ->
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
-                                onClick = { viewModel.onStockSelected(stock.ticker) },
+                                onClick = { viewModel.analyzeStock(stock.ticker) },
                                 shape = MaterialTheme.shapes.medium,
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                             ) {

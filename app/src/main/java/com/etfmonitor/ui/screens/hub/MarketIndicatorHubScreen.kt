@@ -138,6 +138,13 @@ private fun MarketOscillatorHubContent(
         if (marketData.isNotEmpty()) {
             val latest = marketData.firstOrNull()
             if (latest != null) {
+                // Derive status from oscillator value
+                val status = when {
+                    latest.oscillator >= 80 -> "과매수"
+                    latest.oscillator <= -80 -> "과매도"
+                    else -> "중립"
+                }
+
                 // Summary card
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -154,7 +161,7 @@ private fun MarketOscillatorHubContent(
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                         )
                         Text(
-                            text = latest.status,
+                            text = status,
                             style = MaterialTheme.typography.headlineMedium.copy(
                                 fontWeight = FontWeight.Bold
                             ),
@@ -178,7 +185,6 @@ private fun MarketDepositHubContent(
     viewModel: MarketDepositViewModel
 ) {
     val state by viewModel.state.collectAsState()
-    val depositData by viewModel.depositData.collectAsState()
 
     Column(
         modifier = Modifier
@@ -197,18 +203,16 @@ private fun MarketDepositHubContent(
                 }
             }
             is com.etfmonitor.ui.screens.oscillator.MarketDepositState.Idle -> {
-                val idle = state as com.etfmonitor.ui.screens.oscillator.MarketDepositState.Idle
-                if (!idle.hasData) {
-                    NoDataCard(message = "데이터를 수집하려면 설정에서 초기화해주세요.")
-                }
+                NoDataCard(message = "데이터를 수집하려면 설정에서 초기화해주세요.")
             }
-            else -> {}
-        }
+            is com.etfmonitor.ui.screens.oscillator.MarketDepositState.Success -> {
+                val successState = state as com.etfmonitor.ui.screens.oscillator.MarketDepositState.Success
+                val depositData = successState.data
 
-        // Show latest data if available
-        if (depositData.isNotEmpty()) {
-            val latest = depositData.firstOrNull()
-            if (latest != null) {
+                // Get latest values (first elements are the most recent)
+                val latestDeposit = depositData.depositAmounts.firstOrNull() ?: 0.0
+                val latestCredit = depositData.creditAmounts.firstOrNull() ?: 0.0
+
                 // Deposit summary
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -224,7 +228,7 @@ private fun MarketDepositHubContent(
                             color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
                         )
                         Text(
-                            text = "${String.format("%.1f", latest.deposit / 10000)}조원",
+                            text = "${String.format("%.1f", latestDeposit / 10000)}조원",
                             style = MaterialTheme.typography.headlineMedium.copy(
                                 fontWeight = FontWeight.Bold
                             ),
@@ -237,7 +241,7 @@ private fun MarketDepositHubContent(
                             color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
                         )
                         Text(
-                            text = "${String.format("%.1f", latest.credit / 10000)}조원",
+                            text = "${String.format("%.1f", latestCredit / 10000)}조원",
                             style = MaterialTheme.typography.headlineMedium.copy(
                                 fontWeight = FontWeight.Bold
                             ),
@@ -245,6 +249,10 @@ private fun MarketDepositHubContent(
                         )
                     }
                 }
+            }
+            is com.etfmonitor.ui.screens.oscillator.MarketDepositState.Error -> {
+                val errorState = state as com.etfmonitor.ui.screens.oscillator.MarketDepositState.Error
+                NoDataCard(message = errorState.message)
             }
         }
     }

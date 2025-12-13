@@ -98,7 +98,8 @@ private fun AIAnalysisHubContent(
     onNavigateToOscillator: (String) -> Unit
 ) {
     val state by viewModel.state.collectAsState()
-    val latestAnalysis by viewModel.latestAnalysis.collectAsState()
+    val analysisResult by viewModel.analysisResult.collectAsState()
+    val isApiKeyConfigured by viewModel.isApiKeyConfigured.collectAsState()
 
     Column(
         modifier = Modifier
@@ -107,134 +108,168 @@ private fun AIAnalysisHubContent(
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        when (state) {
-            is NewAIAnalysisState.Loading, is NewAIAnalysisState.AnalysisLoading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    contentAlignment = Alignment.Center
+        // Loading states
+        val isLoading = state is NewAIAnalysisState.AnalyzingCorrelation ||
+                state is NewAIAnalysisState.AnalyzingFull ||
+                state is NewAIAnalysisState.InterpretingWithAI
+
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else if (!isApiKeyConfigured) {
+            // API key required
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.tertiaryContainer
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    CircularProgressIndicator()
+                    Icon(
+                        Icons.Default.Key,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "API 키 설정 필요",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "AI 분석을 사용하려면 설정에서 Claude 또는 Gemini API 키를 설정해주세요.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                    )
                 }
             }
-            is NewAIAnalysisState.ApiKeyRequired -> {
+        } else {
+            // Show latest analysis or prompt to analyze
+            if (analysisResult != null) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.tertiaryContainer
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp)
+                    ) {
+                        Text(
+                            text = "상관관계 분석 결과",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        analysisResult?.aiResult?.let { aiResult ->
+                            Text(
+                                text = aiResult.signal.name,
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "신뢰도: ${(aiResult.confidence * 100).toInt()}%",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            )
+                        } ?: run {
+                            Text(
+                                text = "상관관계 분석이 완료되었습니다. AI 해석을 실행하세요.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f)
+                            )
+                        }
+                    }
+                }
+            } else {
+                // No analysis yet
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     Column(
                         modifier = Modifier.padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Icon(
-                            Icons.Default.Key,
+                            Icons.Default.AutoAwesome,
                             contentDescription = null,
                             modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onTertiaryContainer
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "API 키 설정 필요",
+                            text = "AI 분석 실행",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold
                             ),
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "AI 분석을 사용하려면 설정에서 Claude 또는 Gemini API 키를 설정해주세요.",
+                            text = "AI가 시장 데이터를 분석하여 인사이트를 제공합니다",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
                     }
                 }
             }
-            else -> {
-                // Show latest analysis or prompt to analyze
-                if (latestAnalysis != null) {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.primaryContainer
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(20.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "최신 AI 분석",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold
-                                    ),
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                latestAnalysis?.createdAt?.let { timestamp ->
-                                    Text(
-                                        text = formatTimestamp(timestamp),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = latestAnalysis?.summary ?: "",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f),
-                                maxLines = 5
-                            )
-                        }
-                    }
-                } else {
-                    // No analysis yet
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "AI 분석 실행",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "AI가 시장 데이터를 분석하여 인사이트를 제공합니다",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            )
-                        }
-                    }
-                }
 
-                // Action button
-                Button(
-                    onClick = { viewModel.runAnalysis() },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large
+            // Action button
+            Button(
+                onClick = { viewModel.runFullAnalysis() },
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                enabled = isApiKeyConfigured && !isLoading
+            ) {
+                Icon(Icons.Default.Psychology, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("분석 실행")
+            }
+        }
+
+        // Error state
+        if (state is NewAIAnalysisState.Error) {
+            val error = state as NewAIAnalysisState.Error
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.errorContainer
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(Icons.Default.Psychology, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("분석 실행")
+                    Icon(
+                        Icons.Default.Error,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = error.message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
                 }
             }
         }
@@ -246,6 +281,7 @@ private fun PredictionHubContent(
     viewModel: PredictionViewModel
 ) {
     val state by viewModel.state.collectAsState()
+    val predictions by viewModel.predictions.collectAsState()
 
     Column(
         modifier = Modifier
@@ -256,6 +292,7 @@ private fun PredictionHubContent(
     ) {
         when (state) {
             is PredictionState.Loading -> {
+                val loadingState = state as PredictionState.Loading
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -266,14 +303,18 @@ private fun PredictionHubContent(
                         CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "ML 모델 학습 중...",
+                            text = loadingState.message,
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
             }
-            is PredictionState.HasPredictions -> {
-                val predictions = (state as PredictionState.HasPredictions).predictions
+            is PredictionState.HasPredictions, is PredictionState.Success -> {
+                val count = when (state) {
+                    is PredictionState.HasPredictions -> (state as PredictionState.HasPredictions).count
+                    is PredictionState.Success -> (state as PredictionState.Success).predictedCount
+                    else -> predictions.size
+                }
 
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -292,7 +333,7 @@ private fun PredictionHubContent(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "${predictions.size}개 종목 예측 완료",
+                            text = "${count}개 종목 예측 완료",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                         )
@@ -315,27 +356,27 @@ private fun PredictionHubContent(
                         ) {
                             Column {
                                 Text(
-                                    text = prediction.stockName,
+                                    text = prediction.name,
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontWeight = FontWeight.Medium
                                     )
                                 )
                                 Text(
-                                    text = prediction.stockTicker,
+                                    text = prediction.ticker,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = prediction.prediction,
+                                    text = prediction.status,
                                     style = MaterialTheme.typography.titleSmall.copy(
                                         fontWeight = FontWeight.Bold
                                     ),
-                                    color = if (prediction.prediction == "상승") {
+                                    color = if (prediction.confidence > 0.7) {
                                         MaterialTheme.colorScheme.primary
                                     } else {
-                                        MaterialTheme.colorScheme.error
+                                        MaterialTheme.colorScheme.secondary
                                     }
                                 )
                                 Text(
@@ -417,7 +458,6 @@ private fun PredictionHubContent(
                     }
                 }
             }
-            else -> {}
         }
     }
 }

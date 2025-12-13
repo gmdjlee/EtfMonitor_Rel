@@ -385,7 +385,7 @@ private fun HomeHeader(
             IconButton(onClick = onSettingsClick) {
                 Icon(
                     imageVector = Icons.Default.Settings,
-                    contentDescription = stringResource(R.string.menu_settings),
+                    contentDescription = stringResource(R.string.nav_settings),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }

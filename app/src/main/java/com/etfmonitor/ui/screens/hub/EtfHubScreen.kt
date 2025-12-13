@@ -251,7 +251,7 @@ private fun StatisticsHubContent(
     onStockClick: (String) -> Unit,
     onNavigateToOscillator: (String) -> Unit
 ) {
-    val stockRankings by viewModel.stockRankings.collectAsState()
+    val stockRankings by viewModel.amountRanking.collectAsState()
 
     if (stockRankings.isEmpty()) {
         Box(
