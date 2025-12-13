@@ -1,19 +1,15 @@
 package com.etfmonitor.ui.screens.home
 
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -30,48 +25,38 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
-import com.etfmonitor.ui.components.*
 import com.etfmonitor.ui.theme.*
 
 /**
- * Home Screen - Moss Green Nature Theme
- * Modern design matching the React design guide specification
+ * Home Screen - Summary Dashboard
+ * Shows summary cards for each menu section
  *
- * Layout:
- * - Header with title and notification bell
- * - Market Status Summary Bar (KOSPI/KOSDAQ)
- * - AI Insights featured card
- * - 2x2 Dashboard Grid
+ * Menu Structure:
+ * - 시장 지표: Fear & Greed, 과매수/과매도, 증시 자금 동향
+ * - ETF: ETF 목록, ETF 통계
+ * - 종목: 종목 수급 분석
+ * - 분석: AI 분석, ML 예측, 고급 분석
  */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateToList: () -> Unit,
+    isDarkTheme: Boolean,
+    onToggleTheme: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToStatistics: () -> Unit,
-    onNavigateToOscillator: () -> Unit,
-    onNavigateToMarketDeposit: () -> Unit,
-    onNavigateToFearGreed: () -> Unit,
-    onNavigateToMarketOscillator: () -> Unit,
-    onNavigateToAIAnalysis: () -> Unit,
-    onNavigateToPrediction: () -> Unit,
-    onNavigateToAdvancedDashboard: () -> Unit,
+    onNavigateToMarketIndicator: () -> Unit,
+    onNavigateToEtf: () -> Unit,
+    onNavigateToStocks: () -> Unit,
+    onNavigateToAnalysis: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val showFirstRunDialog by viewModel.showFirstRunDialog.collectAsState()
-    val showMarketDepositDialog by viewModel.showMarketDepositDialog.collectAsState()
-    val showFearGreedDialog by viewModel.showFearGreedDialog.collectAsState()
-    val showMarketOscillatorDialog by viewModel.showMarketOscillatorDialog.collectAsState()
     val showUnifiedInitDialog by viewModel.showUnifiedInitDialog.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val lastDate = (state as? HomeState.Idle)?.lastDate
 
     var showDaysDialog by remember { mutableStateOf(false) }
-    var showMarketDepositPagesDialog by remember { mutableStateOf(false) }
-    var showFearGreedPeriodDialog by remember { mutableStateOf(false) }
-    var showMarketOscillatorPeriodDialog by remember { mutableStateOf(false) }
     var showUnifiedDialog by remember { mutableStateOf(false) }
 
     // Dialog handlers
@@ -81,18 +66,6 @@ fun HomeScreen(
 
     LaunchedEffect(showFirstRunDialog) {
         if (showFirstRunDialog) showDaysDialog = true
-    }
-
-    LaunchedEffect(showMarketDepositDialog) {
-        if (showMarketDepositDialog) showMarketDepositPagesDialog = true
-    }
-
-    LaunchedEffect(showFearGreedDialog) {
-        if (showFearGreedDialog) showFearGreedPeriodDialog = true
-    }
-
-    LaunchedEffect(showMarketOscillatorDialog) {
-        if (showMarketOscillatorDialog) showMarketOscillatorPeriodDialog = true
     }
 
     LaunchedEffect(state) {
@@ -133,16 +106,13 @@ fun HomeScreen(
                     modifier = Modifier.padding(padding),
                     state = s,
                     lastDate = lastDate,
-                    onNavigateToList = onNavigateToList,
+                    isDarkTheme = isDarkTheme,
+                    onToggleTheme = onToggleTheme,
                     onNavigateToSettings = onNavigateToSettings,
-                    onNavigateToStatistics = onNavigateToStatistics,
-                    onNavigateToOscillator = onNavigateToOscillator,
-                    onNavigateToMarketDeposit = onNavigateToMarketDeposit,
-                    onNavigateToFearGreed = onNavigateToFearGreed,
-                    onNavigateToMarketOscillator = onNavigateToMarketOscillator,
-                    onNavigateToAIAnalysis = onNavigateToAIAnalysis,
-                    onNavigateToPrediction = onNavigateToPrediction,
-                    onNavigateToAdvancedDashboard = onNavigateToAdvancedDashboard
+                    onNavigateToMarketIndicator = onNavigateToMarketIndicator,
+                    onNavigateToEtf = onNavigateToEtf,
+                    onNavigateToStocks = onNavigateToStocks,
+                    onNavigateToAnalysis = onNavigateToAnalysis
                 )
             }
         }
@@ -159,45 +129,6 @@ fun HomeScreen(
                 viewModel.initialize(days)
                 showDaysDialog = false
                 if (showFirstRunDialog) viewModel.onFirstRunDialogShown()
-            }
-        )
-    }
-
-    if (showMarketDepositPagesDialog) {
-        MarketDepositPagesSelectionDialog(
-            onDismiss = {
-                showMarketDepositPagesDialog = false
-                if (showMarketDepositDialog) viewModel.onMarketDepositDialogShown()
-            },
-            onConfirm = { pages ->
-                viewModel.initializeMarketDeposit(pages)
-                showMarketDepositPagesDialog = false
-            }
-        )
-    }
-
-    if (showFearGreedPeriodDialog) {
-        FearGreedPeriodSelectionDialog(
-            onDismiss = {
-                showFearGreedPeriodDialog = false
-                if (showFearGreedDialog) viewModel.onFearGreedDialogShown()
-            },
-            onConfirm = { days ->
-                viewModel.initializeFearGreed(days)
-                showFearGreedPeriodDialog = false
-            }
-        )
-    }
-
-    if (showMarketOscillatorPeriodDialog) {
-        MarketOscillatorPeriodSelectionDialog(
-            onDismiss = {
-                showMarketOscillatorPeriodDialog = false
-                if (showMarketOscillatorDialog) viewModel.onMarketOscillatorDialogShown()
-            },
-            onConfirm = { days ->
-                viewModel.initializeMarketOscillator(days)
-                showMarketOscillatorPeriodDialog = false
             }
         )
     }
@@ -277,16 +208,13 @@ private fun HomeContent(
     modifier: Modifier = Modifier,
     state: HomeState,
     lastDate: String?,
-    onNavigateToList: () -> Unit,
+    isDarkTheme: Boolean,
+    onToggleTheme: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToStatistics: () -> Unit,
-    onNavigateToOscillator: () -> Unit,
-    onNavigateToMarketDeposit: () -> Unit,
-    onNavigateToFearGreed: () -> Unit,
-    onNavigateToMarketOscillator: () -> Unit,
-    onNavigateToAIAnalysis: () -> Unit,
-    onNavigateToPrediction: () -> Unit,
-    onNavigateToAdvancedDashboard: () -> Unit
+    onNavigateToMarketIndicator: () -> Unit,
+    onNavigateToEtf: () -> Unit,
+    onNavigateToStocks: () -> Unit,
+    onNavigateToAnalysis: () -> Unit
 ) {
     val hasData = (state as? HomeState.Idle)?.hasData ?: false
     val summary = (state as? HomeState.Idle)?.summary
@@ -298,51 +226,112 @@ private fun HomeContent(
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(scrollState)
     ) {
-        // Header
+        // Header with theme toggle
         HomeHeader(
             lastDate = lastDate,
-            onNotificationClick = { /* TODO */ }
+            isDarkTheme = isDarkTheme,
+            onToggleTheme = onToggleTheme,
+            onSettingsClick = onNavigateToSettings
         )
 
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Market Status Summary Bar
-            if (summary != null) {
-                MarketSummaryBar(summary = summary)
-            }
-
-            // AI Insights Section
-            DesignSectionHeader(title = stringResource(R.string.home_ai_insights_title))
-            AIInsightsCard(
-                title = stringResource(R.string.home_ai_signal_label),
-                subtitle = stringResource(R.string.home_ai_signal_title),
-                description = stringResource(R.string.home_ai_signal_desc),
-                score = summary?.let { getAIScore(it) },
-                tags = listOf(stringResource(R.string.home_ai_tag_sector)),
-                icon = Icons.Default.AutoAwesome,
-                onClick = onNavigateToAIAnalysis
+            // Market Indicator Summary Card
+            SummaryCard(
+                title = "시장 지표",
+                description = "Fear & Greed, 과매수/과매도, 증시 자금",
+                icon = Icons.Default.BarChart,
+                onClick = onNavigateToMarketIndicator,
+                backgroundColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                summaryContent = {
+                    if (summary != null) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            SummaryItem(
+                                label = "F&G",
+                                value = summary.kospiFearGreed?.let {
+                                    "${((it + 100) / 2).toInt()}"
+                                } ?: "—"
+                            )
+                            SummaryItem(
+                                label = "과매수/과매도",
+                                value = summary.kospiStatus ?: "—"
+                            )
+                        }
+                    }
+                }
             )
 
-            // Market Tools Grid
-            DesignSectionHeader(title = stringResource(R.string.home_market_tools_title))
-            MarketToolsGrid(
-                hasData = hasData,
-                summary = summary,
-                onNavigateToList = onNavigateToList,
-                onNavigateToStatistics = onNavigateToStatistics,
-                onNavigateToOscillator = onNavigateToOscillator,
-                onNavigateToMarketDeposit = onNavigateToMarketDeposit,
-                onNavigateToFearGreed = onNavigateToFearGreed,
-                onNavigateToMarketOscillator = onNavigateToMarketOscillator,
-                onNavigateToPrediction = onNavigateToPrediction,
-                onNavigateToAdvancedDashboard = onNavigateToAdvancedDashboard
+            // ETF Summary Card
+            SummaryCard(
+                title = "ETF",
+                description = "테마별 ETF 목록 및 통계",
+                icon = Icons.Default.PieChart,
+                onClick = onNavigateToEtf,
+                backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                summaryContent = {
+                    if (hasData) {
+                        Text(
+                            text = "ETF 데이터 수집 완료",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                        )
+                    } else {
+                        Text(
+                            text = "데이터를 수집해주세요",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                        )
+                    }
+                }
             )
 
-            // Bottom padding for scroll
+            // Stocks Summary Card
+            SummaryCard(
+                title = "종목",
+                description = "종목 수급 분석 및 추세 신호",
+                icon = Icons.Default.ShowChart,
+                onClick = onNavigateToStocks,
+                backgroundColor = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                summaryContent = {
+                    Text(
+                        text = "종목 검색 및 분석",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                    )
+                }
+            )
+
+            // Analysis Summary Card
+            SummaryCard(
+                title = "분석",
+                description = "AI 시장 분석, ML 주가 예측, 고급 분석",
+                icon = Icons.Default.Analytics,
+                onClick = onNavigateToAnalysis,
+                backgroundColor = AIInsightsBackground,
+                contentColor = AIInsightsAccent,
+                summaryContent = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        AnalysisItem(icon = Icons.Default.AutoAwesome, label = "AI")
+                        AnalysisItem(icon = Icons.Default.Psychology, label = "ML")
+                        AnalysisItem(icon = Icons.Default.Dashboard, label = "고급")
+                    }
+                }
+            )
+
+            // Bottom padding
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
@@ -351,7 +340,9 @@ private fun HomeContent(
 @Composable
 private fun HomeHeader(
     lastDate: String?,
-    onNotificationClick: () -> Unit
+    isDarkTheme: Boolean,
+    onToggleTheme: () -> Unit,
+    onSettingsClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -364,7 +355,7 @@ private fun HomeHeader(
             Text(
                 text = stringResource(R.string.home_title),
                 style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Normal,
+                    fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.5).sp
                 ),
                 color = MaterialTheme.colorScheme.onBackground
@@ -379,194 +370,158 @@ private fun HomeHeader(
             }
         }
 
-        IconButton(
-            onClick = onNotificationClick,
-            modifier = Modifier
-                .size(40.dp)
-                .background(
-                    color = Color.Transparent,
-                    shape = MaterialTheme.shapes.extraLarge
-                )
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Notifications,
-                contentDescription = stringResource(R.string.action_notifications),
-                tint = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun MarketSummaryBar(summary: HomeSummary) {
-    val kospiValue = summary.kospiOscillator?.let { String.format("%.0f", it + 2500) } ?: "—"
-    val kosdaqValue = summary.kosdaqOscillator?.let { String.format("%.0f", it + 800) } ?: "—"
-
-    val kospiChange = summary.kospiFearGreed?.let {
-        val sign = if (it >= 0) "+" else ""
-        "$sign${String.format("%.1f", it)}%"
-    } ?: "—"
-
-    val kosdaqChange = summary.kosdaqFearGreed?.let {
-        val sign = if (it >= 0) "+" else ""
-        "$sign${String.format("%.1f", it)}%"
-    } ?: "—"
-
-    MarketStatusBar(
-        kospiValue = kospiValue,
-        kospiChange = kospiChange,
-        kospiIsPositive = (summary.kospiFearGreed ?: 0.0) >= 0,
-        kosdaqValue = kosdaqValue,
-        kosdaqChange = kosdaqChange,
-        kosdaqIsPositive = (summary.kosdaqFearGreed ?: 0.0) >= 0
-    )
-}
-
-@Composable
-private fun MarketToolsGrid(
-    hasData: Boolean,
-    summary: HomeSummary?,
-    onNavigateToList: () -> Unit,
-    onNavigateToStatistics: () -> Unit,
-    onNavigateToOscillator: () -> Unit,
-    onNavigateToMarketDeposit: () -> Unit,
-    onNavigateToFearGreed: () -> Unit,
-    onNavigateToMarketOscillator: () -> Unit,
-    onNavigateToPrediction: () -> Unit,
-    onNavigateToAdvancedDashboard: () -> Unit
-) {
-    // First row: Fear & Greed, Supply Analysis
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        DashboardCard(
-            title = stringResource(R.string.menu_fear_greed),
-            subtitle = stringResource(R.string.menu_fear_greed_desc),
-            icon = Icons.Default.BarChart,
-            value = summary?.kospiFearGreed?.let { String.format("%.0f", it + 50) },
-            trendLabel = summary?.kospiFearGreed?.let {
-                if (it >= 20) stringResource(R.string.status_greed)
-                else if (it <= -20) stringResource(R.string.status_fear)
-                else stringResource(R.string.status_neutral)
-            },
-            trend = if ((summary?.kospiFearGreed ?: 0.0) >= 0) "up" else "down",
-            colorRole = DashboardCardColorRole.PRIMARY,
-            onClick = onNavigateToFearGreed,
-            modifier = Modifier
-                .weight(1f)
-                .aspectRatio(1f)
-        )
-
-        DashboardCard(
-            title = stringResource(R.string.menu_stock_analysis),
-            subtitle = stringResource(R.string.menu_stock_analysis_desc),
-            icon = Icons.Default.ShowChart,
-            colorRole = DashboardCardColorRole.SECONDARY,
-            onClick = onNavigateToOscillator,
-            modifier = Modifier
-                .weight(1f)
-                .aspectRatio(1f)
-        )
-    }
-
-    // Second row: ETF Trend, Overbought/Oversold
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        DashboardCard(
-            title = stringResource(R.string.menu_etf_theme_list),
-            subtitle = stringResource(R.string.menu_etf_theme_desc),
-            icon = Icons.Default.PieChart,
-            colorRole = DashboardCardColorRole.SECONDARY,
-            onClick = onNavigateToList,
-            modifier = Modifier
-                .weight(1f)
-                .aspectRatio(1f)
-        )
-
-        DashboardCard(
-            title = stringResource(R.string.menu_market_overbought),
-            subtitle = stringResource(R.string.menu_market_overbought_desc),
-            icon = Icons.Default.Speed,
-            colorRole = DashboardCardColorRole.ERROR,
-            onClick = onNavigateToMarketOscillator,
-            modifier = Modifier
-                .weight(1f)
-                .aspectRatio(1f)
-        )
-    }
-
-    // Third row: Market Fund, Statistics
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        DashboardCard(
-            title = stringResource(R.string.menu_market_fund),
-            subtitle = stringResource(R.string.menu_market_fund_desc),
-            icon = Icons.AutoMirrored.Filled.TrendingUp,
-            colorRole = DashboardCardColorRole.PRIMARY,
-            onClick = onNavigateToMarketDeposit,
-            modifier = Modifier
-                .weight(1f)
-                .aspectRatio(1f)
-        )
-
-        if (hasData) {
-            DashboardCard(
-                title = stringResource(R.string.menu_etf_statistics),
-                subtitle = stringResource(R.string.menu_etf_statistics_desc),
-                icon = Icons.Default.Analytics,
-                colorRole = DashboardCardColorRole.SECONDARY,
-                onClick = onNavigateToStatistics,
-                modifier = Modifier
-                    .weight(1f)
-                    .aspectRatio(1f)
-            )
-        } else {
-            Spacer(modifier = Modifier.weight(1f))
-        }
-    }
-
-    // Fourth row: ML Prediction, Advanced Dashboard (if hasData)
-    if (hasData) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            DashboardCard(
-                title = stringResource(R.string.menu_ml_prediction),
-                subtitle = stringResource(R.string.menu_ml_prediction_desc),
-                icon = Icons.Default.Psychology,
-                colorRole = DashboardCardColorRole.PRIMARY,
-                onClick = onNavigateToPrediction,
-                modifier = Modifier
-                    .weight(1f)
-                    .aspectRatio(1f)
-            )
-
-            DashboardCard(
-                title = stringResource(R.string.menu_advanced_analysis),
-                subtitle = stringResource(R.string.menu_advanced_analysis_desc),
-                icon = Icons.Default.Dashboard,
-                colorRole = DashboardCardColorRole.SECONDARY,
-                onClick = onNavigateToAdvancedDashboard,
-                modifier = Modifier
-                    .weight(1f)
-                    .aspectRatio(1f)
-            )
+            // Theme toggle
+            IconButton(onClick = onToggleTheme) {
+                Icon(
+                    imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                    contentDescription = if (isDarkTheme) "라이트 모드" else "다크 모드",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            // Settings
+            IconButton(onClick = onSettingsClick) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = stringResource(R.string.menu_settings),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
     }
 }
 
-private fun getAIScore(summary: HomeSummary): String? {
-    val fearGreed = summary.kospiFearGreed ?: return null
-    val score = ((fearGreed + 100) / 2).coerceIn(0.0, 100.0)
-    return "+${score.toInt()}${stringResource_placeholder}"
+@Composable
+private fun SummaryCard(
+    title: String,
+    description: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    backgroundColor: Color,
+    contentColor: Color,
+    summaryContent: @Composable () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .animateContentSize(),
+        shape = RoundedCornerShape(24.dp),
+        color = backgroundColor
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        modifier = Modifier.size(40.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = contentColor.copy(alpha = 0.2f)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = contentColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    Column {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = contentColor
+                        )
+                        Text(
+                            text = description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = contentColor.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = contentColor.copy(alpha = 0.6f),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Summary content
+            summaryContent()
+        }
+    }
 }
 
-// Placeholder for stringResource outside composable
-private const val stringResource_placeholder = "점"
+@Composable
+private fun SummaryItem(
+    label: String,
+    value: String
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold
+            ),
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+        )
+    }
+}
+
+@Composable
+private fun AnalysisItem(
+    icon: ImageVector,
+    label: String
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = AIInsightsAccent,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = AIInsightsAccent.copy(alpha = 0.8f)
+        )
+    }
+}

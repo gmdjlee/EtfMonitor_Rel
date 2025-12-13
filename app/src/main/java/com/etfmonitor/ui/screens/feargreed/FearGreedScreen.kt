@@ -51,6 +51,31 @@ fun FearGreedScreen(
     onNavigateBack: () -> Unit,
     viewModel: FearGreedViewModel = hiltViewModel()
 ) {
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            // Custom Header
+            FearGreedHeader(onNavigateBack = onNavigateBack)
+
+            // Content
+            FearGreedContent(viewModel = viewModel)
+        }
+    }
+}
+
+/**
+ * Reusable Fear & Greed content without header
+ * Used in standalone screen and hub screen
+ */
+@Composable
+fun FearGreedContent(
+    viewModel: FearGreedViewModel = hiltViewModel()
+) {
     val state by viewModel.state.collectAsState()
     val selectedMarket by viewModel.selectedMarket.collectAsState()
     val fearGreedData by viewModel.fearGreedData.collectAsState()
@@ -83,25 +108,18 @@ fun FearGreedScreen(
         )
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        // Content
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Custom Header
-            FearGreedHeader(onNavigateBack = onNavigateBack)
-
-            // Content
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
                 // State Display
                 when (val currentState = state) {
                     is FearGreedState.Loading -> {
