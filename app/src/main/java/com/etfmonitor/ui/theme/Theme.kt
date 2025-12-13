@@ -9,13 +9,14 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 
 /**
- * Forest Green Theme - Material Design 3
- * Clean, professional design with forest green accents
+ * Moss Green Nature Theme - Material Design 3
+ * Clean, professional design with moss green nature-inspired accents
  * Features:
  * - Material You dynamic color support (Android 12+)
  * - Custom professional color palette fallback
  * - Enhanced surface elevation system
  * - Full surface container colors support
+ * - AI Insights accent colors
  */
 
 private val LightColorScheme = lightColorScheme(
@@ -116,13 +117,20 @@ data class ExtendedColors(
     val surfaceElevation1: androidx.compose.ui.graphics.Color,
     val surfaceElevation2: androidx.compose.ui.graphics.Color,
     val surfaceElevation3: androidx.compose.ui.graphics.Color,
-    // Additional colors for the new design
+    // Semantic colors
     val success: androidx.compose.ui.graphics.Color,
+    val successContainer: androidx.compose.ui.graphics.Color,
+    val onSuccessContainer: androidx.compose.ui.graphics.Color,
     val warning: androidx.compose.ui.graphics.Color,
     val info: androidx.compose.ui.graphics.Color,
     val accentStar: androidx.compose.ui.graphics.Color,
     val accentBadge: androidx.compose.ui.graphics.Color,
-    val accentHighlight: androidx.compose.ui.graphics.Color
+    val accentHighlight: androidx.compose.ui.graphics.Color,
+    // AI Insights colors
+    val aiInsightsBackground: androidx.compose.ui.graphics.Color,
+    val aiInsightsAccent: androidx.compose.ui.graphics.Color,
+    val aiInsightsText: androidx.compose.ui.graphics.Color,
+    val aiInsightsSubtext: androidx.compose.ui.graphics.Color
 )
 
 val LocalExtendedColors = staticCompositionLocalOf {
@@ -142,18 +150,24 @@ val LocalExtendedColors = staticCompositionLocalOf {
         surfaceElevation2 = SurfaceElevation2Light,
         surfaceElevation3 = SurfaceElevation3Light,
         success = SuccessLight,
+        successContainer = SuccessContainerLight,
+        onSuccessContainer = OnSuccessContainerLight,
         warning = WarningLight,
         info = InfoLight,
         accentStar = AccentStar,
         accentBadge = AccentBadge,
-        accentHighlight = AccentHighlight
+        accentHighlight = AccentHighlight,
+        aiInsightsBackground = AIInsightsBackground,
+        aiInsightsAccent = AIInsightsAccent,
+        aiInsightsText = AIInsightsText,
+        aiInsightsSubtext = AIInsightsSubtext
     )
 }
 
 @Composable
 fun EtfMonitorTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Disable dynamic color by default to use custom Forest Green theme
+    // Disable dynamic color by default to use custom Moss Green Nature theme
     dynamicColor: Boolean = false,
     typography: androidx.compose.material3.Typography = Typography,
     content: @Composable () -> Unit
@@ -184,11 +198,17 @@ fun EtfMonitorTheme(
         surfaceElevation2 = if (darkTheme) SurfaceElevation2Dark else SurfaceElevation2Light,
         surfaceElevation3 = if (darkTheme) SurfaceElevation3Dark else SurfaceElevation3Light,
         success = if (darkTheme) SuccessDark else SuccessLight,
+        successContainer = if (darkTheme) SuccessContainerDark else SuccessContainerLight,
+        onSuccessContainer = if (darkTheme) OnSuccessContainerDark else OnSuccessContainerLight,
         warning = if (darkTheme) WarningDark else WarningLight,
         info = if (darkTheme) InfoDark else InfoLight,
         accentStar = AccentStar,
         accentBadge = AccentBadge,
-        accentHighlight = AccentHighlight
+        accentHighlight = AccentHighlight,
+        aiInsightsBackground = AIInsightsBackground,
+        aiInsightsAccent = AIInsightsAccent,
+        aiInsightsText = AIInsightsText,
+        aiInsightsSubtext = AIInsightsSubtext
     )
 
     CompositionLocalProvider(
