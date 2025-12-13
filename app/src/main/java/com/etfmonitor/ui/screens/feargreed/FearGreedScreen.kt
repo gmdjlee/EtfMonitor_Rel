@@ -120,93 +120,92 @@ fun FearGreedContent(
                 .padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-                // State Display
-                when (val currentState = state) {
-                    is FearGreedState.Loading -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp),
-                            contentAlignment = Alignment.Center
+            // State Display
+            when (val currentState = state) {
+                is FearGreedState.Loading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+                is FearGreedState.Initializing -> {
+                    InitializingCard(
+                        message = currentState.message,
+                        progress = currentState.progress
+                    )
+                }
+                is FearGreedState.Updating -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             CircularProgressIndicator()
-                        }
-                    }
-                    is FearGreedState.Initializing -> {
-                        InitializingCard(
-                            message = currentState.message,
-                            progress = currentState.progress
-                        )
-                    }
-                    is FearGreedState.Updating -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                CircularProgressIndicator()
-                                Text(
-                                    currentState.message,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        }
-                    }
-                    is FearGreedState.Success -> {
-                        SuccessCard(message = currentState.message)
-                        LaunchedEffect(Unit) {
-                            kotlinx.coroutines.delay(3000)
-                            viewModel.clearMessage()
-                        }
-                    }
-                    is FearGreedState.Error -> {
-                        ErrorInfoCard(message = currentState.message)
-                    }
-                    is FearGreedState.Idle -> {
-                        if (!currentState.hasData) {
-                            NoDataCard(onCollectClick = { showManualPeriodDialog = true })
+                            Text(
+                                currentState.message,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                         }
                     }
                 }
-
-                // Market Selection Chips
-                MarketSelectionChips(
-                    selectedMarket = selectedMarket,
-                    onMarketSelected = { viewModel.onSelectedMarketChanged(it) }
-                )
-
-                // Main Content (if data available)
-                if (fearGreedData.isNotEmpty()) {
-                    val latest = fearGreedData.firstOrNull()
-                    if (latest != null) {
-                        // Gauge Visual
-                        FearGreedGaugeSection(
-                            value = (latest.fearGreedValue * 100).toFloat(),
-                            oscillator = latest.oscillator
-                        )
-
-                        // Stats Row
-                        StatsRow(data = fearGreedData)
-
-                        // Chart
-                        ChartSection(
-                            data = fearGreedData,
-                            selectedMarket = selectedMarket,
-                            chartColors = chartColorSettings.fearGreed
-                        )
-
-                        // Disclaimer
-                        DisclaimerText()
+                is FearGreedState.Success -> {
+                    SuccessCard(message = currentState.message)
+                    LaunchedEffect(Unit) {
+                        kotlinx.coroutines.delay(3000)
+                        viewModel.clearMessage()
                     }
                 }
-
-                Spacer(modifier = Modifier.height(32.dp))
+                is FearGreedState.Error -> {
+                    ErrorInfoCard(message = currentState.message)
+                }
+                is FearGreedState.Idle -> {
+                    if (!currentState.hasData) {
+                        NoDataCard(onCollectClick = { showManualPeriodDialog = true })
+                    }
+                }
             }
+
+            // Market Selection Chips
+            MarketSelectionChips(
+                selectedMarket = selectedMarket,
+                onMarketSelected = { viewModel.onSelectedMarketChanged(it) }
+            )
+
+            // Main Content (if data available)
+            if (fearGreedData.isNotEmpty()) {
+                val latest = fearGreedData.firstOrNull()
+                if (latest != null) {
+                    // Gauge Visual
+                    FearGreedGaugeSection(
+                        value = (latest.fearGreedValue * 100).toFloat(),
+                        oscillator = latest.oscillator
+                    )
+
+                    // Stats Row
+                    StatsRow(data = fearGreedData)
+
+                    // Chart
+                    ChartSection(
+                        data = fearGreedData,
+                        selectedMarket = selectedMarket,
+                        chartColors = chartColorSettings.fearGreed
+                    )
+
+                    // Disclaimer
+                    DisclaimerText()
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
