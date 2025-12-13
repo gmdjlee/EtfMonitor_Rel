@@ -1,11 +1,17 @@
 package com.etfmonitor.ui
 
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.etfmonitor.ui.components.MainBottomNavigationBar
+import com.etfmonitor.ui.components.MainNavItem
 import com.etfmonitor.ui.screens.detail.DetailScreen
 import com.etfmonitor.ui.screens.home.HomeScreen
 import com.etfmonitor.ui.screens.list.EtfListScreen
@@ -20,9 +26,20 @@ import com.etfmonitor.ui.screens.marketoscillator.MarketOscillatorScreen
 import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisScreen
 import com.etfmonitor.ui.screens.prediction.PredictionScreen
 import com.etfmonitor.ui.screens.advanced.AdvancedDashboardScreen
+import com.etfmonitor.ui.screens.hub.MarketIndicatorHubScreen
+import com.etfmonitor.ui.screens.hub.EtfHubScreen
+import com.etfmonitor.ui.screens.hub.StocksHubScreen
+import com.etfmonitor.ui.screens.hub.AnalysisHubScreen
 
 sealed class Screen(val route: String) {
+    // Main navigation tabs
     object Home : Screen("home")
+    object MarketIndicator : Screen("market_indicator")
+    object EtfHub : Screen("etf_hub")
+    object Stocks : Screen("stocks")
+    object Analysis : Screen("analysis")
+
+    // Detail screens
     object List : Screen("list")
     object Detail : Screen("detail/{ticker}") {
         fun createRoute(ticker: String) = "detail/$ticker"
@@ -39,11 +56,11 @@ sealed class Screen(val route: String) {
             "statistics"
         }
     }
-    // ✅ 전체 ETF 통합 종목 추이
+    // 전체 ETF 통합 종목 추이
     object AggregatedStockTrend : Screen("aggregated_trend/{stockTicker}") {
         fun createRoute(stockTicker: String) = "aggregated_trend/$stockTicker"
     }
-    // ✅ 수급 오실레이터 (차트 분석)
+    // 수급 오실레이터 (차트 분석)
     object Oscillator : Screen("oscillator?ticker={ticker}") {
         fun createRoute(ticker: String? = null) = if (ticker != null) {
             "oscillator?ticker=$ticker"
@@ -51,195 +68,286 @@ sealed class Screen(val route: String) {
             "oscillator"
         }
     }
-    // ✅ 증시 자금 동향
+    // 증시 자금 동향
     object MarketDeposit : Screen("market_deposit")
-    // ✅ Fear & Greed Index
+    // Fear & Greed Index
     object FearGreed : Screen("fear_greed")
-    // ✅ Market Oscillator (시장 과매수/과매도)
+    // Market Oscillator (시장 과매수/과매도)
     object MarketOscillator : Screen("market_oscillator")
-    // ✅ AI Analysis (AI 시장 분석)
+    // AI Analysis (AI 시장 분석)
     object AIAnalysis : Screen("ai_analysis")
-    // ✅ ML 주가 예측
+    // ML 주가 예측
     object Prediction : Screen("prediction")
-    // ✅ 고급 분석 대시보드
+    // 고급 분석 대시보드
     object AdvancedDashboard : Screen("advanced_dashboard")
 }
 
+// Routes that show bottom navigation
+private val mainNavRoutes = setOf(
+    Screen.Home.route,
+    Screen.MarketIndicator.route,
+    Screen.EtfHub.route,
+    Screen.Stocks.route,
+    Screen.Analysis.route
+)
+
 @Composable
-fun Navigation() {
+fun Navigation(
+    isDarkTheme: Boolean,
+    onToggleTheme: () -> Unit
+) {
     val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
-    NavHost(
-        navController = navController,
-        startDestination = Screen.Home.route
-    ) {
-        composable(Screen.Home.route) {
-            HomeScreen(
-                onNavigateToList = { navController.navigate(Screen.List.route) },
-                onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                onNavigateToStatistics = { navController.navigate(Screen.Statistics.route) },
-                onNavigateToOscillator = { navController.navigate(Screen.Oscillator.createRoute()) },
-                onNavigateToMarketDeposit = { navController.navigate(Screen.MarketDeposit.route) },
-                onNavigateToFearGreed = { navController.navigate(Screen.FearGreed.route) },
-                onNavigateToMarketOscillator = { navController.navigate(Screen.MarketOscillator.route) },
-                onNavigateToAIAnalysis = { navController.navigate(Screen.AIAnalysis.route) },
-                onNavigateToPrediction = { navController.navigate(Screen.Prediction.route) },
-                onNavigateToAdvancedDashboard = { navController.navigate(Screen.AdvancedDashboard.route) }
-            )
+    // Check if we should show bottom navigation
+    val showBottomNav = currentRoute in mainNavRoutes
+
+    Scaffold(
+        bottomBar = {
+            if (showBottomNav) {
+                MainBottomNavigationBar(
+                    currentRoute = currentRoute ?: Screen.Home.route,
+                    onNavigate = { item ->
+                        navController.navigate(item.route) {
+                            // Pop up to the start destination to avoid building up stack
+                            popUpTo(Screen.Home.route) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
+            }
         }
+    ) { padding ->
+        NavHost(
+            navController = navController,
+            startDestination = Screen.Home.route,
+            modifier = Modifier.padding(padding)
+        ) {
+            // =====================
+            // Main Navigation Tabs
+            // =====================
 
-        composable(Screen.List.route) {
-            EtfListScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onEtfClick = { ticker ->
-                    navController.navigate(Screen.Detail.createRoute(ticker))
-                }
-            )
-        }
+            composable(Screen.Home.route) {
+                HomeScreen(
+                    isDarkTheme = isDarkTheme,
+                    onToggleTheme = onToggleTheme,
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                    onNavigateToMarketIndicator = { navController.navigate(Screen.MarketIndicator.route) },
+                    onNavigateToEtf = { navController.navigate(Screen.EtfHub.route) },
+                    onNavigateToStocks = { navController.navigate(Screen.Stocks.route) },
+                    onNavigateToAnalysis = { navController.navigate(Screen.Analysis.route) }
+                )
+            }
 
-        composable(
-            route = Screen.Detail.route,
-            arguments = listOf(navArgument("ticker") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val ticker = backStackEntry.arguments?.getString("ticker") ?: ""
-            DetailScreen(
-                etfTicker = ticker,
-                onNavigateBack = { navController.popBackStack() },
-                onStockClick = { stockTicker ->
-                    navController.navigate(Screen.StockTrend.createRoute(ticker, stockTicker))
-                }
-            )
-        }
+            composable(Screen.MarketIndicator.route) {
+                MarketIndicatorHubScreen(
+                    isDarkTheme = isDarkTheme,
+                    onToggleTheme = onToggleTheme,
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                )
+            }
 
-        composable(Screen.Settings.route) {
-            SettingsScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+            composable(Screen.EtfHub.route) {
+                EtfHubScreen(
+                    isDarkTheme = isDarkTheme,
+                    onToggleTheme = onToggleTheme,
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                    onEtfClick = { ticker ->
+                        navController.navigate(Screen.Detail.createRoute(ticker))
+                    },
+                    onStockClick = { stockTicker ->
+                        navController.navigate(Screen.AggregatedStockTrend.createRoute(stockTicker))
+                    },
+                    onNavigateToOscillator = { ticker ->
+                        navController.navigate(Screen.Oscillator.createRoute(ticker))
+                    }
+                )
+            }
 
-        composable(
-            route = Screen.StockTrend.route,
-            arguments = listOf(
-                navArgument("etfTicker") { type = NavType.StringType },
-                navArgument("stockTicker") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val etfTicker = backStackEntry.arguments?.getString("etfTicker") ?: ""
-            val stockTicker = backStackEntry.arguments?.getString("stockTicker") ?: ""
-            StockTrendScreen(
-                etfTicker = etfTicker,
-                stockTicker = stockTicker,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToOscillator = { ticker ->
-                    navController.navigate(Screen.Oscillator.createRoute(ticker))
-                }
-            )
-        }
+            composable(Screen.Stocks.route) {
+                StocksHubScreen(
+                    isDarkTheme = isDarkTheme,
+                    onToggleTheme = onToggleTheme,
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                    onNavigateToStatistics = { ticker ->
+                        navController.navigate(Screen.Statistics.createRoute(ticker))
+                    }
+                )
+            }
 
-        composable(
-            route = Screen.Statistics.route,
-            arguments = listOf(
-                navArgument("stockTicker") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                }
-            )
-        ) { backStackEntry ->
-            val initialStockTicker = backStackEntry.arguments?.getString("stockTicker")
-            StatisticsScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onStockClick = { stockTicker ->
-                    navController.navigate(Screen.AggregatedStockTrend.createRoute(stockTicker))
-                },
-                onNavigateToOscillator = { ticker ->
-                    navController.navigate(Screen.Oscillator.createRoute(ticker))
-                },
-                initialStockTicker = initialStockTicker
-            )
-        }
+            composable(Screen.Analysis.route) {
+                AnalysisHubScreen(
+                    navController = navController,
+                    isDarkTheme = isDarkTheme,
+                    onToggleTheme = onToggleTheme,
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                    onNavigateToOscillator = { ticker ->
+                        navController.navigate(Screen.Oscillator.createRoute(ticker))
+                    }
+                )
+            }
 
-        // ✅ 통합 종목 추이 화면
-        composable(
-            route = Screen.AggregatedStockTrend.route,
-            arguments = listOf(
-                navArgument("stockTicker") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val stockTicker = backStackEntry.arguments?.getString("stockTicker") ?: ""
-            AggregatedStockTrendScreen(
-                stockTicker = stockTicker,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToOscillator = { ticker ->
-                    navController.navigate(Screen.Oscillator.createRoute(ticker))
-                }
-            )
-        }
+            // =====================
+            // Detail Screens
+            // =====================
 
-        // ✅ 수급 오실레이터 화면 (차트 분석)
-        composable(
-            route = Screen.Oscillator.route,
-            arguments = listOf(
-                navArgument("ticker") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                }
-            )
-        ) { backStackEntry ->
-            val ticker = backStackEntry.arguments?.getString("ticker")
-            OscillatorScreen(
-                onNavigateBack = { navController.popBackStack() },
-                initialTicker = ticker,
-                onNavigateToStatistics = { stockTicker ->
-                    navController.navigate(Screen.Statistics.createRoute(stockTicker))
-                }
-            )
-        }
+            composable(Screen.List.route) {
+                EtfListScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onEtfClick = { ticker ->
+                        navController.navigate(Screen.Detail.createRoute(ticker))
+                    }
+                )
+            }
 
-        // ✅ 증시 자금 동향 화면
-        composable(Screen.MarketDeposit.route) {
-            MarketDepositScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+            composable(
+                route = Screen.Detail.route,
+                arguments = listOf(navArgument("ticker") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val ticker = backStackEntry.arguments?.getString("ticker") ?: ""
+                DetailScreen(
+                    etfTicker = ticker,
+                    onNavigateBack = { navController.popBackStack() },
+                    onStockClick = { stockTicker ->
+                        navController.navigate(Screen.StockTrend.createRoute(ticker, stockTicker))
+                    }
+                )
+            }
 
-        // ✅ Fear & Greed Index 화면
-        composable(Screen.FearGreed.route) {
-            FearGreedScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+            composable(Screen.Settings.route) {
+                SettingsScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
 
-        // ✅ Market Oscillator 화면 (시장 과매수/과매도)
-        composable(Screen.MarketOscillator.route) {
-            MarketOscillatorScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+            composable(
+                route = Screen.StockTrend.route,
+                arguments = listOf(
+                    navArgument("etfTicker") { type = NavType.StringType },
+                    navArgument("stockTicker") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val etfTicker = backStackEntry.arguments?.getString("etfTicker") ?: ""
+                val stockTicker = backStackEntry.arguments?.getString("stockTicker") ?: ""
+                StockTrendScreen(
+                    etfTicker = etfTicker,
+                    stockTicker = stockTicker,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToOscillator = { ticker ->
+                        navController.navigate(Screen.Oscillator.createRoute(ticker))
+                    }
+                )
+            }
 
-        // ✅ AI Analysis 화면 (AI 시장 분석 - 새 버전)
-        composable(Screen.AIAnalysis.route) {
-            NewAIAnalysisScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToOscillator = { ticker ->
-                    navController.navigate(Screen.Oscillator.createRoute(ticker))
-                }
-            )
-        }
+            composable(
+                route = Screen.Statistics.route,
+                arguments = listOf(
+                    navArgument("stockTicker") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                val initialStockTicker = backStackEntry.arguments?.getString("stockTicker")
+                StatisticsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onStockClick = { stockTicker ->
+                        navController.navigate(Screen.AggregatedStockTrend.createRoute(stockTicker))
+                    },
+                    onNavigateToOscillator = { ticker ->
+                        navController.navigate(Screen.Oscillator.createRoute(ticker))
+                    },
+                    initialStockTicker = initialStockTicker
+                )
+            }
 
-        // ✅ ML 주가 예측 화면
-        composable(Screen.Prediction.route) {
-            PredictionScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+            // 통합 종목 추이 화면
+            composable(
+                route = Screen.AggregatedStockTrend.route,
+                arguments = listOf(
+                    navArgument("stockTicker") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val stockTicker = backStackEntry.arguments?.getString("stockTicker") ?: ""
+                AggregatedStockTrendScreen(
+                    stockTicker = stockTicker,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToOscillator = { ticker ->
+                        navController.navigate(Screen.Oscillator.createRoute(ticker))
+                    }
+                )
+            }
 
-        // ✅ 고급 분석 대시보드 화면
-        composable(Screen.AdvancedDashboard.route) {
-            AdvancedDashboardScreen(
-                navController = navController
-            )
+            // 수급 오실레이터 화면 (차트 분석)
+            composable(
+                route = Screen.Oscillator.route,
+                arguments = listOf(
+                    navArgument("ticker") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                val ticker = backStackEntry.arguments?.getString("ticker")
+                OscillatorScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    initialTicker = ticker,
+                    onNavigateToStatistics = { stockTicker ->
+                        navController.navigate(Screen.Statistics.createRoute(stockTicker))
+                    }
+                )
+            }
+
+            // 증시 자금 동향 화면
+            composable(Screen.MarketDeposit.route) {
+                MarketDepositScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            // Fear & Greed Index 화면
+            composable(Screen.FearGreed.route) {
+                FearGreedScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            // Market Oscillator 화면 (시장 과매수/과매도)
+            composable(Screen.MarketOscillator.route) {
+                MarketOscillatorScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            // AI Analysis 화면 (AI 시장 분석 - 새 버전)
+            composable(Screen.AIAnalysis.route) {
+                NewAIAnalysisScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToOscillator = { ticker ->
+                        navController.navigate(Screen.Oscillator.createRoute(ticker))
+                    }
+                )
+            }
+
+            // ML 주가 예측 화면
+            composable(Screen.Prediction.route) {
+                PredictionScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            // 고급 분석 대시보드 화면
+            composable(Screen.AdvancedDashboard.route) {
+                AdvancedDashboardScreen(
+                    navController = navController
+                )
+            }
         }
     }
 }

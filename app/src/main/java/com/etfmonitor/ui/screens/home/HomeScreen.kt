@@ -1,15 +1,14 @@
 package com.etfmonitor.ui.screens.home
 
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,75 +17,55 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
 import com.etfmonitor.ui.theme.*
 
 /**
- * Home Screen - Moss Green Nature Theme
- * Clean, modern grid layout with Material Design 3
+ * Home Screen - Summary Dashboard
+ * Shows summary cards for each menu section
  *
- * Split into:
- * - HomeScreen.kt: Main screen, content, menu cards
- * - HomeDialogs.kt: All dialogs (DaysSelectionDialog, etc.)
- * - HomeSummaryCard.kt: SummaryCard and helper functions
+ * Menu Structure:
+ * - 시장 지표: Fear & Greed, 과매수/과매도, 증시 자금 동향
+ * - ETF: ETF 목록, ETF 통계
+ * - 종목: 종목 수급 분석
+ * - 분석: AI 분석, ML 예측, 고급 분석
  */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateToList: () -> Unit,
+    isDarkTheme: Boolean,
+    onToggleTheme: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToStatistics: () -> Unit,
-    onNavigateToOscillator: () -> Unit,
-    onNavigateToMarketDeposit: () -> Unit,
-    onNavigateToFearGreed: () -> Unit,
-    onNavigateToMarketOscillator: () -> Unit,
-    onNavigateToAIAnalysis: () -> Unit,
-    onNavigateToPrediction: () -> Unit,
-    onNavigateToAdvancedDashboard: () -> Unit,
+    onNavigateToMarketIndicator: () -> Unit,
+    onNavigateToEtf: () -> Unit,
+    onNavigateToStocks: () -> Unit,
+    onNavigateToAnalysis: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val showFirstRunDialog by viewModel.showFirstRunDialog.collectAsState()
-    val showMarketDepositDialog by viewModel.showMarketDepositDialog.collectAsState()
-    val showFearGreedDialog by viewModel.showFearGreedDialog.collectAsState()
-    val showMarketOscillatorDialog by viewModel.showMarketOscillatorDialog.collectAsState()
     val showUnifiedInitDialog by viewModel.showUnifiedInitDialog.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val lastDate = (state as? HomeState.Idle)?.lastDate
 
     var showDaysDialog by remember { mutableStateOf(false) }
-    var showMarketDepositPagesDialog by remember { mutableStateOf(false) }
-    var showFearGreedPeriodDialog by remember { mutableStateOf(false) }
-    var showMarketOscillatorPeriodDialog by remember { mutableStateOf(false) }
     var showUnifiedDialog by remember { mutableStateOf(false) }
 
-    // 통합 다이얼로그 핸들러
+    // Dialog handlers
     LaunchedEffect(showUnifiedInitDialog) {
         if (showUnifiedInitDialog) showUnifiedDialog = true
     }
 
-    // 기존 개별 다이얼로그 핸들러 (호환성 유지)
     LaunchedEffect(showFirstRunDialog) {
         if (showFirstRunDialog) showDaysDialog = true
-    }
-
-    LaunchedEffect(showMarketDepositDialog) {
-        if (showMarketDepositDialog) showMarketDepositPagesDialog = true
-    }
-
-    LaunchedEffect(showFearGreedDialog) {
-        if (showFearGreedDialog) showFearGreedPeriodDialog = true
-    }
-
-    LaunchedEffect(showMarketOscillatorDialog) {
-        if (showMarketOscillatorDialog) showMarketOscillatorPeriodDialog = true
     }
 
     LaunchedEffect(state) {
@@ -104,38 +83,6 @@ fun HomeScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            stringResource(R.string.app_name),
-                            style = MaterialTheme.typography.headlineSmall
-                        )
-                        lastDate?.let {
-                            Text(
-                                stringResource(R.string.home_last_update, it),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = stringResource(R.string.nav_settings),
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
-            )
-        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
@@ -158,22 +105,20 @@ fun HomeScreen(
                 HomeContent(
                     modifier = Modifier.padding(padding),
                     state = s,
-                    onNavigateToList = onNavigateToList,
+                    lastDate = lastDate,
+                    isDarkTheme = isDarkTheme,
+                    onToggleTheme = onToggleTheme,
                     onNavigateToSettings = onNavigateToSettings,
-                    onNavigateToStatistics = onNavigateToStatistics,
-                    onNavigateToOscillator = onNavigateToOscillator,
-                    onNavigateToMarketDeposit = onNavigateToMarketDeposit,
-                    onNavigateToFearGreed = onNavigateToFearGreed,
-                    onNavigateToMarketOscillator = onNavigateToMarketOscillator,
-                    onNavigateToAIAnalysis = onNavigateToAIAnalysis,
-                    onNavigateToPrediction = onNavigateToPrediction,
-                    onNavigateToAdvancedDashboard = onNavigateToAdvancedDashboard
+                    onNavigateToMarketIndicator = onNavigateToMarketIndicator,
+                    onNavigateToEtf = onNavigateToEtf,
+                    onNavigateToStocks = onNavigateToStocks,
+                    onNavigateToAnalysis = onNavigateToAnalysis
                 )
             }
         }
     }
 
-    // Dialogs (from HomeDialogs.kt)
+    // Dialogs
     if (showDaysDialog) {
         DaysSelectionDialog(
             onDismiss = {
@@ -188,46 +133,6 @@ fun HomeScreen(
         )
     }
 
-    if (showMarketDepositPagesDialog) {
-        MarketDepositPagesSelectionDialog(
-            onDismiss = {
-                showMarketDepositPagesDialog = false
-                if (showMarketDepositDialog) viewModel.onMarketDepositDialogShown()
-            },
-            onConfirm = { pages ->
-                viewModel.initializeMarketDeposit(pages)
-                showMarketDepositPagesDialog = false
-            }
-        )
-    }
-
-    if (showFearGreedPeriodDialog) {
-        FearGreedPeriodSelectionDialog(
-            onDismiss = {
-                showFearGreedPeriodDialog = false
-                if (showFearGreedDialog) viewModel.onFearGreedDialogShown()
-            },
-            onConfirm = { days ->
-                viewModel.initializeFearGreed(days)
-                showFearGreedPeriodDialog = false
-            }
-        )
-    }
-
-    if (showMarketOscillatorPeriodDialog) {
-        MarketOscillatorPeriodSelectionDialog(
-            onDismiss = {
-                showMarketOscillatorPeriodDialog = false
-                if (showMarketOscillatorDialog) viewModel.onMarketOscillatorDialogShown()
-            },
-            onConfirm = { days ->
-                viewModel.initializeMarketOscillator(days)
-                showMarketOscillatorPeriodDialog = false
-            }
-        )
-    }
-
-    // 통합 초기화 다이얼로그
     if (showUnifiedDialog) {
         UnifiedInitializationDialog(
             onDismiss = {
@@ -256,7 +161,7 @@ private fun LoadingScreen(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
                 .padding(MaterialTheme.spacing.large),
-            shape = MaterialTheme.extendedShapes.cardLarge,
+            shape = MaterialTheme.extendedShapes.card,
             elevation = CardDefaults.elevatedCardElevation(
                 defaultElevation = MaterialTheme.elevation.level3
             )
@@ -302,259 +207,321 @@ private fun LoadingScreen(
 private fun HomeContent(
     modifier: Modifier = Modifier,
     state: HomeState,
-    onNavigateToList: () -> Unit,
+    lastDate: String?,
+    isDarkTheme: Boolean,
+    onToggleTheme: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToStatistics: () -> Unit,
-    onNavigateToOscillator: () -> Unit,
-    onNavigateToMarketDeposit: () -> Unit,
-    onNavigateToFearGreed: () -> Unit,
-    onNavigateToMarketOscillator: () -> Unit,
-    onNavigateToAIAnalysis: () -> Unit,
-    onNavigateToPrediction: () -> Unit,
-    onNavigateToAdvancedDashboard: () -> Unit
+    onNavigateToMarketIndicator: () -> Unit,
+    onNavigateToEtf: () -> Unit,
+    onNavigateToStocks: () -> Unit,
+    onNavigateToAnalysis: () -> Unit
 ) {
     val hasData = (state as? HomeState.Idle)?.hasData ?: false
-
-    // Menu items
-    val menuItems = buildList {
-        if (hasData) {
-            add(
-                MenuItem(
-                    icon = Icons.AutoMirrored.Filled.List,
-                    title = stringResource(R.string.menu_etf_theme_list),
-                    description = stringResource(R.string.menu_etf_theme_desc),
-                    color = MaterialTheme.colorScheme.primary,
-                    onClick = onNavigateToList
-                )
-            )
-            add(
-                MenuItem(
-                    icon = Icons.Default.Analytics,
-                    title = stringResource(R.string.menu_etf_statistics),
-                    description = stringResource(R.string.menu_etf_statistics_desc),
-                    color = MaterialTheme.colorScheme.secondary,
-                    onClick = onNavigateToStatistics
-                )
-            )
-        }
-        add(
-            MenuItem(
-                icon = Icons.Filled.ShowChart,
-                title = stringResource(R.string.menu_stock_analysis),
-                description = stringResource(R.string.menu_stock_analysis_desc),
-                color = MaterialTheme.colorScheme.tertiary,
-                onClick = onNavigateToOscillator
-            )
-        )
-        add(
-            MenuItem(
-                icon = Icons.AutoMirrored.Filled.TrendingUp,
-                title = stringResource(R.string.menu_market_fund),
-                description = stringResource(R.string.menu_market_fund_desc),
-                color = MaterialTheme.colorScheme.primary,
-                onClick = onNavigateToMarketDeposit
-            )
-        )
-        add(
-            MenuItem(
-                icon = Icons.Default.BarChart,
-                title = stringResource(R.string.menu_fear_greed),
-                description = stringResource(R.string.menu_fear_greed_desc),
-                color = MaterialTheme.colorScheme.tertiary,
-                onClick = onNavigateToFearGreed
-            )
-        )
-        add(
-            MenuItem(
-                icon = Icons.Default.Speed,
-                title = stringResource(R.string.menu_market_overbought),
-                description = stringResource(R.string.menu_market_overbought_desc),
-                color = MaterialTheme.colorScheme.secondary,
-                onClick = onNavigateToMarketOscillator
-            )
-        )
-        add(
-            MenuItem(
-                icon = Icons.Default.AutoAwesome,
-                title = stringResource(R.string.menu_ai_analysis),
-                description = stringResource(R.string.menu_ai_analysis_desc),
-                color = MaterialTheme.colorScheme.tertiary,
-                onClick = onNavigateToAIAnalysis
-            )
-        )
-        // ML 주가 예측 (ETF 데이터 있을 때만 표시)
-        if (hasData) {
-            add(
-                MenuItem(
-                    icon = Icons.Default.Psychology,
-                    title = stringResource(R.string.menu_ml_prediction),
-                    description = stringResource(R.string.menu_ml_prediction_desc),
-                    color = MaterialTheme.colorScheme.primary,
-                    onClick = onNavigateToPrediction
-                )
-            )
-            // 고급 분석 대시보드
-            add(
-                MenuItem(
-                    icon = Icons.Default.Dashboard,
-                    title = stringResource(R.string.menu_advanced_analysis),
-                    description = stringResource(R.string.menu_advanced_analysis_desc),
-                    color = MaterialTheme.colorScheme.secondary,
-                    onClick = onNavigateToAdvancedDashboard
-                )
-            )
-        }
-    }
+    val summary = (state as? HomeState.Idle)?.summary
+    val scrollState = rememberScrollState()
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(MaterialTheme.spacing.medium),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
+            .verticalScroll(scrollState)
     ) {
-        // Summary card (from HomeSummaryCard.kt)
-        val summary = (state as? HomeState.Idle)?.summary
-        if (summary != null) {
-            SummaryCard(summary = summary)
-        }
+        // Header with theme toggle
+        HomeHeader(
+            lastDate = lastDate,
+            isDarkTheme = isDarkTheme,
+            onToggleTheme = onToggleTheme,
+            onSettingsClick = onNavigateToSettings
+        )
 
-        // Grid layout - 2 columns, evenly distributed vertically
-        menuItems.chunked(2).forEach { rowItems ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
-            ) {
-                rowItems.forEach { item ->
-                    MenuCard(
-                        icon = item.icon,
-                        title = item.title,
-                        description = item.description,
-                        color = item.color,
-                        onClick = item.onClick,
-                        modifier = Modifier.weight(1f)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Market Indicator Summary Card
+            SummaryCard(
+                title = "시장 지표",
+                description = "Fear & Greed, 과매수/과매도, 증시 자금",
+                icon = Icons.Default.BarChart,
+                onClick = onNavigateToMarketIndicator,
+                backgroundColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                summaryContent = {
+                    if (summary != null) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            SummaryItem(
+                                label = "F&G",
+                                value = summary.kospiFearGreed?.let {
+                                    "${((it + 100) / 2).toInt()}"
+                                } ?: "—"
+                            )
+                            SummaryItem(
+                                label = "과매수/과매도",
+                                value = summary.kospiStatus ?: "—"
+                            )
+                        }
+                    }
+                }
+            )
+
+            // ETF Summary Card
+            SummaryCard(
+                title = "ETF",
+                description = "테마별 ETF 목록 및 통계",
+                icon = Icons.Default.PieChart,
+                onClick = onNavigateToEtf,
+                backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                summaryContent = {
+                    if (hasData) {
+                        Text(
+                            text = "ETF 데이터 수집 완료",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                        )
+                    } else {
+                        Text(
+                            text = "데이터를 수집해주세요",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            )
+
+            // Stocks Summary Card
+            SummaryCard(
+                title = "종목",
+                description = "종목 수급 분석 및 추세 신호",
+                icon = Icons.Default.ShowChart,
+                onClick = onNavigateToStocks,
+                backgroundColor = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                summaryContent = {
+                    Text(
+                        text = "종목 검색 및 분석",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
                     )
                 }
-                // Fill remaining space if odd number
-                if (rowItems.size == 1) {
-                    Spacer(modifier = Modifier.weight(1f))
+            )
+
+            // Analysis Summary Card
+            SummaryCard(
+                title = "분석",
+                description = "AI 시장 분석, ML 주가 예측, 고급 분석",
+                icon = Icons.Default.Analytics,
+                onClick = onNavigateToAnalysis,
+                backgroundColor = AIInsightsBackground,
+                contentColor = AIInsightsAccent,
+                summaryContent = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        AnalysisItem(icon = Icons.Default.AutoAwesome, label = "AI")
+                        AnalysisItem(icon = Icons.Default.Psychology, label = "ML")
+                        AnalysisItem(icon = Icons.Default.Dashboard, label = "고급")
+                    }
                 }
+            )
+
+            // Bottom padding
+            Spacer(modifier = Modifier.height(100.dp))
+        }
+    }
+}
+
+@Composable
+private fun HomeHeader(
+    lastDate: String?,
+    isDarkTheme: Boolean,
+    onToggleTheme: () -> Unit,
+    onSettingsClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 24.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                text = stringResource(R.string.home_title),
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.5).sp
+                ),
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            lastDate?.let {
+                Text(
+                    text = stringResource(R.string.home_last_update_short, it),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            // Theme toggle
+            IconButton(onClick = onToggleTheme) {
+                Icon(
+                    imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                    contentDescription = if (isDarkTheme) "라이트 모드" else "다크 모드",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            // Settings
+            IconButton(onClick = onSettingsClick) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = stringResource(R.string.menu_settings),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
             }
         }
     }
 }
 
-// Data class for menu items
-private data class MenuItem(
-    val icon: ImageVector,
-    val title: String,
-    val description: String,
-    val color: Color,
-    val onClick: () -> Unit
-)
-
 @Composable
-private fun MenuCard(
-    icon: ImageVector,
+private fun SummaryCard(
     title: String,
     description: String,
-    color: Color,
+    icon: ImageVector,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    backgroundColor: Color,
+    contentColor: Color,
+    summaryContent: @Composable () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Scale animation
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "scale"
-    )
-
-    OutlinedCard(
-        modifier = modifier
-            .fillMaxHeight()
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
             .animateContentSize(),
-        shape = MaterialTheme.extendedShapes.card,
-        colors = CardDefaults.outlinedCardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        border = CardDefaults.outlinedCardBorder()
+        shape = RoundedCornerShape(24.dp),
+        color = backgroundColor
     ) {
-        Box(
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onClick
-                )
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            color.copy(alpha = 0.05f),
-                            color.copy(alpha = 0.02f)
-                        )
-                    )
-                )
+                .fillMaxWidth()
+                .padding(20.dp)
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Start,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(MaterialTheme.spacing.medium)
-                    .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                    }
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Icon with rounded rectangle background
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(MaterialTheme.shapes.medium)
-                        .background(color.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = color,
-                        modifier = Modifier.size(32.dp)
-                    )
+                    Surface(
+                        modifier = Modifier.size(40.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = contentColor.copy(alpha = 0.2f)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = contentColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    Column {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = contentColor
+                        )
+                        Text(
+                            text = description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = contentColor.copy(alpha = 0.7f)
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.width(MaterialTheme.spacing.medium))
-
-                // Text content
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    // Title
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 2
-                    )
-
-                    // Description
-                    Text(
-                        text = description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = contentColor.copy(alpha = 0.6f),
+                    modifier = Modifier.size(24.dp)
+                )
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Summary content
+            summaryContent()
         }
+    }
+}
+
+@Composable
+private fun SummaryItem(
+    label: String,
+    value: String
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold
+            ),
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+        )
+    }
+}
+
+@Composable
+private fun AnalysisItem(
+    icon: ImageVector,
+    label: String
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = AIInsightsAccent,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = AIInsightsAccent.copy(alpha = 0.8f)
+        )
     }
 }
