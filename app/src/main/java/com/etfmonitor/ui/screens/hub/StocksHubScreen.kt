@@ -31,6 +31,7 @@ import com.etfmonitor.ui.components.MacdChart
 import com.etfmonitor.ui.components.TrendSignalChart
 import com.etfmonitor.ui.components.ElderImpulseChart
 import com.etfmonitor.ui.components.DemarkTDChart
+import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.ui.screens.oscillator.OscillatorViewModel
 import com.etfmonitor.ui.screens.oscillator.OscillatorState
 
@@ -55,6 +56,9 @@ fun StocksHubScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val suggestions by viewModel.suggestions.collectAsState()
     val demarkTDInterval by viewModel.demarkTDInterval.collectAsState()
+    val searchHistory by viewModel.searchHistory.collectAsState()
+
+    var showHistoryDialog by remember { mutableStateOf(false) }
 
     // Set initial ticker if provided
     LaunchedEffect(initialTicker) {
@@ -97,16 +101,29 @@ fun StocksHubScreen(
                     )
                 },
                 trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = {
-                            viewModel.onSearchQueryChanged("")
-                            viewModel.onClearSuggestions()
-                        }) {
-                            Icon(
-                                Icons.Default.Clear,
-                                contentDescription = stringResource(R.string.action_clear),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // History button
+                        if (searchHistory.isNotEmpty() && searchQuery.isEmpty()) {
+                            IconButton(onClick = { showHistoryDialog = true }) {
+                                Icon(
+                                    Icons.Default.History,
+                                    contentDescription = stringResource(R.string.search_history),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        // Clear button
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = {
+                                viewModel.onSearchQueryChanged("")
+                                viewModel.onClearSuggestions()
+                            }) {
+                                Icon(
+                                    Icons.Default.Clear,
+                                    contentDescription = stringResource(R.string.action_clear),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 },
@@ -429,6 +446,18 @@ fun StocksHubScreen(
             }
         }
     }
+
+    // Search History Dialog
+    if (showHistoryDialog) {
+        StockSearchHistoryDialog(
+            searchHistory = searchHistory,
+            onDismiss = { showHistoryDialog = false },
+            onSelectStock = { ticker ->
+                showHistoryDialog = false
+                viewModel.analyzeStock(ticker)
+            }
+        )
+    }
 }
 
 /**
@@ -733,4 +762,76 @@ private fun StockDataRow(label: String, value: String) {
             fontWeight = FontWeight.Medium
         )
     }
+}
+
+/**
+ * Search History Dialog
+ */
+@Composable
+private fun StockSearchHistoryDialog(
+    searchHistory: List<SearchHistory>,
+    onDismiss: () -> Unit,
+    onSelectStock: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.History,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(stringResource(R.string.recent_search))
+            }
+        },
+        text = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 400.dp)
+            ) {
+                if (searchHistory.isEmpty()) {
+                    Text(
+                        stringResource(R.string.search_history_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(searchHistory) { history ->
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                ListItem(
+                                    headlineContent = { Text(history.name) },
+                                    supportingContent = {
+                                        Text(
+                                            "${history.ticker} • ${history.market}",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    },
+                                    modifier = Modifier.clickable {
+                                        onSelectStock(history.ticker)
+                                    }
+                                )
+                                if (history != searchHistory.last()) {
+                                    HorizontalDivider()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_close))
+            }
+        }
+    )
 }
