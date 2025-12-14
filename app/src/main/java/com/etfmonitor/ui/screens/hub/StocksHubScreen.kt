@@ -115,7 +115,7 @@ fun StocksHubScreen(
             )
 
             // Autocomplete Dropdown
-            if (suggestions.isNotEmpty() && searchQuery.isNotBlank() && state !is OscillatorState.Success) {
+            if (suggestions.isNotEmpty() && searchQuery.isNotBlank()) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
