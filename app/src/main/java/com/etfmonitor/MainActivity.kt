@@ -123,7 +123,10 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Navigation()
+                    Navigation(
+                        isDarkTheme = useDarkTheme,
+                        onToggleTheme = { themeManager.setDarkTheme(!useDarkTheme) }
+                    )
 
                     // 네트워크 에러 다이얼로그
                     if (showNetworkErrorDialog.value) {

@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.automirrored.outlined.ShowChart
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -48,7 +50,7 @@ enum class MainNavItem(
     MARKET_INDICATOR("market_indicator", "시장 지표", Icons.Filled.BarChart, Icons.Outlined.BarChart),
     ETF("etf_hub", "ETF", Icons.Filled.PieChart, Icons.Outlined.PieChart),
     HOME("home", "홈", Icons.Filled.Home, Icons.Outlined.Home),
-    STOCKS("stocks", "종목", Icons.Filled.ShowChart, Icons.Outlined.ShowChart),
+    STOCKS("stocks", "종목", Icons.AutoMirrored.Filled.ShowChart, Icons.AutoMirrored.Outlined.ShowChart),
     ANALYSIS("analysis", "분석", Icons.Filled.Analytics, Icons.Outlined.Analytics)
 }
 
@@ -253,15 +255,6 @@ fun TabNavigationBar(
         containerColor = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.primary,
         edgePadding = 16.dp,
-        indicator = { tabPositions ->
-            if (selectedIndex < tabPositions.size) {
-                TabRowDefaults.SecondaryIndicator(
-                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
-                    height = 3.dp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        },
         divider = {}
     ) {
         tabs.forEachIndexed { index, title ->

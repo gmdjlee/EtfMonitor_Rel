@@ -19,6 +19,7 @@
     <string name="search_history_empty">검색 히스토리가 없습니다</string>
     <string name="recent_search">최근 검색</string>
     <string name="search_hint">종목명 또는 티커 검색…</string>
+    <string name="search_results">검색 결과</string>
     <string name="data_loading">데이터 로딩 중…</string>
     <string name="data_analyzing">데이터 분석 중…</string>
     <string name="data_collecting">데이터 수집 중…</string>
@@ -125,6 +126,7 @@
     <string name="market_deposit_data_points">데이터 포인트: %d개</string>
     <string name="market_deposit_date_range">날짜 범위: %s ~ %s</string>
     <string name="market_deposit_recent_5_days">최근 5일 추이</string>
+    <string name="market_deposit_no_data">증시 자금 동향 데이터가 없습니다.</string>
 
     <!-- MarketOscillatorScreen -->
     <string name="market_oscillator_title">시장 과매수/과매도 분석</string>

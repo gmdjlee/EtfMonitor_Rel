@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -298,7 +299,7 @@ private fun HomeContent(
             SummaryCard(
                 title = "종목",
                 description = "종목 수급 분석 및 추세 신호",
-                icon = Icons.Default.ShowChart,
+                icon = Icons.AutoMirrored.Filled.ShowChart,
                 onClick = onNavigateToStocks,
                 backgroundColor = MaterialTheme.colorScheme.tertiaryContainer,
                 contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -385,7 +386,7 @@ private fun HomeHeader(
             IconButton(onClick = onSettingsClick) {
                 Icon(
                     imageVector = Icons.Default.Settings,
-                    contentDescription = stringResource(R.string.menu_settings),
+                    contentDescription = stringResource(R.string.nav_settings),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }

@@ -19,15 +19,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.etfmonitor.R
 import com.etfmonitor.database.entities.Etf
+import com.etfmonitor.database.entities.HoldingStatus
 import com.etfmonitor.ui.components.TabNavigationBar
 import com.etfmonitor.ui.screens.list.EtfListViewModel
 import com.etfmonitor.ui.screens.list.ListState
 import com.etfmonitor.ui.screens.statistics.StatisticsViewModel
+import com.etfmonitor.ui.screens.statistics.AmountRankingTab
+import com.etfmonitor.ui.screens.statistics.StockChangeTab
+import com.etfmonitor.ui.screens.statistics.CashDepositTrendTab
+import com.etfmonitor.ui.screens.statistics.StockAnalysisTab
 import kotlinx.coroutines.launch
 
 /**
@@ -251,124 +258,83 @@ private fun StatisticsHubContent(
     onStockClick: (String) -> Unit,
     onNavigateToOscillator: (String) -> Unit
 ) {
-    val stockRankings by viewModel.stockRankings.collectAsState()
+    // ViewModel states
+    val amountRanking by viewModel.amountRanking.collectAsState()
+    val newStocks by viewModel.newStocks.collectAsState()
+    val removedStocks by viewModel.removedStocks.collectAsState()
+    val increasedStocks by viewModel.increasedStocks.collectAsState()
+    val decreasedStocks by viewModel.decreasedStocks.collectAsState()
+    val cashDepositTrend by viewModel.cashDepositTrend.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
-    if (stockRankings.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+    // Analysis tab states
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val searchResults by viewModel.searchResults.collectAsState()
+    val analysisResult by viewModel.analysisResult.collectAsState()
+    val isAnalyzing by viewModel.isAnalyzing.collectAsState()
+
+    var selectedTab by remember { mutableIntStateOf(0) }
+
+    val tabs = listOf(
+        stringResource(R.string.statistics_tab_amount_ranking),
+        stringResource(R.string.statistics_tab_new),
+        stringResource(R.string.statistics_tab_removed),
+        stringResource(R.string.statistics_tab_increased),
+        stringResource(R.string.statistics_tab_decreased),
+        stringResource(R.string.statistics_tab_cash_deposit),
+        stringResource(R.string.statistics_tab_analysis)
+    )
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Sub-tab navigation
+        ScrollableTabRow(
+            selectedTabIndex = selectedTab,
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.primary,
+            edgePadding = 16.dp
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Analytics,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
-                Text(
-                    text = "통계 데이터가 없습니다",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "ETF 데이터를 먼저 수집해주세요",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedTab == index,
+                    onClick = { selectedTab = index },
+                    text = {
+                        Text(
+                            title,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
                 )
             }
         }
-    } else {
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            item {
-                Text(
-                    text = "종목별 ETF 보유 순위",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
             }
-            itemsIndexed(stockRankings.take(50)) { index, ranking ->
-                StockRankingItem(
-                    rank = index + 1,
-                    stockTicker = ranking.stockTicker,
-                    stockName = ranking.stockName,
-                    etfCount = ranking.etfCount,
-                    onClick = { onStockClick(ranking.stockTicker) }
+        } else {
+            when (selectedTab) {
+                0 -> AmountRankingTab(amountRanking, viewModel, onStockClick)
+                1 -> StockChangeTab(newStocks, HoldingStatus.NEW, onStockClick)
+                2 -> StockChangeTab(removedStocks, HoldingStatus.REMOVED, onStockClick)
+                3 -> StockChangeTab(increasedStocks, HoldingStatus.INCREASE, onStockClick)
+                4 -> StockChangeTab(decreasedStocks, HoldingStatus.DECREASE, onStockClick)
+                5 -> CashDepositTrendTab(cashDepositTrend)
+                6 -> StockAnalysisTab(
+                    searchQuery = searchQuery,
+                    searchResults = searchResults,
+                    analysisResult = analysisResult,
+                    isAnalyzing = isAnalyzing,
+                    onSearchQueryChange = { viewModel.updateSearchQuery(it) },
+                    onSearchAndAnalyze = { viewModel.searchAndAnalyze(it) },
+                    onStockSelect = { viewModel.analyzeStock(it) },
+                    onClearAnalysis = { viewModel.clearAnalysis() },
+                    onStockClick = onStockClick
                 )
             }
         }
     }
 }
 
-@Composable
-private fun StockRankingItem(
-    rank: Int,
-    stockTicker: String,
-    stockName: String,
-    etfCount: Int,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Rank
-            Text(
-                text = rank.toString(),
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold
-                ),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.width(32.dp)
-            )
-
-            // Stock info
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stockName,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = stockTicker,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            // ETF count
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Text(
-                    text = "${etfCount}개 ETF",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                )
-            }
-        }
-    }
-}
