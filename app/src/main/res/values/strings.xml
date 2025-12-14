@@ -19,6 +19,7 @@
     <string name="search_history_empty">검색 히스토리가 없습니다</string>
     <string name="recent_search">최근 검색</string>
     <string name="search_hint">종목명 또는 티커 검색…</string>
+    <string name="search_results">검색 결과</string>
     <string name="data_loading">데이터 로딩 중…</string>
     <string name="data_analyzing">데이터 분석 중…</string>
     <string name="data_collecting">데이터 수집 중…</string>
