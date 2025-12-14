@@ -198,135 +198,138 @@ fun StocksHubScreen(
                     pageCount = { chartPages.size }
                 )
 
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Stock Info Card
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                    ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // Stock Info Card
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        currentState.stockData.name,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        currentState.stockData.ticker,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Column(
+                                    horizontalAlignment = Alignment.End,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    if (currentState.oscillatorResult.dates.isNotEmpty()) {
+                                        Text(
+                                            currentState.oscillatorResult.dates.last(),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            "${currentState.oscillatorResult.dates.size}개 데이터",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Page Indicators + Chart Title
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    currentState.stockData.name,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    currentState.stockData.ticker,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Column(
-                                horizontalAlignment = Alignment.End,
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            Text(
+                                text = chartPages.getOrNull(pagerState.currentPage)?.title ?: "",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            // Page Indicators
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                if (currentState.oscillatorResult.dates.isNotEmpty()) {
-                                    Text(
-                                        currentState.oscillatorResult.dates.last(),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Text(
-                                        "${currentState.oscillatorResult.dates.size}개 데이터",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                chartPages.forEachIndexed { index, _ ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(if (index == pagerState.currentPage) 10.dp else 8.dp)
+                                            .background(
+                                                color = if (index == pagerState.currentPage)
+                                                    MaterialTheme.colorScheme.primary
+                                                else
+                                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                                shape = CircleShape
+                                            )
                                     )
                                 }
                             }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    // Page Indicators + Chart Title
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = chartPages.getOrNull(pagerState.currentPage)?.title ?: "",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        // Page Indicators
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            chartPages.forEachIndexed { index, _ ->
-                                Box(
-                                    modifier = Modifier
-                                        .size(if (index == pagerState.currentPage) 10.dp else 8.dp)
-                                        .background(
-                                            color = if (index == pagerState.currentPage)
-                                                MaterialTheme.colorScheme.primary
-                                            else
-                                                MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                                            shape = CircleShape
-                                        )
-                                )
+                        // Horizontal Pager for Charts
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            pageSpacing = 16.dp
+                        ) { page ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                chartPages[page].content()
                             }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Horizontal Pager for Charts
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        pageSpacing = 16.dp
-                    ) { page ->
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                        ) {
-                            chartPages[page].content()
-                        }
-                    }
-
-                    // Swipe hint + Statistics button
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                        // Swipe hint
                         Text(
                             text = stringResource(R.string.oscillator_swipe_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
+                    }
 
-                        Button(
-                            onClick = { onNavigateToStatistics(currentState.stockData.ticker) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.large
-                        ) {
+                    // Floating Action Button
+                    ExtendedFloatingActionButton(
+                        onClick = { onNavigateToStatistics(currentState.stockData.ticker) },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(16.dp),
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        icon = {
                             Icon(Icons.Default.Analytics, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
+                        },
+                        text = {
                             Text(stringResource(R.string.fab_etf_analysis))
                         }
-                    }
+                    )
                 }
             }
 
