@@ -490,6 +490,9 @@ private fun AdvancedDashboardHubContent(
             is AdvancedDashboardState.Success -> {
                 val data = (state as AdvancedDashboardState.Success).data
 
+                // Overall Signal Card
+                OverallSignalSummaryCard(data.date, data.overallSignal)
+
                 // Market Cap Flow Summary
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -507,10 +510,28 @@ private fun AdvancedDashboardHubContent(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "대형주/중형주/소형주 자금 흐름 분석",
+                        data.marketCapFlow?.let { flow ->
+                            val flowText = if (flow.netFlow >= 0) "+${flow.netFlow}억" else "${flow.netFlow}억"
+                            Text(
+                                text = "순 유입: $flowText",
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = if (flow.netFlow >= 0)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "유입: ${flow.totalInflow}억 / 유출: ${flow.totalOutflow}억",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            )
+                        } ?: Text(
+                            text = "데이터 없음",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
                         )
                     }
                 }
@@ -525,17 +546,31 @@ private fun AdvancedDashboardHubContent(
                         modifier = Modifier.padding(20.dp)
                     ) {
                         Text(
-                            text = "다이버전스 분석",
+                            text = "수급 다이버전스",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold
                             ),
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "가격과 수급 간의 괴리 감지",
+                        data.divergenceSummary?.let { divergence ->
+                            Text(
+                                text = divergence.marketSentiment.displayName,
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "외국인 매수: ${divergence.foreignBullishCount} / 기관 매수: ${divergence.institutionBullishCount}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                            )
+                        } ?: Text(
+                            text = "데이터 없음",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
                         )
                     }
                 }
@@ -557,12 +592,93 @@ private fun AdvancedDashboardHubContent(
                             color = MaterialTheme.colorScheme.onTertiaryContainer
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "시장 유동성 상태 모니터링",
+                        data.liquidityAnalysis?.let { liquidity ->
+                            val signalName = try {
+                                com.etfmonitor.database.entities.LiquiditySignal.valueOf(liquidity.signal).displayName
+                            } catch (e: Exception) {
+                                liquidity.signal
+                            }
+                            Text(
+                                text = signalName,
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "예탁금: ${String.format("%,.0f", liquidity.depositAmount / 100000000.0)}억 / 신용잔고: ${String.format("%,.0f", liquidity.creditBalance / 100000000.0)}억",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                            )
+                        } ?: Text(
+                            text = "데이터 없음",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.6f)
                         )
                     }
+                }
+
+                // Sector Summary
+                if (data.topGreedSectors.isNotEmpty() || data.topFearSectors.isNotEmpty()) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp)
+                        ) {
+                            Text(
+                                text = "섹터 심리",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            if (data.topGreedSectors.isNotEmpty()) {
+                                Text(
+                                    text = "탐욕 섹터",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                data.topGreedSectors.forEach { sector ->
+                                    Text(
+                                        text = "${sector.sectorName}: ${(sector.fearGreedValue * 100).toInt()}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                            if (data.topFearSectors.isNotEmpty()) {
+                                Text(
+                                    text = "공포 섹터",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                                data.topFearSectors.forEach { sector ->
+                                    Text(
+                                        text = "${sector.sectorName}: ${(sector.fearGreedValue * 100).toInt()}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Refresh button
+                Button(
+                    onClick = { viewModel.refresh() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("새로고침")
                 }
             }
             is AdvancedDashboardState.Error -> {
@@ -590,6 +706,83 @@ private fun AdvancedDashboardHubContent(
                         )
                     }
                 }
+
+                // Retry button
+                Button(
+                    onClick = { viewModel.loadDashboard() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("다시 시도")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OverallSignalSummaryCard(date: String, signal: com.etfmonitor.ui.screens.advanced.OverallSignal) {
+    val (backgroundColor, textColor) = when (signal.direction) {
+        com.etfmonitor.ui.screens.advanced.SignalDirection.STRONG_BUY ->
+            Pair(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onPrimary)
+        com.etfmonitor.ui.screens.advanced.SignalDirection.BUY ->
+            Pair(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f), MaterialTheme.colorScheme.onPrimary)
+        com.etfmonitor.ui.screens.advanced.SignalDirection.NEUTRAL ->
+            Pair(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
+        com.etfmonitor.ui.screens.advanced.SignalDirection.SELL ->
+            Pair(MaterialTheme.colorScheme.error.copy(alpha = 0.8f), MaterialTheme.colorScheme.onError)
+        com.etfmonitor.ui.screens.advanced.SignalDirection.STRONG_SELL ->
+            Pair(MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.onError)
+    }
+
+    val signalText = when (signal.direction) {
+        com.etfmonitor.ui.screens.advanced.SignalDirection.STRONG_BUY -> "강력 매수"
+        com.etfmonitor.ui.screens.advanced.SignalDirection.BUY -> "매수"
+        com.etfmonitor.ui.screens.advanced.SignalDirection.NEUTRAL -> "중립"
+        com.etfmonitor.ui.screens.advanced.SignalDirection.SELL -> "매도"
+        com.etfmonitor.ui.screens.advanced.SignalDirection.STRONG_SELL -> "강력 매도"
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = backgroundColor
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = date,
+                style = MaterialTheme.typography.bodySmall,
+                color = textColor.copy(alpha = 0.8f)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = signalText,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = textColor
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { signal.strength.toFloat() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp),
+                color = textColor,
+                trackColor = textColor.copy(alpha = 0.3f)
+            )
+            if (signal.factors.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = signal.factors.joinToString(" + "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = textColor.copy(alpha = 0.9f)
+                )
             }
         }
     }
