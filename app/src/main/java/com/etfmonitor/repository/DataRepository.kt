@@ -150,7 +150,9 @@ class DataRepository @Inject constructor(
                         currentAmount = it.amount,
                         status = HoldingStatus.NEW
                     )
-                }
+                },
+                collectionStartDate = dates[0],
+                collectionEndDate = dates[0]
             )
         }
 
@@ -251,7 +253,9 @@ class DataRepository @Inject constructor(
             etfTicker = etfTicker,
             currentDate = currentDate,
             previousDate = previousDate,
-            items = items
+            items = items,
+            collectionStartDate = dates.last(),  // 가장 오래된 날짜
+            collectionEndDate = dates.first()    // 가장 최신 날짜
         )
     }
 
@@ -1128,7 +1132,9 @@ data class ComparisonResult(
     val etfTicker: String,
     val currentDate: String,
     val previousDate: String,
-    val items: List<HoldingWithComparison>
+    val items: List<HoldingWithComparison>,
+    val collectionStartDate: String = "",  // 전체 수집 시작일
+    val collectionEndDate: String = ""     // 전체 수집 종료일
 )
 
 data class OverlapStockDisplay(
