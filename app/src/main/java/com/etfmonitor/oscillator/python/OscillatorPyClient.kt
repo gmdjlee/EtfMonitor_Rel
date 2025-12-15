@@ -63,7 +63,7 @@ import javax.inject.Singleton
  * @property python Chaquopy Python 인스턴스
  *
  * @see PyKrxClient ETF 데이터 수집
- * @see StockPredictorPyClient ML 예측
+ * @see EnhancedPredictorClient ML 예측
  */
 @Singleton
 class OscillatorPyClient @Inject constructor(private val python: Python) {

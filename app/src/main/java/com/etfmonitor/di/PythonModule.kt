@@ -4,7 +4,6 @@ import android.content.Context
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import com.etfmonitor.python.MarketIndexPyClient
-import com.etfmonitor.python.StockPredictorPyClient
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -48,13 +47,6 @@ object PythonModule {
         return MarketIndexPyClient(context)
     }
 
-    /**
-     * StockPredictorPyClient 제공 (Singleton)
-     * ML 기반 주가 예측용 Python 클라이언트
-     */
-    @Provides
-    @Singleton
-    fun provideStockPredictorPyClient(@ApplicationContext context: Context): StockPredictorPyClient {
-        return StockPredictorPyClient(context)
-    }
+    // StockPredictorPyClient 제거됨 - EnhancedPredictorClient로 대체
+    // EnhancedPredictorClient는 @Inject constructor를 사용하므로 수동 제공 불필요
 }

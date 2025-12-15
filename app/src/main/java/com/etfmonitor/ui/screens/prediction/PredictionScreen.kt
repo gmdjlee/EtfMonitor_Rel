@@ -24,8 +24,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
-import com.etfmonitor.database.entities.StockPrediction
-import com.etfmonitor.database.entities.TrainingResult
+import com.etfmonitor.database.entities.EnhancedPrediction
+import com.etfmonitor.database.entities.EnhancedTrainingResult
 import com.etfmonitor.ui.components.ErrorCard
 import com.etfmonitor.ui.components.LoadingCard
 import com.etfmonitor.ui.theme.*
@@ -408,8 +408,8 @@ private fun UsageStep(step: Int, text: String) {
 
 @Composable
 private fun PredictionContent(
-    predictions: List<StockPrediction>,
-    trainingResult: TrainingResult?,
+    predictions: List<EnhancedPrediction>,
+    trainingResult: EnhancedTrainingResult?,
     daysAfter: Int,
     priceThreshold: Double,
     modifier: Modifier = Modifier
@@ -425,7 +425,8 @@ private fun PredictionContent(
         item {
             SummaryCard(
                 predictedCount = predictions.size,
-                accuracy = trainingResult?.accuracy,
+                accuracy = trainingResult?.cvAccuracy,
+                f1Score = trainingResult?.cvF1,
                 daysAfter = daysAfter,
                 priceThreshold = priceThreshold
             )
@@ -464,6 +465,7 @@ private fun PredictionContent(
 private fun SummaryCard(
     predictedCount: Int,
     accuracy: Double?,
+    f1Score: Double? = null,
     daysAfter: Int,
     priceThreshold: Double
 ) {
@@ -520,24 +522,43 @@ private fun SummaryCard(
                 }
             }
 
-            // 학습 정확도 표시
-            if (accuracy != null) {
+            // 학습 정확도 & F1 표시
+            if (accuracy != null || f1Score != null) {
                 HorizontalDivider()
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    Text(
-                        "모델 정확도",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        "${(accuracy * 100).toInt()}%",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = getAccuracyColor(accuracy)
-                    )
+                    if (accuracy != null) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                "${(accuracy * 100).toInt()}%",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = getAccuracyColor(accuracy)
+                            )
+                            Text(
+                                "정확도",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    if (f1Score != null) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                "${(f1Score * 100).toInt()}%",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = getAccuracyColor(f1Score)
+                            )
+                            Text(
+                                "F1 Score",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -545,8 +566,13 @@ private fun SummaryCard(
 }
 
 @Composable
-private fun PredictionCard(prediction: StockPrediction) {
+private fun PredictionCard(prediction: EnhancedPrediction) {
     val confidencePercent = (prediction.confidence * 100).toInt()
+    val riskLevel = when {
+        prediction.riskScore <= 0.3 -> "낮음"
+        prediction.riskScore <= 0.6 -> "중간"
+        else -> "높음"
+    }
 
     OutlinedCard(
         modifier = Modifier
@@ -589,17 +615,14 @@ private fun PredictionCard(prediction: StockPrediction) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "ETF ${prediction.etfCount}개",
+                        text = "위험도: $riskLevel",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = when {
+                            prediction.riskScore <= 0.3 -> MaterialTheme.extendedColors.statusIncrease
+                            prediction.riskScore <= 0.6 -> MaterialTheme.colorScheme.tertiary
+                            else -> MaterialTheme.colorScheme.error
+                        }
                     )
-                    if (prediction.amountBillion > 0) {
-                        Text(
-                            text = "${String.format("%.1f", prediction.amountBillion)}억",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
             }
 
@@ -683,7 +706,13 @@ private fun PredictionSettingsDialog(
     val daysOptions = listOf(3, 5, 7, 10, 14)
     val thresholdOptions = listOf(2.0, 3.0, 5.0, 7.0, 10.0)
     val confidenceOptions = listOf(0.5, 0.6, 0.7, 0.8)
-    val modelOptions = listOf("random_forest" to "Random Forest", "gradient_boosting" to "Gradient Boosting")
+    val modelOptions = listOf(
+        "voting" to "앙상블 (추천)",
+        "xgboost" to "XGBoost",
+        "lightgbm" to "LightGBM",
+        "random_forest" to "Random Forest",
+        "gradient_boosting" to "Gradient Boosting"
+    )
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -751,7 +780,7 @@ private fun PredictionSettingsDialog(
 
                 // 모델 타입
                 Text(
-                    "ML 모델",
+                    "ML 모델 (28개 Feature)",
                     style = MaterialTheme.typography.labelLarge
                 )
                 modelOptions.forEach { (type, label) ->
@@ -786,12 +815,12 @@ private fun PredictionSettingsDialog(
 
 @Composable
 private fun TrainingResultDialog(
-    result: TrainingResult,
+    result: EnhancedTrainingResult,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("학습 결과") },
+        title = { Text("학습 결과 (28 Features)") },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
@@ -804,6 +833,9 @@ private fun TrainingResultDialog(
                     Text("모델 타입", style = MaterialTheme.typography.bodyMedium)
                     Text(
                         when (result.modelType) {
+                            "voting" -> "앙상블"
+                            "xgboost" -> "XGBoost"
+                            "lightgbm" -> "LightGBM"
                             "random_forest" -> "Random Forest"
                             "gradient_boosting" -> "Gradient Boosting"
                             else -> result.modelType
@@ -825,45 +857,78 @@ private fun TrainingResultDialog(
                     )
                 }
 
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Feature 수", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "${result.featureCount}개",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
                 HorizontalDivider()
 
-                // 성능 지표
+                // 성능 지표 (CV)
                 Text(
-                    "성능 지표",
+                    "성능 지표 (교차검증)",
                     style = MaterialTheme.typography.labelLarge
                 )
 
-                MetricRow("정확도 (Accuracy)", result.accuracy)
-                MetricRow("정밀도 (Precision)", result.precision)
-                MetricRow("재현율 (Recall)", result.recall)
+                MetricRow("정확도 (Accuracy)", result.cvAccuracy)
+                MetricRow("정밀도 (Precision)", result.cvPrecision)
+                MetricRow("재현율 (Recall)", result.cvRecall)
+                MetricRow("F1 Score", result.cvF1)
 
-                // 피처 중요도
-                if (result.featureImportance.isNotEmpty()) {
+                // Top Features
+                if (result.topFeatures.isNotEmpty()) {
                     HorizontalDivider()
 
                     Text(
-                        "피처 중요도",
+                        "핵심 Feature (Top 5)",
                         style = MaterialTheme.typography.labelLarge
                     )
 
-                    result.featureImportance.entries
-                        .sortedByDescending { it.value }
-                        .forEach { (feature, importance) ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                    result.topFeatures.take(5).forEachIndexed { index, feature ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = MaterialTheme.shapes.extraSmall,
+                                color = MaterialTheme.colorScheme.primaryContainer
                             ) {
                                 Text(
-                                    feature,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                                Text(
-                                    "${(importance * 100).toInt()}%",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Bold
+                                    text = "${index + 1}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
+                            Text(
+                                feature,
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
+                    }
+                }
+
+                // 학습 시간
+                if (result.trainingTimeMs > 0) {
+                    HorizontalDivider()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("학습 시간", style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            "${result.trainingTimeMs}ms",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         },

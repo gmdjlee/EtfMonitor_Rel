@@ -97,7 +97,7 @@ FROM holdings
 | PyKrxClient | 30s | 2 retries for holdings data |
 | MarketIndexPyClient | 30s | Standard |
 | OscillatorPyClient | **180s** | Market oscillator collects 200+ stocks |
-| StockPredictorPyClient | **120s** | ML training is expensive |
+| EnhancedPredictorClient | **120s** | ML training is expensive (28 features, ensemble) |
 | FearGreedRepository | No timeout | Direct Python, request 3x days due to MA loss |
 
 #### FearGreed Data Collection
@@ -172,7 +172,9 @@ EtfMonitor_Rel/
 │   │   ├── core.py                      # Core utilities
 │   │   ├── feargreed.py                 # Fear & Greed calculation
 │   │   ├── deposit_scraper.py           # Market deposit scraper
-│   │   ├── stock_predictor.py           # ML predictions
+│   │   ├── stock_predictor_v2.py        # ML predictions (28 features, ensemble)
+│   │   ├── data_collector.py            # Batch data collection for ML
+│   │   ├── feature_engineer.py          # Feature engineering for ML
 │   │   ├── trend_signal.py              # Trend signal analysis
 │   │   └── logger.py                    # Logging utilities
 │   ├── res/                             # Android resources
@@ -374,7 +376,7 @@ fun observeData() {
 | **core.py** | `get_business_days()`, date/number utilities | Various | Shared utilities, not directly called |
 | **feargreed.py** | `run_analysis()`, `combine()`, `analyze()` | DataFrame tuple | 5 indicators @ 20% each (Mom, PCR, VIX, Spread, RSI) |
 | **deposit_scraper.py** | `scrape_deposit_data()`, `get_market_deposit_data()` | JSON string | Scrapes Naver Finance |
-| **stock_predictor.py** | `train_and_predict()`, `train_model()`, `predict()` | JSON | RandomForest/GradientBoosting, min 20 samples |
+| **stock_predictor_v2.py** | `train_and_predict_v2()`, `get_model_status_v2()`, `clear_model_cache_v2()` | JSON | 28 features, ensemble (XGBoost/LightGBM/RF/GB), SMOTE |
 | **trend_signal.py** | `get_trend_signal_analysis()`, `get_elder_impulse_analysis()`, `get_demark_td_analysis()` | JSON | Technical indicators with buy/sell signals |
 
 #### Python JSON Return Patterns
@@ -389,12 +391,14 @@ fun observeData() {
   "institution_5d": [300, 400]   # 5-day cumulative
 }
 
-# stock_predictor.py - train_and_predict()
+# stock_predictor_v2.py - train_and_predict_v2()
 {
   "success": true,
-  "accuracy": 0.85,
-  "precision": 0.82,
-  "predictions": [{"ticker": "...", "confidence": 0.92, ...}]
+  "cv_accuracy": 0.85,
+  "cv_f1": 0.82,
+  "feature_count": 28,
+  "model_type": "voting",
+  "predictions": [{"ticker": "...", "confidence": 0.92, "risk_score": 0.3, ...}]
 }
 ```
 
@@ -1012,7 +1016,7 @@ fun Screen(viewModel: ViewModel = hiltViewModel()) {
 | **EtfListViewModel** | ListState | Loading, Success, Empty, Error | DataRepository |
 | **DetailViewModel** | DetailState | Loading, Success, Error | DataRepository, SavedStateHandle |
 | **StockTrendViewModel** | TrendState | Loading, Success, Error | DataRepository, SavedStateHandle |
-| **PredictionViewModel** | PredictionState | Initial, NoPredictions, HasPredictions, Loading, Success, Error | StockPredictionRepository |
+| **PredictionViewModel** | PredictionState | Initial, NoPredictions, HasPredictions, Loading, Success, Error | EnhancedPredictionRepository |
 | **FearGreedViewModel** | FearGreedState | Loading, Idle, Initializing, Updating, Success, Error | FearGreedRepository, EtfDao |
 | **OscillatorViewModel** | OscillatorState | Idle, Loading, Success(7 data items), Error | 4 Clients, StockRepository |
 | **MarketDepositViewModel** | MarketDepositState | Idle, Loading, Success, Error | MarketDepositRepository |
@@ -1100,7 +1104,7 @@ _searchQuery
 | **AIChatRepository** | AIChatDao, AIApiClientFactory | `createSession()`, `sendMessage()` | Max 10 messages for context |
 | **CorrelationAnalysisRepository** | CorrelationAnalyzer, 4 DAOs, AIApiClientFactory | `runCorrelationAnalysis()`, `interpretWithAI()` | 7+ correlation metrics |
 | **StatisticsAnalysisRepository** | EtfDao, MarketIndexDao, DailyEtfStatisticsDao | `calculateCorrelation()` (Pearson) | Min 10 data points |
-| **StockPredictionRepository** | StockPredictionDao, EtfDao, StockPredictorPyClient | `runPrediction()` | Min 20 training samples |
+| **EnhancedPredictionRepository** | EnhancedPredictionDao, PriceCacheDao, EtfDao, EnhancedPredictorClient | `runEnhancedPrediction()` | 28 features, ensemble models |
 | **AdvancedAnalysisRepository** | 9 DAOs | 5 analysis types: MarketCapFlow, Divergence, Liquidity, Sector, ETF Correlation | Complex multi-factor analysis |
 
 ### AI Integration (11 files)
@@ -1136,10 +1140,10 @@ _searchQuery
 - **`python/MarketIndexPyClient.kt`**: Market index data fetcher
   - `fetchMarketIndices()`, `fetchRecentDays()`, `getLatestIndex()`
   - Uses: `market` module
-- **`python/StockPredictorPyClient.kt`**: ML stock prediction client
-  - `trainAndPredict()`, `trainModel()`, `predict()`, `getModelStatus()`, `clearModelCache()`
-  - Uses: `stock_predictor` module
-  - Timeout: 120s (ML training is expensive)
+- **`python/EnhancedPredictorClient.kt`**: Enhanced ML stock prediction client
+  - `trainAndPredictEnhanced()`, `getModelStatus()`, `clearModelCache()`
+  - Uses: `stock_predictor_v2`, `data_collector`, `feature_engineer` modules
+  - Timeout: 120s, supports XGBoost/LightGBM/Random Forest/Gradient Boosting ensemble
 - **`oscillator/python/OscillatorPyClient.kt`**: Technical analysis client
   - `searchStock()`, `getStockAnalysis()`, `getMarketDepositData()`, `getAllStocksList()`
   - `getMarketOscillator()` (180s timeout), `getTrendSignalData()`, `getElderImpulseData()`, `getDemarkTDData()`
@@ -1524,7 +1528,7 @@ Before submitting changes, verify:
 
 ---
 
-**Last Updated**: 2025-12-06
+**Last Updated**: 2025-12-15
 **Codebase Version**: Schema v14, ~40,000 LOC
 **Maintainer**: gmdjlee
 
@@ -1557,3 +1561,23 @@ Before submitting changes, verify:
 - Added DI module summary (5 modules, 43 providers)
 - Expanded Common Pitfalls with Database, Python, and AI-specific issues
 - Fixed HomeState example to match actual implementation (7 states)
+
+### 2025-12-15 - v1 Prediction System Removal & Codebase Optimization
+- **Removed v1 prediction system** (~960 lines):
+  - Deleted `stock_predictor.py` (basic 7-feature model)
+  - Deleted `StockPredictorPyClient.kt`
+  - Deleted `StockPredictionRepository.kt`
+- **Migrated to v2 prediction system** (28 features, ensemble models):
+  - `PredictionViewModel` now uses `EnhancedPredictionRepository`
+  - `PredictionScreen` updated to use `EnhancedPrediction` entity
+  - Added model selection (voting, xgboost, lightgbm, random_forest, gradient_boosting)
+- **DI module cleanup**:
+  - Removed `StockPredictorPyClient` provider from `PythonModule.kt`
+  - Removed `StockPredictionRepository` provider from `RepositoryModule.kt`
+  - Removed `StockPredictionDao` provider from `DatabaseModule.kt`
+- **DAO optimization**:
+  - Removed unused `getLatestPredictionsSuspend()` from `EnhancedPredictionDao`
+  - Removed unused suspend variant from `EnhancedPredictionRepository`
+- **Python cleanup**:
+  - Removed unused functions from `market.py` (`get_realtime_oscillator`, `fetch_market_index`)
+- **Documentation updated** to reflect new v2 prediction system

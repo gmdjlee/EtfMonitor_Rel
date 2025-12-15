@@ -104,17 +104,6 @@ object RepositoryModule {
         return StatisticsAnalysisRepository(etfDao, marketIndexDao, dailyEtfStatisticsDao)
     }
 
-    /**
-     * StockPredictionRepository 제공 (Singleton)
-     * ML 기반 주가 예측 및 결과 관리
-     */
-    @Provides
-    @Singleton
-    fun provideStockPredictionRepository(
-        predictionDao: StockPredictionDao,
-        etfDao: EtfDao,
-        predictorClient: com.etfmonitor.python.StockPredictorPyClient
-    ): StockPredictionRepository {
-        return StockPredictionRepository(predictionDao, etfDao, predictorClient)
-    }
+    // StockPredictionRepository 제거됨 - EnhancedPredictionRepository로 대체
+    // EnhancedPredictionRepository는 @Inject constructor를 사용하므로 수동 제공 불필요
 }

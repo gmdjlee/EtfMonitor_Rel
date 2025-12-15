@@ -26,17 +26,6 @@ interface EnhancedPredictionDao {
     fun getLatestPredictions(): Flow<List<EnhancedPrediction>>
 
     /**
-     * 최신 예측 결과 조회 (suspend)
-     */
-    @Query("""
-        SELECT * FROM enhanced_predictions
-        WHERE predictionDate = (SELECT MAX(predictionDate) FROM enhanced_predictions)
-        ORDER BY confidence DESC
-        LIMIT 100
-    """)
-    suspend fun getLatestPredictionsSuspend(): List<EnhancedPrediction>
-
-    /**
      * 특정 날짜의 예측 결과 조회 (Flow)
      */
     @Query("""

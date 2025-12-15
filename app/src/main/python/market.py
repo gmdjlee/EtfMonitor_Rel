@@ -244,13 +244,5 @@ def get_market_oscillator(market: str, start: str, end: str) -> str:
         return err_json(str(e))
 
 
-def get_realtime_oscillator(market: str = "KOSPI") -> str:
-    """Get oscillator for recent 30 days."""
-    end = datetime.now().strftime("%Y%m%d")
-    start = (datetime.now() - timedelta(days=30)).strftime("%Y%m%d")
-    return get_market_oscillator(market, start, end)
-
-
-# Backward compatibility
-fetch_market_index = fetch_index
+# Backward compatibility alias (used by MarketIndexPyClient)
 fetch_recent_days = fetch_recent
