@@ -98,6 +98,13 @@ fun PredictionScreen(
                     }
                 },
                 actions = {
+                    // 새로고침 버튼
+                    IconButton(onClick = { viewModel.refresh() }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.nav_refresh)
+                        )
+                    }
                     // 설정 버튼
                     IconButton(onClick = { showSettingsDialog = true }) {
                         Icon(

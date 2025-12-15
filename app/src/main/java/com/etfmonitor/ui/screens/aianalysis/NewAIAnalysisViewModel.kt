@@ -213,6 +213,19 @@ class NewAIAnalysisViewModel @Inject constructor(
     // ========== 상관관계 분석 ==========
 
     /**
+     * 캐시 초기화 및 분석 결과 새로고침
+     * 데이터 수집 기간을 늘린 후 재분석할 때 사용
+     */
+    fun clearCacheAndRefresh() {
+        viewModelScope.launch {
+            // 이전 분석 결과 초기화
+            _analysisResult.value = null
+            _stockIndicatorCorrelationResult.value = null
+            _state.value = NewAIAnalysisState.Idle
+        }
+    }
+
+    /**
      * 상관관계 분석 실행 (로컬 계산만)
      */
     fun runCorrelationAnalysis(periodDays: Int = 30) {

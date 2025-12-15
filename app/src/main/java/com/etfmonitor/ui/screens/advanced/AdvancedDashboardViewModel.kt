@@ -576,13 +576,65 @@ class AdvancedDashboardViewModel @Inject constructor(
     }
 
     /**
-     * 새로고침
+     * 새로고침 (캐시 사용)
      */
     fun refresh() {
         viewModelScope.launch {
             _isRefreshing.value = true
             loadDashboard()
+            loadHistoryData()
+            loadAccuracyData()
             _isRefreshing.value = false
+        }
+    }
+
+    /**
+     * 강제 재계산 (캐시 무시)
+     * 데이터 수집 기간을 늘린 후 사용
+     */
+    fun forceRefresh() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isRefreshing.value = true
+            _state.value = AdvancedDashboardState.Loading
+
+            try {
+                val dates = etfDao.getAllDistinctDates()
+                if (dates.size < 2) {
+                    _state.value = AdvancedDashboardState.Error("데이터가 부족합니다. ETF 데이터를 먼저 수집해 주세요.")
+                    _isRefreshing.value = false
+                    return@launch
+                }
+
+                val currentDate = dates.first()
+                val previousDate = dates[1]
+
+                // 모든 분석 강제 재계산
+                logger.d("Force recalculating all analyses for $currentDate")
+
+                // 유동성 분석 재계산
+                val liquidityAnalysis = advancedRepository.calculateAndSaveLiquidityAnalysis(currentDate)
+                _liquidityAnalysis.value = liquidityAnalysis
+                logger.d("Liquidity analysis recalculated")
+
+                // 섹터 분석 재계산
+                val sectorAnalyses = advancedRepository.calculateAndSaveSectorAnalysis(currentDate, previousDate)
+                _sectorAnalyses.value = sectorAnalyses
+                logger.d("Sector analysis recalculated: ${sectorAnalyses.size} sectors")
+
+                // 히스토리 데이터 새로고침
+                loadHistoryData()
+                loadAccuracyData()
+
+                // 대시보드 새로고침
+                loadDashboard()
+
+                logger.d("Force refresh completed")
+            } catch (e: Exception) {
+                logger.e("Force refresh failed", e)
+                _state.value = AdvancedDashboardState.Error("재계산 실패: ${e.message}")
+            } finally {
+                _isRefreshing.value = false
+            }
         }
     }
 

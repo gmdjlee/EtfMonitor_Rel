@@ -115,6 +115,11 @@ fun NewAIAnalysisScreen(
                     }
                 },
                 actions = {
+                    // 캐시 초기화 및 재분석 버튼
+                    IconButton(onClick = { viewModel.clearCacheAndRefresh() }) {
+                        Icon(Icons.Default.Refresh, "새로고침")
+                    }
+
                     // AI 제공자 선택
                     TextButton(onClick = { showProviderDialog = true }) {
                         Text(
