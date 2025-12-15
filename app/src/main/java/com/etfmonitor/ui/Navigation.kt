@@ -35,7 +35,13 @@ sealed class Screen(val route: String) {
     // Main navigation tabs
     object Home : Screen("home")
     object MarketIndicator : Screen("market_indicator")
-    object EtfHub : Screen("etf_hub")
+    object EtfHub : Screen("etf_hub?stockTicker={stockTicker}") {
+        fun createRoute(stockTicker: String? = null) = if (stockTicker != null) {
+            "etf_hub?stockTicker=$stockTicker"
+        } else {
+            "etf_hub"
+        }
+    }
     object Stocks : Screen("stocks")
     object Analysis : Screen("analysis")
 
@@ -82,7 +88,7 @@ sealed class Screen(val route: String) {
     object AdvancedDashboard : Screen("advanced_dashboard")
 }
 
-// Routes that show bottom navigation
+// Routes that show bottom navigation (use base routes for pattern matching)
 private val mainNavRoutes = setOf(
     Screen.Home.route,
     Screen.MarketIndicator.route,
@@ -90,6 +96,14 @@ private val mainNavRoutes = setOf(
     Screen.Stocks.route,
     Screen.Analysis.route
 )
+
+// Check if current route is a main nav route (handles routes with parameters)
+private fun isMainNavRoute(currentRoute: String?): Boolean {
+    if (currentRoute == null) return false
+    return mainNavRoutes.any { route ->
+        currentRoute == route || currentRoute.startsWith(route.substringBefore("?"))
+    }
+}
 
 @Composable
 fun Navigation(
@@ -101,7 +115,7 @@ fun Navigation(
     val currentRoute = navBackStackEntry?.destination?.route
 
     // Check if we should show bottom navigation
-    val showBottomNav = currentRoute in mainNavRoutes
+    val showBottomNav = isMainNavRoute(currentRoute)
 
     Scaffold(
         bottomBar = {
@@ -151,7 +165,17 @@ fun Navigation(
                 )
             }
 
-            composable(Screen.EtfHub.route) {
+            composable(
+                route = Screen.EtfHub.route,
+                arguments = listOf(
+                    navArgument("stockTicker") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                val initialStockTicker = backStackEntry.arguments?.getString("stockTicker")
                 EtfHubScreen(
                     isDarkTheme = isDarkTheme,
                     onToggleTheme = onToggleTheme,
@@ -164,7 +188,8 @@ fun Navigation(
                     },
                     onNavigateToOscillator = { ticker ->
                         navController.navigate(Screen.Oscillator.createRoute(ticker))
-                    }
+                    },
+                    initialStockTicker = initialStockTicker
                 )
             }
 
@@ -174,7 +199,7 @@ fun Navigation(
                     onToggleTheme = onToggleTheme,
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                     onNavigateToStatistics = { ticker ->
-                        navController.navigate(Screen.Statistics.createRoute(ticker))
+                        navController.navigate(Screen.EtfHub.createRoute(ticker))
                     }
                 )
             }

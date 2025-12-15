@@ -56,11 +56,24 @@ fun EtfHubScreen(
     onEtfClick: (String) -> Unit,
     onStockClick: (String) -> Unit,
     onNavigateToOscillator: (String) -> Unit,
+    initialStockTicker: String? = null,
     listViewModel: EtfListViewModel = hiltViewModel(),
     statisticsViewModel: StatisticsViewModel = hiltViewModel()
 ) {
-    val pagerState = rememberPagerState(pageCount = { ETF_TABS.size })
+    // Start on Statistics tab (1) if initialStockTicker is provided
+    val initialPage = if (initialStockTicker != null) 1 else 0
+    val pagerState = rememberPagerState(
+        initialPage = initialPage,
+        pageCount = { ETF_TABS.size }
+    )
     val coroutineScope = rememberCoroutineScope()
+
+    // Trigger stock analysis when initialStockTicker is provided
+    LaunchedEffect(initialStockTicker) {
+        if (initialStockTicker != null) {
+            statisticsViewModel.analyzeStock(initialStockTicker)
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -97,7 +110,8 @@ fun EtfHubScreen(
                 1 -> StatisticsHubContent(
                     viewModel = statisticsViewModel,
                     onStockClick = onStockClick,
-                    onNavigateToOscillator = onNavigateToOscillator
+                    onNavigateToOscillator = onNavigateToOscillator,
+                    initialStockTicker = initialStockTicker
                 )
             }
         }
@@ -256,7 +270,8 @@ private fun EtfListItemCompact(
 private fun StatisticsHubContent(
     viewModel: StatisticsViewModel,
     onStockClick: (String) -> Unit,
-    onNavigateToOscillator: (String) -> Unit
+    onNavigateToOscillator: (String) -> Unit,
+    initialStockTicker: String? = null
 ) {
     // ViewModel states
     val amountRanking by viewModel.amountRanking.collectAsState()
@@ -273,7 +288,8 @@ private fun StatisticsHubContent(
     val analysisResult by viewModel.analysisResult.collectAsState()
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
 
-    var selectedTab by remember { mutableIntStateOf(0) }
+    // Start on Analysis tab (6) if initialStockTicker is provided
+    var selectedTab by remember { mutableIntStateOf(if (initialStockTicker != null) 6 else 0) }
 
     val tabs = listOf(
         stringResource(R.string.statistics_tab_amount_ranking),
