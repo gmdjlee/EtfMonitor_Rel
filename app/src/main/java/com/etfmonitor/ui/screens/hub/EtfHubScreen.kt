@@ -285,55 +285,78 @@ private fun StatisticsHubContent(
         stringResource(R.string.statistics_tab_analysis)
     )
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Sub-tab navigation
-        ScrollableTabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.primary,
-            edgePadding = 16.dp
-        ) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    text = {
-                        Text(
-                            title,
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                )
+    // FAB 표시 조건: 분석 탭에서 분석 결과가 있을 때
+    val showFab = selectedTab == 6 && analysisResult != null
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Sub-tab navigation
+            ScrollableTabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary,
+                edgePadding = 16.dp
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = {
+                            Text(
+                                title,
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    )
+                }
+            }
+
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                when (selectedTab) {
+                    0 -> AmountRankingTab(amountRanking, viewModel, onStockClick)
+                    1 -> StockChangeTab(newStocks, HoldingStatus.NEW, onStockClick)
+                    2 -> StockChangeTab(removedStocks, HoldingStatus.REMOVED, onStockClick)
+                    3 -> StockChangeTab(increasedStocks, HoldingStatus.INCREASE, onStockClick)
+                    4 -> StockChangeTab(decreasedStocks, HoldingStatus.DECREASE, onStockClick)
+                    5 -> CashDepositTrendTab(cashDepositTrend)
+                    6 -> StockAnalysisTab(
+                        searchQuery = searchQuery,
+                        searchResults = searchResults,
+                        analysisResult = analysisResult,
+                        isAnalyzing = isAnalyzing,
+                        onSearchQueryChange = { viewModel.updateSearchQuery(it) },
+                        onSearchAndAnalyze = { viewModel.searchAndAnalyze(it) },
+                        onStockSelect = { viewModel.analyzeStock(it) },
+                        onClearAnalysis = { viewModel.clearAnalysis() },
+                        onStockClick = onStockClick
+                    )
+                }
             }
         }
 
-        if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else {
-            when (selectedTab) {
-                0 -> AmountRankingTab(amountRanking, viewModel, onStockClick)
-                1 -> StockChangeTab(newStocks, HoldingStatus.NEW, onStockClick)
-                2 -> StockChangeTab(removedStocks, HoldingStatus.REMOVED, onStockClick)
-                3 -> StockChangeTab(increasedStocks, HoldingStatus.INCREASE, onStockClick)
-                4 -> StockChangeTab(decreasedStocks, HoldingStatus.DECREASE, onStockClick)
-                5 -> CashDepositTrendTab(cashDepositTrend)
-                6 -> StockAnalysisTab(
-                    searchQuery = searchQuery,
-                    searchResults = searchResults,
-                    analysisResult = analysisResult,
-                    isAnalyzing = isAnalyzing,
-                    onSearchQueryChange = { viewModel.updateSearchQuery(it) },
-                    onSearchAndAnalyze = { viewModel.searchAndAnalyze(it) },
-                    onStockSelect = { viewModel.analyzeStock(it) },
-                    onClearAnalysis = { viewModel.clearAnalysis() },
-                    onStockClick = onStockClick
-                )
-            }
+        // Floating Action Button for navigating to chart analysis
+        if (showFab && analysisResult != null) {
+            ExtendedFloatingActionButton(
+                onClick = { onNavigateToOscillator(analysisResult!!.stockTicker) },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp),
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                icon = {
+                    Icon(Icons.Default.ShowChart, contentDescription = null)
+                },
+                text = {
+                    Text(stringResource(R.string.fab_chart_analysis))
+                }
+            )
         }
     }
 }
