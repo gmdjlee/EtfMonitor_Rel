@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -138,11 +139,12 @@ fun Navigation(
                     onNavigate = { item ->
                         navController.navigate(item.route) {
                             // Pop up to the start destination to avoid building up stack
-                            popUpTo(Screen.Home.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
                             launchSingleTop = true
-                            restoreState = true
+                            // Only restore state for non-Home destinations
+                            restoreState = item != MainNavItem.HOME
                         }
                     }
                 )
