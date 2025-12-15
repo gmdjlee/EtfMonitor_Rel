@@ -367,7 +367,7 @@ private fun DataPeriodTab(
         item {
             DefaultDaysCard(
                 currentDays = defaultDays,
-                onDaysChange = { viewModel.setDefaultDays(it) }
+                onDaysChange = { days, reinitialize -> viewModel.setDefaultDays(days, reinitialize) }
             )
         }
 

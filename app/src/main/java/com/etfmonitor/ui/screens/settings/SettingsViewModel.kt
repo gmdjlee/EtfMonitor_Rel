@@ -421,9 +421,38 @@ class SettingsViewModel @Inject constructor(
 
     // ==================== Basic Settings ====================
 
-    fun setDefaultDays(days: Int) = saveSetting("기본 수집 기간이 ${days}일로 설정되었습니다") {
-        repository.setDefaultDays(days)
-        _defaultDays.value = days
+    fun setDefaultDays(days: Int, reinitialize: Boolean = false) {
+        viewModelScope.launch {
+            try {
+                repository.setDefaultDays(days)
+                _defaultDays.value = days
+
+                if (reinitialize) {
+                    _etfUpdateSettings.value = _etfUpdateSettings.value.copy(isUpdating = true)
+                    _message.value = "ETF 데이터 재수집 중..."
+                    repository.initializeData(days).collect { progress ->
+                        when (progress) {
+                            is com.etfmonitor.repository.DataProgress.Loading -> {
+                                _message.value = progress.message
+                            }
+                            is com.etfmonitor.repository.DataProgress.Success -> {
+                                loadDataInfo()
+                                _message.value = "기본 수집 기간이 ${days}일로 설정되었습니다 (재수집 완료)"
+                            }
+                            is com.etfmonitor.repository.DataProgress.Error -> {
+                                _message.value = "재수집 실패: ${progress.message}"
+                            }
+                        }
+                    }
+                    _etfUpdateSettings.value = _etfUpdateSettings.value.copy(isUpdating = false)
+                } else {
+                    _message.value = "기본 수집 기간이 ${days}일로 설정되었습니다 (다음 초기화 시 적용)"
+                }
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+                _etfUpdateSettings.value = _etfUpdateSettings.value.copy(isUpdating = false)
+            }
+        }
     }
 
     fun addTheme(theme: String) {
