@@ -429,6 +429,8 @@ class SettingsViewModel @Inject constructor(
 
                 if (reinitialize) {
                     _etfUpdateSettings.value = _etfUpdateSettings.value.copy(isUpdating = true)
+                    _message.value = "기존 데이터 삭제 중..."
+                    repository.resetDatabase()
                     _message.value = "ETF 데이터 재수집 중..."
                     repository.initializeData(days).collect { progress ->
                         when (progress) {

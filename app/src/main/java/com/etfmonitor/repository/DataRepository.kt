@@ -812,8 +812,11 @@ class DataRepository @Inject constructor(
     }
 
     suspend fun resetDatabase() = withContext(Dispatchers.IO) {
-        dao.clearAllEtfs()
+        logger.d("resetDatabase: Clearing all ETF data")
         dao.clearAllHoldings()
+        dao.clearAllEtfs()
+        dailyEtfStatisticsDao.deleteAll()
+        logger.d("resetDatabase: Complete")
     }
 
     private suspend fun initializeDefaultSettings() = withContext(Dispatchers.IO) {
