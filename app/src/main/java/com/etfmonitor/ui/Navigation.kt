@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -35,7 +36,13 @@ sealed class Screen(val route: String) {
     // Main navigation tabs
     object Home : Screen("home")
     object MarketIndicator : Screen("market_indicator")
-    object EtfHub : Screen("etf_hub")
+    object EtfHub : Screen("etf_hub?stockTicker={stockTicker}") {
+        fun createRoute(stockTicker: String? = null) = if (stockTicker != null) {
+            "etf_hub?stockTicker=$stockTicker"
+        } else {
+            "etf_hub"
+        }
+    }
     object Stocks : Screen("stocks")
     object Analysis : Screen("analysis")
 
@@ -82,7 +89,7 @@ sealed class Screen(val route: String) {
     object AdvancedDashboard : Screen("advanced_dashboard")
 }
 
-// Routes that show bottom navigation
+// Routes that show bottom navigation (use base routes for pattern matching)
 private val mainNavRoutes = setOf(
     Screen.Home.route,
     Screen.MarketIndicator.route,
@@ -90,6 +97,27 @@ private val mainNavRoutes = setOf(
     Screen.Stocks.route,
     Screen.Analysis.route
 )
+
+// Additional routes that show bottom navigation (ETF sub-screens)
+private val etfSubRoutes = setOf(
+    "detail",              // ETF Detail
+    "aggregated_trend"     // Stock Trend from ETF Statistics
+)
+
+// Check if current route is a main nav route (handles routes with parameters)
+private fun isMainNavRoute(currentRoute: String?): Boolean {
+    if (currentRoute == null) return false
+
+    // Check main navigation routes
+    if (mainNavRoutes.any { route ->
+        currentRoute == route || currentRoute.startsWith(route.substringBefore("?"))
+    }) return true
+
+    // Check ETF sub-routes (keep bottom nav when navigating within ETF section)
+    return etfSubRoutes.any { prefix ->
+        currentRoute.startsWith(prefix)
+    }
+}
 
 @Composable
 fun Navigation(
@@ -101,7 +129,7 @@ fun Navigation(
     val currentRoute = navBackStackEntry?.destination?.route
 
     // Check if we should show bottom navigation
-    val showBottomNav = currentRoute in mainNavRoutes
+    val showBottomNav = isMainNavRoute(currentRoute)
 
     Scaffold(
         bottomBar = {
@@ -111,11 +139,12 @@ fun Navigation(
                     onNavigate = { item ->
                         navController.navigate(item.route) {
                             // Pop up to the start destination to avoid building up stack
-                            popUpTo(Screen.Home.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
                             launchSingleTop = true
-                            restoreState = true
+                            // Only restore state for non-Home destinations
+                            restoreState = item != MainNavItem.HOME
                         }
                     }
                 )
@@ -151,7 +180,17 @@ fun Navigation(
                 )
             }
 
-            composable(Screen.EtfHub.route) {
+            composable(
+                route = Screen.EtfHub.route,
+                arguments = listOf(
+                    navArgument("stockTicker") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                val initialStockTicker = backStackEntry.arguments?.getString("stockTicker")
                 EtfHubScreen(
                     isDarkTheme = isDarkTheme,
                     onToggleTheme = onToggleTheme,
@@ -164,7 +203,8 @@ fun Navigation(
                     },
                     onNavigateToOscillator = { ticker ->
                         navController.navigate(Screen.Oscillator.createRoute(ticker))
-                    }
+                    },
+                    initialStockTicker = initialStockTicker
                 )
             }
 
@@ -174,7 +214,7 @@ fun Navigation(
                     onToggleTheme = onToggleTheme,
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                     onNavigateToStatistics = { ticker ->
-                        navController.navigate(Screen.Statistics.createRoute(ticker))
+                        navController.navigate(Screen.EtfHub.createRoute(ticker))
                     }
                 )
             }

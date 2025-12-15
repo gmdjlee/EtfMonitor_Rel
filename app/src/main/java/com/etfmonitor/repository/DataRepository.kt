@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -812,8 +814,44 @@ class DataRepository @Inject constructor(
     }
 
     suspend fun resetDatabase() = withContext(Dispatchers.IO) {
-        dao.clearAllEtfs()
+        logger.d("resetDatabase: Clearing all ETF data")
         dao.clearAllHoldings()
+        dao.clearAllEtfs()
+        dailyEtfStatisticsDao.deleteAll()
+        logger.d("resetDatabase: Complete")
+    }
+
+    /**
+     * 지정 기간 외의 데이터만 삭제 (스마트 재수집용)
+     *
+     * 새 기간의 시작일 이전 데이터만 삭제하여:
+     * - 기존 기간 내 데이터는 유지
+     * - initializeData() 호출 시 빈 날짜만 수집
+     *
+     * @param days 유지할 기간 (일)
+     * @return 삭제된 Holdings 날짜 수
+     */
+    suspend fun trimDataToPeriod(days: Int): Int = withContext(Dispatchers.IO) {
+        val startDate = LocalDate.now().minusDays(days.toLong())
+        val startDateStr = startDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+
+        logger.d("trimDataToPeriod: Keeping data from $startDateStr (last $days days)")
+
+        // 삭제 대상 날짜 수 확인
+        val allDates = dao.getAllDistinctDates(500)
+        val datesToDelete = allDates.filter { it < startDateStr }
+        val deletedCount = datesToDelete.size
+
+        if (deletedCount > 0) {
+            // 시작일 이전 데이터만 삭제
+            dao.deleteHoldingsBeforeDate(startDateStr)
+            dailyEtfStatisticsDao.deleteBeforeDate(startDateStr)
+            logger.d("trimDataToPeriod: Deleted data before $startDateStr ($deletedCount dates)")
+        } else {
+            logger.d("trimDataToPeriod: No data to delete")
+        }
+
+        deletedCount
     }
 
     private suspend fun initializeDefaultSettings() = withContext(Dispatchers.IO) {

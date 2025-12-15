@@ -24,7 +24,7 @@ import com.etfmonitor.R
 @Composable
 fun DefaultDaysCard(
     currentDays: Int,
-    onDaysChange: (Int) -> Unit
+    onDaysChange: (Int, Boolean) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
 
@@ -98,8 +98,8 @@ fun DefaultDaysCard(
         DaysSelectionDialog(
             currentDays = currentDays,
             onDismiss = { showDialog = false },
-            onConfirm = { days ->
-                onDaysChange(days)
+            onConfirm = { days, reinitialize ->
+                onDaysChange(days, reinitialize)
                 showDialog = false
             }
         )
@@ -263,7 +263,7 @@ fun DatabaseCard(
 fun DaysSelectionDialog(
     currentDays: Int,
     onDismiss: () -> Unit,
-    onConfirm: (Int) -> Unit
+    onConfirm: (Int, Boolean) -> Unit
 ) {
     val options = listOf(
         DaysOption(5, stringResource(R.string.option_days_5), stringResource(R.string.option_days_5_desc)),
@@ -277,6 +277,7 @@ fun DaysSelectionDialog(
     )
 
     var selectedDays by remember { mutableIntStateOf(currentDays) }
+    var reinitialize by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -311,10 +312,35 @@ fun DaysSelectionDialog(
                         }
                     }
                 }
+
+                // 즉시 적용 옵션
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = reinitialize,
+                        onCheckedChange = { reinitialize = it }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            "지금 데이터 재수집",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            "선택한 기간으로 ETF 데이터를 즉시 재수집합니다 (시간 소요)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(selectedDays) }) {
+            Button(onClick = { onConfirm(selectedDays, reinitialize) }) {
                 Text(stringResource(R.string.action_confirm))
             }
         },

@@ -367,7 +367,7 @@ private fun DataPeriodTab(
         item {
             DefaultDaysCard(
                 currentDays = defaultDays,
-                onDaysChange = { viewModel.setDefaultDays(it) }
+                onDaysChange = { days, reinitialize -> viewModel.setDefaultDays(days, reinitialize) }
             )
         }
 
@@ -375,7 +375,7 @@ private fun DataPeriodTab(
         item {
             FearGreedPeriodCard(
                 currentDays = fearGreedPeriodDays,
-                onDaysChange = { viewModel.setFearGreedPeriodDays(it) }
+                onDaysChange = { days, reinitialize -> viewModel.setFearGreedPeriodDays(days, reinitialize) }
             )
         }
 
@@ -383,7 +383,7 @@ private fun DataPeriodTab(
         item {
             MarketOscillatorPeriodCard(
                 currentDays = marketOscillatorPeriodDays,
-                onDaysChange = { viewModel.setMarketOscillatorPeriodDays(it) }
+                onDaysChange = { days, reinitialize -> viewModel.setMarketOscillatorPeriodDays(days, reinitialize) }
             )
         }
 
