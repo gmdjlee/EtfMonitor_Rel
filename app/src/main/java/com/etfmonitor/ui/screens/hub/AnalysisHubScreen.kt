@@ -607,7 +607,7 @@ private fun AdvancedDashboardHubContent(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "예탁금: ${String.format("%,.0f", liquidity.depositAmount / 100000000.0)}억 / 신용잔고: ${String.format("%,.0f", liquidity.creditBalance / 100000000.0)}억",
+                                text = "예탁금: ${String.format("%,.0f", liquidity.depositAmount)}억 / 신용잔고: ${String.format("%,.0f", liquidity.creditAmount)}억",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
                             )
