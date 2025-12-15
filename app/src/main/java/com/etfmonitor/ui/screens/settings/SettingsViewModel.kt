@@ -429,9 +429,13 @@ class SettingsViewModel @Inject constructor(
 
                 if (reinitialize) {
                     _etfUpdateSettings.value = _etfUpdateSettings.value.copy(isUpdating = true)
-                    _message.value = "기존 데이터 삭제 중..."
-                    repository.resetDatabase()
-                    _message.value = "ETF 데이터 재수집 중..."
+                    _message.value = "기간 외 데이터 정리 중..."
+                    val deletedCount = repository.trimDataToPeriod(days)
+                    if (deletedCount > 0) {
+                        _message.value = "기간 외 데이터 ${deletedCount}일치 삭제됨, 수집 중..."
+                    } else {
+                        _message.value = "ETF 데이터 수집 중..."
+                    }
                     repository.initializeData(days).collect { progress ->
                         when (progress) {
                             is com.etfmonitor.repository.DataProgress.Loading -> {
