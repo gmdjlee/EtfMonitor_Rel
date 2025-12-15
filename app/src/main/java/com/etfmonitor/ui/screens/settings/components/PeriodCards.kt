@@ -54,7 +54,7 @@ private fun daysToDisplayText(days: Int): String = when (days) {
 fun PeriodCard(
     config: PeriodCardConfig,
     currentDays: Int,
-    onDaysChange: (Int) -> Unit,
+    onDaysChange: (Int, Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showDialog by remember { mutableStateOf(false) }
@@ -134,8 +134,8 @@ fun PeriodCard(
             title = config.dialogTitle,
             currentDays = currentDays,
             onDismiss = { showDialog = false },
-            onConfirm = { days ->
-                onDaysChange(days)
+            onConfirm = { days, reinitialize ->
+                onDaysChange(days, reinitialize)
                 showDialog = false
             }
         )
@@ -148,7 +148,7 @@ fun PeriodCard(
 @Composable
 fun FearGreedPeriodCard(
     currentDays: Int,
-    onDaysChange: (Int) -> Unit
+    onDaysChange: (Int, Boolean) -> Unit
 ) {
     val config = PeriodCardConfig(
         title = stringResource(R.string.settings_feargreed_period),
@@ -171,7 +171,7 @@ fun FearGreedPeriodCard(
 @Composable
 fun MarketOscillatorPeriodCard(
     currentDays: Int,
-    onDaysChange: (Int) -> Unit
+    onDaysChange: (Int, Boolean) -> Unit
 ) {
     val config = PeriodCardConfig(
         title = stringResource(R.string.settings_oscillator_period),
@@ -196,7 +196,7 @@ fun PeriodSelectionDialog(
     title: String,
     currentDays: Int,
     onDismiss: () -> Unit,
-    onConfirm: (Int) -> Unit
+    onConfirm: (Int, Boolean) -> Unit
 ) {
     val periodOptions = listOf(
         PeriodOption(180, stringResource(R.string.option_months_6), stringResource(R.string.option_months_6_desc)),
@@ -206,6 +206,7 @@ fun PeriodSelectionDialog(
     )
 
     var selectedDays by remember { mutableIntStateOf(currentDays) }
+    var reinitialize by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -247,10 +248,35 @@ fun PeriodSelectionDialog(
                         }
                     }
                 }
+
+                // 즉시 적용 옵션
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = reinitialize,
+                        onCheckedChange = { reinitialize = it }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            "지금 데이터 재수집",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            "선택한 기간으로 데이터를 즉시 재수집합니다 (시간 소요)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(selectedDays) }) {
+            Button(onClick = { onConfirm(selectedDays, reinitialize) }) {
                 Text(stringResource(R.string.action_confirm))
             }
         },

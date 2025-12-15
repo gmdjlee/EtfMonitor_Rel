@@ -459,14 +459,75 @@ class SettingsViewModel @Inject constructor(
         _searchHistoryLimit.value = limit
     }
 
-    fun setFearGreedPeriodDays(days: Int) = saveSetting(formatPeriodMessage("Fear & Greed Index", days)) {
-        etfDao.saveSetting(Setting(Keys.FEAR_GREED_PERIOD, days.toString()))
-        _fearGreedPeriodDays.value = days
+    fun setFearGreedPeriodDays(days: Int, reinitialize: Boolean = false) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting(Keys.FEAR_GREED_PERIOD, days.toString()))
+                _fearGreedPeriodDays.value = days
+
+                if (reinitialize) {
+                    _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(isUpdating = true)
+                    _message.value = "Fear & Greed Index 데이터 재수집 중..."
+                    val result = withTimeoutOrNull(180_000L) {
+                        fearGreedRepository.initializeFearGreed(days)
+                    }
+                    when {
+                        result == null -> _message.value = "재수집 시간 초과 (3분)"
+                        result.isSuccess -> {
+                            loadDataInfo()
+                            _message.value = formatPeriodMessage("Fear & Greed Index", days) + " (${result.getOrNull() ?: 0}개 데이터 수집)"
+                        }
+                        else -> _message.value = "재수집 실패: ${result.exceptionOrNull()?.message}"
+                    }
+                    _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(isUpdating = false)
+                } else {
+                    _message.value = formatPeriodMessage("Fear & Greed Index", days) + " (다음 초기화 시 적용)"
+                }
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+                _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(isUpdating = false)
+            }
+        }
     }
 
-    fun setMarketOscillatorPeriodDays(days: Int) = saveSetting(formatPeriodMessage("과매수/과매도", days)) {
-        etfDao.saveSetting(Setting(Keys.OSCILLATOR_PERIOD, days.toString()))
-        _marketOscillatorPeriodDays.value = days
+    fun setMarketOscillatorPeriodDays(days: Int, reinitialize: Boolean = false) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting(Keys.OSCILLATOR_PERIOD, days.toString()))
+                _marketOscillatorPeriodDays.value = days
+
+                if (reinitialize) {
+                    _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(isUpdating = true)
+                    _message.value = "과매수/과매도 데이터 재수집 중..."
+                    val results = withTimeoutOrNull(300_000L) {
+                        val kospiResult = marketOscillatorRepository.initializeMarketData("KOSPI", days)
+                        val kosdaqResult = marketOscillatorRepository.initializeMarketData("KOSDAQ", days)
+                        Pair(kospiResult, kosdaqResult)
+                    }
+                    when {
+                        results == null -> _message.value = "재수집 시간 초과 (5분)"
+                        results.first.isSuccess && results.second.isSuccess -> {
+                            loadDataInfo()
+                            _message.value = formatPeriodMessage("과매수/과매도", days) +
+                                " (KOSPI ${results.first.getOrNull() ?: 0}개, KOSDAQ ${results.second.getOrNull() ?: 0}개)"
+                        }
+                        else -> {
+                            val errors = listOfNotNull(
+                                results.first.exceptionOrNull()?.let { "KOSPI: ${it.message}" },
+                                results.second.exceptionOrNull()?.let { "KOSDAQ: ${it.message}" }
+                            )
+                            _message.value = "재수집 실패: ${errors.joinToString(", ")}"
+                        }
+                    }
+                    _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(isUpdating = false)
+                } else {
+                    _message.value = formatPeriodMessage("과매수/과매도", days) + " (다음 초기화 시 적용)"
+                }
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+                _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(isUpdating = false)
+            }
+        }
     }
 
     private fun formatPeriodMessage(name: String, days: Int): String {
@@ -660,13 +721,24 @@ class SettingsViewModel @Inject constructor(
             _etfUpdateSettings.value = _etfUpdateSettings.value.copy(isUpdating = true)
             _message.value = "ETF 데이터 업데이트 중..."
             try {
-                // WorkManager를 통해 백그라운드에서 실행
-                WorkManagerHelper.runEtfUpdateNow(context)
-                _message.value = "ETF 업데이트가 백그라운드에서 시작되었습니다"
+                // Flow 기반 업데이트로 진행 상황 추적
+                repository.updateData().collect { progress ->
+                    when (progress) {
+                        is com.etfmonitor.repository.DataProgress.Loading -> {
+                            _message.value = progress.message
+                        }
+                        is com.etfmonitor.repository.DataProgress.Success -> {
+                            loadDataInfo()
+                            _message.value = progress.message
+                        }
+                        is com.etfmonitor.repository.DataProgress.Error -> {
+                            _message.value = progress.message
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 _message.value = "오류 발생: ${e.message}"
             } finally {
-                // 백그라운드 작업이므로 바로 isUpdating을 false로
                 _etfUpdateSettings.value = _etfUpdateSettings.value.copy(isUpdating = false)
             }
         }
