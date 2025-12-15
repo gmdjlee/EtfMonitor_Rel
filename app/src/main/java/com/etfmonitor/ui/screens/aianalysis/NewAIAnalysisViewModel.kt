@@ -182,6 +182,14 @@ class NewAIAnalysisViewModel @Inject constructor(
         }
     }
 
+    /**
+     * API 키 상태 새로고침 (설정 화면에서 돌아왔을 때 호출)
+     * 화면이 다시 포커스를 받을 때 API 키 상태를 최신으로 갱신합니다.
+     */
+    fun refreshApiKeyState() {
+        checkApiKey()
+    }
+
     private fun loadSelectedProvider() {
         _selectedProvider.value = apiKeyProvider.getSelectedProvider()
     }

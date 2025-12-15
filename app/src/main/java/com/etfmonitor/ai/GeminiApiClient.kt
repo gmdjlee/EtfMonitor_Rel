@@ -39,7 +39,7 @@ class GeminiApiClient @Inject constructor(
         private val logger = AppLogger.getLogger("GeminiApiClient")
         private const val API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val MODELS_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-        private const val MODEL = "gemini-2.0-flash-exp" // Default model - Gemini 2.0 Flash (experimental)
+        private const val MODEL = "gemini-1.5-flash" // Default model - stable with free tier
         private const val MAX_OUTPUT_TOKENS = 200000
         private const val TIMEOUT_SECONDS = 60L
     }
@@ -208,8 +208,16 @@ class GeminiApiClient @Inject constructor(
             apiKeyProvider.setSelectedModel(AIProvider.GEMINI, fixedModel)
         }
 
-        // 유효한 모델명 패턴 검증 (gemini-x.x-xxx 형식, -exp 접미사 허용)
-        val validPattern = "^gemini-[0-9]+(\\.[0-9]+)?-[a-z]+(-[a-z]+)?(-exp)?$".toRegex()
+        // experimental 모델은 무료 티어에서 사용 불가 - stable 버전으로 대체
+        if (fixedModel.endsWith("-exp")) {
+            logger.w("Experimental model '$fixedModel' may not have free tier quota, using stable: $MODEL")
+            fixedModel = MODEL
+            apiKeyProvider.setSelectedModel(AIProvider.GEMINI, MODEL)
+            return fixedModel
+        }
+
+        // 유효한 모델명 패턴 검증 (gemini-x.x-xxx 형식)
+        val validPattern = "^gemini-[0-9]+(\\.[0-9]+)?-[a-z]+(-[a-z]+)?$".toRegex()
         if (!validPattern.matches(fixedModel)) {
             logger.w("Invalid model name format: '$fixedModel', using default: $MODEL")
             fixedModel = MODEL

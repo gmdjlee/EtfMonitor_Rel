@@ -86,6 +86,11 @@ fun NewAIAnalysisScreen(
     var showStockIndicatorHistorySheet by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(AnalysisTab.CORRELATION) }
 
+    // 화면 진입 시 API 키 상태 새로고침 (설정에서 돌아왔을 때 반영)
+    LaunchedEffect(Unit) {
+        viewModel.refreshApiKeyState()
+    }
+
     // FAB 표시 조건: 종목-지표 탭에서 종목이 선택되고 분석 결과가 있을 때
     val showFab = quickChartAnalysisEnabled &&
             onNavigateToOscillator != null &&
