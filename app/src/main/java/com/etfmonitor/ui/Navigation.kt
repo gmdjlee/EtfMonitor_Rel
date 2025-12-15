@@ -97,11 +97,24 @@ private val mainNavRoutes = setOf(
     Screen.Analysis.route
 )
 
+// Additional routes that show bottom navigation (ETF sub-screens)
+private val etfSubRoutes = setOf(
+    "detail",              // ETF Detail
+    "aggregated_trend"     // Stock Trend from ETF Statistics
+)
+
 // Check if current route is a main nav route (handles routes with parameters)
 private fun isMainNavRoute(currentRoute: String?): Boolean {
     if (currentRoute == null) return false
-    return mainNavRoutes.any { route ->
+
+    // Check main navigation routes
+    if (mainNavRoutes.any { route ->
         currentRoute == route || currentRoute.startsWith(route.substringBefore("?"))
+    }) return true
+
+    // Check ETF sub-routes (keep bottom nav when navigating within ETF section)
+    return etfSubRoutes.any { prefix ->
+        currentRoute.startsWith(prefix)
     }
 }
 

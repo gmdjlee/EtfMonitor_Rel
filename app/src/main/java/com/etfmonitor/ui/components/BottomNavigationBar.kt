@@ -61,6 +61,8 @@ fun MainBottomNavigationBar(
     modifier: Modifier = Modifier
 ) {
     val items = MainNavItem.entries.toList()
+    // Strip query parameters for route comparison (e.g., "etf_hub?stockTicker={stockTicker}" -> "etf_hub")
+    val baseRoute = currentRoute.substringBefore("?")
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -80,14 +82,14 @@ fun MainBottomNavigationBar(
                 if (item == MainNavItem.HOME) {
                     // Center Home button (elevated)
                     CenterHomeButton(
-                        isSelected = currentRoute == item.route,
+                        isSelected = baseRoute == item.route,
                         onClick = { onNavigate(item) }
                     )
                 } else {
                     // Regular nav item
                     MainNavItemButton(
                         item = item,
-                        isSelected = currentRoute == item.route,
+                        isSelected = baseRoute == item.route,
                         onClick = { onNavigate(item) }
                     )
                 }
