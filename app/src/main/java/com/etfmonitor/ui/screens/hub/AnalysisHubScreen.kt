@@ -1,5 +1,6 @@
 package com.etfmonitor.ui.screens.hub
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -11,10 +12,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.etfmonitor.R
 import com.etfmonitor.ui.components.TabNavigationBar
 import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisViewModel
 import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisState
@@ -22,6 +27,12 @@ import com.etfmonitor.ui.screens.prediction.PredictionViewModel
 import com.etfmonitor.ui.screens.prediction.PredictionState
 import com.etfmonitor.ui.screens.advanced.AdvancedDashboardViewModel
 import com.etfmonitor.ui.screens.advanced.AdvancedDashboardState
+import com.etfmonitor.ui.screens.advanced.DashboardTab
+import com.etfmonitor.ui.screens.advanced.MarketCapFlowTab
+import com.etfmonitor.ui.screens.advanced.DivergenceTab
+import com.etfmonitor.ui.screens.advanced.LiquidityTab
+import com.etfmonitor.ui.screens.advanced.SectorFearGreedTab
+import com.etfmonitor.ui.screens.advanced.EtfCorrelationTab
 import kotlinx.coroutines.launch
 
 /**
@@ -462,119 +473,56 @@ private fun PredictionHubContent(
     }
 }
 
+// 고급 분석 세부 탭 정의
+private val ADVANCED_SUB_TABS = listOf("대시보드", "시총가중", "수급분석", "유동성", "섹터심리", "ETF상관")
+
 @Composable
 private fun AdvancedDashboardHubContent(
     viewModel: AdvancedDashboardViewModel,
     navController: NavHostController
 ) {
     val state by viewModel.state.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val subPagerState = rememberPagerState(pageCount = { ADVANCED_SUB_TABS.size })
+    val scope = rememberCoroutineScope()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        when (state) {
-            is AdvancedDashboardState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+    Column(modifier = Modifier.fillMaxSize()) {
+        // 세부 탭 네비게이션
+        ScrollableTabRow(
+            selectedTabIndex = subPagerState.currentPage,
+            modifier = Modifier.fillMaxWidth(),
+            edgePadding = 8.dp,
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.primary,
+            divider = {}
+        ) {
+            ADVANCED_SUB_TABS.forEachIndexed { index, title ->
+                Tab(
+                    selected = subPagerState.currentPage == index,
+                    onClick = { scope.launch { subPagerState.animateScrollToPage(index) } },
+                    text = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                )
             }
-            is AdvancedDashboardState.Success -> {
-                val data = (state as AdvancedDashboardState.Success).data
+        }
 
-                // Market Cap Flow Summary
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
+        // 컨텐츠
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (val currentState = state) {
+                is AdvancedDashboardState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "시가총액 흐름",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "대형주/중형주/소형주 자금 흐름 분석",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                        )
+                        CircularProgressIndicator()
                     }
                 }
-
-                // Divergence Analysis
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.secondaryContainer
-                ) {
+                is AdvancedDashboardState.Error -> {
                     Column(
-                        modifier = Modifier.padding(20.dp)
-                    ) {
-                        Text(
-                            text = "다이버전스 분석",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "가격과 수급 간의 괴리 감지",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
-                        )
-                    }
-                }
-
-                // Liquidity Analysis
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.tertiaryContainer
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
-                    ) {
-                        Text(
-                            text = "유동성 분석",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "시장 유동성 상태 모니터링",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
-                        )
-                    }
-                }
-            }
-            is AdvancedDashboardState.Error -> {
-                val error = state as AdvancedDashboardState.Error
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.errorContainer
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
                         Icon(
                             Icons.Default.Error,
@@ -582,13 +530,70 @@ private fun AdvancedDashboardHubContent(
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(48.dp)
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = error.message,
+                            text = currentState.message,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { viewModel.loadDashboard() }) {
+                            Icon(Icons.Default.Refresh, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("다시 시도")
+                        }
                     }
+                }
+                is AdvancedDashboardState.Success -> {
+                    // 히스토리 데이터 수집
+                    val marketCapFlowHistory by viewModel.marketCapFlowHistory.collectAsState()
+                    val liquidityHistory by viewModel.liquidityHistory.collectAsState()
+                    val sectorHistory by viewModel.sectorHistory.collectAsState()
+
+                    // 예측 정확도 데이터 수집
+                    val marketCapFlowAccuracy by viewModel.marketCapFlowAccuracy.collectAsState()
+                    val liquidityAccuracy by viewModel.liquidityAccuracy.collectAsState()
+
+                    // ETF 상관관계 계산 상태
+                    val isCalculatingCorrelation by viewModel.isCalculatingCorrelation.collectAsState()
+
+                    HorizontalPager(
+                        state = subPagerState,
+                        modifier = Modifier.fillMaxSize()
+                    ) { page ->
+                        when (page) {
+                            0 -> DashboardTab(currentState.data)
+                            1 -> MarketCapFlowTab(
+                                data = currentState.data,
+                                history = marketCapFlowHistory,
+                                accuracy = marketCapFlowAccuracy
+                            )
+                            2 -> DivergenceTab(currentState.data)
+                            3 -> LiquidityTab(
+                                data = currentState.data,
+                                history = liquidityHistory,
+                                accuracy = liquidityAccuracy
+                            )
+                            4 -> SectorFearGreedTab(currentState.data, sectorHistory)
+                            5 -> EtfCorrelationTab(
+                                data = currentState.data,
+                                isCalculating = isCalculatingCorrelation,
+                                onCalculate = { viewModel.calculateEtfCorrelation() }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 로딩 오버레이
+            if (isRefreshing) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.3f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
         }

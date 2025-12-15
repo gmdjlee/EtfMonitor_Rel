@@ -48,7 +48,7 @@ fun DetailScreen(
                         if (state is DetailState.Success) {
                             val comparison = (state as DetailState.Success).comparison
                             Text(
-                                "$etfTicker | ${comparison.previousDate} → ${comparison.currentDate}",
+                                "$etfTicker | 수집기간: ${comparison.collectionStartDate} ~ ${comparison.collectionEndDate}",
                                 style = MaterialTheme.typography.labelSmall
                             )
                         } else {
