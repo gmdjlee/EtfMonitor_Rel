@@ -20,9 +20,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * 향상된 ML 예측 Repository
+ * ML 예측 Repository
  * 28개 Feature와 앙상블 모델을 사용한 예측 관리
- * 기존 StockPredictionRepository와 병행 운영 (하위 호환)
  */
 @Singleton
 class EnhancedPredictionRepository @Inject constructor(
@@ -49,13 +48,6 @@ class EnhancedPredictionRepository @Inject constructor(
      */
     fun getPredictionsByDate(date: String): Flow<List<EnhancedPrediction>> {
         return enhancedPredictionDao.getPredictionsByDate(date)
-    }
-
-    /**
-     * 최신 향상된 예측 결과 조회 (suspend)
-     */
-    suspend fun getLatestPredictionsSuspend(): List<EnhancedPrediction> = withContext(Dispatchers.IO) {
-        enhancedPredictionDao.getLatestPredictionsSuspend()
     }
 
     /**

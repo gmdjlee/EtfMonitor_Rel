@@ -180,15 +180,8 @@ object DatabaseModule {
         return database.aiChatDao()
     }
 
-    /**
-     * Stock Prediction DAO 제공
-     * ML 모델 기반 주가 예측 결과를 관리하는 DAO
-     */
-    @Provides
-    @Singleton
-    fun provideStockPredictionDao(database: AppDatabase): StockPredictionDao {
-        return database.stockPredictionDao()
-    }
+    // StockPredictionDao: v1 예측 시스템용 (EnhancedPredictionDao로 대체됨)
+    // 테이블은 유지하지만 DI에서 제공하지 않음 - 직접 주입 필요 없음
 
     /**
      * Sector Analysis DAO 제공

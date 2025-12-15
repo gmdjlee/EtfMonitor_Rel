@@ -182,6 +182,14 @@ class NewAIAnalysisViewModel @Inject constructor(
         }
     }
 
+    /**
+     * API 키 상태 새로고침 (설정 화면에서 돌아왔을 때 호출)
+     * 화면이 다시 포커스를 받을 때 API 키 상태를 최신으로 갱신합니다.
+     */
+    fun refreshApiKeyState() {
+        checkApiKey()
+    }
+
     private fun loadSelectedProvider() {
         _selectedProvider.value = apiKeyProvider.getSelectedProvider()
     }
@@ -203,6 +211,19 @@ class NewAIAnalysisViewModel @Inject constructor(
     }
 
     // ========== 상관관계 분석 ==========
+
+    /**
+     * 캐시 초기화 및 분석 결과 새로고침
+     * 데이터 수집 기간을 늘린 후 재분석할 때 사용
+     */
+    fun clearCacheAndRefresh() {
+        viewModelScope.launch {
+            // 이전 분석 결과 초기화
+            _analysisResult.value = null
+            _stockIndicatorCorrelationResult.value = null
+            _state.value = NewAIAnalysisState.Idle
+        }
+    }
 
     /**
      * 상관관계 분석 실행 (로컬 계산만)

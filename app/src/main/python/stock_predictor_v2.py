@@ -318,7 +318,30 @@ def train_enhanced_model(
                 "sample_count": len(X)
             })
 
-        log.info("Training with %d samples, %d features", len(X), X.shape[1])
+        # Check class balance - need at least 2 classes for classification
+        unique_classes, class_counts = np.unique(y, return_counts=True)
+        if len(unique_classes) < 2:
+            class_info = "상승" if unique_classes[0] == 1 else "하락/횡보"
+            return to_json({
+                "success": False,
+                "error": f"클래스 불균형: 모든 샘플이 '{class_info}' 클래스입니다. 가격 임계값({threshold}%)을 조정하거나 데이터 기간을 늘려보세요.",
+                "sample_count": len(X),
+                "class_distribution": {str(c): int(cnt) for c, cnt in zip(unique_classes, class_counts)}
+            })
+
+        # Check minimum samples per class for reliable training
+        min_class_count = int(min(class_counts))
+        if min_class_count < 5:
+            minor_class = "상승" if class_counts[0] < class_counts[1] else "하락/횡보"
+            return to_json({
+                "success": False,
+                "error": f"'{minor_class}' 클래스 샘플 부족: {min_class_count}개 (최소 5개 필요). 가격 임계값({threshold}%)을 조정하거나 데이터 기간을 늘려보세요.",
+                "sample_count": len(X),
+                "class_distribution": {str(c): int(cnt) for c, cnt in zip(unique_classes, class_counts)}
+            })
+
+        log.info("Training with %d samples, %d features, class dist: %s",
+                 len(X), X.shape[1], dict(zip(unique_classes.astype(int), class_counts.astype(int))))
 
         # Apply SMOTE if requested
         if use_smote:

@@ -2,10 +2,10 @@ package com.etfmonitor.ui.screens.prediction
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.database.entities.StockPrediction
-import com.etfmonitor.database.entities.TrainingResult
-import com.etfmonitor.python.PredictionResponse
-import com.etfmonitor.repository.StockPredictionRepository
+import com.etfmonitor.database.entities.EnhancedPrediction
+import com.etfmonitor.database.entities.EnhancedPredictionConfig
+import com.etfmonitor.database.entities.EnhancedTrainingResult
+import com.etfmonitor.repository.EnhancedPredictionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +18,7 @@ import javax.inject.Inject
 
 /**
  * ML 기반 주가 상승 예측 화면 ViewModel
+ * Enhanced 28-feature 앙상블 모델 사용
  *
  * 기능:
  * 1. 예측 실행 (학습 + 예측)
@@ -26,7 +27,7 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class PredictionViewModel @Inject constructor(
-    private val predictionRepository: StockPredictionRepository
+    private val predictionRepository: EnhancedPredictionRepository
 ) : ViewModel() {
 
     companion object {
@@ -40,12 +41,12 @@ class PredictionViewModel @Inject constructor(
     val state: StateFlow<PredictionState> = _state.asStateFlow()
 
     // 예측 결과 리스트
-    private val _predictions = MutableStateFlow<List<StockPrediction>>(emptyList())
-    val predictions: StateFlow<List<StockPrediction>> = _predictions.asStateFlow()
+    private val _predictions = MutableStateFlow<List<EnhancedPrediction>>(emptyList())
+    val predictions: StateFlow<List<EnhancedPrediction>> = _predictions.asStateFlow()
 
     // 학습 결과
-    private val _trainingResult = MutableStateFlow<TrainingResult?>(null)
-    val trainingResult: StateFlow<TrainingResult?> = _trainingResult.asStateFlow()
+    private val _trainingResult = MutableStateFlow<EnhancedTrainingResult?>(null)
+    val trainingResult: StateFlow<EnhancedTrainingResult?> = _trainingResult.asStateFlow()
 
     // 예측 파라미터
     private val _daysAfter = MutableStateFlow(DEFAULT_DAYS_AFTER)
@@ -57,9 +58,13 @@ class PredictionViewModel @Inject constructor(
     private val _minConfidence = MutableStateFlow(DEFAULT_MIN_CONFIDENCE)
     val minConfidence: StateFlow<Double> = _minConfidence.asStateFlow()
 
-    // 모델 타입 (random_forest, gradient_boosting)
-    private val _modelType = MutableStateFlow("random_forest")
+    // 모델 타입 (voting, xgboost, lightgbm, random_forest, gradient_boosting)
+    private val _modelType = MutableStateFlow("voting")
     val modelType: StateFlow<String> = _modelType.asStateFlow()
+
+    // CV 사용 여부
+    private val _useCrossValidation = MutableStateFlow(true)
+    val useCrossValidation: StateFlow<Boolean> = _useCrossValidation.asStateFlow()
 
     init {
         loadLatestPredictions()
@@ -92,14 +97,18 @@ class PredictionViewModel @Inject constructor(
      */
     fun runPrediction() {
         viewModelScope.launch {
-            _state.value = PredictionState.Loading("ML 모델 학습 중...")
+            _state.value = PredictionState.Loading("ML 모델 학습 중... (28개 Feature)")
 
             try {
-                val response = predictionRepository.runPrediction(
+                val config = EnhancedPredictionConfig(
                     daysAfter = _daysAfter.value,
                     priceThreshold = _priceThreshold.value,
-                    minConfidence = _minConfidence.value
+                    minConfidence = _minConfidence.value,
+                    modelType = _modelType.value,
+                    useCrossValidation = _useCrossValidation.value
                 )
+
+                val response = predictionRepository.runEnhancedPrediction(config)
 
                 if (response.success) {
                     _predictions.value = response.predictions
@@ -109,7 +118,8 @@ class PredictionViewModel @Inject constructor(
                         _state.value = PredictionState.Success(
                             message = "예측 완료: ${response.predictions.size}개 종목 발견",
                             predictedCount = response.predictions.size,
-                            accuracy = response.trainingResult?.accuracy
+                            accuracy = response.trainingResult?.cvAccuracy,
+                            f1Score = response.trainingResult?.cvF1
                         )
                     } else {
                         _state.value = PredictionState.NoPredictions
@@ -148,9 +158,16 @@ class PredictionViewModel @Inject constructor(
      * 모델 타입 설정
      */
     fun setModelType(type: String) {
-        if (type in listOf("random_forest", "gradient_boosting")) {
+        if (type in listOf("voting", "xgboost", "lightgbm", "random_forest", "gradient_boosting")) {
             _modelType.value = type
         }
+    }
+
+    /**
+     * CV 사용 여부 설정
+     */
+    fun setUseCrossValidation(use: Boolean) {
+        _useCrossValidation.value = use
     }
 
     /**
@@ -192,7 +209,8 @@ sealed class PredictionState {
     data class Success(
         val message: String,
         val predictedCount: Int,
-        val accuracy: Double?
+        val accuracy: Double?,
+        val f1Score: Double? = null
     ) : PredictionState()
 
     /** 오류 */

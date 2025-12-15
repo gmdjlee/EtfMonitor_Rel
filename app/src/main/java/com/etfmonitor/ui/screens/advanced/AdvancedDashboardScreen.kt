@@ -75,8 +75,13 @@ fun AdvancedDashboardScreen(
                     }
                 },
                 actions = {
+                    // 일반 새로고침
                     IconButton(onClick = { viewModel.refresh() }) {
                         Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.nav_refresh))
+                    }
+                    // 강제 재계산 (캐시 무시)
+                    IconButton(onClick = { viewModel.forceRefresh() }) {
+                        Icon(Icons.Default.Autorenew, contentDescription = "재계산")
                     }
                 }
             )
