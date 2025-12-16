@@ -407,12 +407,12 @@
     <string name="settings_deposit_update">증시 자금 DB 자동 업데이트</string>
     <string name="settings_deposit_update_desc">매일 지정된 시간에 증시 자금 데이터를 자동으로 업데이트합니다</string>
     <string name="settings_deposit_count">저장된 데이터 수:</string>
-    <string name="settings_feargreed_update">공포 탐욕 지수 DB 자동 업데이트</string>
-    <string name="settings_feargreed_update_desc">매일 지정된 시간에 공포 탐욕 지수 데이터를 자동으로 업데이트합니다</string>
+    <string name="settings_feargreed_update">공포탐욕지수 DB 자동 업데이트</string>
+    <string name="settings_feargreed_update_desc">매일 지정된 시간에 공포탐욕지수 데이터를 자동으로 업데이트합니다</string>
     <string name="settings_kospi_count">KOSPI 데이터 수:</string>
     <string name="settings_kosdaq_count">KOSDAQ 데이터 수:</string>
-    <string name="settings_oscillator_update">시장 오실레이터 DB 자동 업데이트</string>
-    <string name="settings_oscillator_update_desc">매일 지정된 시간에 시장 오실레이터 데이터를 자동으로 업데이트합니다</string>
+    <string name="settings_oscillator_update">과매수/과매도 DB 자동 업데이트</string>
+    <string name="settings_oscillator_update_desc">매일 지정된 시간에 과매수/과매도 데이터를 자동으로 업데이트합니다</string>
     <string name="settings_clear_cache">캐시 삭제</string>
     <string name="settings_reset_data">데이터 초기화</string>
     <string name="settings_about">정보</string>

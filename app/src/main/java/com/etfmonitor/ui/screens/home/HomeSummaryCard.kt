@@ -162,18 +162,15 @@ internal fun getFearGreedColor(value: Double): Color {
 
 @Composable
 internal fun getStatusText(status: String): String {
-    return when (status) {
-        "Overbought" -> stringResource(R.string.status_overbought)
-        "Oversold" -> stringResource(R.string.status_oversold)
-        else -> stringResource(R.string.status_neutral)
-    }
+    // 이미 한국어로 제공되므로 그대로 반환
+    return status
 }
 
 @Composable
 internal fun getStatusColor(status: String): Color {
     return when (status) {
-        "Overbought" -> MaterialTheme.colorScheme.error
-        "Oversold" -> MaterialTheme.colorScheme.primary
+        "과매수" -> MaterialTheme.colorScheme.error
+        "과매도" -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.onSurface
     }
 }

@@ -347,9 +347,9 @@ class HomeViewModel @Inject constructor(
 
     private fun calculateOscillatorStatus(oscillatorValue: Double): String {
         return when {
-            oscillatorValue >= OSCILLATOR_OVERBOUGHT_THRESHOLD -> "Overbought"
-            oscillatorValue <= OSCILLATOR_OVERSOLD_THRESHOLD -> "Oversold"
-            else -> "Neutral"
+            oscillatorValue >= OSCILLATOR_OVERBOUGHT_THRESHOLD -> "과매수"
+            oscillatorValue <= OSCILLATOR_OVERSOLD_THRESHOLD -> "과매도"
+            else -> "중립"
         }
     }
 
@@ -441,7 +441,7 @@ data class HomeSummary(
 
     // 시장 과매수/과매도
     val kospiOscillator: Double?,    // KOSPI 오실레이터 값
-    val kospiStatus: String?,        // KOSPI 상태 (Overbought/Neutral/Oversold)
+    val kospiStatus: String?,        // KOSPI 상태 (과매수/중립/과매도)
     val kosdaqOscillator: Double?,   // KOSDAQ 오실레이터 값
     val kosdaqStatus: String?        // KOSDAQ 상태
 )
