@@ -81,7 +81,7 @@ fun AdvancedDashboardScreen(
                     }
                     // 강제 재계산 (캐시 무시)
                     IconButton(onClick = { viewModel.forceRefresh() }) {
-                        Icon(Icons.Default.Autorenew, contentDescription = "재계산")
+                        Icon(Icons.Default.Sync, contentDescription = "재계산")
                     }
                 }
             )
