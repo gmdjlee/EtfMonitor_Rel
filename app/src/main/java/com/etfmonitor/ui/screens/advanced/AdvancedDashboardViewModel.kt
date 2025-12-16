@@ -482,8 +482,18 @@ class AdvancedDashboardViewModel @Inject constructor(
                 // 섹터 로테이션
                 val rotationSignals = advancedRepository.detectSectorRotation(currentDate, previousDate)
 
-                // ETF 상관관계
-                val highOverlap = advancedRepository.getHighOverlapEtfPairs(currentDate)
+                // ETF 상관관계 - 캐시가 비어있으면 자동 계산
+                var highOverlap = advancedRepository.getHighOverlapEtfPairs(currentDate)
+                if (highOverlap.isEmpty()) {
+                    logger.d("ETF correlation cache empty, calculating...")
+                    _isCalculatingCorrelation.value = true
+                    try {
+                        highOverlap = advancedRepository.calculateAllEtfCorrelations(currentDate)
+                        logger.d("ETF correlation auto-calculated: ${highOverlap.size} pairs")
+                    } finally {
+                        _isCalculatingCorrelation.value = false
+                    }
+                }
 
                 // 종합 신호 계산
                 val overallSignal = calculateOverallSignal(marketCapFlow, divergenceSummary, liquidityAnalysis, sectorAnalyses)
@@ -620,6 +630,15 @@ class AdvancedDashboardViewModel @Inject constructor(
                 val sectorAnalyses = advancedRepository.calculateAndSaveSectorAnalysis(currentDate, previousDate)
                 _sectorAnalyses.value = sectorAnalyses
                 logger.d("Sector analysis recalculated: ${sectorAnalyses.size} sectors")
+
+                // ETF 상관관계 재계산
+                _isCalculatingCorrelation.value = true
+                try {
+                    val correlations = advancedRepository.calculateAllEtfCorrelations(currentDate)
+                    logger.d("ETF correlations recalculated: ${correlations.size} pairs")
+                } finally {
+                    _isCalculatingCorrelation.value = false
+                }
 
                 // 히스토리 데이터 새로고침
                 loadHistoryData()

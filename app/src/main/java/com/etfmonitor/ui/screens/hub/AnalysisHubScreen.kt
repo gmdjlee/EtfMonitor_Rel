@@ -487,20 +487,41 @@ private fun AdvancedDashboardHubContent(
     val scope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // 세부 탭 네비게이션
-        ScrollableTabRow(
-            selectedTabIndex = subPagerState.currentPage,
+        // 헤더: 탭과 새로고침 버튼
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            edgePadding = 8.dp,
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.primary,
-            divider = {}
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            ADVANCED_SUB_TABS.forEachIndexed { index, title ->
-                Tab(
-                    selected = subPagerState.currentPage == index,
-                    onClick = { scope.launch { subPagerState.animateScrollToPage(index) } },
-                    text = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            // 세부 탭 네비게이션
+            ScrollableTabRow(
+                selectedTabIndex = subPagerState.currentPage,
+                modifier = Modifier.weight(1f),
+                edgePadding = 8.dp,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary,
+                divider = {}
+            ) {
+                ADVANCED_SUB_TABS.forEachIndexed { index, title ->
+                    Tab(
+                        selected = subPagerState.currentPage == index,
+                        onClick = { scope.launch { subPagerState.animateScrollToPage(index) } },
+                        text = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    )
+                }
+            }
+
+            // 새로 고침 버튼
+            IconButton(
+                onClick = { viewModel.forceRefresh() },
+                enabled = !isRefreshing
+            ) {
+                Icon(
+                    Icons.Default.Refresh,
+                    contentDescription = "새로고침",
+                    tint = if (isRefreshing)
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    else
+                        MaterialTheme.colorScheme.primary
                 )
             }
         }
