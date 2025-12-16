@@ -145,6 +145,7 @@ class NewAIAnalysisViewModel @Inject constructor(
 
     /**
      * 최신 분석 결과 로드
+     * 결과가 없으면 자동으로 로컬 분석 실행
      */
     private fun loadLatestResults() {
         viewModelScope.launch {
@@ -171,6 +172,9 @@ class NewAIAnalysisViewModel @Inject constructor(
                 } else {
                     NewAIAnalysisState.CorrelationComplete(latestCorrelation)
                 }
+            } else {
+                // 결과가 없으면 자동으로 로컬 상관관계 분석 실행
+                runCorrelationAnalysis()
             }
         }
     }
