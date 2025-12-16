@@ -134,7 +134,7 @@ private fun AIAnalysisHubContent(
                 CircularProgressIndicator()
             }
         } else if (!isApiKeyConfigured) {
-            // API key required
+            // API key not configured - show local analysis option
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
@@ -152,7 +152,7 @@ private fun AIAnalysisHubContent(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "API 키 설정 필요",
+                        text = "API 키 미설정",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold
                         ),
@@ -160,11 +160,46 @@ private fun AIAnalysisHubContent(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "AI 분석을 사용하려면 설정에서 Claude 또는 Gemini API 키를 설정해주세요.",
+                        text = "AI 해석을 사용하려면 설정에서 API 키를 설정하세요. 로컬 분석은 바로 실행 가능합니다.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
                     )
                 }
+            }
+
+            // Show analysis result if available
+            analysisResult?.correlationResult?.let { correlation ->
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            text = "로컬 상관관계 분석 결과",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "ETF 흐름-시장 상관계수: ${String.format("%.3f", correlation.flowMarketCorrelation)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
+
+            // Local analysis button
+            Button(
+                onClick = { viewModel.runCorrelationAnalysis() },
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                enabled = !isLoading
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("로컬 분석 실행")
             }
         } else {
             // Show latest analysis or prompt to analyze
@@ -399,6 +434,17 @@ private fun PredictionHubContent(
                         }
                     }
                 }
+
+                // Re-run prediction button
+                OutlinedButton(
+                    onClick = { viewModel.runPrediction() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("예측 재실행")
+                }
             }
             is PredictionState.NoPredictions, is PredictionState.Initial -> {
                 Surface(
@@ -467,6 +513,17 @@ private fun PredictionHubContent(
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
+                }
+
+                // Retry button
+                Button(
+                    onClick = { viewModel.runPrediction() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("다시 시도")
                 }
             }
         }
