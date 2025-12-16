@@ -4,6 +4,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material3.*
@@ -179,6 +180,29 @@ fun MarketOscillatorPeriodCard(
         description = stringResource(R.string.settings_oscillator_period_desc),
         dialogTitle = stringResource(R.string.settings_oscillator_period_title),
         recommendationText = stringResource(R.string.settings_oscillator_period_recommend)
+    )
+
+    PeriodCard(
+        config = config,
+        currentDays = currentDays,
+        onDaysChange = onDaysChange
+    )
+}
+
+/**
+ * 시장 지수 수집 기간 카드
+ */
+@Composable
+fun MarketIndexPeriodCard(
+    currentDays: Int,
+    onDaysChange: (Int, Boolean) -> Unit
+) {
+    val config = PeriodCardConfig(
+        title = stringResource(R.string.settings_market_index_period),
+        icon = Icons.Default.Analytics,
+        description = stringResource(R.string.settings_market_index_period_desc),
+        dialogTitle = stringResource(R.string.settings_market_index_period_title),
+        recommendationText = stringResource(R.string.settings_market_index_period_recommend)
     )
 
     PeriodCard(

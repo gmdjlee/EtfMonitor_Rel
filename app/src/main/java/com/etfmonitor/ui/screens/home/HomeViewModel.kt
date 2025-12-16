@@ -382,7 +382,8 @@ class HomeViewModel @Inject constructor(
         etfDays: Int,
         depositPages: Int?,
         fearGreedDays: Int?,
-        oscillatorDays: Int?
+        oscillatorDays: Int?,
+        marketIndexDays: Int?
     ) {
         viewModelScope.launch {
             // 모든 다이얼로그 설정 플래그 저장 (다시 보이지 않도록)
@@ -390,6 +391,7 @@ class HomeViewModel @Inject constructor(
             etfDao.saveSetting(com.etfmonitor.database.entities.Setting("market_deposit_dialog_dismissed", "true"))
             etfDao.saveSetting(com.etfmonitor.database.entities.Setting("fear_greed_dialog_dismissed", "true"))
             etfDao.saveSetting(com.etfmonitor.database.entities.Setting("market_oscillator_dialog_dismissed", "true"))
+            etfDao.saveSetting(com.etfmonitor.database.entities.Setting("market_index_dialog_dismissed", "true"))
 
             _showUnifiedInitDialog.value = false
 
@@ -401,7 +403,8 @@ class HomeViewModel @Inject constructor(
                 etfDays = etfDays,
                 depositPages = depositPages,
                 fearGreedDays = fearGreedDays,
-                oscillatorDays = oscillatorDays
+                oscillatorDays = oscillatorDays,
+                marketIndexDays = marketIndexDays
             )
         }
     }

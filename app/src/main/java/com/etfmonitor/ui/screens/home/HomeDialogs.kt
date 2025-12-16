@@ -319,6 +319,27 @@ internal fun MarketOscillatorPeriodSelectionDialog(
     )
 }
 
+@Composable
+internal fun MarketIndexPeriodSelectionDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    OptionsSelectionDialog(
+        title = stringResource(R.string.dialog_market_index_init),
+        description = stringResource(R.string.dialog_market_index_desc),
+        options = listOf(
+            SelectionOption(30, stringResource(R.string.option_days_30), stringResource(R.string.option_days_30_desc)),
+            SelectionOption(60, "60일", "약 3개월"),
+            SelectionOption(90, "90일", "약 4.5개월"),
+            SelectionOption(180, stringResource(R.string.option_months_6), stringResource(R.string.option_months_6_desc))
+        ),
+        defaultValue = 30,
+        infoText = stringResource(R.string.dialog_market_index_time_estimate),
+        onDismiss = onDismiss,
+        onConfirm = onConfirm
+    )
+}
+
 /**
  * 통합 초기화 다이얼로그
  * 앱 첫 실행 시 모든 데이터 수집 옵션을 한 번에 선택
@@ -326,7 +347,7 @@ internal fun MarketOscillatorPeriodSelectionDialog(
 @Composable
 internal fun UnifiedInitializationDialog(
     onDismiss: () -> Unit,
-    onConfirm: (etfDays: Int, depositPages: Int?, fearGreedDays: Int?, oscillatorDays: Int?) -> Unit
+    onConfirm: (etfDays: Int, depositPages: Int?, fearGreedDays: Int?, oscillatorDays: Int?, marketIndexDays: Int?) -> Unit
 ) {
     // ETF 수집 기간
     val etfOptions = listOf(
@@ -349,6 +370,10 @@ internal fun UnifiedInitializationDialog(
     // 과매수/과매도 수집 여부
     var collectOscillator by remember { mutableStateOf(true) }
     var selectedOscillatorDays by remember { mutableStateOf(365) }
+
+    // 시장 지수 수집 여부
+    var collectMarketIndex by remember { mutableStateOf(true) }
+    var selectedMarketIndexDays by remember { mutableStateOf(30) }
 
     val scrollState = rememberScrollState()
 
@@ -454,6 +479,20 @@ internal fun UnifiedInitializationDialog(
                     onValueChange = { selectedOscillatorDays = it }
                 )
 
+                // 5. 시장 지수 (선택)
+                UnifiedOptionSection(
+                    title = stringResource(R.string.menu_market_index),
+                    enabled = collectMarketIndex,
+                    onEnabledChange = { collectMarketIndex = it },
+                    options = listOf(
+                        "30일" to 30,
+                        "60일" to 60,
+                        "90일" to 90
+                    ),
+                    selectedValue = selectedMarketIndexDays,
+                    onValueChange = { selectedMarketIndexDays = it }
+                )
+
                 // 안내 문구
                 Surface(
                     color = MaterialTheme.colorScheme.secondaryContainer,
@@ -475,7 +514,8 @@ internal fun UnifiedInitializationDialog(
                         selectedEtfDays,
                         if (collectDeposit) selectedDepositPages else null,
                         if (collectFearGreed) selectedFearGreedDays else null,
-                        if (collectOscillator) selectedOscillatorDays else null
+                        if (collectOscillator) selectedOscillatorDays else null,
+                        if (collectMarketIndex) selectedMarketIndexDays else null
                     )
                 },
                 shape = MaterialTheme.extendedShapes.button

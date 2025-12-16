@@ -384,6 +384,10 @@
     <string name="settings_oscillator_period_desc">과매수/과매도 데이터 초기화 시 수집할 기간</string>
     <string name="settings_oscillator_period_title">과매수/과매도 수집 기간 설정</string>
     <string name="settings_oscillator_period_recommend">권장: 12개월 (약 365일, 약 1-2분 소요)</string>
+    <string name="settings_market_index_period">시장 지수 수집 기간</string>
+    <string name="settings_market_index_period_desc">시장 지수(KOSPI/KOSDAQ) 데이터 초기화 시 수집할 기간</string>
+    <string name="settings_market_index_period_title">시장 지수 수집 기간 설정</string>
+    <string name="settings_market_index_period_recommend">권장: 30일 (상관관계 분석용, 약 30초 소요)</string>
     <string name="settings_period_select">데이터 수집 기간을 선택하세요</string>
 
     <!-- Settings - Update Cards -->
@@ -413,6 +417,8 @@
     <string name="settings_kosdaq_count">KOSDAQ 데이터 수:</string>
     <string name="settings_oscillator_update">과매수/과매도 DB 자동 업데이트</string>
     <string name="settings_oscillator_update_desc">매일 지정된 시간에 과매수/과매도 데이터를 자동으로 업데이트합니다</string>
+    <string name="settings_market_index_update">시장 지수 DB 자동 업데이트</string>
+    <string name="settings_market_index_update_desc">매일 지정된 시간에 시장 지수(KOSPI/KOSDAQ) 데이터를 자동으로 업데이트합니다</string>
     <string name="settings_clear_cache">캐시 삭제</string>
     <string name="settings_reset_data">데이터 초기화</string>
     <string name="settings_about">정보</string>
@@ -546,10 +552,15 @@
     <string name="dialog_fear_greed_desc">Fear &amp; Greed Index 데이터 수집 기간을 선택하세요.</string>
     <string name="dialog_oscillator_init">과매수/과매도 지표 초기화</string>
     <string name="dialog_oscillator_desc">과매수/과매도 지표 데이터 수집 기간을 선택하세요.</string>
+    <string name="dialog_market_index_init">시장 지수 초기화</string>
+    <string name="dialog_market_index_desc">시장 지수(KOSPI/KOSDAQ) 데이터 수집 기간을 선택하세요.</string>
+    <string name="dialog_market_index_time_estimate">데이터 수집에는 약 30초 정도 소요됩니다.</string>
+    <string name="menu_market_index">시장 지수</string>
+    <string name="menu_market_index_desc">KOSPI/KOSDAQ 지수 데이터</string>
     <string name="dialog_fear_greed_auto_collect">ETF 데이터 초기화 완료 후\nFear &amp; Greed Index 데이터 1년(365일)을\n자동으로 수집합니다.</string>
     <string name="dialog_notes">참고사항</string>
     <string name="dialog_collection_notes">• 기간이 길수록 수집 시간이 오래 걸립니다\n• 25일 권장 (약 1-2분 소요)\n• Fear &amp; Greed Index는 추가 1-2분 소요\n• 최초 실행 시 Python 패키지 로딩에 추가 시간이 필요할 수 있습니다</string>
-    <string name="dialog_unified_time_estimate">• ETF 데이터: 약 1-2분\n• 증시 자금 동향: 약 30초\n• Fear &amp; Greed: 약 1-2분\n• 과매수/과매도: 약 3-5분</string>
+    <string name="dialog_unified_time_estimate">• ETF 데이터: 약 1-2분\n• 증시 자금 동향: 약 30초\n• Fear &amp; Greed: 약 1-2분\n• 과매수/과매도: 약 3-5분\n• 시장 지수: 약 30초</string>
     <string name="dialog_deposit_time_estimate">데이터 수집에는 약 30초-1분 정도 소요됩니다.</string>
     <string name="dialog_fear_greed_time_estimate">데이터 수집에는 선택한 기간에 따라 1-3분 정도 소요됩니다.</string>
     <string name="dialog_oscillator_time_estimate">데이터 수집에는 선택한 기간에 따라 1-5분 정도 소요됩니다.</string>

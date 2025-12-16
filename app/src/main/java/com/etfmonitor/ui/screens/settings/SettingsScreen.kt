@@ -49,7 +49,9 @@ fun SettingsScreen(
     val marketDepositUpdateSettings by viewModel.marketDepositUpdateSettings.collectAsState()
     val fearGreedUpdateSettings by viewModel.fearGreedUpdateSettings.collectAsState()
     val marketOscillatorUpdateSettings by viewModel.marketOscillatorUpdateSettings.collectAsState()
+    val marketIndexUpdateSettings by viewModel.marketIndexUpdateSettings.collectAsState()
     val etfUpdateSettings by viewModel.etfUpdateSettings.collectAsState()
+    val marketIndexPeriodDays by viewModel.marketIndexPeriodDays.collectAsState()
     val message by viewModel.message.collectAsState()
 
     // General settings
@@ -146,6 +148,7 @@ fun SettingsScreen(
                     marketDepositUpdateSettings = marketDepositUpdateSettings,
                     fearGreedUpdateSettings = fearGreedUpdateSettings,
                     marketOscillatorUpdateSettings = marketOscillatorUpdateSettings,
+                    marketIndexUpdateSettings = marketIndexUpdateSettings,
                     etfUpdateSettings = etfUpdateSettings,
                     viewModel = viewModel
                 )
@@ -154,6 +157,7 @@ fun SettingsScreen(
                     searchHistoryLimit = searchHistoryLimit,
                     fearGreedPeriodDays = fearGreedPeriodDays,
                     marketOscillatorPeriodDays = marketOscillatorPeriodDays,
+                    marketIndexPeriodDays = marketIndexPeriodDays,
                     viewModel = viewModel
                 )
                 4 -> ChartTab(
@@ -286,6 +290,7 @@ private fun DataUpdateTab(
     marketDepositUpdateSettings: MarketDepositUpdateSettings,
     fearGreedUpdateSettings: FearGreedUpdateSettings,
     marketOscillatorUpdateSettings: MarketOscillatorUpdateSettings,
+    marketIndexUpdateSettings: MarketIndexUpdateSettings,
     etfUpdateSettings: EtfUpdateSettings,
     viewModel: SettingsViewModel
 ) {
@@ -340,6 +345,15 @@ private fun DataUpdateTab(
             )
         }
 
+        // 시장 지수 DB 자동 업데이트 설정
+        item {
+            MarketIndexUpdateCard(
+                settings = marketIndexUpdateSettings,
+                onTimeChange = { hour, minute -> viewModel.setMarketIndexUpdateTime(hour, minute) },
+                onUpdateNow = { viewModel.updateMarketIndexNow() }
+            )
+        }
+
         // 데이터베이스 초기화
         item {
             DatabaseCard(
@@ -356,6 +370,7 @@ private fun DataPeriodTab(
     searchHistoryLimit: Int,
     fearGreedPeriodDays: Int,
     marketOscillatorPeriodDays: Int,
+    marketIndexPeriodDays: Int,
     viewModel: SettingsViewModel
 ) {
     LazyColumn(
@@ -384,6 +399,14 @@ private fun DataPeriodTab(
             MarketOscillatorPeriodCard(
                 currentDays = marketOscillatorPeriodDays,
                 onDaysChange = { days, reinitialize -> viewModel.setMarketOscillatorPeriodDays(days, reinitialize) }
+            )
+        }
+
+        // 시장 지수 데이터 수집 기간 설정
+        item {
+            MarketIndexPeriodCard(
+                currentDays = marketIndexPeriodDays,
+                onDaysChange = { days, reinitialize -> viewModel.setMarketIndexPeriodDays(days, reinitialize) }
             )
         }
 

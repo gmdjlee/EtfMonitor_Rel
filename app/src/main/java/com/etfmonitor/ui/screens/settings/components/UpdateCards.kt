@@ -14,6 +14,7 @@ import com.etfmonitor.R
 import com.etfmonitor.ui.screens.settings.EtfUpdateSettings
 import com.etfmonitor.ui.screens.settings.FearGreedUpdateSettings
 import com.etfmonitor.ui.screens.settings.MarketDepositUpdateSettings
+import com.etfmonitor.ui.screens.settings.MarketIndexUpdateSettings
 import com.etfmonitor.ui.screens.settings.MarketOscillatorUpdateSettings
 import com.etfmonitor.ui.screens.settings.StockUpdateSettings
 import java.text.SimpleDateFormat
@@ -285,6 +286,36 @@ fun MarketOscillatorUpdateCard(
         title = stringResource(R.string.settings_oscillator_update),
         icon = Icons.Default.ShowChart,
         description = stringResource(R.string.settings_oscillator_update_desc),
+        updateHour = settings.updateHour,
+        updateMinute = settings.updateMinute,
+        lastUpdateTime = settings.lastUpdateTime,
+        isUpdating = settings.isUpdating,
+        stats = listOf(
+            StatItem(stringResource(R.string.settings_kospi_count), stringResource(R.string.label_etf_count_unit, settings.kospiCount)),
+            StatItem(stringResource(R.string.settings_kosdaq_count), stringResource(R.string.label_etf_count_unit, settings.kosdaqCount))
+        )
+    )
+
+    DataUpdateCard(
+        config = config,
+        onTimeChange = onTimeChange,
+        onUpdateNow = onUpdateNow
+    )
+}
+
+/**
+ * 시장 지수 DB 자동 업데이트 카드
+ */
+@Composable
+fun MarketIndexUpdateCard(
+    settings: MarketIndexUpdateSettings,
+    onTimeChange: (Int, Int) -> Unit,
+    onUpdateNow: () -> Unit
+) {
+    val config = DataUpdateCardConfig(
+        title = stringResource(R.string.settings_market_index_update),
+        icon = Icons.Default.Analytics,
+        description = stringResource(R.string.settings_market_index_update_desc),
         updateHour = settings.updateHour,
         updateMinute = settings.updateMinute,
         lastUpdateTime = settings.lastUpdateTime,
