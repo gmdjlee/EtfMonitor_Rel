@@ -480,3 +480,105 @@ def collect_training_labels(
             "error": str(e),
             "traceback": traceback.format_exc()
         })
+
+
+def collect_regression_labels(
+    changes_json: str,
+    days_after: int = 5
+) -> str:
+    """
+    Collect continuous return values for regression training.
+
+    Unlike classification labels (binary), regression labels are
+    continuous return percentages, providing more information
+    and reducing overfitting risk.
+
+    Args:
+        changes_json: JSON array of stock change data
+        days_after: Days after to measure price change
+
+    Returns:
+        JSON {
+            "success": true,
+            "returns": [3.5, -1.2, 5.0, ...],  # Continuous values
+            "valid_indices": [0, 1, 3, ...],
+            "total_samples": 100,
+            "mean_return": 1.5,
+            "std_return": 4.2,
+            "collection_time_ms": 3000
+        }
+    """
+    start_time = time.time()
+
+    try:
+        changes = json.loads(changes_json)
+        if not changes:
+            return to_json({
+                "success": True,
+                "returns": [],
+                "valid_indices": [],
+                "total_samples": 0,
+                "mean_return": 0.0,
+                "std_return": 0.0,
+                "collection_time_ms": 0
+            })
+
+        # Group by date for batch processing
+        date_groups = {}
+        for idx, c in enumerate(changes):
+            date = c.get('date', '')
+            ticker = c.get('ticker', '')
+            if date and ticker:
+                if date not in date_groups:
+                    date_groups[date] = []
+                date_groups[date].append((idx, ticker))
+
+        # Batch collect price changes for each date
+        all_returns = {}  # idx -> return value
+
+        for date, items in date_groups.items():
+            tickers = [t for _, t in items]
+            result_json = batch_get_price_changes(
+                json.dumps(tickers),
+                date,
+                days_after
+            )
+            result = json.loads(result_json)
+
+            if result.get('success') and result.get('data'):
+                price_data = result['data']
+                for idx, ticker in items:
+                    if ticker in price_data:
+                        # Store raw return value (continuous)
+                        all_returns[idx] = price_data[ticker]
+
+        # Build output
+        valid_indices = sorted(all_returns.keys())
+        returns = [all_returns[i] for i in valid_indices]
+
+        # Calculate statistics
+        mean_return = np.mean(returns) if returns else 0.0
+        std_return = np.std(returns) if returns else 0.0
+
+        elapsed_ms = int((time.time() - start_time) * 1000)
+
+        log.info("Regression label collection: %d samples, mean=%.2f%%, std=%.2f%%, %dms",
+                 len(returns), mean_return, std_return, elapsed_ms)
+
+        return to_json({
+            "success": True,
+            "returns": returns,
+            "valid_indices": valid_indices,
+            "total_samples": len(returns),
+            "mean_return": round(mean_return, 4),
+            "std_return": round(std_return, 4),
+            "collection_time_ms": elapsed_ms
+        })
+
+    except Exception as e:
+        log.error("Regression label collection error: %s", e)
+        return to_json({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })

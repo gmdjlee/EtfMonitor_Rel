@@ -148,11 +148,16 @@ data class BacktestResult(
     val totalSignals: Int,
     val correctSignals: Int,
     val accuracy: Double, // 정확도 (%)
-    val averageReturn: Double, // 평균 수익률 (%)
+    val averageReturn: Double, // 평균 수익률 (%) - 거래비용 차감 전
+    val netReturn: Double = averageReturn, // 순수익률 (%) - 거래비용 차감 후
     val winRate: Double, // 승률 (%)
     val maxDrawdown: Double, // 최대 낙폭 (%)
-    val sharpeRatio: Double? = null, // 샤프 비율
-    val period: String // 분석 기간
+    val sharpeRatio: Double? = null, // 샤프 비율 (거래비용 차감 전)
+    val netSharpeRatio: Double? = null, // 순샤프 비율 (거래비용 차감 후)
+    val period: String, // 분석 기간
+    val totalTransactionCost: Double = 0.0, // 총 거래비용 (%)
+    val commissionRate: Double = 0.015, // 수수료율 (%)
+    val slippageRate: Double = 0.05 // 슬리피지율 (%)
 )
 
 /**

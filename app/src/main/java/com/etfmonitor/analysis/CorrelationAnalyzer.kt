@@ -37,7 +37,7 @@ class CorrelationAnalyzer @Inject constructor(
     companion object {
         private val logger = AppLogger.getLogger("CorrelationAnalyzer")
         private const val DEFAULT_PERIOD_DAYS = 30
-        private const val MIN_DATA_POINTS = 3  // 최소 3일 데이터 필요 (상관관계 계산 최소치)
+        private const val MIN_DATA_POINTS = 20  // 최소 20일 데이터 필요 (통계적 유의성 확보)
     }
 
     private val json = Json { prettyPrint = true }
