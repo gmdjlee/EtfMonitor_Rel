@@ -84,7 +84,8 @@ fun NewAIAnalysisScreen(
     var showProviderDialog by remember { mutableStateOf(false) }
     var showHistorySheet by remember { mutableStateOf(false) }
     var showStockIndicatorHistorySheet by remember { mutableStateOf(false) }
-    var selectedTab by remember { mutableStateOf(AnalysisTab.CORRELATION) }
+    val selectedTabIndex by viewModel.selectedTabIndex.collectAsState()
+    val selectedTab = AnalysisTab.entries[selectedTabIndex]
 
     // 화면 진입 시 API 키 상태 새로고침 (설정에서 돌아왔을 때 반영)
     LaunchedEffect(Unit) {
@@ -171,7 +172,7 @@ fun NewAIAnalysisScreen(
                             AnalysisTab.entries.forEach { tab ->
                                 Tab(
                                     selected = selectedTab == tab,
-                                    onClick = { selectedTab = tab },
+                                    onClick = { viewModel.selectTab(tab.ordinal) },
                                     text = { Text(tab.title) }
                                 )
                             }

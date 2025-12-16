@@ -72,6 +72,7 @@ class PredictionViewModel @Inject constructor(
 
     /**
      * 최신 예측 결과 로드
+     * 결과가 없으면 자동으로 예측 실행
      */
     private fun loadLatestPredictions() {
         viewModelScope.launch {
@@ -84,7 +85,8 @@ class PredictionViewModel @Inject constructor(
                     _predictions.value = latestPredictions
                     _state.value = PredictionState.HasPredictions(latestPredictions.size)
                 } else {
-                    _state.value = PredictionState.NoPredictions
+                    // 예측 결과가 없으면 자동으로 예측 실행
+                    runPrediction()
                 }
             } catch (e: Exception) {
                 _state.value = PredictionState.Error("예측 결과 로드 실패: ${e.message}")

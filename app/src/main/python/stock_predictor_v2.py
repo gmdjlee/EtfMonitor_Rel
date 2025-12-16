@@ -203,9 +203,18 @@ def _train_with_cv(
         'f1': []
     }
 
+    valid_folds = 0
     for train_idx, val_idx in tscv.split(X):
         X_train, X_val = X[train_idx], X[val_idx]
         y_train, y_val = y[train_idx], y[val_idx]
+
+        # Skip fold if train or validation set has only 1 class
+        train_classes = np.unique(y_train)
+        val_classes = np.unique(y_val)
+        if len(train_classes) < 2 or len(val_classes) < 2:
+            log.warning("Skipping CV fold: insufficient classes (train=%d, val=%d)",
+                       len(train_classes), len(val_classes))
+            continue
 
         # Clone model for each fold
         from sklearn.base import clone
@@ -217,6 +226,20 @@ def _train_with_cv(
         cv_scores['precision'].append(precision_score(y_val, y_pred, zero_division=0))
         cv_scores['recall'].append(recall_score(y_val, y_pred, zero_division=0))
         cv_scores['f1'].append(f1_score(y_val, y_pred, zero_division=0))
+        valid_folds += 1
+
+    # If no valid folds, train without CV
+    if valid_folds == 0:
+        log.warning("No valid CV folds, training without CV")
+        model.fit(X, y)
+        return {
+            'model': model,
+            'cv_accuracy': 0.0,
+            'cv_precision': 0.0,
+            'cv_recall': 0.0,
+            'cv_f1': 0.0,
+            'cv_std': 0.0
+        }
 
     # Train final model on all data
     model.fit(X, y)
@@ -369,17 +392,37 @@ def train_enhanced_model(
             X_train, X_test = X_scaled[:split_idx], X_scaled[split_idx:]
             y_train, y_test = y[:split_idx], y[split_idx:]
 
-            model.fit(X_train, y_train)
-            y_pred = model.predict(X_test)
+            # Check if both train and test have at least 2 classes
+            train_classes = np.unique(y_train)
+            test_classes = np.unique(y_test)
 
-            accuracy = accuracy_score(y_test, y_pred)
-            precision = precision_score(y_test, y_pred, zero_division=0)
-            recall = recall_score(y_test, y_pred, zero_division=0)
-            f1 = f1_score(y_test, y_pred, zero_division=0)
-            cv_std = 0.0
+            if len(train_classes) < 2:
+                log.warning("Train set has only 1 class, training on full data")
+                model.fit(X_scaled, y)
+                accuracy = 0.0
+                precision = 0.0
+                recall = 0.0
+                f1 = 0.0
+                cv_std = 0.0
+            else:
+                model.fit(X_train, y_train)
 
-            # Retrain on full data
-            model.fit(X_scaled, y)
+                if len(test_classes) >= 2:
+                    y_pred = model.predict(X_test)
+                    accuracy = accuracy_score(y_test, y_pred)
+                    precision = precision_score(y_test, y_pred, zero_division=0)
+                    recall = recall_score(y_test, y_pred, zero_division=0)
+                    f1 = f1_score(y_test, y_pred, zero_division=0)
+                else:
+                    log.warning("Test set has only 1 class, skipping evaluation")
+                    accuracy = 0.0
+                    precision = 0.0
+                    recall = 0.0
+                    f1 = 0.0
+                cv_std = 0.0
+
+                # Retrain on full data
+                model.fit(X_scaled, y)
 
         # Get feature importance
         importance = _get_feature_importance(model)

@@ -48,6 +48,10 @@ class NewAIAnalysisViewModel @Inject constructor(
     private val _state = MutableStateFlow<NewAIAnalysisState>(NewAIAnalysisState.Idle)
     val state: StateFlow<NewAIAnalysisState> = _state.asStateFlow()
 
+    // 현재 선택된 분석 탭 (0: CORRELATION, 1: STOCK_INDICATOR)
+    private val _selectedTabIndex = MutableStateFlow(0)
+    val selectedTabIndex: StateFlow<Int> = _selectedTabIndex.asStateFlow()
+
     // 빠른 차트 분석 설정
     private val _quickChartAnalysisEnabled = MutableStateFlow(false)
     val quickChartAnalysisEnabled: StateFlow<Boolean> = _quickChartAnalysisEnabled.asStateFlow()
@@ -141,6 +145,7 @@ class NewAIAnalysisViewModel @Inject constructor(
 
     /**
      * 최신 분석 결과 로드
+     * 결과가 없으면 자동으로 로컬 분석 실행
      */
     private fun loadLatestResults() {
         viewModelScope.launch {
@@ -167,6 +172,9 @@ class NewAIAnalysisViewModel @Inject constructor(
                 } else {
                     NewAIAnalysisState.CorrelationComplete(latestCorrelation)
                 }
+            } else {
+                // 결과가 없으면 자동으로 로컬 상관관계 분석 실행
+                runCorrelationAnalysis()
             }
         }
     }
@@ -210,11 +218,19 @@ class NewAIAnalysisViewModel @Inject constructor(
         return aiApiClientFactory.getAvailableProviders()
     }
 
+    /**
+     * 탭 선택 변경
+     */
+    fun selectTab(tabIndex: Int) {
+        _selectedTabIndex.value = tabIndex
+    }
+
     // ========== 상관관계 분석 ==========
 
     /**
      * 캐시 초기화 및 분석 결과 새로고침
      * 데이터 수집 기간을 늘린 후 재분석할 때 사용
+     * 현재 선택된 탭에 따라 적절한 재분석을 실행합니다.
      */
     fun clearCacheAndRefresh() {
         viewModelScope.launch {
@@ -222,6 +238,26 @@ class NewAIAnalysisViewModel @Inject constructor(
             _analysisResult.value = null
             _stockIndicatorCorrelationResult.value = null
             _state.value = NewAIAnalysisState.Idle
+
+            // 현재 탭에 따라 재분석 실행
+            when (_selectedTabIndex.value) {
+                0 -> { // CORRELATION 탭
+                    if (_isApiKeyConfigured.value) {
+                        runFullAnalysis()
+                    } else {
+                        runCorrelationAnalysis()
+                    }
+                }
+                1 -> { // STOCK_INDICATOR 탭
+                    if (_selectedStock.value != null) {
+                        if (_isApiKeyConfigured.value) {
+                            runFullStockIndicatorCorrelationAnalysis()
+                        } else {
+                            analyzeStockIndicatorCorrelation()
+                        }
+                    }
+                }
+            }
         }
     }
 
