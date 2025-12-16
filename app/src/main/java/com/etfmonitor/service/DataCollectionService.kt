@@ -66,6 +66,7 @@ class DataCollectionService : Service() {
     private var pendingDepositPages: Int? = null
     private var pendingFearGreedDays: Int? = null
     private var pendingOscillatorDays: Int? = null
+    private var pendingMarketIndexDays: Int? = null
 
     companion object {
         private val logger = AppLogger.getLogger("DataCollectSvc")
@@ -83,6 +84,7 @@ class DataCollectionService : Service() {
         const val EXTRA_DEPOSIT_PAGES = "extra_deposit_pages"
         const val EXTRA_FEAR_GREED_DAYS = "extra_fear_greed_days"
         const val EXTRA_OSCILLATOR_DAYS = "extra_oscillator_days"
+        const val EXTRA_MARKET_INDEX_DAYS = "extra_market_index_days"
 
         fun startInitialize(context: Context, days: Int) {
             val intent = Intent(context, DataCollectionService::class.java).apply {
@@ -105,7 +107,8 @@ class DataCollectionService : Service() {
             etfDays: Int,
             depositPages: Int?,
             fearGreedDays: Int?,
-            oscillatorDays: Int?
+            oscillatorDays: Int?,
+            marketIndexDays: Int?
         ) {
             val intent = Intent(context, DataCollectionService::class.java).apply {
                 action = ACTION_INITIALIZE_ALL
@@ -113,6 +116,7 @@ class DataCollectionService : Service() {
                 depositPages?.let { putExtra(EXTRA_DEPOSIT_PAGES, it) }
                 fearGreedDays?.let { putExtra(EXTRA_FEAR_GREED_DAYS, it) }
                 oscillatorDays?.let { putExtra(EXTRA_OSCILLATOR_DAYS, it) }
+                marketIndexDays?.let { putExtra(EXTRA_MARKET_INDEX_DAYS, it) }
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -167,6 +171,9 @@ class DataCollectionService : Service() {
                 } else null
                 pendingOscillatorDays = if (intent.hasExtra(EXTRA_OSCILLATOR_DAYS)) {
                     intent.getIntExtra(EXTRA_OSCILLATOR_DAYS, 365)
+                } else null
+                pendingMarketIndexDays = if (intent.hasExtra(EXTRA_MARKET_INDEX_DAYS)) {
+                    intent.getIntExtra(EXTRA_MARKET_INDEX_DAYS, 30)
                 } else null
                 acquireWakeLock()
                 CollectionState.startCollection(isInitialize = true)
@@ -287,7 +294,8 @@ class DataCollectionService : Service() {
             logger.d("Starting unified initialization - ETF: $etfDays days, " +
                      "Deposit: $pendingDepositPages pages, " +
                      "FearGreed: $pendingFearGreedDays days, " +
-                     "Oscillator: $pendingOscillatorDays days")
+                     "Oscillator: $pendingOscillatorDays days, " +
+                     "MarketIndex: $pendingMarketIndexDays days")
 
             // Step 1: ETF 데이터 초기화
             repository.initializeData(etfDays)
@@ -321,31 +329,32 @@ class DataCollectionService : Service() {
         }
     }
 
-    private fun initializeMarketIndexForUnified(days: Int) {
+    private fun initializeMarketIndexForUnified(etfDays: Int) {
         serviceScope.launch {
-            try {
-                logger.d("Starting Market Index initialization (unified)")
-                CollectionState.updateProgress("시장 지수 데이터 수집 중...", 35)
-                updateNotification("시장 지수 데이터 수집 중...", 35)
+            val marketIndexDays = pendingMarketIndexDays
+            if (marketIndexDays != null) {
+                try {
+                    logger.d("Starting Market Index initialization (unified): $marketIndexDays days")
+                    CollectionState.updateProgress("시장 지수 데이터 수집 중...", 35)
+                    updateNotification("시장 지수 데이터 수집 중...", 35)
 
-                val result = marketIndexRepository.initializeMarketIndex(days)
+                    val result = marketIndexRepository.initializeMarketIndex(marketIndexDays)
 
-                if (result.isSuccess) {
-                    val count = result.getOrNull() ?: 0
-                    logger.d("Market Index initialization completed: $count records")
-                    // Continue to next step
-                    continueWithDeposit()
-                } else {
-                    val errorMsg = "시장 지수 초기화 실패: ${result.exceptionOrNull()?.message}"
-                    logger.e(errorMsg)
-                    // Log error but continue with next step
-                    continueWithDeposit()
+                    if (result.isSuccess) {
+                        val count = result.getOrNull() ?: 0
+                        logger.d("Market Index initialization completed: $count records")
+                    } else {
+                        val errorMsg = "시장 지수 초기화 실패: ${result.exceptionOrNull()?.message}"
+                        logger.e(errorMsg)
+                    }
+                } catch (e: Exception) {
+                    logger.e("Error in Market Index initialization", e)
                 }
-            } catch (e: Exception) {
-                logger.e("Error in Market Index initialization", e)
-                // Log error but continue with next step
-                continueWithDeposit()
+            } else {
+                logger.d("Market Index initialization skipped (not selected)")
             }
+            // Continue to next step
+            continueWithDeposit()
         }
     }
 

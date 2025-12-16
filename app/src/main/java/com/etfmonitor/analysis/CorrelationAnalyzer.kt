@@ -37,7 +37,7 @@ class CorrelationAnalyzer @Inject constructor(
     companion object {
         private val logger = AppLogger.getLogger("CorrelationAnalyzer")
         private const val DEFAULT_PERIOD_DAYS = 30
-        private const val MIN_DATA_POINTS = 3  // 최소 3일 데이터 필요 (상관관계 계산 최소치)
+        private const val MIN_DATA_POINTS = 20  // 최소 20일 데이터 필요 (통계적 유의성 확보)
     }
 
     private val json = Json { prettyPrint = true }
@@ -66,7 +66,7 @@ class CorrelationAnalyzer @Inject constructor(
             if (analysisData.marketIndices.size < MIN_DATA_POINTS) {
                 return@withContext Result.failure(
                     Exception("시장 지수 데이터가 부족합니다 (${analysisData.marketIndices.size}/${MIN_DATA_POINTS}일). " +
-                            "홈 화면에서 '시장 지수 수집'을 실행하거나 수집 기간을 늘려주세요.")
+                            "설정 > '전체 데이터 업데이트'를 실행하거나 ETF 데이터를 다시 초기화해주세요.")
                 )
             }
 

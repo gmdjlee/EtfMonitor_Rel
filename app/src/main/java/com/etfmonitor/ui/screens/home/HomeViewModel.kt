@@ -347,9 +347,9 @@ class HomeViewModel @Inject constructor(
 
     private fun calculateOscillatorStatus(oscillatorValue: Double): String {
         return when {
-            oscillatorValue >= OSCILLATOR_OVERBOUGHT_THRESHOLD -> "Overbought"
-            oscillatorValue <= OSCILLATOR_OVERSOLD_THRESHOLD -> "Oversold"
-            else -> "Neutral"
+            oscillatorValue >= OSCILLATOR_OVERBOUGHT_THRESHOLD -> "과매수"
+            oscillatorValue <= OSCILLATOR_OVERSOLD_THRESHOLD -> "과매도"
+            else -> "중립"
         }
     }
 
@@ -382,7 +382,8 @@ class HomeViewModel @Inject constructor(
         etfDays: Int,
         depositPages: Int?,
         fearGreedDays: Int?,
-        oscillatorDays: Int?
+        oscillatorDays: Int?,
+        marketIndexDays: Int?
     ) {
         viewModelScope.launch {
             // 모든 다이얼로그 설정 플래그 저장 (다시 보이지 않도록)
@@ -390,6 +391,7 @@ class HomeViewModel @Inject constructor(
             etfDao.saveSetting(com.etfmonitor.database.entities.Setting("market_deposit_dialog_dismissed", "true"))
             etfDao.saveSetting(com.etfmonitor.database.entities.Setting("fear_greed_dialog_dismissed", "true"))
             etfDao.saveSetting(com.etfmonitor.database.entities.Setting("market_oscillator_dialog_dismissed", "true"))
+            etfDao.saveSetting(com.etfmonitor.database.entities.Setting("market_index_dialog_dismissed", "true"))
 
             _showUnifiedInitDialog.value = false
 
@@ -401,7 +403,8 @@ class HomeViewModel @Inject constructor(
                 etfDays = etfDays,
                 depositPages = depositPages,
                 fearGreedDays = fearGreedDays,
-                oscillatorDays = oscillatorDays
+                oscillatorDays = oscillatorDays,
+                marketIndexDays = marketIndexDays
             )
         }
     }
@@ -441,7 +444,7 @@ data class HomeSummary(
 
     // 시장 과매수/과매도
     val kospiOscillator: Double?,    // KOSPI 오실레이터 값
-    val kospiStatus: String?,        // KOSPI 상태 (Overbought/Neutral/Oversold)
+    val kospiStatus: String?,        // KOSPI 상태 (과매수/중립/과매도)
     val kosdaqOscillator: Double?,   // KOSDAQ 오실레이터 값
     val kosdaqStatus: String?        // KOSDAQ 상태
 )

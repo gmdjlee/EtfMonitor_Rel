@@ -261,6 +261,37 @@ object WorkManagerHelper {
     }
 
     /**
+     * 매일 지정된 시간에 시장 지수 DB 업데이트 작업 스케줄링
+     *
+     * @param context Context
+     * @param hour 업데이트할 시간 (0-23)
+     * @param minute 업데이트할 분 (0-59)
+     */
+    fun scheduleMarketIndexUpdate(context: Context, hour: Int, minute: Int) {
+        scheduleDailyUpdate<MarketIndexUpdateWorker>(
+            context = context,
+            hour = hour,
+            minute = minute,
+            workName = MarketIndexUpdateWorker.WORK_NAME,
+            taskName = "market index"
+        )
+    }
+
+    /**
+     * 시장 지수 스케줄링 취소
+     */
+    fun cancelMarketIndexUpdate(context: Context) {
+        cancelUpdate(context, MarketIndexUpdateWorker.WORK_NAME, "market index")
+    }
+
+    /**
+     * 즉시 시장 지수 수동 업데이트 실행
+     */
+    fun runMarketIndexUpdateNow(context: Context) {
+        runUpdateNow<MarketIndexUpdateWorker>(context, "market index")
+    }
+
+    /**
      * 월 1회 데이터 아카이빙 작업 스케줄링
      * - 실행 주기: 매월 1일 새벽 3시
      * - 5년 이상 데이터 삭제

@@ -384,6 +384,10 @@
     <string name="settings_oscillator_period_desc">과매수/과매도 데이터 초기화 시 수집할 기간</string>
     <string name="settings_oscillator_period_title">과매수/과매도 수집 기간 설정</string>
     <string name="settings_oscillator_period_recommend">권장: 12개월 (약 365일, 약 1-2분 소요)</string>
+    <string name="settings_market_index_period">시장 지수 수집 기간</string>
+    <string name="settings_market_index_period_desc">시장 지수(KOSPI/KOSDAQ) 데이터 초기화 시 수집할 기간</string>
+    <string name="settings_market_index_period_title">시장 지수 수집 기간 설정</string>
+    <string name="settings_market_index_period_recommend">권장: 30일 (상관관계 분석용, 약 30초 소요)</string>
     <string name="settings_period_select">데이터 수집 기간을 선택하세요</string>
 
     <!-- Settings - Update Cards -->
@@ -407,12 +411,14 @@
     <string name="settings_deposit_update">증시 자금 DB 자동 업데이트</string>
     <string name="settings_deposit_update_desc">매일 지정된 시간에 증시 자금 데이터를 자동으로 업데이트합니다</string>
     <string name="settings_deposit_count">저장된 데이터 수:</string>
-    <string name="settings_feargreed_update">공포 탐욕 지수 DB 자동 업데이트</string>
-    <string name="settings_feargreed_update_desc">매일 지정된 시간에 공포 탐욕 지수 데이터를 자동으로 업데이트합니다</string>
+    <string name="settings_feargreed_update">공포탐욕지수 DB 자동 업데이트</string>
+    <string name="settings_feargreed_update_desc">매일 지정된 시간에 공포탐욕지수 데이터를 자동으로 업데이트합니다</string>
     <string name="settings_kospi_count">KOSPI 데이터 수:</string>
     <string name="settings_kosdaq_count">KOSDAQ 데이터 수:</string>
-    <string name="settings_oscillator_update">시장 오실레이터 DB 자동 업데이트</string>
-    <string name="settings_oscillator_update_desc">매일 지정된 시간에 시장 오실레이터 데이터를 자동으로 업데이트합니다</string>
+    <string name="settings_oscillator_update">과매수/과매도 DB 자동 업데이트</string>
+    <string name="settings_oscillator_update_desc">매일 지정된 시간에 과매수/과매도 데이터를 자동으로 업데이트합니다</string>
+    <string name="settings_market_index_update">시장 지수 DB 자동 업데이트</string>
+    <string name="settings_market_index_update_desc">매일 지정된 시간에 시장 지수(KOSPI/KOSDAQ) 데이터를 자동으로 업데이트합니다</string>
     <string name="settings_clear_cache">캐시 삭제</string>
     <string name="settings_reset_data">데이터 초기화</string>
     <string name="settings_about">정보</string>
@@ -546,10 +552,15 @@
     <string name="dialog_fear_greed_desc">Fear &amp; Greed Index 데이터 수집 기간을 선택하세요.</string>
     <string name="dialog_oscillator_init">과매수/과매도 지표 초기화</string>
     <string name="dialog_oscillator_desc">과매수/과매도 지표 데이터 수집 기간을 선택하세요.</string>
+    <string name="dialog_market_index_init">시장 지수 초기화</string>
+    <string name="dialog_market_index_desc">시장 지수(KOSPI/KOSDAQ) 데이터 수집 기간을 선택하세요.</string>
+    <string name="dialog_market_index_time_estimate">데이터 수집에는 약 30초 정도 소요됩니다.</string>
+    <string name="menu_market_index">시장 지수</string>
+    <string name="menu_market_index_desc">KOSPI/KOSDAQ 지수 데이터</string>
     <string name="dialog_fear_greed_auto_collect">ETF 데이터 초기화 완료 후\nFear &amp; Greed Index 데이터 1년(365일)을\n자동으로 수집합니다.</string>
     <string name="dialog_notes">참고사항</string>
     <string name="dialog_collection_notes">• 기간이 길수록 수집 시간이 오래 걸립니다\n• 25일 권장 (약 1-2분 소요)\n• Fear &amp; Greed Index는 추가 1-2분 소요\n• 최초 실행 시 Python 패키지 로딩에 추가 시간이 필요할 수 있습니다</string>
-    <string name="dialog_unified_time_estimate">• ETF 데이터: 약 1-2분\n• 증시 자금 동향: 약 30초\n• Fear &amp; Greed: 약 1-2분\n• 과매수/과매도: 약 3-5분</string>
+    <string name="dialog_unified_time_estimate">• ETF 데이터: 약 1-2분\n• 증시 자금 동향: 약 30초\n• Fear &amp; Greed: 약 1-2분\n• 과매수/과매도: 약 3-5분\n• 시장 지수: 약 30초</string>
     <string name="dialog_deposit_time_estimate">데이터 수집에는 약 30초-1분 정도 소요됩니다.</string>
     <string name="dialog_fear_greed_time_estimate">데이터 수집에는 선택한 기간에 따라 1-3분 정도 소요됩니다.</string>
     <string name="dialog_oscillator_time_estimate">데이터 수집에는 선택한 기간에 따라 1-5분 정도 소요됩니다.</string>
@@ -705,6 +716,42 @@
     <string name="advanced_correlation_medium">보통 40-70%</string>
     <string name="advanced_correlation_low">낮음 &lt;40%</string>
     <string name="advanced_common_stocks">공통 %d종목</string>
+
+    <!-- ETF Correlation Interpretation -->
+    <string name="advanced_interpretation_title">분석 결과 해석</string>
+    <string name="advanced_overlap_very_high">매우 높은 중복률 (80%+)</string>
+    <string name="advanced_overlap_high">높은 중복률 (70%+)</string>
+    <string name="advanced_overlap_medium">중간 중복률 (40-70%)</string>
+    <string name="advanced_overlap_low">낮은 중복률 (40% 미만)</string>
+    <string name="advanced_interpret_very_high">두 ETF가 거의 동일한 종목을 보유하고 있습니다. 동시 투자 시 분산 효과가 거의 없으며, 하나만 선택하는 것이 효율적입니다.</string>
+    <string name="advanced_interpret_high">상당 부분이 중복되어 있어 분산 효과가 제한적입니다. 운용보수, 거래량 등 다른 요소로 선택하세요.</string>
+    <string name="advanced_interpret_medium">적절한 중복이 있지만 충분한 분산 효과가 있습니다. 두 ETF를 함께 보유해도 괜찮습니다.</string>
+    <string name="advanced_interpret_low">중복이 적어 훌륭한 분산 투자 조합입니다. 두 ETF를 함께 보유하면 리스크를 효과적으로 줄일 수 있습니다.</string>
+    <string name="advanced_weight_correlation">비중 상관계수</string>
+    <string name="advanced_weight_corr_desc">공통 종목에 대한 비중 배분 유사도 (%+.2f)</string>
+    <string name="advanced_weight_very_similar">비중 배분이 매우 유사합니다</string>
+    <string name="advanced_weight_similar">비중 배분이 유사합니다</string>
+    <string name="advanced_weight_different">비중 배분이 상이합니다</string>
+    <string name="advanced_weight_very_different">비중 배분이 매우 다릅니다</string>
+    <string name="advanced_investment_suggestion">투자 제안</string>
+    <string name="advanced_suggest_choose_one">두 ETF 중 하나만 선택하세요 (운용보수 비교 권장)</string>
+    <string name="advanced_suggest_compare_cost">비용(운용보수, 거래비용)을 비교하여 선택하세요</string>
+    <string name="advanced_suggest_both_ok">두 ETF 모두 보유하며 분산 효과를 누리세요</string>
+    <string name="advanced_suggest_excellent_pair">분산 투자에 훌륭한 조합입니다</string>
+    <string name="advanced_top_common_holdings">주요 공통 종목</string>
+    <string name="advanced_stock_weight_format">%s: %.1f%% vs %.1f%%</string>
+    <string name="advanced_summary_title">종합 요약</string>
+    <string name="advanced_summary_analyzed_pairs">분석된 ETF 쌍: %d개</string>
+    <string name="advanced_summary_high_overlap_count">높은 중복 (70%+): %d개</string>
+    <string name="advanced_summary_avg_overlap">평균 중복률: %.1f%%</string>
+    <string name="advanced_portfolio_status">포트폴리오 상태</string>
+    <string name="advanced_portfolio_needs_review">분산 검토 필요</string>
+    <string name="advanced_portfolio_good">적절한 분산</string>
+    <string name="advanced_portfolio_excellent">훌륭한 분산</string>
+    <string name="advanced_detail_expand">상세 보기</string>
+    <string name="advanced_detail_collapse">접기</string>
+    <string name="advanced_etf1_stocks">ETF1 종목: %d개</string>
+    <string name="advanced_etf2_stocks">ETF2 종목: %d개</string>
 
     <!-- Market Cap Size -->
     <string name="market_cap_large">대형주</string>

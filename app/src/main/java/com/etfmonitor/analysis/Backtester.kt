@@ -16,6 +16,11 @@ import kotlin.math.sqrt
 /**
  * 신호 백테스터
  * AI가 생성한 매매 신호의 과거 정확도를 검증
+ *
+ * 거래비용 기본값:
+ * - 수수료: 0.015% (증권사 평균 온라인 수수료)
+ * - 슬리피지: 0.05% (시장가 주문 시 예상 슬리피지)
+ * - 왕복 거래비용 = (수수료 + 슬리피지) × 2 = 0.13%
  */
 @Singleton
 class Backtester @Inject constructor(
@@ -23,15 +28,27 @@ class Backtester @Inject constructor(
 ) {
     companion object {
         private val logger = AppLogger.getLogger("Backtester")
+
+        // 거래비용 기본값 (%)
+        const val DEFAULT_COMMISSION_RATE = 0.015  // 증권사 수수료 0.015%
+        const val DEFAULT_SLIPPAGE_RATE = 0.05     // 슬리피지 0.05%
     }
 
     /**
      * 신호 기록을 백테스트하여 성과 분석
+     *
+     * @param market 시장 (KOSPI/KOSDAQ)
+     * @param signals 신호 기록 리스트
+     * @param holdingPeriod 보유 기간 (일)
+     * @param commissionRate 수수료율 (%, 기본값 0.015%)
+     * @param slippageRate 슬리피지율 (%, 기본값 0.05%)
      */
     suspend fun backtest(
         market: String,
         signals: List<SignalRecord>,
-        holdingPeriod: Int = 5 // 보유 기간 (일)
+        holdingPeriod: Int = 5, // 보유 기간 (일)
+        commissionRate: Double = DEFAULT_COMMISSION_RATE,
+        slippageRate: Double = DEFAULT_SLIPPAGE_RATE
     ): Result<BacktestResult> = withContext(Dispatchers.IO) {
         try {
             if (signals.isEmpty()) {
@@ -39,6 +56,7 @@ class Backtester @Inject constructor(
             }
 
             logger.d("Backtesting ${signals.size} signals for $market with $holdingPeriod days holding period")
+            logger.d("Transaction costs: commission=$commissionRate%, slippage=$slippageRate%")
 
             // 신호별 미래 수익률 계산
             val enrichedSignals = calculateFutureReturns(market, signals, holdingPeriod)
@@ -61,15 +79,24 @@ class Backtester @Inject constructor(
                 }
             }
 
+            // 거래비용 계산: 왕복 (매수 + 매도) 거래비용
+            val roundTripCost = (commissionRate + slippageRate) * 2
+            val totalTransactionCost = roundTripCost * returns.size
+
+            // 거래비용 차감 후 순수익률
+            val netReturns = returns.map { it - roundTripCost }
+
             val averageReturn = returns.average()
-            val winningReturns = returns.filter { it > 0 }
-            val winRate = (winningReturns.size.toDouble() / returns.size) * 100
+            val netReturn = netReturns.average()
+            val winningReturns = netReturns.filter { it > 0 }
+            val winRate = (winningReturns.size.toDouble() / netReturns.size) * 100
 
-            // 최대 낙폭 계산
-            val maxDrawdown = calculateMaxDrawdown(returns)
+            // 최대 낙폭 계산 (거래비용 반영)
+            val maxDrawdown = calculateMaxDrawdown(netReturns)
 
-            // 샤프 비율 계산 (리스크 조정 수익률)
+            // 샤프 비율 계산 (거래비용 차감 전/후)
             val sharpeRatio = calculateSharpeRatio(returns)
+            val netSharpeRatio = calculateSharpeRatio(netReturns)
 
             val period = "${signals.first().date} ~ ${signals.last().date}"
 
@@ -78,13 +105,18 @@ class Backtester @Inject constructor(
                 correctSignals = correctSignals,
                 accuracy = accuracy,
                 averageReturn = averageReturn,
+                netReturn = netReturn,
                 winRate = winRate,
                 maxDrawdown = maxDrawdown,
                 sharpeRatio = sharpeRatio,
-                period = period
+                netSharpeRatio = netSharpeRatio,
+                period = period,
+                totalTransactionCost = totalTransactionCost,
+                commissionRate = commissionRate,
+                slippageRate = slippageRate
             )
 
-            logger.d("Backtest completed: accuracy=$accuracy%, avgReturn=$averageReturn%, winRate=$winRate%")
+            logger.d("Backtest completed: accuracy=$accuracy%, grossReturn=$averageReturn%, netReturn=$netReturn%, winRate=$winRate%")
 
             Result.success(result)
         } catch (e: Exception) {

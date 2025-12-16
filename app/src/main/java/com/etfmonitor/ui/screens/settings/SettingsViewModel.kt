@@ -63,6 +63,15 @@ data class MarketOscillatorUpdateSettings(
     val isUpdating: Boolean = false
 )
 
+data class MarketIndexUpdateSettings(
+    val updateHour: Int = 5,
+    val updateMinute: Int = 0,
+    val lastUpdateTime: Long? = null,
+    val kospiCount: Int = 0,
+    val kosdaqCount: Int = 0,
+    val isUpdating: Boolean = false
+)
+
 data class AdvancedAnalysisSettings(
     val updateHour: Int = 18,
     val updateMinute: Int = 30,
@@ -105,6 +114,7 @@ class SettingsViewModel @Inject constructor(
     private val marketDepositRepository: MarketDepositRepository,
     private val fearGreedRepository: FearGreedRepository,
     private val marketOscillatorRepository: com.etfmonitor.repository.MarketOscillatorRepository,
+    private val marketIndexRepository: com.etfmonitor.repository.MarketIndexRepository,
     private val aiAnalysisRepository: AIAnalysisRepository,
     private val apiKeyProvider: ApiKeyProvider,
     private val etfDao: EtfDao,
@@ -123,6 +133,7 @@ class SettingsViewModel @Inject constructor(
             const val SEARCH_HISTORY_LIMIT = "search_history_limit"
             const val FEAR_GREED_PERIOD = "fear_greed_period_days"
             const val OSCILLATOR_PERIOD = "market_oscillator_period_days"
+            const val MARKET_INDEX_PERIOD = "market_index_period_days"
             const val DARK_THEME = "dark_theme"
             const val QUICK_CHART_ANALYSIS = "quick_chart_analysis_enabled"
 
@@ -156,6 +167,9 @@ class SettingsViewModel @Inject constructor(
     private val _marketOscillatorUpdateSettings = MutableStateFlow(MarketOscillatorUpdateSettings())
     val marketOscillatorUpdateSettings: StateFlow<MarketOscillatorUpdateSettings> = _marketOscillatorUpdateSettings.asStateFlow()
 
+    private val _marketIndexUpdateSettings = MutableStateFlow(MarketIndexUpdateSettings())
+    val marketIndexUpdateSettings: StateFlow<MarketIndexUpdateSettings> = _marketIndexUpdateSettings.asStateFlow()
+
     private val _advancedAnalysisSettings = MutableStateFlow(AdvancedAnalysisSettings())
     val advancedAnalysisSettings: StateFlow<AdvancedAnalysisSettings> = _advancedAnalysisSettings.asStateFlow()
 
@@ -170,6 +184,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _marketOscillatorPeriodDays = MutableStateFlow(365)
     val marketOscillatorPeriodDays: StateFlow<Int> = _marketOscillatorPeriodDays.asStateFlow()
+
+    private val _marketIndexPeriodDays = MutableStateFlow(30)
+    val marketIndexPeriodDays: StateFlow<Int> = _marketIndexPeriodDays.asStateFlow()
 
     private val _isDarkTheme = MutableStateFlow<Boolean?>(null)
     val isDarkTheme: StateFlow<Boolean?> = _isDarkTheme.asStateFlow()
@@ -258,6 +275,7 @@ class SettingsViewModel @Inject constructor(
         _searchHistoryLimit.value = etfDao.getSetting(Keys.SEARCH_HISTORY_LIMIT)?.toIntOrNull() ?: 15
         _fearGreedPeriodDays.value = etfDao.getSetting(Keys.FEAR_GREED_PERIOD)?.toIntOrNull() ?: 365
         _marketOscillatorPeriodDays.value = etfDao.getSetting(Keys.OSCILLATOR_PERIOD)?.toIntOrNull() ?: 365
+        _marketIndexPeriodDays.value = etfDao.getSetting(Keys.MARKET_INDEX_PERIOD)?.toIntOrNull() ?: 30
     }
 
     private suspend fun loadUpdateScheduleSettings() {
@@ -292,6 +310,14 @@ class SettingsViewModel @Inject constructor(
             updateHour = oscHour, updateMinute = oscMinute
         )
         WorkManagerHelper.scheduleMarketOscillatorUpdate(context, oscHour, oscMinute)
+
+        // Market index update
+        val indexHour = etfDao.getSetting(Keys.updateHour("market_index"))?.toIntOrNull() ?: 5
+        val indexMinute = etfDao.getSetting(Keys.updateMinute("market_index"))?.toIntOrNull() ?: 0
+        _marketIndexUpdateSettings.value = _marketIndexUpdateSettings.value.copy(
+            updateHour = indexHour, updateMinute = indexMinute
+        )
+        WorkManagerHelper.scheduleMarketIndexUpdate(context, indexHour, indexMinute)
 
         // Advanced analysis update (default 18:30)
         val advHour = etfDao.getSetting(Keys.updateHour("advanced_analysis"))?.toIntOrNull() ?: 18
@@ -412,6 +438,17 @@ class SettingsViewModel @Inject constructor(
                     kospiCount = marketOscillatorRepository.getDataCount("KOSPI"),
                     kosdaqCount = marketOscillatorRepository.getDataCount("KOSDAQ"),
                     lastUpdateTime = maxOf(oscKospiUpdate ?: 0L, oscKosdaqUpdate ?: 0L).takeIf { it > 0L }
+                )
+
+                // Market index info
+                val kospiIndexCount = marketIndexRepository.getCountByMarket("KOSPI")
+                val kosdaqIndexCount = marketIndexRepository.getCountByMarket("KOSDAQ")
+                val kospiIndexUpdate = marketIndexRepository.getLastUpdateTime("KOSPI")
+                val kosdaqIndexUpdate = marketIndexRepository.getLastUpdateTime("KOSDAQ")
+                _marketIndexUpdateSettings.value = _marketIndexUpdateSettings.value.copy(
+                    kospiCount = kospiIndexCount,
+                    kosdaqCount = kosdaqIndexCount,
+                    lastUpdateTime = maxOf(kospiIndexUpdate ?: 0L, kosdaqIndexUpdate ?: 0L).takeIf { it > 0L }
                 )
             } catch (e: Exception) {
                 logger.e("Error loading data info", e)
@@ -565,6 +602,38 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setMarketIndexPeriodDays(days: Int, reinitialize: Boolean = false) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting(Keys.MARKET_INDEX_PERIOD, days.toString()))
+                _marketIndexPeriodDays.value = days
+
+                if (reinitialize) {
+                    _marketIndexUpdateSettings.value = _marketIndexUpdateSettings.value.copy(isUpdating = true)
+                    _message.value = "시장 지수 데이터 재수집 중..."
+                    val result = withTimeoutOrNull(120_000L) {
+                        marketIndexRepository.initializeMarketIndex(days)
+                    }
+                    when {
+                        result == null -> _message.value = "재수집 시간 초과 (2분)"
+                        result.isSuccess -> {
+                            loadDataInfo()
+                            _message.value = formatPeriodMessage("시장 지수", days) +
+                                " (${result.getOrNull() ?: 0}개 데이터 수집)"
+                        }
+                        else -> _message.value = "재수집 실패: ${result.exceptionOrNull()?.message}"
+                    }
+                    _marketIndexUpdateSettings.value = _marketIndexUpdateSettings.value.copy(isUpdating = false)
+                } else {
+                    _message.value = formatPeriodMessage("시장 지수", days) + " (다음 초기화 시 적용)"
+                }
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+                _marketIndexUpdateSettings.value = _marketIndexUpdateSettings.value.copy(isUpdating = false)
+            }
+        }
+    }
+
     private fun formatPeriodMessage(name: String, days: Int): String {
         val period = when (days) {
             180 -> "6개월"; 365 -> "12개월"; 540 -> "18개월"; 730 -> "24개월"; else -> "${days}일"
@@ -601,6 +670,11 @@ class SettingsViewModel @Inject constructor(
     fun setMarketOscillatorUpdateTime(hour: Int, minute: Int) = setSchedule("market_oscillator", hour, minute, "과매수/과매도 업데이트") {
         _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(updateHour = hour, updateMinute = minute)
         WorkManagerHelper.scheduleMarketOscillatorUpdate(context, hour, minute)
+    }
+
+    fun setMarketIndexUpdateTime(hour: Int, minute: Int) = setSchedule("market_index", hour, minute, "시장 지수 업데이트") {
+        _marketIndexUpdateSettings.value = _marketIndexUpdateSettings.value.copy(updateHour = hour, updateMinute = minute)
+        WorkManagerHelper.scheduleMarketIndexUpdate(context, hour, minute)
     }
 
     fun setAdvancedAnalysisUpdateTime(hour: Int, minute: Int) = setSchedule("advanced_analysis", hour, minute, "고급 분석 업데이트") {
@@ -718,6 +792,28 @@ class SettingsViewModel @Inject constructor(
                 _message.value = "오류 발생: ${e.message}"
             } finally {
                 _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(isUpdating = false)
+            }
+        }
+    }
+
+    fun updateMarketIndexNow() {
+        viewModelScope.launch {
+            _marketIndexUpdateSettings.value = _marketIndexUpdateSettings.value.copy(isUpdating = true)
+            _message.value = "시장 지수 데이터 업데이트 중..."
+            try {
+                val result = withTimeoutOrNull(120_000L) { marketIndexRepository.updateMarketIndex(30) }
+                when {
+                    result == null -> _message.value = "업데이트 시간 초과 (2분)"
+                    result.isSuccess -> {
+                        loadDataInfo()
+                        _message.value = "업데이트 완료: ${result.getOrNull() ?: 0}개 데이터"
+                    }
+                    else -> _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
+                }
+            } catch (e: Exception) {
+                _message.value = "오류 발생: ${e.message}"
+            } finally {
+                _marketIndexUpdateSettings.value = _marketIndexUpdateSettings.value.copy(isUpdating = false)
             }
         }
     }
