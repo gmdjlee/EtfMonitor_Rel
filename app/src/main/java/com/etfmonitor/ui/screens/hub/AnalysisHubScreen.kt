@@ -182,7 +182,7 @@ private fun AIAnalysisHubContent(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "ETF 흐름-시장 상관계수: ${String.format("%.3f", correlation.flowMarketCorrelation)}",
+                            text = "ETF 순흐름-시장 상관계수: ${String.format("%.3f", correlation.etfNetFlowCorrelation)}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
