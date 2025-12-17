@@ -31,9 +31,9 @@ jobs:
     - name: Build with Gradle (Debug APK 빌드)
       run: ./gradlew assembleDebug
 
-    - name: Upload APK (빌드된 APK 업로드)
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-debug
-        path: app/build/outputs/apk/debug/app-debug.apk
-        # path 경로는 프로젝트 구조에 따라 다를 수 있음 (보통 app/build/outputs/apk/debug/)
+       name: app-release
+       path: app/build/outputs/apk/release/app-release.apk
+       retention-days: 3  # 3일 뒤 자동 삭제됨
