@@ -18,7 +18,6 @@ import com.etfmonitor.ui.screens.home.HomeScreen
 import com.etfmonitor.ui.screens.list.EtfListScreen
 import com.etfmonitor.ui.screens.settings.SettingsScreen
 import com.etfmonitor.ui.screens.statistics.AggregatedStockTrendScreen
-import com.etfmonitor.ui.screens.statistics.StatisticsScreen
 import com.etfmonitor.ui.screens.trend.StockTrendScreen
 import com.etfmonitor.ui.screens.oscillator.OscillatorScreen
 import com.etfmonitor.ui.screens.oscillator.MarketDepositScreen
@@ -55,13 +54,6 @@ sealed class Screen(val route: String) {
     object StockTrend : Screen("trend/{etfTicker}/{stockTicker}") {
         fun createRoute(etfTicker: String, stockTicker: String) =
             "trend/$etfTicker/$stockTicker"
-    }
-    object Statistics : Screen("statistics?stockTicker={stockTicker}") {
-        fun createRoute(stockTicker: String? = null) = if (stockTicker != null) {
-            "statistics?stockTicker=$stockTicker"
-        } else {
-            "statistics"
-        }
     }
     // 전체 ETF 통합 종목 추이
     object AggregatedStockTrend : Screen("aggregated_trend/{stockTicker}") {
@@ -284,29 +276,6 @@ fun Navigation(
                 )
             }
 
-            composable(
-                route = Screen.Statistics.route,
-                arguments = listOf(
-                    navArgument("stockTicker") {
-                        type = NavType.StringType
-                        nullable = true
-                        defaultValue = null
-                    }
-                )
-            ) { backStackEntry ->
-                val initialStockTicker = backStackEntry.arguments?.getString("stockTicker")
-                StatisticsScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onStockClick = { stockTicker ->
-                        navController.navigate(Screen.AggregatedStockTrend.createRoute(stockTicker))
-                    },
-                    onNavigateToOscillator = { ticker ->
-                        navController.navigate(Screen.Oscillator.createRoute(ticker))
-                    },
-                    initialStockTicker = initialStockTicker
-                )
-            }
-
             // 통합 종목 추이 화면
             composable(
                 route = Screen.AggregatedStockTrend.route,
@@ -340,7 +309,7 @@ fun Navigation(
                     onNavigateBack = { navController.popBackStack() },
                     initialTicker = ticker,
                     onNavigateToStatistics = { stockTicker ->
-                        navController.navigate(Screen.Statistics.createRoute(stockTicker))
+                        navController.navigate(Screen.EtfHub.createRoute(stockTicker))
                     }
                 )
             }

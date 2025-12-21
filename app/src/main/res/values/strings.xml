@@ -273,7 +273,7 @@
     <string name="settings_quick_chart_analysis_title">빠른 차트 분석</string>
     <string name="settings_quick_chart_analysis_desc">종목 추이 화면에서 종목 수급 분석으로 바로 이동할 수 있습니다</string>
     <string name="settings_quick_chart_analysis_enable">종목 수급 분석 바로가기</string>
-    <string name="settings_quick_chart_analysis_enable_desc">ETF 테마목록, 전체 통계에서 종목 클릭 시 종목 수급 분석 버튼을 표시합니다</string>
+    <string name="settings_quick_chart_analysis_enable_desc">ETF 통계에서 종목 분석 시 종목 수급 분석 버튼을 표시합니다</string>
     <string name="go_to_oscillator_analysis">종목 수급 분석 보기</string>
     <string name="fab_etf_analysis">ETF 편입 분석</string>
     <string name="fab_chart_analysis">차트 분석</string>
