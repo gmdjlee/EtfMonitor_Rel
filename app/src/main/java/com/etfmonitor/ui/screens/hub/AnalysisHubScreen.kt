@@ -1255,12 +1255,12 @@ private fun HubStockIndicatorCorrelationScreen(
                     )
                 }
             }
+        }
 
-            // AI 해석 결과
-            stockIndicatorCorrelationResult.aiInterpretation?.let { aiResult ->
-                item {
-                    HubStockIndicatorAIInterpretationCard(interpretation = aiResult)
-                }
+        // AI 해석 결과 (히스토리에서 로드할 때도 표시되도록 correlationResult 블록 밖에 배치)
+        stockIndicatorCorrelationResult?.aiInterpretation?.let { aiResult ->
+            item {
+                HubStockIndicatorAIInterpretationCard(interpretation = aiResult)
             }
 
             // 채팅 시작 버튼
