@@ -708,21 +708,21 @@
     <string name="advanced_calculate_correlation">상관관계 계산</string>
     <string name="advanced_calculating_correlation">상관관계 계산 중…</string>
     <string name="advanced_high_overlap_pairs">높은 중복률 ETF 쌍</string>
-    <string name="advanced_overlap_desc">중복률 70% 이상인 ETF 쌍은 분산 효과가 낮습니다</string>
+    <string name="advanced_overlap_desc">중복률 70%% 이상인 ETF 쌍은 분산 효과가 낮습니다</string>
     <string name="advanced_diversification_advice">분산 투자 권고</string>
-    <string name="advanced_diversification_warning">80% 이상 중복되는 ETF가 있습니다. 동일 종목에 과도하게 투자될 수 있으니 포트폴리오 재검토를 권장합니다.</string>
+    <string name="advanced_diversification_warning">80%% 이상 중복되는 ETF가 있습니다. 동일 종목에 과도하게 투자될 수 있으니 포트폴리오 재검토를 권장합니다.</string>
     <string name="advanced_correlation_legend">상관관계 범례</string>
-    <string name="advanced_correlation_high">높음 >70%</string>
-    <string name="advanced_correlation_medium">보통 40-70%</string>
-    <string name="advanced_correlation_low">낮음 &lt;40%</string>
+    <string name="advanced_correlation_high">높음 >70%%</string>
+    <string name="advanced_correlation_medium">보통 40-70%%</string>
+    <string name="advanced_correlation_low">낮음 &lt;40%%</string>
     <string name="advanced_common_stocks">공통 %d종목</string>
 
     <!-- ETF Correlation Interpretation -->
     <string name="advanced_interpretation_title">분석 결과 해석</string>
-    <string name="advanced_overlap_very_high">매우 높은 중복률 (80%+)</string>
-    <string name="advanced_overlap_high">높은 중복률 (70%+)</string>
-    <string name="advanced_overlap_medium">중간 중복률 (40-70%)</string>
-    <string name="advanced_overlap_low">낮은 중복률 (40% 미만)</string>
+    <string name="advanced_overlap_very_high">매우 높은 중복률 (80%%+)</string>
+    <string name="advanced_overlap_high">높은 중복률 (70%%+)</string>
+    <string name="advanced_overlap_medium">중간 중복률 (40-70%%)</string>
+    <string name="advanced_overlap_low">낮은 중복률 (40%% 미만)</string>
     <string name="advanced_interpret_very_high">두 ETF가 거의 동일한 종목을 보유하고 있습니다. 동시 투자 시 분산 효과가 거의 없으며, 하나만 선택하는 것이 효율적입니다.</string>
     <string name="advanced_interpret_high">상당 부분이 중복되어 있어 분산 효과가 제한적입니다. 운용보수, 거래량 등 다른 요소로 선택하세요.</string>
     <string name="advanced_interpret_medium">적절한 중복이 있지만 충분한 분산 효과가 있습니다. 두 ETF를 함께 보유해도 괜찮습니다.</string>
@@ -742,7 +742,7 @@
     <string name="advanced_stock_weight_format">%s: %.1f%% vs %.1f%%</string>
     <string name="advanced_summary_title">종합 요약</string>
     <string name="advanced_summary_analyzed_pairs">분석된 ETF 쌍: %d개</string>
-    <string name="advanced_summary_high_overlap_count">높은 중복 (70%+): %d개</string>
+    <string name="advanced_summary_high_overlap_count">높은 중복 (70%%+): %d개</string>
     <string name="advanced_summary_avg_overlap">평균 중복률: %.1f%%</string>
     <string name="advanced_portfolio_status">포트폴리오 상태</string>
     <string name="advanced_portfolio_needs_review">분산 검토 필요</string>
