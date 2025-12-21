@@ -50,13 +50,9 @@ import com.etfmonitor.ui.components.TabNavigationBar
 import com.etfmonitor.ui.screens.aianalysis.AnalysisTab
 import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisViewModel
 import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisState
-import com.etfmonitor.ui.screens.prediction.PredictionViewModel
-import com.etfmonitor.ui.screens.prediction.PredictionState
 import com.etfmonitor.ui.screens.advanced.AdvancedDashboardViewModel
 import com.etfmonitor.ui.screens.advanced.AdvancedDashboardState
-import com.etfmonitor.ui.screens.advanced.DashboardTab
 import com.etfmonitor.ui.screens.advanced.MarketCapFlowTab
-import com.etfmonitor.ui.screens.advanced.DivergenceTab
 import com.etfmonitor.ui.screens.advanced.LiquidityTab
 import com.etfmonitor.ui.screens.advanced.SectorFearGreedTab
 import com.etfmonitor.ui.screens.advanced.EtfCorrelationTab
@@ -68,11 +64,10 @@ import kotlin.math.abs
  *
  * Consolidates:
  * - AI 시장 분석
- * - ML 주가 예측
  * - 고급 분석
  */
 
-private val ANALYSIS_TABS = listOf("AI 분석", "ML 예측", "고급 분석")
+private val ANALYSIS_TABS = listOf("AI 분석", "고급 분석")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,7 +78,6 @@ fun AnalysisHubScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToOscillator: (String) -> Unit,
     aiAnalysisViewModel: NewAIAnalysisViewModel = hiltViewModel(),
-    predictionViewModel: PredictionViewModel = hiltViewModel(),
     advancedDashboardViewModel: AdvancedDashboardViewModel = hiltViewModel()
 ) {
     val pagerState = rememberPagerState(pageCount = { ANALYSIS_TABS.size })
@@ -121,8 +115,7 @@ fun AnalysisHubScreen(
                     viewModel = aiAnalysisViewModel,
                     onNavigateToOscillator = onNavigateToOscillator
                 )
-                1 -> PredictionHubContent(viewModel = predictionViewModel)
-                2 -> AdvancedDashboardHubContent(
+                1 -> AdvancedDashboardHubContent(
                     viewModel = advancedDashboardViewModel,
                     navController = navController
                 )
@@ -422,217 +415,8 @@ private fun AIAnalysisHubContent(
         }
     }
 }
-
-@Composable
-private fun PredictionHubContent(
-    viewModel: PredictionViewModel
-) {
-    val state by viewModel.state.collectAsState()
-    val predictions by viewModel.predictions.collectAsState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        when (state) {
-            is PredictionState.Loading -> {
-                val loadingState = state as PredictionState.Loading
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = loadingState.message,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            }
-            is PredictionState.HasPredictions, is PredictionState.Success -> {
-                val count = when (state) {
-                    is PredictionState.HasPredictions -> (state as PredictionState.HasPredictions).count
-                    is PredictionState.Success -> (state as PredictionState.Success).predictedCount
-                    else -> predictions.size
-                }
-
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
-                    ) {
-                        Text(
-                            text = "주가 예측 결과",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "${count}개 종목 예측 완료",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                        )
-                    }
-                }
-
-                // Show top predictions
-                predictions.take(5).forEach { prediction ->
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = prediction.name,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                )
-                                Text(
-                                    text = prediction.ticker,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(
-                                    text = prediction.status,
-                                    style = MaterialTheme.typography.titleSmall.copy(
-                                        fontWeight = FontWeight.Bold
-                                    ),
-                                    color = if (prediction.confidence > 0.7) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.secondary
-                                    }
-                                )
-                                Text(
-                                    text = "${(prediction.confidence * 100).toInt()}% 신뢰도",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Re-run prediction button
-                OutlinedButton(
-                    onClick = { viewModel.runPrediction() },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("예측 재실행")
-                }
-            }
-            is PredictionState.NoPredictions, is PredictionState.Initial -> {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surfaceVariant
-                ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            Icons.Default.Analytics,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "ML 주가 예측",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "머신러닝을 사용하여 주가 방향을 예측합니다",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                    }
-                }
-
-                Button(
-                    onClick = { viewModel.runPrediction() },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large
-                ) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("예측 실행")
-                }
-            }
-            is PredictionState.Error -> {
-                val error = state as PredictionState.Error
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.errorContainer
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            Icons.Default.Error,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = error.message,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
-                }
-
-                // Retry button
-                Button(
-                    onClick = { viewModel.runPrediction() },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("다시 시도")
-                }
-            }
-        }
-    }
-}
-
 // 고급 분석 세부 탭 정의
-private val ADVANCED_SUB_TABS = listOf("대시보드", "시총가중", "수급분석", "유동성", "섹터심리", "ETF상관")
+private val ADVANCED_SUB_TABS = listOf("시총가중", "유동성", "섹터심리", "ETF상관")
 
 @Composable
 private fun AdvancedDashboardHubContent(
@@ -741,20 +525,18 @@ private fun AdvancedDashboardHubContent(
                         modifier = Modifier.fillMaxSize()
                     ) { page ->
                         when (page) {
-                            0 -> DashboardTab(currentState.data)
-                            1 -> MarketCapFlowTab(
+                            0 -> MarketCapFlowTab(
                                 data = currentState.data,
                                 history = marketCapFlowHistory,
                                 accuracy = marketCapFlowAccuracy
                             )
-                            2 -> DivergenceTab(currentState.data)
-                            3 -> LiquidityTab(
+                            1 -> LiquidityTab(
                                 data = currentState.data,
                                 history = liquidityHistory,
                                 accuracy = liquidityAccuracy
                             )
-                            4 -> SectorFearGreedTab(currentState.data, sectorHistory)
-                            5 -> EtfCorrelationTab(
+                            2 -> SectorFearGreedTab(currentState.data, sectorHistory)
+                            3 -> EtfCorrelationTab(
                                 data = currentState.data,
                                 isCalculating = isCalculatingCorrelation,
                                 onCalculate = { viewModel.calculateEtfCorrelation() }

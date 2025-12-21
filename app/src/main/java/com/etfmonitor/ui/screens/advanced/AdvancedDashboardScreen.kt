@@ -25,18 +25,14 @@ import kotlinx.coroutines.launch
 /**
  * Advanced Dashboard Screen - Main Entry Point
  * Provides comprehensive advanced market analysis across multiple tabs:
- * - 대시보드 (Dashboard): Overview with key metrics and signals
  * - 시총가중 (Market Cap Flow): Market cap weighted ETF flow analysis
- * - 수급분석 (Divergence): Supply/demand divergence analysis
  * - 유동성 (Liquidity): Market liquidity analysis
  * - 섹터심리 (Sector Fear & Greed): Sector-level sentiment analysis
  * - ETF상관 (ETF Correlation): ETF overlap and correlation analysis
  *
  * Tab components are split into separate files:
  * - CommonComponents.kt: Colors, utilities, shared composables
- * - DashboardTab.kt: Main dashboard overview
  * - MarketCapFlowTab.kt: Market cap flow analysis
- * - DivergenceTab.kt: Supply/demand divergence
  * - LiquidityTab.kt: Liquidity analysis
  * - SectorFearGreedTab.kt: Sector sentiment
  * - EtfCorrelationTab.kt: ETF correlation
@@ -46,9 +42,7 @@ import kotlinx.coroutines.launch
 
 // 탭 정의
 private enum class AdvancedTab(val titleResId: Int, val icon: ImageVector) {
-    DASHBOARD(R.string.advanced_tab_dashboard, Icons.Default.Dashboard),
     MARKET_CAP_FLOW(R.string.advanced_tab_market_cap, Icons.AutoMirrored.Filled.TrendingUp),
-    DIVERGENCE(R.string.advanced_tab_flow, Icons.Default.CompareArrows),
     LIQUIDITY(R.string.advanced_tab_liquidity, Icons.Default.AccountBalance),
     SECTOR_FG(R.string.advanced_tab_sector, Icons.Default.PieChart),
     ETF_CORRELATION(R.string.advanced_tab_etf_correlation, Icons.Default.GridView)
@@ -133,13 +127,11 @@ fun AdvancedDashboardScreen(
                             modifier = Modifier.fillMaxSize()
                         ) { page ->
                             when (AdvancedTab.entries[page]) {
-                                AdvancedTab.DASHBOARD -> DashboardTab(currentState.data)
                                 AdvancedTab.MARKET_CAP_FLOW -> MarketCapFlowTab(
                                     data = currentState.data,
                                     history = marketCapFlowHistory,
                                     accuracy = marketCapFlowAccuracy
                                 )
-                                AdvancedTab.DIVERGENCE -> DivergenceTab(currentState.data)
                                 AdvancedTab.LIQUIDITY -> LiquidityTab(
                                     data = currentState.data,
                                     history = liquidityHistory,

@@ -24,7 +24,6 @@ import com.etfmonitor.ui.screens.oscillator.MarketDepositScreen
 import com.etfmonitor.ui.screens.feargreed.FearGreedScreen
 import com.etfmonitor.ui.screens.marketoscillator.MarketOscillatorScreen
 import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisScreen
-import com.etfmonitor.ui.screens.prediction.PredictionScreen
 import com.etfmonitor.ui.screens.advanced.AdvancedDashboardScreen
 import com.etfmonitor.ui.screens.hub.MarketIndicatorHubScreen
 import com.etfmonitor.ui.screens.hub.EtfHubScreen
@@ -75,8 +74,6 @@ sealed class Screen(val route: String) {
     object MarketOscillator : Screen("market_oscillator")
     // AI Analysis (AI 시장 분석)
     object AIAnalysis : Screen("ai_analysis")
-    // ML 주가 예측
-    object Prediction : Screen("prediction")
     // 고급 분석 대시보드
     object AdvancedDashboard : Screen("advanced_dashboard")
 }
@@ -342,13 +339,6 @@ fun Navigation(
                     onNavigateToOscillator = { ticker ->
                         navController.navigate(Screen.Oscillator.createRoute(ticker))
                     }
-                )
-            }
-
-            // ML 주가 예측 화면
-            composable(Screen.Prediction.route) {
-                PredictionScreen(
-                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 

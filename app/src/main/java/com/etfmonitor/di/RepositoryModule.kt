@@ -103,7 +103,4 @@ object RepositoryModule {
     ): StatisticsAnalysisRepository {
         return StatisticsAnalysisRepository(etfDao, marketIndexDao, dailyEtfStatisticsDao)
     }
-
-    // StockPredictionRepository 제거됨 - EnhancedPredictionRepository로 대체
-    // EnhancedPredictionRepository는 @Inject constructor를 사용하므로 수동 제공 불필요
 }

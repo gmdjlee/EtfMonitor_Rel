@@ -171,26 +171,6 @@
     <string name="statistics_sort_ascending">오름차순</string>
     <string name="statistics_sort_available">정렬 가능</string>
 
-    <!-- PredictionScreen -->
-    <string name="prediction_title">ML 주가 예측</string>
-    <string name="prediction_subtitle">ETF 구성 변화 기반 상승 예측</string>
-    <string name="prediction_learning_result">학습 결과</string>
-    <string name="prediction_run">예측 실행</string>
-    <string name="prediction_what_is">ML 주가 예측이란?</string>
-    <string name="prediction_current_settings">현재 설정</string>
-    <string name="prediction_how_to_use">사용 방법</string>
-    <string name="prediction_period">예측 기간</string>
-    <string name="prediction_rise_criteria">상승 판단 기준</string>
-    <string name="prediction_min_confidence">최소 신뢰도</string>
-    <string name="prediction_ml_model">ML 모델</string>
-    <string name="prediction_accuracy">정확도</string>
-    <string name="prediction_precision">정밀도</string>
-    <string name="prediction_training_samples">학습 샘플</string>
-    <string name="prediction_training_complete">학습 완료</string>
-    <string name="prediction_results">예측 결과</string>
-    <string name="prediction_no_results">예측 결과가 없습니다</string>
-    <string name="prediction_run_first">예측을 실행해 주세요</string>
-
     <!-- StockTrendScreen -->
     <string name="stock_trend_title">종목 추이</string>
     <string name="stock_trend_summary">요약</string>
@@ -199,9 +179,7 @@
 
     <!-- AdvancedDashboardScreen -->
     <string name="advanced_title">고급 분석</string>
-    <string name="advanced_tab_dashboard">대시보드</string>
     <string name="advanced_tab_market_cap">시총가중</string>
-    <string name="advanced_tab_flow">수급분석</string>
     <string name="advanced_tab_liquidity">유동성</string>
     <string name="advanced_tab_sector">섹터심리</string>
     <string name="advanced_tab_etf_correlation">ETF상관</string>
@@ -481,26 +459,6 @@
     <string name="dialog_select_period">기간 선택</string>
     <string name="dialog_display_settings">표시 설정</string>
 
-    <!-- PredictionScreen Additional -->
-    <string name="prediction_description">ETF 구성 변화(신규 편입, 비중 증가/감소)를 학습하여\n향후 주가 상승 가능성이 높은 종목을 예측합니다.</string>
-    <string name="prediction_step_1">충분한 ETF 데이터 수집 (최소 2주)</string>
-    <string name="prediction_step_2">우측 하단 \'예측 실행\' 버튼 클릭</string>
-    <string name="prediction_step_3">ML 모델 학습 완료 후 예측 결과 확인</string>
-    <string name="prediction_step_4">상승 확률이 높은 종목 분석</string>
-    <string name="prediction_disclaimer">본 예측은 참고용이며, 투자 결정의 책임은 본인에게 있습니다.</string>
-    <string name="prediction_days_after">%d일 후 예측</string>
-    <string name="prediction_rise_threshold">%s%% 이상 상승</string>
-    <string name="prediction_confidence_threshold">%d%% 신뢰도</string>
-    <string name="prediction_settings">예측 설정</string>
-    <string name="prediction_model_type">모델 타입</string>
-    <string name="prediction_sample_count">학습 샘플 수</string>
-    <string name="prediction_performance_metrics">성능 지표</string>
-    <string name="prediction_recall">재현율 (Recall)</string>
-    <string name="prediction_feature_importance">피처 중요도</string>
-    <string name="prediction_loading_message">ML 모델 학습 및 예측에는\n약 1-2분이 소요됩니다.</string>
-    <string name="prediction_model_random_forest">Random Forest</string>
-    <string name="prediction_model_gradient_boosting">Gradient Boosting</string>
-
     <!-- HomeScreen Additional -->
     <string name="home_retry">재시도</string>
     <string name="home_deposit_change">예탁금 변동</string>
@@ -536,10 +494,8 @@
     <string name="menu_market_overbought_desc">RSI 기반 시장 분석</string>
     <string name="menu_ai_analysis">AI 시장 분석</string>
     <string name="menu_ai_analysis_desc">Claude AI 매매 신호</string>
-    <string name="menu_ml_prediction">ML 주가 예측</string>
-    <string name="menu_ml_prediction_desc">ETF 변화 기반 상승 예측</string>
     <string name="menu_advanced_analysis">고급 분석</string>
-    <string name="menu_advanced_analysis_desc">시총가중/수급/섹터 종합분석</string>
+    <string name="menu_advanced_analysis_desc">시총가중/유동성/섹터 종합분석</string>
 
     <!-- HomeScreen Dialogs -->
     <string name="dialog_init_data_collection">초기 데이터 수집</string>
@@ -778,7 +734,6 @@
     <string name="cd_search_button">검색 버튼</string>
     <string name="cd_close_button">닫기 버튼</string>
     <string name="cd_analytics_button">분석 결과 버튼</string>
-    <string name="cd_prediction_button">예측 실행 버튼</string>
     <string name="cd_chart_indicator">차트 지표</string>
     <string name="cd_loading_indicator">로딩 중</string>
 </resources>
