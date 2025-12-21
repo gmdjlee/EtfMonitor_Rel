@@ -92,11 +92,14 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Stock DB 초기화 및 WorkManager 설정
-        initializeStockDatabase()
-
-        // 테마 설정 로드
-        loadThemeSetting()
+        // 중요: 첫 프레임 렌더링 후 초기화 작업 실행
+        // SurfaceSyncGroup 타임아웃 에러 방지를 위해 setContent 이후로 지연
+        window.decorView.post {
+            // Stock DB 초기화 및 WorkManager 설정
+            initializeStockDatabase()
+            // 테마 설정 로드
+            loadThemeSetting()
+        }
 
         setContent {
             val darkThemeSetting by themeManager.isDarkTheme.collectAsState()

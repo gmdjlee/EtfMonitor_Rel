@@ -1,6 +1,8 @@
 package com.etfmonitor
 
 import android.app.Application
+import android.os.Handler
+import android.os.Looper
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.etfmonitor.worker.WorkManagerHelper
@@ -42,20 +44,24 @@ class EtfMonitorApp : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
 
-        // Schedule Market Oscillator update at 8:00 PM every day
-        // WorkManager는 Hilt를 통해 Worker에 의존성을 주입합니다
-        WorkManagerHelper.scheduleMarketOscillatorUpdate(
-            context = this,
-            hour = 20,
-            minute = 0
-        )
+        // WorkManager 스케줄링을 메인 스레드 큐 끝으로 지연
+        // SurfaceSyncGroup 타임아웃 에러 방지를 위해 앱 시작 후 지연 실행
+        Handler(Looper.getMainLooper()).post {
+            // Schedule Market Oscillator update at 8:00 PM every day
+            // WorkManager는 Hilt를 통해 Worker에 의존성을 주입합니다
+            WorkManagerHelper.scheduleMarketOscillatorUpdate(
+                context = this,
+                hour = 20,
+                minute = 0
+            )
 
-        // Schedule Advanced Analysis at 6:30 PM every day (after market close)
-        // 고급 분석: 시총가중 ETF흐름, 수급Divergence, 유동성, 섹터분석, ETF상관관계
-        WorkManagerHelper.scheduleAdvancedAnalysis(
-            context = this,
-            hour = 18,
-            minute = 30
-        )
+            // Schedule Advanced Analysis at 6:30 PM every day (after market close)
+            // 고급 분석: 시총가중 ETF흐름, 수급Divergence, 유동성, 섹터분석, ETF상관관계
+            WorkManagerHelper.scheduleAdvancedAnalysis(
+                context = this,
+                hour = 18,
+                minute = 30
+            )
+        }
     }
 }
