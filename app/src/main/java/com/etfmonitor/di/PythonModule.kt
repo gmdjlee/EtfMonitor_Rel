@@ -46,7 +46,4 @@ object PythonModule {
     fun provideMarketIndexPyClient(@ApplicationContext context: Context): MarketIndexPyClient {
         return MarketIndexPyClient(context)
     }
-
-    // StockPredictorPyClient 제거됨 - EnhancedPredictorClient로 대체
-    // EnhancedPredictorClient는 @Inject constructor를 사용하므로 수동 제공 불필요
 }

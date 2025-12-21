@@ -20,12 +20,9 @@ import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.database.entities.Setting
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.StockAnalysisData
-import com.etfmonitor.database.entities.StockPrediction
 import com.etfmonitor.database.entities.SectorAnalysis
 import com.etfmonitor.database.entities.EtfCorrelationCache
 import com.etfmonitor.database.entities.LiquidityAnalysis
-import com.etfmonitor.database.entities.PriceCache
-import com.etfmonitor.database.entities.EnhancedPrediction
 import com.etfmonitor.database.entities.StockIndicatorAIResult
 
 @Database(
@@ -45,12 +42,9 @@ import com.etfmonitor.database.entities.StockIndicatorAIResult
         AIAnalysisResult::class,
         AIChatSession::class,
         AIChatMessage::class,
-        StockPrediction::class,
         SectorAnalysis::class,
         EtfCorrelationCache::class,
         LiquidityAnalysis::class,
-        PriceCache::class,
-        EnhancedPrediction::class,
         StockIndicatorAIResult::class
     ],
     version = 16,
@@ -70,12 +64,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun correlationAnalysisDao(): CorrelationAnalysisDao
     abstract fun aiAnalysisDao(): AIAnalysisDao
     abstract fun aiChatDao(): AIChatDao
-    abstract fun stockPredictionDao(): StockPredictionDao
     abstract fun sectorAnalysisDao(): SectorAnalysisDao
     abstract fun etfCorrelationDao(): EtfCorrelationDao
     abstract fun liquidityAnalysisDao(): LiquidityAnalysisDao
-    abstract fun priceCacheDao(): PriceCacheDao
-    abstract fun enhancedPredictionDao(): EnhancedPredictionDao
     abstract fun stockIndicatorAIResultDao(): StockIndicatorAIResultDao
 }
 
