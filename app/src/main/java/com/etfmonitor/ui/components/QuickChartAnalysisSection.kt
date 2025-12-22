@@ -292,14 +292,6 @@ private fun IndicatorChip(
     }
 }
 
-private fun getFearGreedColor(state: FearGreedState): Color = when (state) {
-    FearGreedState.EXTREME_FEAR -> Color(0xFFF44336)
-    FearGreedState.FEAR -> Color(0xFFFF9800)
-    FearGreedState.NEUTRAL -> Color(0xFF9E9E9E)
-    FearGreedState.GREED -> Color(0xFF8BC34A)
-    FearGreedState.EXTREME_GREED -> Color(0xFF4CAF50)
-}
-
 private sealed class QuickAnalysisState {
     data object Loading : QuickAnalysisState()
     data class Success(val data: TrendSignalData, val analysis: TrendSignalAnalysis) : QuickAnalysisState()
