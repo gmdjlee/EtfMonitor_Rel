@@ -3,11 +3,15 @@ package com.etfmonitor.ui.screens.statistics
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.database.entities.CashDepositTrend
+import com.etfmonitor.database.entities.SearchHistory
+import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.StockAmountRanking
 import com.etfmonitor.database.entities.StockAnalysisResult
 import com.etfmonitor.database.entities.StockChangeInfo
+import com.etfmonitor.database.SearchHistoryDao
 import com.etfmonitor.repository.DataRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,7 +33,8 @@ import javax.inject.Inject
 @HiltViewModel
 class StatisticsViewModel @Inject constructor(
     private val repository: DataRepository,
-    private val etfDao: com.etfmonitor.database.EtfDao
+    private val etfDao: com.etfmonitor.database.EtfDao,
+    private val searchHistoryDao: SearchHistoryDao
 ) : ViewModel() {
 
     companion object {
@@ -86,6 +91,9 @@ class StatisticsViewModel @Inject constructor(
     private val _isAnalyzing = MutableStateFlow(false)
     val isAnalyzing: StateFlow<Boolean> = _isAnalyzing.asStateFlow()
 
+    // 검색 히스토리 (최근 20개)
+    val searchHistory: Flow<List<SearchHistory>> = searchHistoryDao.getRecentSearches(20)
+
     init {
         loadStatistics()
         loadQuickChartAnalysisSetting()
@@ -141,9 +149,27 @@ class StatisticsViewModel @Inject constructor(
         viewModelScope.launch {
             _isAnalyzing.value = true
             try {
-                _analysisResult.value = repository.analyzeStock(stockTicker)
+                val result = repository.analyzeStock(stockTicker)
+                _analysisResult.value = result
                 _searchQuery.value = ""
                 _searchResults.value = emptyList()
+
+                // 분석 성공 시 검색 히스토리에 저장
+                result?.let {
+                    try {
+                        val market = Stock.inferMarket(it.stockTicker)
+                        searchHistoryDao.insertSearch(
+                            SearchHistory(
+                                ticker = it.stockTicker,
+                                name = it.stockName,
+                                market = market
+                            )
+                        )
+                        searchHistoryDao.deleteOldSearches(20)
+                    } catch (e: Exception) {
+                        // 히스토리 저장 실패 무시
+                    }
+                }
             } finally {
                 _isAnalyzing.value = false
             }

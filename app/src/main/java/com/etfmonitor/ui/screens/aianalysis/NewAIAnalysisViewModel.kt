@@ -12,8 +12,10 @@ import com.etfmonitor.database.entities.AIChatMessage
 import com.etfmonitor.database.entities.AIChatSession
 import com.etfmonitor.database.entities.AIAnalysisResult
 import com.etfmonitor.database.entities.CorrelationAnalysisResult
+import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.StockIndicatorAIResult
+import com.etfmonitor.database.SearchHistoryDao
 import com.etfmonitor.repository.AIChatRepository
 import com.etfmonitor.repository.CorrelationAnalysisRepository
 import com.etfmonitor.repository.FullAnalysisResult
@@ -36,7 +38,8 @@ class NewAIAnalysisViewModel @Inject constructor(
     private val chatRepository: AIChatRepository,
     private val apiKeyProvider: ApiKeyProvider,
     private val aiApiClientFactory: AIApiClientFactory,
-    private val etfDao: com.etfmonitor.database.EtfDao
+    private val etfDao: com.etfmonitor.database.EtfDao,
+    private val searchHistoryDao: SearchHistoryDao
 ) : ViewModel() {
 
     companion object {
@@ -121,6 +124,9 @@ class NewAIAnalysisViewModel @Inject constructor(
     // 전체 종목-지표 AI 분석 히스토리
     val allStockIndicatorAIHistory: Flow<List<StockIndicatorAIResult>> =
         timeSeriesAnalysisRepository.getAllStockIndicatorAIHistory(50)
+
+    // 검색 히스토리 (최근 20개)
+    val searchHistory: Flow<List<SearchHistory>> = searchHistoryDao.getRecentSearches(20)
 
     init {
         checkApiKey()
@@ -391,6 +397,24 @@ class NewAIAnalysisViewModel @Inject constructor(
     fun selectStock(ticker: String, name: String) {
         _selectedStock.value = Pair(ticker, name)
         _stockSearchResults.value = emptyList()
+
+        // 검색 히스토리에 저장
+        viewModelScope.launch {
+            try {
+                val market = Stock.inferMarket(ticker)
+                searchHistoryDao.insertSearch(
+                    SearchHistory(
+                        ticker = ticker,
+                        name = name,
+                        market = market
+                    )
+                )
+                // 오래된 히스토리 정리 (최대 20개 유지)
+                searchHistoryDao.deleteOldSearches(20)
+            } catch (e: Exception) {
+                // 히스토리 저장 실패 무시
+            }
+        }
     }
 
     /**
