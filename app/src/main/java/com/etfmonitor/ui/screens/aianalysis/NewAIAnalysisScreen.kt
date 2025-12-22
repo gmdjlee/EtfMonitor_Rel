@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
+import com.etfmonitor.database.entities.SearchHistory
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +43,7 @@ import com.etfmonitor.database.entities.CorrelationAnalysisResult
 import com.etfmonitor.database.entities.StockIndicatorAIResult
 import com.etfmonitor.repository.FullAnalysisResult
 import com.etfmonitor.ui.components.*
+import com.etfmonitor.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -79,6 +81,7 @@ fun NewAIAnalysisScreen(
     val isSendingMessage by viewModel.isSendingMessage.collectAsState()
     val chatSessions by viewModel.chatSessions.collectAsState(initial = emptyList())
     val stockIndicatorAIHistory by viewModel.stockIndicatorAIHistory.collectAsState(initial = emptyList())
+    val searchHistory by viewModel.searchHistory.collectAsState(initial = emptyList())
     val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
 
     var showProviderDialog by remember { mutableStateOf(false) }
@@ -204,6 +207,7 @@ fun NewAIAnalysisScreen(
                                     stockSearchResults = stockSearchResults,
                                     isSearching = isSearching,
                                     historyCount = stockIndicatorAIHistory.size,
+                                    searchHistory = searchHistory,
                                     onPeriodChange = { viewModel.setAnalysisPeriod(it) },
                                     onSearchStock = { viewModel.searchStock(it) },
                                     onSelectStock = { ticker, name -> viewModel.selectStock(ticker, name) },
@@ -587,6 +591,7 @@ private fun StockIndicatorCorrelationScreen(
     stockSearchResults: List<Pair<String, String>>,
     isSearching: Boolean,
     historyCount: Int,
+    searchHistory: List<SearchHistory>,
     onPeriodChange: (Int) -> Unit,
     onSearchStock: (String) -> Unit,
     onSelectStock: (String, String) -> Unit,
@@ -625,6 +630,7 @@ private fun StockIndicatorCorrelationScreen(
                 isSearching = isSearching,
                 selectedStock = selectedStock,
                 detectedMarket = detectedMarket,
+                searchHistory = searchHistory,
                 onSelectStock = { ticker, name ->
                     onSelectStock(ticker, name)
                     searchQuery = ""
@@ -836,9 +842,15 @@ private fun StockSearchSection(
     isSearching: Boolean,
     selectedStock: Pair<String, String>?,
     detectedMarket: String? = null,
+    searchHistory: List<SearchHistory> = emptyList(),
     onSelectStock: (String, String) -> Unit,
-    onClearStock: () -> Unit
+    onClearStock: () -> Unit,
+    onSelectFromHistory: ((String, String) -> Unit)? = null
 ) {
+    var textFieldValue by remember { mutableStateOf("") }
+    var showHistoryDialog by remember { mutableStateOf(false) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     Column {
         Text(
             "종목 선택",
@@ -902,50 +914,180 @@ private fun StockSearchSection(
                 }
             }
         } else {
-            // 검색 입력
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("종목명 또는 종목코드 입력") },
-                leadingIcon = {
-                    if (isSearching) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp
+            // 검색 입력 - Box로 감싸서 드롭다운 오버레이
+            Box(modifier = Modifier.fillMaxWidth()) {
+                // 검색 필드 - AnalysisTab 스타일
+                OutlinedTextField(
+                    value = textFieldValue,
+                    onValueChange = {
+                        textFieldValue = it
+                        onSearchQueryChange(it)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(
+                            "종목명 또는 종목코드 입력",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    } else {
-                        Icon(Icons.Default.Search, contentDescription = null)
-                    }
-                },
-                singleLine = true
-            )
+                    },
+                    leadingIcon = {
+                        if (isSearching) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    trailingIcon = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // History 버튼
+                            if (searchHistory.isNotEmpty() && textFieldValue.isEmpty()) {
+                                IconButton(onClick = { showHistoryDialog = true }) {
+                                    Icon(
+                                        Icons.Default.History,
+                                        contentDescription = "검색 히스토리",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            // Clear 버튼
+                            if (textFieldValue.isNotEmpty()) {
+                                IconButton(onClick = {
+                                    textFieldValue = ""
+                                    onSearchQueryChange("")
+                                }) {
+                                    Icon(
+                                        Icons.Default.Clear,
+                                        contentDescription = "지우기",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = MaterialTheme.extendedShapes.searchBar,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedBorderColor = MaterialTheme.colorScheme.outline,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() })
+                )
 
-            // 검색 결과
-            if (searchResults.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Card {
-                    Column(modifier = Modifier.padding(8.dp)) {
-                        searchResults.forEach { (ticker, name) ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onSelectStock(ticker, name) }
-                                    .padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(name, style = MaterialTheme.typography.bodyMedium)
-                                Text(
-                                    ticker,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                // 자동완성 드롭다운 - 오버레이
+                if (searchResults.isNotEmpty() && textFieldValue.isNotBlank()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 60.dp)
+                            .heightIn(max = 300.dp),
+                        elevation = CardDefaults.cardElevation(
+                            defaultElevation = 8.dp
+                        ),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        shape = MaterialTheme.extendedShapes.cardLarge
+                    ) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(searchResults) { (ticker, name) ->
+                                ListItem(
+                                    headlineContent = { Text(name) },
+                                    supportingContent = {
+                                        Text(
+                                            ticker,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    },
+                                    modifier = Modifier.clickable {
+                                        textFieldValue = name
+                                        onSearchQueryChange("")
+                                        onSelectStock(ticker, name)
+                                    }
                                 )
+                                if (searchResults.last().first != ticker) {
+                                    HorizontalDivider()
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    // 검색 히스토리 다이얼로그
+    if (showHistoryDialog && searchHistory.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { showHistoryDialog = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.History,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text("최근 검색")
+                }
+            },
+            text = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(searchHistory) { history ->
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                ListItem(
+                                    headlineContent = { Text(history.name) },
+                                    supportingContent = {
+                                        Text(
+                                            "${history.ticker} • ${history.market}",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    },
+                                    modifier = Modifier.clickable {
+                                        textFieldValue = history.name
+                                        onSelectFromHistory?.invoke(history.ticker, history.name)
+                                            ?: onSelectStock(history.ticker, history.name)
+                                        showHistoryDialog = false
+                                    }
+                                )
+                                if (history != searchHistory.last()) {
+                                    HorizontalDivider()
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showHistoryDialog = false }) {
+                    Text("닫기")
+                }
+            }
+        )
     }
 }
 

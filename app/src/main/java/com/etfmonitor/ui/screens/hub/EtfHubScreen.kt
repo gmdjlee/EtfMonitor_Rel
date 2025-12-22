@@ -32,6 +32,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
 import com.etfmonitor.database.entities.Etf
 import com.etfmonitor.database.entities.HoldingStatus
+import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.ui.components.TabNavigationBar
 import com.etfmonitor.ui.screens.list.EtfListViewModel
 import com.etfmonitor.ui.screens.list.ListState
@@ -366,6 +367,7 @@ private fun StatisticsHubContent(
     val searchResults by viewModel.searchResults.collectAsState()
     val analysisResult by viewModel.analysisResult.collectAsState()
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
+    val searchHistory by viewModel.searchHistory.collectAsState(initial = emptyList())
 
     // Start on Analysis tab (6) if initialStockTicker is provided
     var selectedTab by remember { mutableIntStateOf(if (initialStockTicker != null) 6 else 0) }
@@ -426,6 +428,7 @@ private fun StatisticsHubContent(
                         searchResults = searchResults,
                         analysisResult = analysisResult,
                         isAnalyzing = isAnalyzing,
+                        searchHistory = searchHistory,
                         onSearchQueryChange = { viewModel.updateSearchQuery(it) },
                         onSearchAndAnalyze = { viewModel.searchAndAnalyze(it) },
                         onStockSelect = { viewModel.analyzeStock(it) },

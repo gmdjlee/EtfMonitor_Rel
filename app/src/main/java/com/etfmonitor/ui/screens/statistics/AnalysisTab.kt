@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import com.etfmonitor.database.StockSearchResult
 import com.etfmonitor.database.entities.HoldingStatus
+import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.database.entities.StockAnalysisResult
 import com.etfmonitor.database.entities.StockEtfDetail
 import com.etfmonitor.ui.theme.*
@@ -37,6 +38,7 @@ internal fun StockAnalysisTab(
     searchResults: List<StockSearchResult>,
     analysisResult: StockAnalysisResult?,
     isAnalyzing: Boolean,
+    searchHistory: List<SearchHistory> = emptyList(),
     onSearchQueryChange: (String) -> Unit,
     onSearchAndAnalyze: (String) -> Unit,
     onStockSelect: (String) -> Unit,
@@ -44,6 +46,7 @@ internal fun StockAnalysisTab(
     onStockClick: (String) -> Unit
 ) {
     var textFieldValue by remember { mutableStateOf("") }
+    var showHistoryDialog by remember { mutableStateOf(false) }
     val keyboardController = LocalSoftwareKeyboardController.current
 
     Column(
@@ -77,16 +80,31 @@ internal fun StockAnalysisTab(
                     )
                 },
                 trailingIcon = {
-                    if (textFieldValue.isNotEmpty()) {
-                        IconButton(onClick = {
-                            textFieldValue = ""
-                            onSearchQueryChange("")
-                        }) {
-                            Icon(
-                                Icons.Default.Clear,
-                                contentDescription = "지우기",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // History 버튼
+                        if (searchHistory.isNotEmpty() && textFieldValue.isEmpty()) {
+                            IconButton(onClick = { showHistoryDialog = true }) {
+                                Icon(
+                                    Icons.Default.History,
+                                    contentDescription = "검색 히스토리",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        // Clear 버튼
+                        if (textFieldValue.isNotEmpty()) {
+                            IconButton(onClick = {
+                                textFieldValue = ""
+                                onSearchQueryChange("")
+                            }) {
+                                Icon(
+                                    Icons.Default.Clear,
+                                    contentDescription = "지우기",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 },
@@ -199,6 +217,65 @@ internal fun StockAnalysisTab(
                 }
             }
         }
+    }
+
+    // 검색 히스토리 다이얼로그
+    if (showHistoryDialog && searchHistory.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { showHistoryDialog = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.History,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text("최근 검색")
+                }
+            },
+            text = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(searchHistory) { history ->
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                ListItem(
+                                    headlineContent = { Text(history.name) },
+                                    supportingContent = {
+                                        Text(
+                                            "${history.ticker} • ${history.market}",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    },
+                                    modifier = Modifier.clickable {
+                                        textFieldValue = history.name
+                                        onStockSelect(history.ticker)
+                                        showHistoryDialog = false
+                                    }
+                                )
+                                if (history != searchHistory.last()) {
+                                    HorizontalDivider()
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showHistoryDialog = false }) {
+                    Text("닫기")
+                }
+            }
+        )
     }
 }
 
