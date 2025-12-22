@@ -145,7 +145,7 @@ fun SearchTextFieldCompact(
             {
                 Icon(
                     Icons.Default.Search,
-                    contentDescription = stringResource(R.string.action_search),
+                    contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
