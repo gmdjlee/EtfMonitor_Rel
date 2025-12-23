@@ -47,7 +47,7 @@ import com.etfmonitor.database.entities.StockIndicatorAIResult
         LiquidityAnalysis::class,
         StockIndicatorAIResult::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -709,5 +709,20 @@ val MIGRATION_15_16 = object : Migration(15, 16) {
         database.execSQL("CREATE INDEX IF NOT EXISTS index_stock_indicator_ai_result_ticker ON stock_indicator_ai_result(ticker)")
         database.execSQL("CREATE INDEX IF NOT EXISTS index_stock_indicator_ai_result_ticker_date ON stock_indicator_ai_result(ticker, analysisDate)")
         database.execSQL("CREATE INDEX IF NOT EXISTS index_stock_indicator_ai_result_createdAt ON stock_indicator_ai_result(createdAt)")
+    }
+}
+
+/**
+ * Migration from version 16 to 17: Add feature column to SearchHistory
+ * 검색 히스토리에 기능 구분 컬럼 추가 (oscillator, stocks_hub, analysis, ai_analysis 등)
+ * 동일 종목 중복 방지를 위한 UNIQUE 인덱스 추가
+ */
+val MIGRATION_16_17 = object : Migration(16, 17) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // 1. feature 컬럼 추가
+        database.execSQL("ALTER TABLE search_history ADD COLUMN feature TEXT NOT NULL DEFAULT 'default'")
+
+        // 2. ticker + feature 조합의 UNIQUE 인덱스 추가 (중복 방지)
+        database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_search_history_ticker_feature ON search_history(ticker, feature)")
     }
 }

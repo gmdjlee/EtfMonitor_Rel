@@ -12,6 +12,7 @@ import com.etfmonitor.database.entities.AIChatMessage
 import com.etfmonitor.database.entities.AIChatSession
 import com.etfmonitor.database.entities.AIAnalysisResult
 import com.etfmonitor.database.entities.CorrelationAnalysisResult
+import com.etfmonitor.database.entities.SearchFeature
 import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.StockIndicatorAIResult
@@ -125,8 +126,8 @@ class NewAIAnalysisViewModel @Inject constructor(
     val allStockIndicatorAIHistory: Flow<List<StockIndicatorAIResult>> =
         timeSeriesAnalysisRepository.getAllStockIndicatorAIHistory(50)
 
-    // 검색 히스토리 (최근 20개)
-    val searchHistory: Flow<List<SearchHistory>> = searchHistoryDao.getRecentSearches(20)
+    // 검색 히스토리 (최근 20개) - AI_ANALYSIS feature
+    val searchHistory: Flow<List<SearchHistory>> = searchHistoryDao.getRecentSearchesByFeature(SearchFeature.AI_ANALYSIS, 20)
 
     init {
         checkApiKey()
@@ -402,15 +403,18 @@ class NewAIAnalysisViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val market = Stock.inferMarket(ticker)
+                // 기존 동일 종목+feature 삭제 (시간 업데이트를 위해)
+                searchHistoryDao.deleteByTickerAndFeature(ticker, SearchFeature.AI_ANALYSIS)
                 searchHistoryDao.insertSearch(
                     SearchHistory(
                         ticker = ticker,
                         name = name,
-                        market = market
+                        market = market,
+                        feature = SearchFeature.AI_ANALYSIS
                     )
                 )
                 // 오래된 히스토리 정리 (최대 20개 유지)
-                searchHistoryDao.deleteOldSearches(20)
+                searchHistoryDao.deleteOldSearchesByFeature(SearchFeature.AI_ANALYSIS, 20)
             } catch (e: Exception) {
                 // 히스토리 저장 실패 무시
             }

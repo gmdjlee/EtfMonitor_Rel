@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
 import com.etfmonitor.oscillator.model.DemarkTDData
+import com.etfmonitor.database.entities.SearchFeature
 import com.etfmonitor.ui.components.*
 import com.etfmonitor.ui.screens.oscillator.OscillatorViewModel
 import com.etfmonitor.ui.screens.oscillator.OscillatorState
@@ -47,6 +48,11 @@ fun StocksHubScreen(
     val searchHistory by viewModel.searchHistory.collectAsState()
 
     var showHistoryDialog by remember { mutableStateOf(false) }
+
+    // Set search feature for this screen
+    LaunchedEffect(Unit) {
+        viewModel.setSearchFeature(SearchFeature.STOCKS_HUB)
+    }
 
     // Set initial ticker if provided
     LaunchedEffect(initialTicker) {

@@ -3,6 +3,7 @@ package com.etfmonitor.ui.screens.statistics
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.database.entities.CashDepositTrend
+import com.etfmonitor.database.entities.SearchFeature
 import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.StockAmountRanking
@@ -91,8 +92,8 @@ class StatisticsViewModel @Inject constructor(
     private val _isAnalyzing = MutableStateFlow(false)
     val isAnalyzing: StateFlow<Boolean> = _isAnalyzing.asStateFlow()
 
-    // 검색 히스토리 (최근 20개)
-    val searchHistory: Flow<List<SearchHistory>> = searchHistoryDao.getRecentSearches(20)
+    // 검색 히스토리 (최근 20개) - ANALYSIS feature
+    val searchHistory: Flow<List<SearchHistory>> = searchHistoryDao.getRecentSearchesByFeature(SearchFeature.ANALYSIS, 20)
 
     init {
         loadStatistics()
@@ -158,14 +159,17 @@ class StatisticsViewModel @Inject constructor(
                 result?.let {
                     try {
                         val market = Stock.inferMarket(it.stockTicker)
+                        // 기존 동일 종목+feature 삭제 (시간 업데이트를 위해)
+                        searchHistoryDao.deleteByTickerAndFeature(it.stockTicker, SearchFeature.ANALYSIS)
                         searchHistoryDao.insertSearch(
                             SearchHistory(
                                 ticker = it.stockTicker,
                                 name = it.stockName,
-                                market = market
+                                market = market,
+                                feature = SearchFeature.ANALYSIS
                             )
                         )
-                        searchHistoryDao.deleteOldSearches(20)
+                        searchHistoryDao.deleteOldSearchesByFeature(SearchFeature.ANALYSIS, 20)
                     } catch (e: Exception) {
                         // 히스토리 저장 실패 무시
                     }

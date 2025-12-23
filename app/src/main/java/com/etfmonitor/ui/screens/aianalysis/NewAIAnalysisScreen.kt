@@ -833,6 +833,7 @@ private fun StockIndicatorCorrelationScreen(
 
 /**
  * 종목 검색 섹션
+ * 통합된 SearchTextField 디자인 사용
  */
 @Composable
 private fun StockSearchSection(
@@ -916,74 +917,22 @@ private fun StockSearchSection(
         } else {
             // 검색 입력 - Box로 감싸서 드롭다운 오버레이
             Box(modifier = Modifier.fillMaxWidth()) {
-                // 검색 필드 - AnalysisTab 스타일
-                OutlinedTextField(
+                // 통합된 SearchTextField 사용
+                SearchTextField(
                     value = textFieldValue,
                     onValueChange = {
                         textFieldValue = it
                         onSearchQueryChange(it)
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = {
-                        Text(
-                            "종목명 또는 종목코드 입력",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    placeholder = "종목명 또는 종목코드 입력",
+                    showHistoryButton = true,
+                    hasHistory = searchHistory.isNotEmpty(),
+                    onHistoryClick = { showHistoryDialog = true },
+                    onClear = {
+                        textFieldValue = ""
+                        onSearchQueryChange("")
                     },
-                    leadingIcon = {
-                        if (isSearching) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    },
-                    trailingIcon = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // History 버튼
-                            if (searchHistory.isNotEmpty() && textFieldValue.isEmpty()) {
-                                IconButton(onClick = { showHistoryDialog = true }) {
-                                    Icon(
-                                        Icons.Default.History,
-                                        contentDescription = "검색 히스토리",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            // Clear 버튼
-                            if (textFieldValue.isNotEmpty()) {
-                                IconButton(onClick = {
-                                    textFieldValue = ""
-                                    onSearchQueryChange("")
-                                }) {
-                                    Icon(
-                                        Icons.Default.Clear,
-                                        contentDescription = "지우기",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    shape = MaterialTheme.extendedShapes.searchBar,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        focusedBorderColor = MaterialTheme.colorScheme.outline,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    ),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() })
+                    onSearchDone = { keyboardController?.hide() }
                 )
 
                 // 자동완성 드롭다운 - 오버레이
@@ -1030,62 +979,19 @@ private fun StockSearchSection(
         }
     }
 
-    // 검색 히스토리 다이얼로그
+    // 검색 히스토리 다이얼로그 - SearchHistoryDialog 사용
     if (showHistoryDialog && searchHistory.isNotEmpty()) {
-        AlertDialog(
-            onDismissRequest = { showHistoryDialog = false },
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        Icons.Default.History,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text("최근 검색")
+        SearchHistoryDialog(
+            searchHistory = searchHistory,
+            onDismiss = { showHistoryDialog = false },
+            onSelectStock = { ticker ->
+                val historyItem = searchHistory.find { it.ticker == ticker }
+                if (historyItem != null) {
+                    textFieldValue = historyItem.name
+                    onSelectFromHistory?.invoke(historyItem.ticker, historyItem.name)
+                        ?: onSelectStock(historyItem.ticker, historyItem.name)
                 }
-            },
-            text = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 400.dp)
-                ) {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(searchHistory) { history ->
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                ListItem(
-                                    headlineContent = { Text(history.name) },
-                                    supportingContent = {
-                                        Text(
-                                            "${history.ticker} • ${history.market}",
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    },
-                                    modifier = Modifier.clickable {
-                                        textFieldValue = history.name
-                                        onSelectFromHistory?.invoke(history.ticker, history.name)
-                                            ?: onSelectStock(history.ticker, history.name)
-                                        showHistoryDialog = false
-                                    }
-                                )
-                                if (history != searchHistory.last()) {
-                                    HorizontalDivider()
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showHistoryDialog = false }) {
-                    Text("닫기")
-                }
+                showHistoryDialog = false
             }
         )
     }

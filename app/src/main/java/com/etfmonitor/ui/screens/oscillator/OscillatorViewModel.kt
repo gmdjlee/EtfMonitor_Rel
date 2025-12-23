@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.SearchHistoryDao
+import com.etfmonitor.database.entities.SearchFeature
 import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.oscillator.calculator.OscillatorCalculator
@@ -68,6 +69,20 @@ class OscillatorViewModel @Inject constructor(
         private const val QUICK_CHART_ANALYSIS_KEY = "quick_chart_analysis_enabled"
     }
 
+    // 검색 히스토리 기능 구분 (기본값: oscillator)
+    private var searchFeature: String = SearchFeature.OSCILLATOR
+
+    /**
+     * 검색 히스토리 기능 구분 설정
+     * StocksHubScreen에서는 STOCKS_HUB로 설정
+     */
+    fun setSearchFeature(feature: String) {
+        if (searchFeature != feature) {
+            searchFeature = feature
+            loadSearchHistory() // 새 feature로 히스토리 다시 로드
+        }
+    }
+
     private val _state = MutableStateFlow<OscillatorState>(OscillatorState.Idle)
     val state: StateFlow<OscillatorState> = _state.asStateFlow()
 
@@ -119,7 +134,8 @@ class OscillatorViewModel @Inject constructor(
                 val limitStr = etfDao.getSetting("search_history_limit")
                 val limit = limitStr?.toIntOrNull() ?: 15
 
-                searchHistoryDao.getRecentSearches(limit).collect { history ->
+                // 현재 feature에 해당하는 히스토리만 로드
+                searchHistoryDao.getRecentSearchesByFeature(searchFeature, limit).collect { history ->
                     _searchHistory.value = history
                 }
             } catch (e: CancellationException) {
@@ -133,26 +149,28 @@ class OscillatorViewModel @Inject constructor(
 
     /**
      * 검색 히스토리에 저장
+     * ticker + feature 조합이 UNIQUE이므로 동일 종목은 시간만 업데이트됨
      */
     private suspend fun saveToHistory(ticker: String, name: String, market: String) {
         try {
             val limitStr = etfDao.getSetting("search_history_limit")
             val limit = limitStr?.toIntOrNull() ?: 15
 
-            // 기존 동일 종목 삭제 (중복 방지)
-            searchHistoryDao.deleteByTicker(ticker)
+            // 기존 동일 종목+feature 삭제 (시간 업데이트를 위해)
+            searchHistoryDao.deleteByTickerAndFeature(ticker, searchFeature)
 
             // 새 히스토리 추가
             searchHistoryDao.insertSearch(
                 SearchHistory(
                     ticker = ticker,
                     name = name,
-                    market = market
+                    market = market,
+                    feature = searchFeature
                 )
             )
 
             // 오래된 히스토리 삭제 (limit 개수 초과분)
-            searchHistoryDao.deleteOldSearches(limit)
+            searchHistoryDao.deleteOldSearchesByFeature(searchFeature, limit)
 
         } catch (e: Exception) {
             android.util.Log.e("OscillatorViewModel", "Error saving search history", e)
