@@ -29,7 +29,7 @@ import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
 import com.etfmonitor.database.entities.HoldingTimeSeries
-import com.etfmonitor.ui.utils.AmountFormatter
+import com.etfmonitor.core.common.util.AmountFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
