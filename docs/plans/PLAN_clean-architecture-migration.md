@@ -4,7 +4,7 @@
 **Scope**: Large (7 phases, 20-30 hours total)
 **Created**: 2025-12-24
 **Last Updated**: 2025-12-24
-**Status**: In Progress - Phase 4 Complete
+**Status**: In Progress - Phase 5 Complete
 
 ---
 
@@ -611,19 +611,42 @@ feature/market/
 ```
 
 **Tasks**:
-- [ ] Domain Layer 생성
-- [ ] Data Layer 생성
-  - ⚠️ **FearGreed 3x 요청 로직 유지**
-  - ⚠️ **MarketDeposit 12h 캐싱 로직 유지**
-- [ ] UseCase 클래스 생성
-- [ ] Presentation Layer 이동
-- [ ] DI 설정
-- [ ] 빌드 및 기능 테스트
+- [x] Domain Layer 생성
+  - FearGreed, MarketOscillator, MarketDeposit, MarketIndex models
+  - Repository interfaces
+  - UseCase classes (12 UseCases total)
+- [x] Data Layer 생성
+  - ⚠️ **FearGreed 3x 요청 로직 유지** ✅
+  - ⚠️ **MarketDeposit 12h 캐싱 로직 유지** ✅
+  - LocalDataSources wrapping DAOs
+  - MarketMapper for Entity <-> Domain conversion
+  - Repository implementations
+- [x] UseCase 클래스 생성
+- [x] Presentation Layer 이동
+  - FearGreedScreen, FearGreedViewModel
+  - MarketOscillatorScreen, MarketOscillatorViewModel
+  - MarketDepositScreen, MarketDepositViewModel
+  - MarketIndicatorHubScreen
+- [x] DI 설정 (MarketModule.kt)
+- [x] 기존 의존성 업데이트
+  - Workers: FearGreedUpdateWorker, MarketOscillatorUpdateWorker, MarketDepositUpdateWorker, MarketIndexUpdateWorker
+  - DataCollectionService
+  - SettingsViewModel
+  - HomeViewModel(s)
+  - HomeRepositoryImpl
+  - AIModule
+- [x] Old files 삭제
+  - repository/FearGreedRepository.kt
+  - repository/MarketOscillatorRepository.kt
+  - repository/MarketDepositRepository.kt
+  - repository/MarketIndexRepository.kt
+  - Old UI screens (feargreed, marketoscillator, oscillator, hub)
+- [ ] 빌드 및 기능 테스트 (네트워크 오류로 미완료)
 
 **Performance Check**:
-- [ ] FearGreed 3x 요청 로직 유지 확인
-- [ ] MarketDeposit 캐싱 로직 유지 확인
-- [ ] Python 타임아웃 설정 유지 확인
+- [x] FearGreed 3x 요청 로직 유지 확인 (FearGreedRepositoryImpl.kt:91)
+- [x] MarketDeposit 캐싱 로직 유지 확인 (MarketDepositRepositoryImpl.kt:36, DATA_EXPIRY_HOURS = 12)
+- [x] Python 타임아웃 설정 유지 확인 (core/network/python/ 사용)
 
 **Rollback**: `git revert` to Phase 4 commit
 
@@ -813,7 +836,7 @@ fun HoldingDomain.toEntity() = Holding.create(
 | Phase 2: Home Module | ⬜ Pending | - | - | - |
 | Phase 3: ETF Module | ✅ Complete | 2025-12-24 | 2025-12-24 | Clean Architecture implemented, UseCases introduced |
 | Phase 4: Stock Module | ✅ Complete | 2025-12-24 | 2025-12-24 | Domain/Data/Presentation layers, 9 UseCases, 4 Repositories |
-| Phase 5: Market Module | ⬜ Pending | - | - | - |
+| Phase 5: Market Module | ✅ Complete | 2025-12-24 | 2025-12-24 | 30 files, 12 UseCases, 4 Repositories, critical logic preserved |
 | Phase 6: Analysis Module | ⬜ Pending | - | - | - |
 | Phase 7: Settings & Cleanup | ⬜ Pending | - | - | - |
 
@@ -930,6 +953,47 @@ fun HoldingDomain.toEntity() = Holding.create(
 **Pending:**
 - Build verification blocked by network issues
 - Full migration of old repositories to be done in Phase 6
+
+### Phase 5 (2025-12-24)
+
+**Completed Tasks:**
+1. Created `feature/market/` package structure with 30 files:
+   - `domain/model/` - FearGreed, MarketOscillator, MarketDeposit, MarketIndex, MarketState (sealed classes)
+   - `domain/repository/` - 4 repository interfaces
+   - `domain/usecase/` - 12 UseCases across 4 feature files
+   - `data/datasource/` - 4 LocalDataSources wrapping DAOs
+   - `data/mapper/` - MarketMapper for Entity <-> Domain conversion
+   - `data/repository/` - 4 Repository implementations
+   - `di/` - MarketModule providing all market dependencies
+   - `presentation/feargreed/` - FearGreedScreen, FearGreedViewModel
+   - `presentation/oscillator/` - MarketOscillatorScreen, MarketOscillatorViewModel
+   - `presentation/deposit/` - MarketDepositScreen, MarketDepositViewModel
+   - `presentation/hub/` - MarketIndicatorHubScreen
+
+2. Updated dependencies across 13 files:
+   - Workers: FearGreedUpdateWorker, MarketOscillatorUpdateWorker, MarketDepositUpdateWorker, MarketIndexUpdateWorker
+   - Services: DataCollectionService
+   - ViewModels: SettingsViewModel, HomeViewModel (old), HomeViewModel (feature/home)
+   - Repositories: HomeRepositoryImpl
+   - DI: AIModule, RepositoryModule
+
+3. Deleted old files:
+   - 4 old repository files from `repository/`
+   - 7 old UI files from `ui/screens/` (feargreed, marketoscillator, oscillator, hub)
+   - 3 empty directories
+
+**Critical Logic Preserved:**
+- **FearGreed 3x Request**: `collectionDays = minOf(days * 3, 730)` in FearGreedRepositoryImpl
+- **MarketDeposit 12h Caching**: `DATA_EXPIRY_HOURS = 12` with `shouldUpdateMarketData()` logic
+
+**Architecture Decisions:**
+- ViewModels use UseCases for all operations (not direct repository access)
+- MarketModule.kt provides all dependencies (data sources, repositories, use cases)
+- Old repository files deleted; all consumers now use domain repository interfaces
+- Navigation updated to use new screen paths
+
+**Pending:**
+- Build verification blocked by network issues (`java.net.UnknownHostException: services.gradle.org`)
 
 ---
 
