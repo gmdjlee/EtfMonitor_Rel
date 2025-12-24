@@ -23,12 +23,13 @@ import com.etfmonitor.R
 import com.etfmonitor.database.entities.MarketOscillatorData
 import com.etfmonitor.ui.components.TabNavigationBar
 import com.etfmonitor.ui.components.MarketDepositChart
-import com.etfmonitor.ui.screens.feargreed.FearGreedContent
-import com.etfmonitor.ui.screens.feargreed.FearGreedViewModel
-import com.etfmonitor.ui.screens.marketoscillator.MarketOscillatorViewModel
-import com.etfmonitor.ui.screens.marketoscillator.MarketOscillatorState
-import com.etfmonitor.ui.screens.oscillator.MarketDepositViewModel
-import com.etfmonitor.ui.screens.oscillator.MarketDepositState
+import com.etfmonitor.ui.screens.hub.HubHeader
+import com.etfmonitor.feature.market.presentation.feargreed.FearGreedContent
+import com.etfmonitor.feature.market.presentation.feargreed.FearGreedViewModel
+import com.etfmonitor.feature.market.presentation.oscillator.MarketOscillatorViewModel
+import com.etfmonitor.feature.market.presentation.oscillator.MarketOscillatorState
+import com.etfmonitor.feature.market.presentation.deposit.MarketDepositViewModel
+import com.etfmonitor.feature.market.presentation.deposit.MarketDepositState
 import kotlinx.coroutines.launch
 
 /**
