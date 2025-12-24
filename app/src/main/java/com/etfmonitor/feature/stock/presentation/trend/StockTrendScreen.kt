@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.trend
+package com.etfmonitor.feature.stock.presentation.trend
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -18,6 +18,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
 import com.etfmonitor.ui.components.ChartCard
+import com.etfmonitor.feature.stock.domain.model.StockTrend
+import com.etfmonitor.feature.stock.domain.model.HoldingTimeSeries
+import com.etfmonitor.core.common.util.AmountFormatter
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
@@ -28,8 +31,6 @@ import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
-import com.etfmonitor.database.entities.HoldingTimeSeries
-import com.etfmonitor.core.common.util.AmountFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -52,7 +53,7 @@ fun StockTrendScreen(
                     Column {
                         Text(
                             when (val s = state) {
-                                is TrendState.Success -> s.trend.stockName
+                                is StockTrendState.Success -> s.trend.stockName
                                 else -> stringResource(R.string.stock_trend_title)
                             },
                             style = MaterialTheme.typography.titleMedium
@@ -86,7 +87,7 @@ fun StockTrendScreen(
         }
     ) { padding ->
         when (val s = state) {
-            is TrendState.Loading -> {
+            is StockTrendState.Loading -> {
                 Box(
                     Modifier.fillMaxSize().padding(padding),
                     Alignment.Center
@@ -94,13 +95,13 @@ fun StockTrendScreen(
                     CircularProgressIndicator()
                 }
             }
-            is TrendState.Success -> {
+            is StockTrendState.Success -> {
                 TrendContent(
                     trend = s.trend,
                     modifier = Modifier.padding(padding)
                 )
             }
-            is TrendState.Error -> {
+            is StockTrendState.Error -> {
                 Box(
                     Modifier.fillMaxSize().padding(padding),
                     Alignment.Center
@@ -114,7 +115,7 @@ fun StockTrendScreen(
 
 @Composable
 private fun TrendContent(
-    trend: com.etfmonitor.repository.StockTrend,
+    trend: StockTrend,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -142,7 +143,6 @@ private fun TrendContent(
     }
 }
 
-// ✅ 1. SummaryCard 개선
 @Composable
 private fun SummaryCard(timeSeries: List<HoldingTimeSeries>) {
     if (timeSeries.isEmpty()) return
@@ -185,7 +185,7 @@ private fun SummaryCard(timeSeries: List<HoldingTimeSeries>) {
                 )
                 SummaryItem(
                     label = stringResource(R.string.label_amount_change),
-                    value = AmountFormatter.formatChange(amountChange)  // ✅ 개선
+                    value = AmountFormatter.formatChange(amountChange)
                 )
             }
         }
@@ -200,8 +200,6 @@ private fun SummaryItem(label: String, value: String) {
     }
 }
 
-// ✅ 2. StockTrendChartCard 개선 (평가금액 차트용)
-// Uses shared ChartCard with dark mode support
 @Composable
 private fun StockTrendChartCard(
     title: String,
@@ -209,7 +207,6 @@ private fun StockTrendChartCard(
     valueExtractor: (HoldingTimeSeries) -> Float,
     color: Color
 ) {
-    // ✅ 개선: 차트 제목에 동적 단위 추가
     val maxValue = data.maxOfOrNull { valueExtractor(it) } ?: 0f
     val isAmountChart = title.contains("금액")
     val chartTitle = if (isAmountChart) {
@@ -234,7 +231,6 @@ private fun StockTrendChartCard(
                 scope.launch(Dispatchers.Default) {
                     modelProducer.runTransaction {
                         lineSeries {
-                            // ✅ 개선: 차트 값 변환
                             if (isAmountChart) {
                                 series(data.map { AmountFormatter.toChartValue(valueExtractor(it)) })
                             } else {
@@ -288,7 +284,6 @@ private fun StockTrendChartCard(
     }
 }
 
-// ✅ 날짜 포맷 함수 (차트용 - 짧게)
 private fun formatDateForChart(date: String): String {
     return try {
         val parts = date.split("-")
@@ -302,10 +297,8 @@ private fun formatDateForChart(date: String): String {
     }
 }
 
-// ✅ 3. DataTable 개선
 @Composable
 private fun DataTable(timeSeries: List<HoldingTimeSeries>) {
-    // 최대 금액 계산
     val maxAmount = timeSeries.maxOfOrNull { it.amount } ?: 0f
     val amountHeader = AmountFormatter.getTableHeader(maxAmount)
 
@@ -320,7 +313,7 @@ private fun DataTable(timeSeries: List<HoldingTimeSeries>) {
             ) {
                 Text("날짜", Modifier.weight(2f), style = MaterialTheme.typography.labelSmall)
                 Text("비중", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
-                Text(amountHeader, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)  // ✅ 개선
+                Text(amountHeader, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
             }
 
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
@@ -339,7 +332,7 @@ private fun DataTable(timeSeries: List<HoldingTimeSeries>) {
                         style = MaterialTheme.typography.bodySmall
                     )
                     Text(
-                        AmountFormatter.formatForTable(item.amount, maxAmount),  // ✅ 개선
+                        AmountFormatter.formatForTable(item.amount, maxAmount),
                         Modifier.weight(1f),
                         style = MaterialTheme.typography.bodySmall
                     )

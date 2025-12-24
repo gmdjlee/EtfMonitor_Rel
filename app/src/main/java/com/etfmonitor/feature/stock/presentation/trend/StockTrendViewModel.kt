@@ -1,12 +1,11 @@
-package com.etfmonitor.ui.screens.trend
+package com.etfmonitor.feature.stock.presentation.trend
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.core.network.python.OscillatorPyClient
-import com.etfmonitor.repository.DataRepository
-import com.etfmonitor.repository.StockTrend
+import com.etfmonitor.feature.stock.domain.usecase.GetStockTrendUseCase
 import com.etfmonitor.core.common.util.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,21 +15,18 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Production Level StockTrendViewModel with Hilt
+ * Stock Trend ViewModel
  *
- * 최적화 포인트:
- * 1. @HiltViewModel: Hilt가 ViewModel 생명주기 자동 관리
- * 2. @Inject: 생성자 주입으로 의존성 명확화
- * 3. SavedStateHandle: Navigation arguments 자동 주입
- * 4. Factory 패턴 제거: Hilt가 자동으로 ViewModel 생성
+ * ETF 내 특정 종목의 시계열 추이를 표시하는 화면의 ViewModel입니다.
  *
- * 기존 문제점 해결:
- * - EtfMonitorApp.instance 제거: 메모리 누수 위험 제거
- * - 수동 Factory 제거: Hilt가 자동으로 관리하여 코드 간결화
+ * @property getStockTrendUseCase 종목 추이 조회 유스케이스
+ * @property etfDao 설정 조회용 DAO
+ * @property pyClient 차트 분석용 Python 클라이언트
+ * @property savedStateHandle Navigation arguments
  */
 @HiltViewModel
 class StockTrendViewModel @Inject constructor(
-    private val repository: DataRepository,
+    private val getStockTrendUseCase: GetStockTrendUseCase,
     private val etfDao: EtfDao,
     val pyClient: OscillatorPyClient,
     savedStateHandle: SavedStateHandle
@@ -47,8 +43,8 @@ class StockTrendViewModel @Inject constructor(
     val stockTicker: String = savedStateHandle.get<String>("stockTicker")
         ?: throw IllegalArgumentException("stockTicker is required")
 
-    private val _state = MutableStateFlow<TrendState>(TrendState.Loading)
-    val state: StateFlow<TrendState> = _state.asStateFlow()
+    private val _state = MutableStateFlow<StockTrendState>(StockTrendState.Loading)
+    val state: StateFlow<StockTrendState> = _state.asStateFlow()
 
     private val _quickChartAnalysisEnabled = MutableStateFlow(false)
     val quickChartAnalysisEnabled: StateFlow<Boolean> = _quickChartAnalysisEnabled.asStateFlow()
@@ -61,15 +57,15 @@ class StockTrendViewModel @Inject constructor(
     private fun loadTrend() {
         viewModelScope.launch {
             try {
-                val trend = repository.getStockTrend(etfTicker, stockTicker)
+                val trend = getStockTrendUseCase(etfTicker, stockTicker)
                 _state.value = if (trend != null) {
-                    TrendState.Success(trend)
+                    StockTrendState.Success(trend)
                 } else {
-                    TrendState.Error("추이 데이터를 찾을 수 없습니다")
+                    StockTrendState.Error("추이 데이터를 찾을 수 없습니다")
                 }
             } catch (e: Exception) {
                 logger.e("Error loading trend for ETF: $etfTicker, Stock: $stockTicker", e)
-                _state.value = TrendState.Error(e.message ?: "오류 발생")
+                _state.value = StockTrendState.Error(e.message ?: "오류 발생")
             }
         }
     }
@@ -84,10 +80,4 @@ class StockTrendViewModel @Inject constructor(
             }
         }
     }
-}
-
-sealed class TrendState {
-    object Loading : TrendState()
-    data class Success(val trend: StockTrend) : TrendState()
-    data class Error(val message: String) : TrendState()
 }

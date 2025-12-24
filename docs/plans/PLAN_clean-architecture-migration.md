@@ -4,7 +4,7 @@
 **Scope**: Large (7 phases, 20-30 hours total)
 **Created**: 2025-12-24
 **Last Updated**: 2025-12-24
-**Status**: In Progress - Phase 3 Complete
+**Status**: In Progress - Phase 4 Complete
 
 ---
 
@@ -535,19 +535,19 @@ feature/stock/
 ```
 
 **Tasks**:
-- [ ] Domain Layer 생성
-- [ ] Data Layer 생성 (Repository 구현)
+- [x] Domain Layer 생성
+- [x] Data Layer 생성 (Repository 구현)
   - ⚠️ **StockAnalysis 24h 캐싱 로직 유지**
   - ⚠️ **StockAnalysisData JOIN 패턴 유지**
-- [ ] UseCase 클래스 생성
-- [ ] Presentation Layer 이동
-- [ ] DI 설정
-- [ ] 빌드 및 기능 테스트
+- [x] UseCase 클래스 생성
+- [x] Presentation Layer 이동
+- [x] DI 설정
+- [ ] 빌드 및 기능 테스트 (네트워크 오류로 미완료)
 
 **Performance Check**:
-- [ ] StockAnalysis 캐싱 로직 유지 확인
-- [ ] StockAnalysisData JOIN 패턴 유지 확인
-- [ ] OscillatorPyClient 180s 타임아웃 유지 확인
+- [x] StockAnalysis 캐싱 로직 유지 확인
+- [x] StockAnalysisData JOIN 패턴 유지 확인
+- [x] OscillatorPyClient 180s 타임아웃 유지 확인 (core/network/python/ 사용)
 
 **Rollback**: `git revert` to Phase 3 commit
 
@@ -812,7 +812,7 @@ fun HoldingDomain.toEntity() = Holding.create(
 | Phase 1: Core Module | ✅ Complete | 2025-12-24 | 2025-12-24 | All files moved, imports updated, old folders deleted |
 | Phase 2: Home Module | ⬜ Pending | - | - | - |
 | Phase 3: ETF Module | ✅ Complete | 2025-12-24 | 2025-12-24 | Clean Architecture implemented, UseCases introduced |
-| Phase 4: Stock Module | ⬜ Pending | - | - | - |
+| Phase 4: Stock Module | ✅ Complete | 2025-12-24 | 2025-12-24 | Domain/Data/Presentation layers, 9 UseCases, 4 Repositories |
 | Phase 5: Market Module | ⬜ Pending | - | - | - |
 | Phase 6: Analysis Module | ⬜ Pending | - | - | - |
 | Phase 7: Settings & Cleanup | ⬜ Pending | - | - | - |
@@ -892,6 +892,44 @@ fun HoldingDomain.toEntity() = Holding.create(
 **Pending:**
 - Build verification blocked by network issues
 - EtfHubScreen will be fully migrated when Statistics/Stock Module is complete
+
+### Phase 4 (2025-12-24)
+
+**Completed Tasks:**
+1. Created `feature/stock/` package structure:
+   - `domain/model/` - Stock, StockTrend, StockAnalysis, StockRanking (StockAmountRanking, StockChangeInfo, StockAnalysisResult, CashDepositTrend), OscillatorModels (OscillatorResult, TradeSignal, SignalAnalysis)
+   - `domain/repository/` - StockRepository, StockAnalysisRepository, StockTrendRepository, StockStatisticsRepository interfaces
+   - `domain/usecase/` - 9 UseCases (SearchStocksUseCase, GetStockTrendUseCase, GetStockAnalysisUseCase, GetStockRankingUseCase, GetStockChangesUseCase, AnalyzeStockUseCase, GetStatisticsDatesUseCase, GetCashDepositTrendUseCase, InitializeStocksUseCase)
+   - `data/datasource/` - StockLocalDataSource, StockAnalysisLocalDataSource, StockStatisticsLocalDataSource
+   - `data/mapper/` - StockMapper (Entity <-> Domain conversion)
+   - `data/repository/` - 4 Repository implementations (StockRepositoryImpl, StockAnalysisRepositoryImpl, StockTrendRepositoryImpl, StockStatisticsRepositoryImpl)
+   - `di/` - StockModule providing all feature dependencies
+   - `presentation/trend/` - StockTrendScreen, StockTrendViewModel, StockTrendState
+   - `presentation/statistics/` - StatisticsViewModel with sorting capabilities
+
+2. Updated files:
+   - `Navigation.kt` - Updated imports to use new StockTrendScreen from feature module
+
+3. Deleted old files:
+   - `ui/screens/trend/StockTrendScreen.kt`
+   - `ui/screens/trend/StockTrendViewModel.kt`
+
+**Architecture Decisions:**
+- Old repositories (StockRepository, StockAnalysisRepository in repository/) kept for backward compatibility
+  - Still used by MainActivity, SettingsViewModel, StockUpdateWorker, OscillatorViewModel
+  - Will be migrated in Phase 6 (Final Integration)
+- StocksHubScreen and OscillatorScreen kept using existing ViewModels
+- New StatisticsViewModel created in feature module (parallel with old one in ui/screens/statistics/)
+- StockTrendRepository and StockStatisticsRepository both use StockStatisticsLocalDataSource (wraps EtfDao for holding statistics)
+
+**Performance Considerations:**
+- StockAnalysisRepositoryImpl preserves 24h caching logic with cache invalidation checks
+- StockStatisticsLocalDataSource delegates to EtfDao methods that include proper LIMIT clauses
+- All Repository implementations use withContext(Dispatchers.IO) for thread safety
+
+**Pending:**
+- Build verification blocked by network issues
+- Full migration of old repositories to be done in Phase 6
 
 ---
 
