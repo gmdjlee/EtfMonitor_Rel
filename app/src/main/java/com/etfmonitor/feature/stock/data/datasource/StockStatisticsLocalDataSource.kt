@@ -59,15 +59,20 @@ class StockStatisticsLocalDataSource @Inject constructor(
         return etfDao.getAllDecreasedStocks(currentDate, previousDate)
     }
 
-    // ========== 종목 검색/분석 ==========
+    // ========== 종목 검색 ==========
 
     suspend fun searchStocks(query: String): List<StockSearchResult> {
         return etfDao.searchStocks(query)
     }
 
-    suspend fun analyzeStock(stockTicker: String): com.etfmonitor.database.entities.StockAnalysisResult? {
-        return etfDao.analyzeStock(stockTicker)
-    }
+    // ========== 종목 분석용 데이터 ==========
+
+    suspend fun getLatestTwoDates(): List<String> = etfDao.getLatestTwoDates()
+
+    suspend fun getStockHoldingsByDate(stockTicker: String, date: String) =
+        etfDao.getStockHoldingsByDate(stockTicker, date)
+
+    suspend fun getStockName(stockTicker: String): String? = etfDao.getStockName(stockTicker)
 
     // ========== 원화예금 추이 ==========
 

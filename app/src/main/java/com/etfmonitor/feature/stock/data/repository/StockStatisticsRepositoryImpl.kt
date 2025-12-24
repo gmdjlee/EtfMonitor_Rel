@@ -1,12 +1,12 @@
 package com.etfmonitor.feature.stock.data.repository
 
 import com.etfmonitor.feature.stock.data.datasource.StockStatisticsLocalDataSource
-import com.etfmonitor.feature.stock.data.mapper.StockMapper.toDomain
 import com.etfmonitor.feature.stock.data.mapper.StockMapper.toRankingDomain
 import com.etfmonitor.feature.stock.data.mapper.StockMapper.toChangeInfoDomain
 import com.etfmonitor.feature.stock.data.mapper.StockMapper.toCashDepositDomain
 import com.etfmonitor.feature.stock.data.mapper.StockMapper.toSearchResultDomain
 import com.etfmonitor.feature.stock.domain.model.CashDepositTrend
+import com.etfmonitor.feature.stock.domain.model.EtfDetail
 import com.etfmonitor.feature.stock.domain.model.StockAmountRanking
 import com.etfmonitor.feature.stock.domain.model.StockAnalysisResult
 import com.etfmonitor.feature.stock.domain.model.StockChangeInfo
@@ -93,7 +93,37 @@ class StockStatisticsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun analyzeStock(stockTicker: String): StockAnalysisResult? = withContext(Dispatchers.IO) {
-        localDataSource.analyzeStock(stockTicker)?.toDomain()
+        val dates = localDataSource.getLatestTwoDates()
+        if (dates.isEmpty()) return@withContext null
+
+        val currentDate = dates[0]
+
+        // 현재 보유 현황
+        val currentHoldings = localDataSource.getStockHoldingsByDate(stockTicker, currentDate)
+        if (currentHoldings.isEmpty()) return@withContext null
+
+        val stockName = localDataSource.getStockName(stockTicker) ?: stockTicker
+
+        // ETF별 상세 정보 생성
+        val etfDetails = currentHoldings.map { holding ->
+            EtfDetail(
+                etfTicker = holding.etfTicker,
+                etfName = holding.etfName,
+                weight = holding.weight,
+                amount = holding.amount
+            )
+        }.sortedByDescending { it.amount }
+
+        // 통계 계산
+        val totalAmount = currentHoldings.sumOf { it.amount.toDouble() }.toFloat()
+
+        StockAnalysisResult(
+            stockTicker = stockTicker,
+            stockName = stockName,
+            etfDetails = etfDetails,
+            totalAmount = totalAmount,
+            etfCount = currentHoldings.size
+        )
     }
 
     // ========== 원화예금 추이 ==========

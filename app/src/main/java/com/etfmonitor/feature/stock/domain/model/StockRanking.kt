@@ -88,11 +88,11 @@ data class EtfDetail(
  * 원화예금 추이 데이터입니다.
  *
  * @property date 날짜
- * @property depositAmount 고객예탁금 (원)
- * @property creditAmount 신용잔고 (원)
+ * @property totalAmount 총 평가금액
+ * @property etfCount 보유 ETF 수
  */
 data class CashDepositTrend(
     val date: String,
-    val depositAmount: Float,
-    val creditAmount: Float
+    val totalAmount: Float,
+    val etfCount: Int
 )

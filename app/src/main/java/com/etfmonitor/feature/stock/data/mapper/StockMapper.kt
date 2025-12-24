@@ -6,7 +6,6 @@ import com.etfmonitor.database.entities.HoldingTimeSeries as HoldingTimeSeriesEn
 import com.etfmonitor.database.entities.StockAmountRanking as StockAmountRankingEntity
 import com.etfmonitor.database.entities.StockChangeInfo as StockChangeInfoEntity
 import com.etfmonitor.database.entities.CashDepositTrend as CashDepositTrendEntity
-import com.etfmonitor.database.entities.StockAnalysisResult as StockAnalysisResultEntity
 import com.etfmonitor.database.StockSearchResult as StockSearchResultDb
 import com.etfmonitor.feature.stock.domain.model.Stock
 import com.etfmonitor.feature.stock.domain.model.StockAnalysis
@@ -14,8 +13,6 @@ import com.etfmonitor.feature.stock.domain.model.HoldingTimeSeries
 import com.etfmonitor.feature.stock.domain.model.StockAmountRanking
 import com.etfmonitor.feature.stock.domain.model.StockChangeInfo
 import com.etfmonitor.feature.stock.domain.model.CashDepositTrend
-import com.etfmonitor.feature.stock.domain.model.StockAnalysisResult
-import com.etfmonitor.feature.stock.domain.model.EtfDetail
 import com.etfmonitor.feature.stock.domain.repository.StockSearchResult
 
 /**
@@ -103,29 +100,12 @@ object StockMapper {
 
     fun CashDepositTrendEntity.toDomain(): CashDepositTrend = CashDepositTrend(
         date = date,
-        depositAmount = depositAmount,
-        creditAmount = creditAmount
+        totalAmount = totalAmount,
+        etfCount = etfCount
     )
 
     fun List<CashDepositTrendEntity>.toCashDepositDomain(): List<CashDepositTrend> =
         map { it.toDomain() }
-
-    // ========== StockAnalysisResult ==========
-
-    fun StockAnalysisResultEntity.toDomain(): StockAnalysisResult = StockAnalysisResult(
-        stockTicker = stockTicker,
-        stockName = stockName,
-        etfDetails = etfDetails.map { etfDetail ->
-            EtfDetail(
-                etfTicker = etfDetail.etfTicker,
-                etfName = etfDetail.etfName,
-                weight = etfDetail.weight,
-                amount = etfDetail.amount
-            )
-        },
-        totalAmount = totalAmount,
-        etfCount = etfCount
-    )
 
     // ========== StockSearchResult ==========
 
