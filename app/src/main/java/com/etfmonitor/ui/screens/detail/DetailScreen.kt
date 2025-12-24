@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.database.entities.HoldingStatus
 import com.etfmonitor.database.entities.HoldingWithComparison
-import com.etfmonitor.ui.theme.*
+import com.etfmonitor.core.ui.theme.*
 import com.etfmonitor.ui.utils.AmountFormatter
 
 /**

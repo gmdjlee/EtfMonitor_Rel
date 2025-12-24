@@ -1,7 +1,7 @@
 package com.etfmonitor.repository
 
 import com.etfmonitor.database.DailyEtfStatisticsDao
-import com.etfmonitor.utils.AppLogger
+import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.MarketIndexDao
 import com.etfmonitor.database.entities.DailyEtfStatistics

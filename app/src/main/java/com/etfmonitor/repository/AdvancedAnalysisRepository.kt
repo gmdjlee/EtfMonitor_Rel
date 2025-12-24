@@ -2,7 +2,7 @@ package com.etfmonitor.repository
 
 import com.etfmonitor.database.*
 import com.etfmonitor.database.entities.*
-import com.etfmonitor.utils.AppLogger
+import com.etfmonitor.core.common.util.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first

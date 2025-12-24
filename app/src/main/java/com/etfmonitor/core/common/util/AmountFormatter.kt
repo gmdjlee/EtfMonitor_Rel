@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.utils
+package com.etfmonitor.core.common.util
 
 import kotlin.math.abs
 

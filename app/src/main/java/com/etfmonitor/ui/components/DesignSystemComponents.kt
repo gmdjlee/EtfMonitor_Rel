@@ -26,7 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.etfmonitor.ui.theme.*
+import com.etfmonitor.core.ui.theme.*
 
 /**
  * Design System Components - Moss Green Nature Theme

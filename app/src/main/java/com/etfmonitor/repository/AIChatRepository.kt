@@ -1,7 +1,7 @@
 package com.etfmonitor.repository
 
-import com.etfmonitor.ai.*
-import com.etfmonitor.utils.AppLogger
+import com.etfmonitor.core.network.ai.*
+import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.database.AIChatDao
 import com.etfmonitor.database.AIAnalysisDao
 import com.etfmonitor.database.CorrelationAnalysisDao

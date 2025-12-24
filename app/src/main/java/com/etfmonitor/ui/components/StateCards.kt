@@ -13,9 +13,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.etfmonitor.ui.theme.elevation
-import com.etfmonitor.ui.theme.extendedShapes
-import com.etfmonitor.ui.theme.spacing
+import com.etfmonitor.core.ui.theme.elevation
+import com.etfmonitor.core.ui.theme.extendedShapes
+import com.etfmonitor.core.ui.theme.spacing
 
 /**
  * Material Design 3 State Card Components

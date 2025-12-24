@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.etfmonitor.R
-import com.etfmonitor.ui.theme.*
+import com.etfmonitor.core.ui.theme.*
 
 /**
  * Home Screen Dialogs

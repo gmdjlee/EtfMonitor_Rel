@@ -11,7 +11,7 @@ import com.etfmonitor.oscillator.calculator.TrendSignalCalculator
 import com.etfmonitor.oscillator.model.*
 import com.etfmonitor.oscillator.model.ElderImpulseData
 import com.etfmonitor.oscillator.model.DemarkTDData
-import com.etfmonitor.oscillator.python.OscillatorPyClient
+import com.etfmonitor.core.network.python.OscillatorPyClient
 import com.etfmonitor.repository.StockAnalysisRepository
 import com.etfmonitor.repository.StockRepository
 import dagger.hilt.android.lifecycle.HiltViewModel

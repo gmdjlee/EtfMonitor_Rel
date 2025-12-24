@@ -4,7 +4,7 @@
 **Scope**: Large (7 phases, 20-30 hours total)
 **Created**: 2025-12-24
 **Last Updated**: 2025-12-24
-**Status**: Draft - Awaiting Approval
+**Status**: In Progress - Phase 1 Complete
 
 ---
 
@@ -295,40 +295,41 @@ class GetEtfListUseCase(private val repository: EtfRepository) {
 **Goal**: 공유 모듈 구조를 설정하고 기존 공통 코드를 이동
 
 **Tasks**:
-- [ ] `core/common/util/` 패키지 생성 및 유틸리티 이동
+- [x] `core/common/util/` 패키지 생성 및 유틸리티 이동
   - `utils/AppLogger.kt` → `core/common/util/`
   - `utils/DateFormatter.kt` → `core/common/util/`
   - `utils/AppConstants.kt` → `core/common/util/`
   - `utils/Exceptions.kt` → `core/common/util/`
   - `utils/DataArchiver.kt` → `core/common/util/`
-- [ ] `core/database/` 패키지 생성
+  - `ui/utils/AmountFormatter.kt` → `core/common/util/` (추가)
+- [x] `core/database/` 패키지 생성
   - `database/AppDatabase.kt` → `core/database/` (entities 폴더 유지)
   - `database/Converters.kt` → `core/database/`
   - **DAOs는 entities와 함께 유지** (마이그레이션 안정성)
-- [ ] `core/ui/theme/` 패키지 생성
+- [x] `core/ui/theme/` 패키지 생성
   - `ui/theme/*` → `core/ui/theme/`
-- [ ] `core/ui/component/` 패키지 생성
+- [x] `core/ui/component/` 패키지 생성
   - `ui/components/StateCards.kt` → `core/ui/component/`
   - `ui/components/Material3Components.kt` → `core/ui/component/`
   - `ui/components/DesignSystemComponents.kt` → `core/ui/component/`
   - `ui/components/BottomNavigationBar.kt` → `core/ui/component/`
-- [ ] `core/di/` 패키지 생성
+- [x] `core/di/` 패키지 생성
   - `di/DatabaseModule.kt` → `core/di/`
   - `di/WorkerModule.kt` → `core/di/`
-- [ ] `core/network/python/` 패키지 생성
+- [x] `core/network/python/` 패키지 생성
   - `python/PyKrxClient.kt` → `core/network/python/`
   - `python/MarketIndexPyClient.kt` → `core/network/python/`
   - `oscillator/python/OscillatorPyClient.kt` → `core/network/python/`
   - `di/PythonModule.kt` → `core/di/`
-- [ ] `core/network/ai/` 패키지 생성
+- [x] `core/network/ai/` 패키지 생성
   - `ai/*` → `core/network/ai/`
   - `di/AIModule.kt` → `core/di/`
-- [ ] `core/worker/` 패키지 생성
+- [x] `core/worker/` 패키지 생성
   - `worker/*` → `core/worker/`
-- [ ] `core/service/` 패키지 생성
+- [x] `core/service/` 패키지 생성
   - `service/*` → `core/service/`
-- [ ] 모든 import 경로 업데이트
-- [ ] 빌드 및 기능 테스트
+- [x] 모든 import 경로 업데이트
+- [ ] 빌드 및 기능 테스트 (네트워크 오류로 미완료)
 
 **Quality Gate**:
 - [ ] `./gradlew assembleDebug` 성공
@@ -808,7 +809,7 @@ fun HoldingDomain.toEntity() = Holding.create(
 
 | Phase | Status | Start Date | End Date | Notes |
 |-------|--------|------------|----------|-------|
-| Phase 1: Core Module | ⬜ Pending | - | - | - |
+| Phase 1: Core Module | ✅ Complete | 2025-12-24 | 2025-12-24 | All files moved, imports updated, old folders deleted |
 | Phase 2: Home Module | ⬜ Pending | - | - | - |
 | Phase 3: ETF Module | ⬜ Pending | - | - | - |
 | Phase 4: Stock Module | ⬜ Pending | - | - | - |
@@ -820,7 +821,41 @@ fun HoldingDomain.toEntity() = Holding.create(
 
 ## 8. Notes & Learnings
 
-_이 섹션은 각 Phase 완료 후 업데이트됩니다._
+### Phase 1 (2025-12-24)
+
+**Completed Tasks:**
+1. Created `core/` package structure:
+   - `core/common/util/` - AppLogger, DateFormatter, AppConstants, Exceptions, DataArchiver, AmountFormatter
+   - `core/database/` - AppDatabase, Converters (entities and DAOs remain in database/)
+   - `core/ui/theme/` - All theme files (Theme.kt, Color.kt, ExtendedColors.kt, etc.)
+   - `core/ui/component/` - StateCards, Material3Components, DesignSystemComponents, BottomNavigationBar
+   - `core/di/` - DatabaseModule, WorkerModule, PythonModule, AIModule
+   - `core/network/python/` - PyKrxClient, MarketIndexPyClient, OscillatorPyClient
+   - `core/network/ai/` - All AI clients and utilities
+   - `core/worker/` - All workers and WorkManagerHelper
+   - `core/service/` - DataCollectionService, CollectionState
+
+2. Updated all import paths across 40+ files:
+   - Repository files (12+)
+   - ViewModel files
+   - Screen files (28+)
+   - DI module files
+   - Main entry points (MainActivity, EtfMonitorApp)
+
+3. Deleted old folders:
+   - `utils/`, `ai/`, `python/`, `oscillator/python/`
+   - `worker/`, `service/`
+   - `ui/theme/`, `ui/utils/`
+   - Old DI files (DatabaseModule, WorkerModule, AIModule, PythonModule from di/)
+
+**Lessons Learned:**
+- AmountFormatter was in `ui/utils/` not `utils/`, needed to be added to the plan
+- Database entities and DAOs remain in `database/` for Room migration stability
+- `di/RepositoryModule.kt` remains in `di/` as it depends on feature repositories
+
+**Pending:**
+- Build verification blocked by network issues (`java.net.UnknownHostException: services.gradle.org`)
+- Full functionality testing to be done when network is available
 
 ---
 

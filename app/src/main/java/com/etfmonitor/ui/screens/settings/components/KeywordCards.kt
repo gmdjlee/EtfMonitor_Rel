@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import com.etfmonitor.R
-import com.etfmonitor.ui.theme.*
+import com.etfmonitor.core.ui.theme.*
 
 /**
  * Settings Screen - Keyword Tab Card Components

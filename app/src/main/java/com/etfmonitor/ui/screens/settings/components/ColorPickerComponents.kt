@@ -25,7 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.etfmonitor.ui.theme.*
+import com.etfmonitor.core.ui.theme.*
 import kotlin.math.roundToInt
 
 // 확장된 색상 팔레트 - Windows 스타일 색상 선택기와 유사

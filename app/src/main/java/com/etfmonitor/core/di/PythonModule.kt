@@ -3,7 +3,7 @@ package com.etfmonitor.core.di
 import android.content.Context
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
-import com.etfmonitor.python.MarketIndexPyClient
+import com.etfmonitor.core.network.python.MarketIndexPyClient
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

@@ -8,8 +8,8 @@ import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.repository.FearGreedRepository
 import com.etfmonitor.repository.MarketOscillatorRepository
 import com.etfmonitor.repository.MarketDepositRepository
-import com.etfmonitor.service.CollectionState
-import com.etfmonitor.service.DataCollectionService
+import com.etfmonitor.core.service.CollectionState
+import com.etfmonitor.core.service.DataCollectionService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers

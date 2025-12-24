@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.entities.MarketOscillatorData
 import com.etfmonitor.repository.MarketOscillatorRepository
-import com.etfmonitor.ui.theme.ThemeManager
+import com.etfmonitor.core.ui.theme.ThemeManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*

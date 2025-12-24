@@ -30,7 +30,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.database.entities.Etf
 import com.etfmonitor.ui.components.FilterChipRow
-import com.etfmonitor.ui.theme.*
+import com.etfmonitor.core.ui.theme.*
 
 /**
  * ETF List Screen - Moss Green Nature Theme

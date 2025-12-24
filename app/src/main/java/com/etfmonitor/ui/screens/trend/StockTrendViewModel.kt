@@ -4,10 +4,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.database.EtfDao
-import com.etfmonitor.oscillator.python.OscillatorPyClient
+import com.etfmonitor.core.network.python.OscillatorPyClient
 import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.repository.StockTrend
-import com.etfmonitor.utils.AppLogger
+import com.etfmonitor.core.common.util.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

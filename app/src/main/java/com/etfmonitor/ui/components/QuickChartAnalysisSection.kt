@@ -19,7 +19,7 @@ import com.etfmonitor.oscillator.model.FearGreedState
 import com.etfmonitor.oscillator.model.TrendSignalAnalysis
 import com.etfmonitor.oscillator.model.TrendSignalData
 import com.etfmonitor.oscillator.model.TrendTradeSignal
-import com.etfmonitor.oscillator.python.OscillatorPyClient
+import com.etfmonitor.core.network.python.OscillatorPyClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

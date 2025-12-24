@@ -43,7 +43,7 @@ import com.etfmonitor.oscillator.model.TrendTradeSignal
 import com.etfmonitor.oscillator.model.FearGreedState
 import com.etfmonitor.oscillator.model.ElderImpulseData
 import com.etfmonitor.oscillator.model.DemarkTDData
-import com.etfmonitor.ui.theme.*
+import com.etfmonitor.core.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
