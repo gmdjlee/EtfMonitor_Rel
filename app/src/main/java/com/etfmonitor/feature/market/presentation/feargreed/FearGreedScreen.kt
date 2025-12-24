@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.feargreed
+package com.etfmonitor.feature.market.presentation.feargreed
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -7,7 +7,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +22,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.foundation.isSystemInDarkTheme
 import com.etfmonitor.R
+import com.etfmonitor.feature.market.domain.model.FearGreed
+import com.etfmonitor.feature.market.domain.model.FearGreedViewState
+import com.etfmonitor.feature.market.domain.model.DEFAULT_FEAR_GREED_PERIOD_OPTIONS
 import com.etfmonitor.ui.components.*
 import com.etfmonitor.core.ui.theme.*
 import com.github.mikephil.charting.data.Entry
@@ -35,16 +37,8 @@ import com.github.mikephil.charting.components.YAxis
 import com.github.mikephil.charting.formatter.ValueFormatter
 
 /**
- * Fear & Greed Screen - Moss Green Nature Theme
- * Modern detail screen design matching the React design guide
- *
- * Layout:
- * - Back arrow header with title
- * - Gauge visual (semi-circle)
- * - Stats row (yesterday, 1 week ago, 1 month ago)
- * - Chart with bars
+ * Fear & Greed Screen (Clean Architecture)
  */
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FearGreedScreen(
@@ -113,7 +107,6 @@ fun FearGreedContent(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // Content
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -122,7 +115,7 @@ fun FearGreedContent(
         ) {
             // State Display
             when (val currentState = state) {
-                is FearGreedState.Loading -> {
+                is FearGreedViewState.Loading -> {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -132,13 +125,13 @@ fun FearGreedContent(
                         CircularProgressIndicator()
                     }
                 }
-                is FearGreedState.Initializing -> {
+                is FearGreedViewState.Initializing -> {
                     InitializingCard(
                         message = currentState.message,
                         progress = currentState.progress
                     )
                 }
-                is FearGreedState.Updating -> {
+                is FearGreedViewState.Updating -> {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -157,17 +150,17 @@ fun FearGreedContent(
                         }
                     }
                 }
-                is FearGreedState.Success -> {
+                is FearGreedViewState.Success -> {
                     SuccessCard(message = currentState.message)
                     LaunchedEffect(Unit) {
                         kotlinx.coroutines.delay(3000)
                         viewModel.clearMessage()
                     }
                 }
-                is FearGreedState.Error -> {
+                is FearGreedViewState.Error -> {
                     ErrorInfoCard(message = currentState.message)
                 }
-                is FearGreedState.Idle -> {
+                is FearGreedViewState.Idle -> {
                     if (!currentState.hasData) {
                         NoDataCard(onCollectClick = { showManualPeriodDialog = true })
                     }
@@ -352,8 +345,7 @@ private fun FearGreedGaugeSection(
 }
 
 @Composable
-private fun StatsRow(data: List<com.etfmonitor.database.entities.FearGreedIndex>) {
-    val latest = data.firstOrNull()
+private fun StatsRow(data: List<FearGreed>) {
     val yesterday = data.getOrNull(1)
     val weekAgo = data.getOrNull(5)
     val monthAgo = data.getOrNull(20)
@@ -382,7 +374,7 @@ private fun StatsRow(data: List<com.etfmonitor.database.entities.FearGreedIndex>
 
 @Composable
 private fun ChartSection(
-    data: List<com.etfmonitor.database.entities.FearGreedIndex>,
+    data: List<FearGreed>,
     selectedMarket: String,
     chartColors: SingleChartColorSettings
 ) {
@@ -536,7 +528,7 @@ private fun NoDataCard(onCollectClick: () -> Unit) {
 
 @Composable
 fun FearGreedChart(
-    data: List<com.etfmonitor.database.entities.FearGreedIndex>,
+    data: List<FearGreed>,
     chartColors: SingleChartColorSettings,
     modifier: Modifier = Modifier
 ) {
@@ -667,13 +659,7 @@ private fun FearGreedInitializeDialog(
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit
 ) {
-    val periodOptions = listOf(
-        FearGreedPeriodOption(180, "6개월", "약 180일"),
-        FearGreedPeriodOption(365, "12개월 (권장)", "약 365일"),
-        FearGreedPeriodOption(540, "18개월", "약 540일"),
-        FearGreedPeriodOption(730, "24개월", "약 730일")
-    )
-
+    val periodOptions = DEFAULT_FEAR_GREED_PERIOD_OPTIONS
     var selectedDays by remember { mutableStateOf(365) }
 
     AlertDialog(
@@ -743,9 +729,3 @@ private fun FearGreedInitializeDialog(
         }
     )
 }
-
-private data class FearGreedPeriodOption(
-    val days: Int,
-    val label: String,
-    val description: String
-)

@@ -1,10 +1,11 @@
-package com.etfmonitor.ui.screens.marketoscillator
+package com.etfmonitor.feature.market.presentation.oscillator
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -15,24 +16,24 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
-import com.etfmonitor.database.entities.MarketOscillatorData
+import com.etfmonitor.feature.market.domain.model.MarketOscillator
+import com.etfmonitor.feature.market.domain.model.MarketOscillatorViewState
 import com.etfmonitor.ui.components.LoadingCard
 import com.etfmonitor.ui.components.ErrorCard
 import com.etfmonitor.core.ui.theme.*
-import java.text.SimpleDateFormat
-import java.util.*
 
+/**
+ * Market Oscillator Screen (Clean Architecture)
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MarketOscillatorScreen(
@@ -51,7 +52,7 @@ fun MarketOscillatorScreen(
     var showManualPeriodDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
 
-    // 첫 실행 다이얼로그
+    // First run dialog
     if (showFirstRunDialog) {
         MarketOscillatorInitializeDialog(
             onDismiss = { viewModel.onFirstRunDialogShown() },
@@ -62,7 +63,7 @@ fun MarketOscillatorScreen(
         )
     }
 
-    // 수동 데이터 수집 다이얼로그
+    // Manual period dialog
     if (showManualPeriodDialog) {
         MarketOscillatorInitializeDialog(
             onDismiss = { showManualPeriodDialog = false },
@@ -73,7 +74,7 @@ fun MarketOscillatorScreen(
         )
     }
 
-    // 설정 다이얼로그
+    // Settings dialog
     if (showSettingsDialog) {
         SettingsDialog(
             displayDays = displayDays,
@@ -103,7 +104,7 @@ fun MarketOscillatorScreen(
                         Icon(Icons.Default.Settings, stringResource(R.string.nav_settings))
                     }
                     val currentState = state
-                    if (currentState is MarketOscillatorState.Idle && currentState.hasData) {
+                    if (currentState is MarketOscillatorViewState.Idle && currentState.hasData) {
                         IconButton(onClick = { viewModel.update() }) {
                             Icon(Icons.Default.Refresh, stringResource(R.string.nav_update))
                         }
@@ -158,8 +159,8 @@ fun MarketOscillatorScreen(
 
             // State Display
             when (val currentState = state) {
-                is MarketOscillatorState.Loading -> LoadingCard(stringResource(R.string.data_loading))
-                is MarketOscillatorState.Initializing -> {
+                is MarketOscillatorViewState.Loading -> LoadingCard(stringResource(R.string.data_loading))
+                is MarketOscillatorViewState.Initializing -> {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(
                             modifier = Modifier.padding(16.dp),
@@ -172,8 +173,8 @@ fun MarketOscillatorScreen(
                         }
                     }
                 }
-                is MarketOscillatorState.Updating -> LoadingCard(currentState.message)
-                is MarketOscillatorState.Success -> {
+                is MarketOscillatorViewState.Updating -> LoadingCard(currentState.message)
+                is MarketOscillatorViewState.Success -> {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -191,8 +192,8 @@ fun MarketOscillatorScreen(
                         viewModel.clearMessage()
                     }
                 }
-                is MarketOscillatorState.Error -> ErrorCard(currentState.message)
-                is MarketOscillatorState.Idle -> {
+                is MarketOscillatorViewState.Error -> ErrorCard(currentState.message)
+                is MarketOscillatorViewState.Idle -> {
                     if (!currentState.hasData) {
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(
@@ -241,14 +242,13 @@ fun MarketOscillatorScreen(
 
 @Composable
 private fun LatestDataCard(
-    latest: MarketOscillatorData,
+    latest: MarketOscillator,
     overboughtThreshold: Double,
     oversoldThreshold: Double
 ) {
-    // 라이트 모드 색상 강제 적용
-    val cardBackground = Color(0xFFFFFBFE) // Surface light
-    val textColor = Color(0xFF1C1B1F) // OnSurface light
-    val dividerColor = Color(0xFFCAC4D0) // OutlineVariant light
+    val cardBackground = Color(0xFFFFFBFE)
+    val textColor = Color(0xFF1C1B1F)
+    val dividerColor = Color(0xFFCAC4D0)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -325,19 +325,17 @@ private fun LatestDataCard(
 
 @Composable
 private fun DataTable(
-    data: List<MarketOscillatorData>,
+    data: List<MarketOscillator>,
     overboughtThreshold: Double,
     oversoldThreshold: Double,
     bodyScale: Float
 ) {
-    // 라이트 모드 색상 강제 적용
-    val cardBackground = Color(0xFFFFFBFE) // Surface light
-    val textColor = Color(0xFF1C1B1F) // OnSurface light
-    val secondaryTextColor = Color(0xFF49454F) // OnSurfaceVariant light
-    val headerBackground = Color(0xFFE7E0EC) // SurfaceVariant light
-    val dividerColor = Color(0xFFCAC4D0) // OutlineVariant light
+    val cardBackground = Color(0xFFFFFBFE)
+    val textColor = Color(0xFF1C1B1F)
+    val secondaryTextColor = Color(0xFF49454F)
+    val headerBackground = Color(0xFFE7E0EC)
+    val dividerColor = Color(0xFFCAC4D0)
 
-    // 스케일이 적용된 폰트 크기
     val dateFontSize = (11 * bodyScale).sp
     val valueFontSize = (11 * bodyScale).sp
     val statusFontSize = (10 * bodyScale).sp

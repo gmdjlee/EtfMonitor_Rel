@@ -8,7 +8,7 @@ import com.etfmonitor.database.*
 import com.etfmonitor.repository.AIAnalysisRepository
 import com.etfmonitor.repository.AIChatRepository
 import com.etfmonitor.repository.CorrelationAnalysisRepository
-import com.etfmonitor.repository.MarketIndexRepository
+import com.etfmonitor.feature.market.domain.repository.MarketIndexRepository
 import com.etfmonitor.repository.TimeSeriesAnalysisRepository
 import com.etfmonitor.core.network.python.OscillatorPyClient
 import dagger.Module

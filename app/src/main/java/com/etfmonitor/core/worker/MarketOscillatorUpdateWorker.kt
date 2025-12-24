@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.etfmonitor.repository.MarketOscillatorRepository
+import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
 import com.etfmonitor.core.common.util.AppLogger
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject

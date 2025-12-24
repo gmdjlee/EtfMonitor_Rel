@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.oscillator
+package com.etfmonitor.feature.market.presentation.deposit
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -16,10 +16,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
-import com.etfmonitor.ui.components.MarketDepositChart
+import com.etfmonitor.feature.market.domain.model.MarketDepositTrend
+import com.etfmonitor.feature.market.domain.model.MarketDepositViewState
 import com.etfmonitor.ui.components.LoadingCard
 import com.etfmonitor.ui.components.ErrorCard
+import com.etfmonitor.oscillator.model.MarketDepositData
 
+/**
+ * Market Deposit Screen (Clean Architecture)
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MarketDepositScreen(
@@ -40,7 +45,7 @@ fun MarketDepositScreen(
                 actions = {
                     IconButton(
                         onClick = { viewModel.refreshData() },
-                        enabled = state !is MarketDepositState.Loading
+                        enabled = state !is MarketDepositViewState.Loading
                     ) {
                         Icon(Icons.Default.Refresh, stringResource(R.string.nav_refresh))
                     }
@@ -60,14 +65,22 @@ fun MarketDepositScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 상태별 UI
             when (val currentState = state) {
-                is MarketDepositState.Loading -> {
+                is MarketDepositViewState.Loading -> {
                     LoadingCard(message = stringResource(R.string.data_collecting))
                 }
 
-                is MarketDepositState.Success -> {
-                    // 시장 분석 카드
+                is MarketDepositViewState.Success -> {
+                    // Convert to legacy data format for chart
+                    val legacyData = MarketDepositData(
+                        dates = currentState.data.dates,
+                        depositAmounts = currentState.data.depositAmounts,
+                        depositChanges = currentState.data.depositChanges,
+                        creditAmounts = currentState.data.creditAmounts,
+                        creditChanges = currentState.data.creditChanges
+                    )
+
+                    // Analysis Card
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -92,13 +105,13 @@ fun MarketDepositScreen(
                         }
                     }
 
-                    // 증시 자금 동향 차트
-                    MarketDepositChart(
-                        data = currentState.data,
+                    // Chart
+                    com.etfmonitor.ui.components.MarketDepositChart(
+                        data = legacyData,
                         latestDate = currentState.data.dates.lastOrNull()
                     )
 
-                    // 최신 데이터 요약
+                    // Latest Data Summary
                     if (currentState.data.dates.isNotEmpty()) {
                         val lastIdx = currentState.data.dates.size - 1
 
@@ -115,7 +128,7 @@ fun MarketDepositScreen(
 
                                 HorizontalDivider()
 
-                                // 고객예탁금
+                                // Customer Deposit
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -145,7 +158,7 @@ fun MarketDepositScreen(
 
                                 HorizontalDivider()
 
-                                // 신용잔고
+                                // Credit Balance
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -175,7 +188,7 @@ fun MarketDepositScreen(
                             }
                         }
 
-                        // 데이터 상세
+                        // Data Details
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(
                                 modifier = Modifier.padding(16.dp),
@@ -234,12 +247,12 @@ fun MarketDepositScreen(
                     }
                 }
 
-                is MarketDepositState.Error -> {
+                is MarketDepositViewState.Error -> {
                     ErrorCard(message = currentState.message)
                 }
 
-                is MarketDepositState.Idle -> {
-                    // 사용하지 않음 (자동 로드)
+                is MarketDepositViewState.Idle -> {
+                    // Not used (auto-load)
                 }
             }
         }

@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.hub
+package com.etfmonitor.feature.market.presentation.hub
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -20,24 +20,26 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
-import com.etfmonitor.database.entities.MarketOscillatorData
+import com.etfmonitor.feature.market.domain.model.MarketOscillator
+import com.etfmonitor.feature.market.domain.model.MarketOscillatorViewState
+import com.etfmonitor.feature.market.domain.model.MarketDepositViewState
+import com.etfmonitor.feature.market.presentation.feargreed.FearGreedContent
+import com.etfmonitor.feature.market.presentation.feargreed.FearGreedViewModel
+import com.etfmonitor.feature.market.presentation.oscillator.MarketOscillatorViewModel
+import com.etfmonitor.feature.market.presentation.deposit.MarketDepositViewModel
 import com.etfmonitor.ui.components.TabNavigationBar
 import com.etfmonitor.ui.components.MarketDepositChart
-import com.etfmonitor.ui.screens.feargreed.FearGreedContent
-import com.etfmonitor.ui.screens.feargreed.FearGreedViewModel
-import com.etfmonitor.ui.screens.marketoscillator.MarketOscillatorViewModel
-import com.etfmonitor.ui.screens.marketoscillator.MarketOscillatorState
-import com.etfmonitor.ui.screens.oscillator.MarketDepositViewModel
-import com.etfmonitor.ui.screens.oscillator.MarketDepositState
+import com.etfmonitor.ui.screens.hub.HubHeader
+import com.etfmonitor.oscillator.model.MarketDepositData
 import kotlinx.coroutines.launch
 
 /**
- * Market Indicator Hub Screen - 시장 지표
+ * Market Indicator Hub Screen (Clean Architecture)
  *
  * Consolidates:
  * - Fear & Greed Index
- * - 시장 과매수/과매도
- * - 증시 자금 동향
+ * - Market Oscillator (Overbought/Oversold)
+ * - Market Deposit Trend
  */
 
 private val MARKET_INDICATOR_TABS = listOf("Fear & Greed", "과매수/과매도", "자금 동향")
@@ -142,7 +144,7 @@ private fun MarketOscillatorHubContent(
 
         // State handling
         when (val currentState = state) {
-            is MarketOscillatorState.Loading -> {
+            is MarketOscillatorViewState.Loading -> {
                 Box(
                     modifier = Modifier.fillMaxWidth().height(200.dp),
                     contentAlignment = Alignment.Center
@@ -150,7 +152,7 @@ private fun MarketOscillatorHubContent(
                     CircularProgressIndicator()
                 }
             }
-            is MarketOscillatorState.Initializing -> {
+            is MarketOscillatorViewState.Initializing -> {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -166,7 +168,7 @@ private fun MarketOscillatorHubContent(
                     }
                 }
             }
-            is MarketOscillatorState.Updating -> {
+            is MarketOscillatorViewState.Updating -> {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -178,7 +180,7 @@ private fun MarketOscillatorHubContent(
                     }
                 }
             }
-            is MarketOscillatorState.Success -> {
+            is MarketOscillatorViewState.Success -> {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -192,7 +194,7 @@ private fun MarketOscillatorHubContent(
                     )
                 }
             }
-            is MarketOscillatorState.Error -> {
+            is MarketOscillatorViewState.Error -> {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -206,7 +208,7 @@ private fun MarketOscillatorHubContent(
                     )
                 }
             }
-            is MarketOscillatorState.Idle -> {
+            is MarketOscillatorViewState.Idle -> {
                 if (!currentState.hasData) {
                     NoDataCard(message = stringResource(R.string.market_oscillator_no_data))
                 }
@@ -249,7 +251,7 @@ private fun MarketDepositHubContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         when (val currentState = state) {
-            is MarketDepositState.Loading -> {
+            is MarketDepositViewState.Loading -> {
                 Box(
                     modifier = Modifier.fillMaxWidth().height(200.dp),
                     contentAlignment = Alignment.Center
@@ -261,13 +263,22 @@ private fun MarketDepositHubContent(
                     }
                 }
             }
-            is MarketDepositState.Idle -> {
+            is MarketDepositViewState.Idle -> {
                 NoDataCard(message = stringResource(R.string.market_deposit_no_data))
             }
-            is MarketDepositState.Success -> {
+            is MarketDepositViewState.Success -> {
                 val depositData = currentState.data
 
-                // 분석 카드
+                // Convert to legacy format for chart
+                val legacyData = MarketDepositData(
+                    dates = depositData.dates,
+                    depositAmounts = depositData.depositAmounts,
+                    depositChanges = depositData.depositChanges,
+                    creditAmounts = depositData.creditAmounts,
+                    creditChanges = depositData.creditChanges
+                )
+
+                // Analysis Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -292,13 +303,13 @@ private fun MarketDepositHubContent(
                     }
                 }
 
-                // 증시 자금 동향 차트
+                // Chart
                 MarketDepositChart(
-                    data = depositData,
+                    data = legacyData,
                     latestDate = depositData.dates.lastOrNull()
                 )
 
-                // 최신 데이터 요약
+                // Latest Data Summary
                 if (depositData.dates.isNotEmpty()) {
                     val lastIdx = depositData.dates.size - 1
 
@@ -315,7 +326,7 @@ private fun MarketDepositHubContent(
 
                             HorizontalDivider()
 
-                            // 고객예탁금
+                            // Customer Deposit
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -345,7 +356,7 @@ private fun MarketDepositHubContent(
 
                             HorizontalDivider()
 
-                            // 신용잔고
+                            // Credit Balance
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -375,7 +386,7 @@ private fun MarketDepositHubContent(
                         }
                     }
 
-                    // 최근 5일 데이터
+                    // Recent 5 Days
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(
                             modifier = Modifier.padding(16.dp),
@@ -416,7 +427,7 @@ private fun MarketDepositHubContent(
                     }
                 }
             }
-            is MarketDepositState.Error -> {
+            is MarketDepositViewState.Error -> {
                 NoDataCard(message = currentState.message)
             }
         }
@@ -452,7 +463,7 @@ private fun NoDataCard(message: String) {
 
 @Composable
 private fun OscillatorLatestDataCard(
-    latest: MarketOscillatorData,
+    latest: MarketOscillator,
     overboughtThreshold: Double,
     oversoldThreshold: Double
 ) {
@@ -535,7 +546,7 @@ private fun OscillatorLatestDataCard(
 
 @Composable
 private fun OscillatorDataTable(
-    data: List<MarketOscillatorData>,
+    data: List<MarketOscillator>,
     overboughtThreshold: Double,
     oversoldThreshold: Double,
     bodyScale: Float

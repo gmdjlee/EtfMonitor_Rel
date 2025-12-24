@@ -1,46 +1,43 @@
-package com.etfmonitor.ui.screens.marketoscillator
+package com.etfmonitor.feature.market.presentation.oscillator
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.database.EtfDao
-import com.etfmonitor.database.entities.MarketOscillatorData
-import com.etfmonitor.repository.MarketOscillatorRepository
+import com.etfmonitor.database.entities.Setting
+import com.etfmonitor.feature.market.domain.model.MarketOscillator
+import com.etfmonitor.feature.market.domain.model.MarketOscillatorViewState
+import com.etfmonitor.feature.market.domain.usecase.CheckMarketOscillatorDataStatusUseCase
+import com.etfmonitor.feature.market.domain.usecase.GetRecentMarketOscillatorUseCase
+import com.etfmonitor.feature.market.domain.usecase.InitializeMarketOscillatorUseCase
+import com.etfmonitor.feature.market.domain.usecase.UpdateMarketOscillatorUseCase
 import com.etfmonitor.core.ui.theme.ThemeManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * 시장 과매수/과매도 화면 상태
- */
-sealed class MarketOscillatorState {
-    object Loading : MarketOscillatorState()
-    data class Idle(val hasData: Boolean, val latestDate: String?) : MarketOscillatorState()
-    data class Initializing(val message: String, val progress: Int) : MarketOscillatorState()
-    data class Updating(val message: String) : MarketOscillatorState()
-    data class Success(val message: String) : MarketOscillatorState()
-    data class Error(val message: String) : MarketOscillatorState()
-}
-
-/**
- * Production Level MarketOscillatorViewModel with Hilt
+ * 시장 과매수/과매도 ViewModel (Clean Architecture)
  *
- * 최적화 포인트:
- * 1. @HiltViewModel: Hilt가 ViewModel 생명주기 자동 관리
- * 2. @Inject: 생성자 주입으로 의존성 명확화
- * 3. @ApplicationContext: Application Context 직접 주입
- * 4. Factory 패턴 제거: Hilt가 자동으로 ViewModel 생성
- *
- * 기존 문제점 해결:
- * - EtfMonitorApp.instance 제거: 메모리 누수 위험 제거
- * - 수동 Factory 제거: Hilt가 자동으로 관리하여 코드 간결화
+ * UseCase 기반으로 리팩토링:
+ * - GetRecentMarketOscillatorUseCase: 최근 데이터 조회
+ * - InitializeMarketOscillatorUseCase: 데이터 초기화
+ * - UpdateMarketOscillatorUseCase: 데이터 업데이트
+ * - CheckMarketOscillatorDataStatusUseCase: 데이터 상태 확인
  */
 @HiltViewModel
 class MarketOscillatorViewModel @Inject constructor(
-    private val repository: MarketOscillatorRepository,
+    private val getRecentMarketOscillatorUseCase: GetRecentMarketOscillatorUseCase,
+    private val initializeMarketOscillatorUseCase: InitializeMarketOscillatorUseCase,
+    private val updateMarketOscillatorUseCase: UpdateMarketOscillatorUseCase,
+    private val checkMarketOscillatorDataStatusUseCase: CheckMarketOscillatorDataStatusUseCase,
     private val etfDao: EtfDao,
     private val themeManager: ThemeManager,
     @ApplicationContext private val context: Context
@@ -51,16 +48,16 @@ class MarketOscillatorViewModel @Inject constructor(
         .map { it.bodyScale }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1.0f)
 
-    private val _state = MutableStateFlow<MarketOscillatorState>(MarketOscillatorState.Loading)
-    val state: StateFlow<MarketOscillatorState> = _state.asStateFlow()
+    private val _state = MutableStateFlow<MarketOscillatorViewState>(MarketOscillatorViewState.Loading)
+    val state: StateFlow<MarketOscillatorViewState> = _state.asStateFlow()
 
     // 선택된 시장 (KOSPI/KOSDAQ)
     private val _selectedMarket = MutableStateFlow("KOSPI")
     val selectedMarket: StateFlow<String> = _selectedMarket.asStateFlow()
 
     // 시장 데이터
-    private val _marketData = MutableStateFlow<List<MarketOscillatorData>>(emptyList())
-    val marketData: StateFlow<List<MarketOscillatorData>> = _marketData.asStateFlow()
+    private val _marketData = MutableStateFlow<List<MarketOscillator>>(emptyList())
+    val marketData: StateFlow<List<MarketOscillator>> = _marketData.asStateFlow()
 
     // 표시할 데이터 개수 (기본 15일)
     private val _displayDays = MutableStateFlow(15)
@@ -87,8 +84,10 @@ class MarketOscillatorViewModel @Inject constructor(
     private fun checkFirstRun() {
         viewModelScope.launch {
             val dialogDismissed = etfDao.getSetting("market_oscillator_dialog_dismissed")
-            val hasData = repository.getDataCount("KOSPI") > 0 ||
-                         repository.getDataCount("KOSDAQ") > 0
+            val kospiStatus = checkMarketOscillatorDataStatusUseCase("KOSPI")
+            val kosdaqStatus = checkMarketOscillatorDataStatusUseCase("KOSDAQ")
+
+            val hasData = kospiStatus.hasData || kosdaqStatus.hasData
 
             // 데이터가 없고 다이얼로그를 본 적이 없으면 표시
             if (!hasData && dialogDismissed != "true") {
@@ -98,34 +97,35 @@ class MarketOscillatorViewModel @Inject constructor(
     }
 
     fun onFirstRunDialogShown() {
-        // "나중에"를 클릭한 경우: 다이얼로그만 닫기
         _showFirstRunDialog.value = false
     }
 
     fun onFirstRunDialogConfirmed() {
-        // "수집 시작"을 클릭한 경우: 다이얼로그 닫고 더 이상 표시하지 않음
         viewModelScope.launch {
-            etfDao.saveSetting(
-                com.etfmonitor.database.entities.Setting("market_oscillator_dialog_dismissed", "true")
-            )
+            etfDao.saveSetting(Setting("market_oscillator_dialog_dismissed", "true"))
             _showFirstRunDialog.value = false
         }
     }
 
     private fun checkData() {
         viewModelScope.launch {
-            val kospiCount = repository.getDataCount("KOSPI")
-            val kosdaqCount = repository.getDataCount("KOSDAQ")
-            val hasData = kospiCount > 0 || kosdaqCount > 0
+            val kospiStatus = checkMarketOscillatorDataStatusUseCase("KOSPI")
+            val kosdaqStatus = checkMarketOscillatorDataStatusUseCase("KOSDAQ")
+            val hasData = kospiStatus.hasData || kosdaqStatus.hasData
 
-            val latestData = repository.getLatestData(_selectedMarket.value)
-            _state.value = MarketOscillatorState.Idle(hasData, latestData?.date)
+            val latestDate = if (_selectedMarket.value == "KOSPI") {
+                kospiStatus.latestDate
+            } else {
+                kosdaqStatus.latestDate
+            }
+
+            _state.value = MarketOscillatorViewState.Idle(hasData, latestDate)
         }
     }
 
     private fun loadData() {
         viewModelScope.launch {
-            repository.getRecentData(_selectedMarket.value, _displayDays.value)
+            getRecentMarketOscillatorUseCase(_selectedMarket.value, _displayDays.value)
                 .collect { data ->
                     _marketData.value = data
                 }
@@ -156,27 +156,27 @@ class MarketOscillatorViewModel @Inject constructor(
      */
     fun initialize(days: Int = 365) {
         viewModelScope.launch {
-            _state.value = MarketOscillatorState.Initializing("시장 데이터 수집 중...", 0)
+            _state.value = MarketOscillatorViewState.Initializing("시장 데이터 수집 중...", 0)
 
             // KOSPI 수집
-            _state.value = MarketOscillatorState.Initializing("KOSPI 데이터 수집 중...", 25)
-            val kospiResult = repository.initializeMarketData("KOSPI", days)
+            _state.value = MarketOscillatorViewState.Initializing("KOSPI 데이터 수집 중...", 25)
+            val kospiResult = initializeMarketOscillatorUseCase("KOSPI", days)
 
             // KOSDAQ 수집
-            _state.value = MarketOscillatorState.Initializing("KOSDAQ 데이터 수집 중...", 50)
-            val kosdaqResult = repository.initializeMarketData("KOSDAQ", days)
+            _state.value = MarketOscillatorViewState.Initializing("KOSDAQ 데이터 수집 중...", 50)
+            val kosdaqResult = initializeMarketOscillatorUseCase("KOSDAQ", days)
 
             if (kospiResult.isSuccess && kosdaqResult.isSuccess) {
                 val kospiCount = kospiResult.getOrNull() ?: 0
                 val kosdaqCount = kosdaqResult.getOrNull() ?: 0
-                _state.value = MarketOscillatorState.Success(
+                _state.value = MarketOscillatorViewState.Success(
                     "KOSPI: $kospiCount, KOSDAQ: $kosdaqCount 개의 데이터를 수집했습니다"
                 )
                 loadData()
                 checkData()
             } else {
                 val error = kospiResult.exceptionOrNull() ?: kosdaqResult.exceptionOrNull()
-                _state.value = MarketOscillatorState.Error("데이터 수집 실패: ${error?.message}")
+                _state.value = MarketOscillatorViewState.Error("데이터 수집 실패: ${error?.message}")
             }
         }
     }
@@ -186,28 +186,28 @@ class MarketOscillatorViewModel @Inject constructor(
      */
     fun update() {
         viewModelScope.launch {
-            _state.value = MarketOscillatorState.Updating("시장 데이터 업데이트 중...")
+            _state.value = MarketOscillatorViewState.Updating("시장 데이터 업데이트 중...")
 
-            val kospiResult = repository.updateMarketData("KOSPI")
-            val kosdaqResult = repository.updateMarketData("KOSDAQ")
+            val kospiResult = updateMarketOscillatorUseCase("KOSPI")
+            val kosdaqResult = updateMarketOscillatorUseCase("KOSDAQ")
 
             if (kospiResult.isSuccess && kosdaqResult.isSuccess) {
                 val kospiCount = kospiResult.getOrNull() ?: 0
                 val kosdaqCount = kosdaqResult.getOrNull() ?: 0
-                _state.value = MarketOscillatorState.Success(
+                _state.value = MarketOscillatorViewState.Success(
                     "KOSPI: $kospiCount, KOSDAQ: $kosdaqCount 개의 데이터를 업데이트했습니다"
                 )
                 loadData()
                 checkData()
             } else {
                 val error = kospiResult.exceptionOrNull() ?: kosdaqResult.exceptionOrNull()
-                _state.value = MarketOscillatorState.Error("업데이트 실패: ${error?.message}")
+                _state.value = MarketOscillatorViewState.Error("업데이트 실패: ${error?.message}")
             }
         }
     }
 
     fun clearMessage() {
-        if (_state.value is MarketOscillatorState.Success || _state.value is MarketOscillatorState.Error) {
+        if (_state.value is MarketOscillatorViewState.Success || _state.value is MarketOscillatorViewState.Error) {
             checkData()
         }
     }

@@ -13,9 +13,9 @@ import com.etfmonitor.feature.home.domain.usecase.CheckFirstRunUseCase
 import com.etfmonitor.feature.home.domain.usecase.GetDefaultDaysUseCase
 import com.etfmonitor.feature.home.domain.usecase.GetHomeSummaryUseCase
 import com.etfmonitor.feature.home.domain.usecase.SaveDialogDismissedUseCase
-import com.etfmonitor.repository.FearGreedRepository
-import com.etfmonitor.repository.MarketDepositRepository
-import com.etfmonitor.repository.MarketOscillatorRepository
+import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
+import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
+import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow

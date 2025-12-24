@@ -5,9 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.repository.DataRepository
-import com.etfmonitor.repository.FearGreedRepository
-import com.etfmonitor.repository.MarketOscillatorRepository
-import com.etfmonitor.repository.MarketDepositRepository
+import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
+import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
+import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
 import com.etfmonitor.core.service.CollectionState
 import com.etfmonitor.core.service.DataCollectionService
 import dagger.hilt.android.lifecycle.HiltViewModel

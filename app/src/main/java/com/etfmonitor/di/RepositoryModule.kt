@@ -1,11 +1,9 @@
 package com.etfmonitor.di
 
-import com.chaquo.python.Python
 import com.etfmonitor.database.*
-import com.etfmonitor.core.network.python.OscillatorPyClient
-import com.etfmonitor.core.network.python.MarketIndexPyClient
 import com.etfmonitor.core.network.python.PyKrxClient
-import com.etfmonitor.repository.*
+import com.etfmonitor.repository.DataRepository
+import com.etfmonitor.repository.StatisticsAnalysisRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -48,47 +46,11 @@ object RepositoryModule {
 
     // StockRepository는 @Inject constructor를 사용하므로 수동 제공 불필요
     // StockAnalysisRepository는 @Inject constructor를 사용하므로 수동 제공 불필요
-    // MarketDepositRepository는 @Inject constructor를 사용하므로 수동 제공 불필요
     // Hilt가 자동으로 의존성을 주입합니다
 
-    /**
-     * FearGreedRepository 제공 (Singleton)
-     * 공포 탐욕 지수 데이터를 관리
-     */
-    @Provides
-    @Singleton
-    fun provideFearGreedRepository(
-        fearGreedDao: FearGreedDao,
-        python: Python
-    ): FearGreedRepository {
-        return FearGreedRepository(fearGreedDao, python)
-    }
-
-    /**
-     * MarketOscillatorRepository 제공 (Singleton)
-     * 과매수/과매도 데이터를 관리
-     */
-    @Provides
-    @Singleton
-    fun provideMarketOscillatorRepository(
-        marketOscillatorDao: MarketOscillatorDao,
-        oscillatorPyClient: OscillatorPyClient
-    ): MarketOscillatorRepository {
-        return MarketOscillatorRepository(marketOscillatorDao, oscillatorPyClient)
-    }
-
-    /**
-     * MarketIndexRepository 제공 (Singleton)
-     * 시장 지수 데이터를 관리
-     */
-    @Provides
-    @Singleton
-    fun provideMarketIndexRepository(
-        marketIndexDao: MarketIndexDao,
-        marketIndexPyClient: MarketIndexPyClient
-    ): MarketIndexRepository {
-        return MarketIndexRepository(marketIndexDao, marketIndexPyClient)
-    }
+    // ==================== Market Repositories ====================
+    // FearGreedRepository, MarketOscillatorRepository, MarketDepositRepository, MarketIndexRepository
+    // → feature/market/di/MarketModule.kt에서 제공
 
     /**
      * StatisticsAnalysisRepository 제공 (Singleton)
