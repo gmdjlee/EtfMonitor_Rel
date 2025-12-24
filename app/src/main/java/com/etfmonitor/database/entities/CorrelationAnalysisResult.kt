@@ -3,7 +3,7 @@ package com.etfmonitor.database.entities
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
-import com.etfmonitor.database.Converters
+import com.etfmonitor.core.database.Converters
 
 /**
  * 상관관계 분석 결과 엔티티
