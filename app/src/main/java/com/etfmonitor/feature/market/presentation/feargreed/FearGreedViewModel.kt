@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.feargreed
+package com.etfmonitor.feature.market.presentation.feargreed
 
 import android.content.Context
 import androidx.lifecycle.ViewModel

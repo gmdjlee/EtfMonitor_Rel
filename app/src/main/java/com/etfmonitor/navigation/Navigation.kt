@@ -20,12 +20,12 @@ import com.etfmonitor.ui.screens.settings.SettingsScreen
 import com.etfmonitor.ui.screens.statistics.AggregatedStockTrendScreen
 import com.etfmonitor.feature.stock.presentation.trend.StockTrendScreen
 import com.etfmonitor.ui.screens.oscillator.OscillatorScreen
-import com.etfmonitor.ui.screens.oscillator.MarketDepositScreen
-import com.etfmonitor.ui.screens.feargreed.FearGreedScreen
-import com.etfmonitor.ui.screens.marketoscillator.MarketOscillatorScreen
+import com.etfmonitor.feature.market.presentation.deposit.MarketDepositScreen
+import com.etfmonitor.feature.market.presentation.feargreed.FearGreedScreen
+import com.etfmonitor.feature.market.presentation.oscillator.MarketOscillatorScreen
 import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisScreen
 import com.etfmonitor.ui.screens.advanced.AdvancedDashboardScreen
-import com.etfmonitor.ui.screens.hub.MarketIndicatorHubScreen
+import com.etfmonitor.feature.market.presentation.hub.MarketIndicatorHubScreen
 import com.etfmonitor.ui.screens.hub.EtfHubScreen
 import com.etfmonitor.ui.screens.hub.StocksHubScreen
 import com.etfmonitor.ui.screens.hub.AnalysisHubScreen
