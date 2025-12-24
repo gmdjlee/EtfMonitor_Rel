@@ -385,7 +385,7 @@ class AggregatedStockTrendViewModel @AssistedInject constructor(
     @Assisted val stockTicker: String,
     private val repository: DataRepository,
     private val etfDao: com.etfmonitor.database.EtfDao,
-    val pyClient: com.etfmonitor.oscillator.python.OscillatorPyClient
+    val pyClient: com.etfmonitor.core.network.python.OscillatorPyClient
 ) : ViewModel() {
 
     @AssistedFactory
