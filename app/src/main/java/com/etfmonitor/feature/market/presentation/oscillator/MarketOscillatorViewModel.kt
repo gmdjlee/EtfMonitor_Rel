@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.marketoscillator
+package com.etfmonitor.feature.market.presentation.oscillator
 
 import android.content.Context
 import androidx.lifecycle.ViewModel

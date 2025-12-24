@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.oscillator
+package com.etfmonitor.feature.market.presentation.deposit
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

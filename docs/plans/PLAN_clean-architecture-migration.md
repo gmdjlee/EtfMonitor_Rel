@@ -382,24 +382,27 @@ feature/home/
 ```
 
 **Tasks**:
-- [ ] `feature/home/domain/model/` 생성
+- [x] `feature/home/domain/model/` 생성
   - HomeSummary, HomeState를 별도 파일로 분리
-- [ ] `feature/home/domain/repository/HomeRepository.kt` 인터페이스 생성
-- [ ] `feature/home/domain/usecase/` UseCase 클래스 생성
+- [x] `feature/home/domain/repository/HomeRepository.kt` 인터페이스 생성
+- [x] `feature/home/domain/usecase/` UseCase 클래스 생성
   - GetHomeSummaryUseCase
   - CheckDataStatusUseCase
   - CheckFirstRunUseCase
-  - InitializeAllDataUseCase
-- [ ] `feature/home/data/repository/HomeRepositoryImpl.kt` 구현
+  - GetDefaultDaysUseCase
+  - SaveDialogDismissedUseCase
+- [x] `feature/home/data/repository/HomeRepositoryImpl.kt` 구현
   - 기존 Repository들을 조합하여 구현
-- [ ] `feature/home/di/HomeModule.kt` 생성
-- [ ] Presentation 레이어 이동 및 리팩토링
+- [x] `feature/home/di/HomeModule.kt` 생성
+- [x] Presentation 레이어 이동 및 리팩토링
   - HomeViewModel → UseCase 의존성으로 변경
   - HomeScreen, HomeSummaryCard, HomeDialogs 이동
-- [ ] 빌드 및 기능 테스트
+- [x] Navigation.kt 업데이트 (feature/home 사용)
+- [x] `ui/screens/home/` 레거시 폴더 삭제
+- [ ] 빌드 및 기능 테스트 (네트워크 오류로 미완료)
 
 **Quality Gate**:
-- [ ] `./gradlew assembleDebug` 성공
+- [ ] `./gradlew assembleDebug` 성공 (네트워크 오류로 미검증)
 - [ ] Home 화면 정상 동작
 - [ ] 데이터 초기화/업데이트 정상 동작
 - [ ] 다이얼로그 표시 정상
@@ -611,19 +614,34 @@ feature/market/
 ```
 
 **Tasks**:
-- [ ] Domain Layer 생성
-- [ ] Data Layer 생성
-  - ⚠️ **FearGreed 3x 요청 로직 유지**
-  - ⚠️ **MarketDeposit 12h 캐싱 로직 유지**
-- [ ] UseCase 클래스 생성
-- [ ] Presentation Layer 이동
-- [ ] DI 설정
-- [ ] 빌드 및 기능 테스트
+- [x] Domain Layer 생성
+  - model/: MarketModels.kt (FearGreedIndex, MarketDeposit, MarketOscillator, MarketIndex, MarketType)
+  - repository/: 4 interfaces (FearGreedRepository, MarketDepositRepository, MarketOscillatorRepository, MarketIndexRepository)
+  - usecase/: 4 UseCase files with 37 individual UseCases
+- [x] Data Layer 생성
+  - mapper/: MarketMapper.kt (Entity <-> Domain conversion)
+  - repository/: 4 Repository implementations (wrapping legacy repos)
+  - ⚠️ **FearGreed 3x 요청 로직 유지** - 레거시 Repository 래핑으로 유지
+  - ⚠️ **MarketDeposit 12h 캐싱 로직 유지** - 레거시 Repository 래핑으로 유지
+  - ⚠️ **MarketOscillator 180s 타임아웃 유지** - 레거시 Repository 래핑으로 유지
+- [x] UseCase 클래스 생성
+- [x] Presentation Layer 이동
+  - FearGreedScreen, FearGreedViewModel → feature/market/presentation/feargreed/
+  - MarketOscillatorScreen, MarketOscillatorViewModel → feature/market/presentation/oscillator/
+  - MarketDepositScreen, MarketDepositViewModel → feature/market/presentation/deposit/
+  - MarketIndicatorHubScreen → feature/market/presentation/hub/
+- [x] DI 설정 (MarketModule.kt)
+- [x] 레거시 파일 삭제
+  - ui/screens/feargreed/
+  - ui/screens/marketoscillator/
+  - ui/screens/oscillator/MarketDeposit*.kt
+  - ui/screens/hub/MarketIndicatorHubScreen.kt
+- [ ] 빌드 및 기능 테스트 (네트워크 오류로 미완료)
 
 **Performance Check**:
-- [ ] FearGreed 3x 요청 로직 유지 확인
-- [ ] MarketDeposit 캐싱 로직 유지 확인
-- [ ] Python 타임아웃 설정 유지 확인
+- [x] FearGreed 3x 요청 로직 유지 확인 (레거시 Repository 래핑)
+- [x] MarketDeposit 캐싱 로직 유지 확인 (레거시 Repository 래핑)
+- [x] Python 타임아웃 설정 유지 확인 (180s for MarketOscillator)
 
 **Rollback**: `git revert` to Phase 4 commit
 
@@ -817,10 +835,10 @@ fun HoldingDomain.toEntity() = Holding.create(
 | Phase | Status | Start Date | End Date | Notes |
 |-------|--------|------------|----------|-------|
 | Phase 1: Core Module | ✅ Complete | 2025-12-24 | 2025-12-24 | All files moved, imports updated, old folders deleted |
-| Phase 2: Home Module | ⬜ Skipped | - | - | Deferred to future iteration |
+| Phase 2: Home Module | ✅ Complete | 2025-12-24 | 2025-12-24 | Clean Architecture implemented, Navigation updated |
 | Phase 3: ETF Module | ✅ Complete | 2025-12-24 | 2025-12-24 | Clean Architecture implemented, UseCases introduced |
 | Phase 4: Stock Module | ✅ Complete | 2025-12-24 | 2025-12-24 | Domain/Data/Presentation layers, 9 UseCases, 4 Repositories |
-| Phase 5: Market Module | ⬜ Skipped | - | - | Deferred to future iteration |
+| Phase 5: Market Module | ✅ Complete | 2025-12-24 | 2025-12-24 | Domain/Data/Presentation layers, 37 UseCases, 4 Repositories |
 | Phase 6: Analysis Module | ✅ Complete | 2025-12-24 | 2025-12-24 | Domain/Data layers complete, Presentation deferred |
 | Phase 7: Settings & Cleanup | ✅ Complete | 2025-12-24 | 2025-12-24 | Settings feature, Navigation moved, analysis moved to core |
 
@@ -863,6 +881,64 @@ fun HoldingDomain.toEntity() = Holding.create(
 **Pending:**
 - Build verification blocked by network issues (`java.net.UnknownHostException: services.gradle.org`)
 - Full functionality testing to be done when network is available
+
+### Phase 2 (2025-12-24)
+
+**Completed Tasks:**
+1. Created `feature/home/` package structure:
+   - `domain/model/` - HomeState, HomeSummary, DataInitializationConfig
+   - `domain/repository/` - HomeRepository interface
+   - `domain/usecase/` - GetHomeSummaryUseCase, CheckDataStatusUseCase, CheckFirstRunUseCase, GetDefaultDaysUseCase, SaveDialogDismissedUseCase
+   - `data/repository/` - HomeRepositoryImpl (wrapping legacy repositories)
+   - `di/` - HomeModule
+   - `presentation/component/` - HomeSummaryCard, HomeDialogs (DaysSelectionDialog, UnifiedInitializationDialog)
+   - `presentation/screen/` - HomeScreen
+   - `presentation/viewmodel/` - HomeViewModel
+
+2. Updated Navigation.kt:
+   - Changed import from `com.etfmonitor.ui.screens.home.HomeScreen` to `com.etfmonitor.feature.home.presentation.screen.HomeScreen`
+
+3. Deleted legacy files:
+   - `ui/screens/home/` folder (HomeScreen.kt, HomeViewModel.kt, HomeSummaryCard.kt, HomeDialogs.kt)
+
+**Architecture Decisions:**
+- HomeViewModel uses UseCases for all business operations
+- HomeRepositoryImpl wraps legacy repositories (DataRepository, FearGreedRepository, etc.)
+- Domain models (HomeState, HomeSummary) separated from UI components
+
+**Files Created (13 files):**
+```
+feature/home/
+├── data/
+│   └── repository/
+│       └── HomeRepositoryImpl.kt
+├── di/
+│   └── HomeModule.kt
+├── domain/
+│   ├── model/
+│   │   ├── DataInitializationConfig.kt
+│   │   ├── HomeState.kt
+│   │   └── HomeSummary.kt
+│   ├── repository/
+│   │   └── HomeRepository.kt
+│   └── usecase/
+│       ├── CheckDataStatusUseCase.kt
+│       ├── CheckFirstRunUseCase.kt
+│       ├── GetDefaultDaysUseCase.kt
+│       ├── GetHomeSummaryUseCase.kt
+│       └── SaveDialogDismissedUseCase.kt
+└── presentation/
+    ├── component/
+    │   ├── HomeDialogs.kt
+    │   └── HomeSummaryCard.kt
+    ├── screen/
+    │   └── HomeScreen.kt
+    └── viewmodel/
+        └── HomeViewModel.kt
+```
+
+**Pending:**
+- Build verification blocked by network issues
 
 ### Phase 3 (2025-12-24)
 
@@ -937,6 +1013,93 @@ fun HoldingDomain.toEntity() = Holding.create(
 **Pending:**
 - Build verification blocked by network issues
 - Full migration of old repositories to be done in Phase 6
+
+### Phase 5 (2025-12-24)
+
+**Completed Tasks:**
+1. Created `feature/market/` package structure:
+   - `domain/model/` - MarketModels.kt (FearGreedIndex, MarketDeposit, MarketDepositData, MarketOscillator, MarketIndex, MarketType)
+   - `domain/repository/` - 4 interfaces (FearGreedRepository, MarketDepositRepository, MarketOscillatorRepository, MarketIndexRepository)
+   - `domain/usecase/` - 4 UseCase files:
+     - FearGreedUseCases.kt (9 UseCases + DataStatus)
+     - MarketDepositUseCases.kt (8 UseCases)
+     - MarketOscillatorUseCases.kt (9 UseCases)
+     - MarketIndexUseCases.kt (11 UseCases)
+   - `data/mapper/` - MarketMapper.kt (Entity <-> Domain conversion)
+   - `data/repository/` - 4 Repository implementations (wrapping legacy repos)
+   - `di/` - MarketModule.kt
+   - `presentation/feargreed/` - FearGreedScreen, FearGreedViewModel
+   - `presentation/oscillator/` - MarketOscillatorScreen, MarketOscillatorViewModel
+   - `presentation/deposit/` - MarketDepositScreen, MarketDepositViewModel
+   - `presentation/hub/` - MarketIndicatorHubScreen
+
+2. Updated Navigation.kt:
+   - Changed imports from `com.etfmonitor.ui.screens.*` to `com.etfmonitor.feature.market.presentation.*`
+   - MarketDepositScreen, FearGreedScreen, MarketOscillatorScreen, MarketIndicatorHubScreen
+
+3. Deleted legacy files:
+   - `ui/screens/feargreed/` folder (FearGreedScreen.kt, FearGreedViewModel.kt)
+   - `ui/screens/marketoscillator/` folder (MarketOscillatorScreen.kt, MarketOscillatorViewModel.kt)
+   - `ui/screens/oscillator/MarketDepositScreen.kt`, `ui/screens/oscillator/MarketDepositViewModel.kt`
+   - `ui/screens/hub/MarketIndicatorHubScreen.kt`
+
+**Architecture Decisions:**
+- Legacy Repository wrapping pattern applied (same as Analysis module)
+- All critical performance optimizations preserved:
+  - FearGreed 3x data collection for MA loss compensation
+  - MarketDeposit 12h smart caching
+  - MarketOscillator 180s timeout for 200+ stocks
+- Domain models separate from Entity classes
+- UseCases encapsulate all business operations
+
+**Files Created (18 files):**
+```
+feature/market/
+├── data/
+│   ├── mapper/
+│   │   └── MarketMapper.kt
+│   └── repository/
+│       ├── FearGreedRepositoryImpl.kt
+│       ├── MarketDepositRepositoryImpl.kt
+│       ├── MarketIndexRepositoryImpl.kt
+│       └── MarketOscillatorRepositoryImpl.kt
+├── di/
+│   └── MarketModule.kt
+├── domain/
+│   ├── model/
+│   │   └── MarketModels.kt
+│   ├── repository/
+│   │   ├── FearGreedRepository.kt
+│   │   ├── MarketDepositRepository.kt
+│   │   ├── MarketIndexRepository.kt
+│   │   └── MarketOscillatorRepository.kt
+│   └── usecase/
+│       ├── FearGreedUseCases.kt
+│       ├── MarketDepositUseCases.kt
+│       ├── MarketIndexUseCases.kt
+│       └── MarketOscillatorUseCases.kt
+└── presentation/
+    ├── deposit/
+    │   ├── MarketDepositScreen.kt
+    │   └── MarketDepositViewModel.kt
+    ├── feargreed/
+    │   ├── FearGreedScreen.kt
+    │   └── FearGreedViewModel.kt
+    ├── hub/
+    │   └── MarketIndicatorHubScreen.kt
+    └── oscillator/
+        ├── MarketOscillatorScreen.kt
+        └── MarketOscillatorViewModel.kt
+```
+
+**Performance Considerations:**
+- All repository implementations use wrapper pattern to ensure legacy optimizations are preserved
+- FearGreed 3x data request pattern maintained in legacy repository
+- MarketDeposit 12h smart caching logic preserved
+- MarketOscillator 180s timeout for collecting 200+ component stocks
+
+**Pending:**
+- Build verification blocked by network issues
 
 ### Phase 6 (2025-12-24)
 
@@ -1105,8 +1268,10 @@ core/
 └── di/               - Core DI modules
 
 feature/
+├── home/             - Home feature (domain/data/presentation/di)
 ├── etf/              - ETF feature (domain/data/presentation/di)
 ├── stock/            - Stock feature (domain/data/presentation/di)
+├── market/           - Market feature (domain/data/presentation/di)
 ├── analysis/         - Analysis feature (domain/data/di)
 └── settings/         - Settings feature (domain/data/di)
 
@@ -1115,7 +1280,7 @@ navigation/           - App-wide navigation
 
 **Pending:**
 - Build verification blocked by network issues
-- Phase 2 (Home) and Phase 5 (Market) skipped - can be done in future iterations
+- All 7 phases completed, ready for full integration testing when network available
 
 ---
 

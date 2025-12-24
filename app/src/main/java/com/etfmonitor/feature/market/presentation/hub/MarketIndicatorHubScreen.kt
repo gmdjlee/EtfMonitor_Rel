@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.hub
+package com.etfmonitor.feature.market.presentation.hub
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
