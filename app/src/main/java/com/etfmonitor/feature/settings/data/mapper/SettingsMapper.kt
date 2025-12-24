@@ -75,8 +75,8 @@ object SettingsMapper {
         id = id,
         name = name,
         provider = provider.toDomain(),
-        contextWindow = contextWindow,
-        maxOutputTokens = maxOutputTokens
+        contextWindow = contextWindow ?: 0,
+        maxOutputTokens = maxOutputTokens ?: 0
     )
 
     fun List<AIModel>.toDomainModels(): List<AIModelInfo> = map { it.toDomain() }
