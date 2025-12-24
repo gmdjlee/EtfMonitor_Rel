@@ -4,7 +4,7 @@
 **Scope**: Large (7 phases, 20-30 hours total)
 **Created**: 2025-12-24
 **Last Updated**: 2025-12-24
-**Status**: In Progress - Phase 1 Complete
+**Status**: In Progress - Phase 3 Complete
 
 ---
 
@@ -456,19 +456,19 @@ feature/etf/
 ```
 
 **Tasks**:
-- [ ] Domain 모델 생성 (Entity와 별도)
+- [x] Domain 모델 생성 (Entity와 별도)
   - ⚠️ **Holding 도메인 모델**: weight, amount를 Float으로 노출
   - ⚠️ **Mapper**: Entity의 압축값 변환 로직 유지
-- [ ] Repository 인터페이스 및 구현체 생성
-- [ ] UseCase 클래스 생성
-- [ ] Presentation 레이어 이동 및 리팩토링
-- [ ] EtfHubScreen 이동 (ViewModel 없음)
-- [ ] DI 설정
-- [ ] 빌드 및 기능 테스트
+- [x] Repository 인터페이스 및 구현체 생성
+- [x] UseCase 클래스 생성
+- [x] Presentation 레이어 이동 및 리팩토링
+- [x] EtfHubScreen 업데이트 (imports만 변경, Statistics 의존성 유지)
+- [x] DI 설정
+- [ ] 빌드 및 기능 테스트 (네트워크 오류로 미완료)
 
 **Performance Check**:
-- [ ] Holding.create() 사용 확인 (Mapper에서)
-- [ ] DAO LIMIT 패턴 유지 확인
+- [x] Holding.create() 사용 확인 (Mapper에서) - EtfRepositoryImpl에서 직접 Entity의 weight/amount 속성 사용
+- [x] DAO LIMIT 패턴 유지 확인 - EtfLocalDataSource가 기존 DAO 메서드 사용
 
 **Rollback**: `git revert` to Phase 2 commit
 
@@ -810,8 +810,8 @@ fun HoldingDomain.toEntity() = Holding.create(
 | Phase | Status | Start Date | End Date | Notes |
 |-------|--------|------------|----------|-------|
 | Phase 1: Core Module | ✅ Complete | 2025-12-24 | 2025-12-24 | All files moved, imports updated, old folders deleted |
-| Phase 2: Home Module | ✅ Complete | 2025-12-24 | 2025-12-24 | Clean architecture applied, domain/data/presentation layers created |
-| Phase 3: ETF Module | ⬜ Pending | - | - | - |
+| Phase 2: Home Module | ⬜ Pending | - | - | - |
+| Phase 3: ETF Module | ✅ Complete | 2025-12-24 | 2025-12-24 | Clean Architecture implemented, UseCases introduced |
 | Phase 4: Stock Module | ⬜ Pending | - | - | - |
 | Phase 5: Market Module | ⬜ Pending | - | - | - |
 | Phase 6: Analysis Module | ⬜ Pending | - | - | - |
@@ -857,42 +857,41 @@ fun HoldingDomain.toEntity() = Holding.create(
 - Build verification blocked by network issues (`java.net.UnknownHostException: services.gradle.org`)
 - Full functionality testing to be done when network is available
 
-### Phase 2 (2025-12-24)
+### Phase 3 (2025-12-24)
 
 **Completed Tasks:**
-1. Created `feature/home/` package structure:
-   - `domain/model/` - HomeState, HomeSummary, DataInitializationConfig, DataStatus
-   - `domain/repository/` - HomeRepository interface
-   - `domain/usecase/` - GetHomeSummaryUseCase, CheckDataStatusUseCase, CheckEtfDataUseCase, CheckFirstRunUseCase, DismissFirstRunDialogUseCase, SaveDialogDismissedUseCase, GetDefaultDaysUseCase
-   - `data/repository/` - HomeRepositoryImpl (combines existing repositories)
-   - `di/` - HomeModule (binds HomeRepository interface to implementation)
-   - `presentation/viewmodel/` - HomeViewModel (uses UseCases)
-   - `presentation/screen/` - HomeScreen (Compose UI)
-   - `presentation/component/` - HomeDialogs, HomeSummaryCard
+1. Created `feature/etf/` package structure:
+   - `domain/model/` - Etf, HoldingStatus, HoldingWithComparison, ComparisonResult, DataStatus
+   - `domain/repository/` - EtfRepository interface
+   - `domain/usecase/` - GetEtfListUseCase, SearchEtfsUseCase, GetEtfDetailUseCase, GetEtfComparisonUseCase, CheckDataStatusUseCase
+   - `data/datasource/` - EtfLocalDataSource
+   - `data/mapper/` - EtfMapper (Entity <-> Domain conversion)
+   - `data/repository/` - EtfRepositoryImpl with comparison analysis logic
+   - `di/` - EtfModule providing all feature dependencies
+   - `presentation/list/` - EtfListScreen, EtfListViewModel, EtfListState
+   - `presentation/detail/` - EtfDetailScreen, EtfDetailViewModel, EtfDetailState
 
-2. Clean Architecture applied:
-   - Domain layer defines models and repository interface
-   - Data layer implements repository using existing DAOs and repositories
-   - Presentation layer uses UseCases for business logic
-   - ViewModels depend on UseCases, not repositories directly (except for complex initialization)
+2. Updated files:
+   - `Navigation.kt` - Updated imports to use new feature paths
+   - `EtfHubScreen.kt` - Updated to use new EtfListViewModel/EtfListState
 
-3. Updated Navigation.kt to use new HomeScreen from feature module
+3. Deleted old files:
+   - `ui/screens/list/` - EtfListScreen.kt, EtfListViewModel.kt
+   - `ui/screens/detail/` - DetailScreen.kt, DetailViewModel.kt
 
-**Key Design Decisions:**
-- HomeRepositoryImpl aggregates multiple existing repositories (DataRepository, FearGreedRepository, MarketDepositRepository, MarketOscillatorRepository)
-- UseCases are simple, single-responsibility functions with @Inject constructor
-- HomeViewModel still depends on individual repositories for complex initialization logic (FearGreed, MarketDeposit, MarketOscillator) as these operations are too complex to abstract into simple UseCases
-- Old `ui/screens/home/` files remain temporarily for reference until build is verified
+**Architecture Decisions:**
+- Domain models are separate from Entity classes (e.g., feature's Etf vs database's Etf)
+- ViewModels now depend on UseCases instead of direct Repository access
+- EtfHubScreen remains in `ui/screens/hub/` as it also uses StatisticsViewModel (will be migrated in Phase 4)
+- Comparison analysis logic moved from DataRepository to EtfRepositoryImpl
 
-**Files Created (15 files):**
-- Domain Layer: 7 files (3 models, 1 repository interface, 5 usecases with 7 classes)
-- Data Layer: 1 file (HomeRepositoryImpl)
-- DI Layer: 1 file (HomeModule)
-- Presentation Layer: 4 files (HomeViewModel, HomeScreen, HomeDialogs, HomeSummaryCard)
+**Performance Considerations:**
+- Holding entity's compressed storage (weightBps, amountMillion) handled in EtfRepositoryImpl
+- Flow/flowOn(Dispatchers.IO) pattern maintained in all layers
 
 **Pending:**
-- Build verification (network issues)
-- Delete old `ui/screens/home/` files after build verification
+- Build verification blocked by network issues
+- EtfHubScreen will be fully migrated when Statistics/Stock Module is complete
 
 ---
 

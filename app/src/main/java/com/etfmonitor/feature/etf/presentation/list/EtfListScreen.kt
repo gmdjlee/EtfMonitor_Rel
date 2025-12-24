@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.list
+package com.etfmonitor.feature.etf.presentation.list
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,7 +17,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -28,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.etfmonitor.database.entities.Etf
+import com.etfmonitor.feature.etf.domain.model.Etf
 import com.etfmonitor.ui.components.FilterChipRow
 import com.etfmonitor.core.ui.theme.*
 
@@ -102,7 +101,7 @@ fun EtfListScreen(
 
             // Content
             when (val s = state) {
-                is ListState.Loading -> {
+                is EtfListState.Loading -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -113,13 +112,13 @@ fun EtfListScreen(
                         )
                     }
                 }
-                is ListState.Success -> {
+                is EtfListState.Success -> {
                     EtfListContent(etfs = s.etfs, onEtfClick = onEtfClick)
                 }
-                is ListState.Empty -> {
+                is EtfListState.Empty -> {
                     EmptyStateCard()
                 }
-                is ListState.Error -> {
+                is EtfListState.Error -> {
                     ErrorStateCard(message = s.message)
                 }
             }
