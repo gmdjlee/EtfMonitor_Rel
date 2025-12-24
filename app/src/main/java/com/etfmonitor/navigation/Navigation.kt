@@ -14,7 +14,7 @@ import androidx.navigation.navArgument
 import com.etfmonitor.ui.components.MainBottomNavigationBar
 import com.etfmonitor.ui.components.MainNavItem
 import com.etfmonitor.feature.etf.presentation.detail.EtfDetailScreen
-import com.etfmonitor.ui.screens.home.HomeScreen
+import com.etfmonitor.feature.home.presentation.screen.HomeScreen
 import com.etfmonitor.feature.etf.presentation.list.EtfListScreen
 import com.etfmonitor.ui.screens.settings.SettingsScreen
 import com.etfmonitor.ui.screens.statistics.AggregatedStockTrendScreen

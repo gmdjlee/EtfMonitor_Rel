@@ -382,24 +382,27 @@ feature/home/
 ```
 
 **Tasks**:
-- [ ] `feature/home/domain/model/` 생성
+- [x] `feature/home/domain/model/` 생성
   - HomeSummary, HomeState를 별도 파일로 분리
-- [ ] `feature/home/domain/repository/HomeRepository.kt` 인터페이스 생성
-- [ ] `feature/home/domain/usecase/` UseCase 클래스 생성
+- [x] `feature/home/domain/repository/HomeRepository.kt` 인터페이스 생성
+- [x] `feature/home/domain/usecase/` UseCase 클래스 생성
   - GetHomeSummaryUseCase
   - CheckDataStatusUseCase
   - CheckFirstRunUseCase
-  - InitializeAllDataUseCase
-- [ ] `feature/home/data/repository/HomeRepositoryImpl.kt` 구현
+  - GetDefaultDaysUseCase
+  - SaveDialogDismissedUseCase
+- [x] `feature/home/data/repository/HomeRepositoryImpl.kt` 구현
   - 기존 Repository들을 조합하여 구현
-- [ ] `feature/home/di/HomeModule.kt` 생성
-- [ ] Presentation 레이어 이동 및 리팩토링
+- [x] `feature/home/di/HomeModule.kt` 생성
+- [x] Presentation 레이어 이동 및 리팩토링
   - HomeViewModel → UseCase 의존성으로 변경
   - HomeScreen, HomeSummaryCard, HomeDialogs 이동
-- [ ] 빌드 및 기능 테스트
+- [x] Navigation.kt 업데이트 (feature/home 사용)
+- [x] `ui/screens/home/` 레거시 폴더 삭제
+- [ ] 빌드 및 기능 테스트 (네트워크 오류로 미완료)
 
 **Quality Gate**:
-- [ ] `./gradlew assembleDebug` 성공
+- [ ] `./gradlew assembleDebug` 성공 (네트워크 오류로 미검증)
 - [ ] Home 화면 정상 동작
 - [ ] 데이터 초기화/업데이트 정상 동작
 - [ ] 다이얼로그 표시 정상
@@ -817,7 +820,7 @@ fun HoldingDomain.toEntity() = Holding.create(
 | Phase | Status | Start Date | End Date | Notes |
 |-------|--------|------------|----------|-------|
 | Phase 1: Core Module | ✅ Complete | 2025-12-24 | 2025-12-24 | All files moved, imports updated, old folders deleted |
-| Phase 2: Home Module | ⬜ Skipped | - | - | Deferred to future iteration |
+| Phase 2: Home Module | ✅ Complete | 2025-12-24 | 2025-12-24 | Clean Architecture implemented, Navigation updated |
 | Phase 3: ETF Module | ✅ Complete | 2025-12-24 | 2025-12-24 | Clean Architecture implemented, UseCases introduced |
 | Phase 4: Stock Module | ✅ Complete | 2025-12-24 | 2025-12-24 | Domain/Data/Presentation layers, 9 UseCases, 4 Repositories |
 | Phase 5: Market Module | ⬜ Skipped | - | - | Deferred to future iteration |
@@ -863,6 +866,64 @@ fun HoldingDomain.toEntity() = Holding.create(
 **Pending:**
 - Build verification blocked by network issues (`java.net.UnknownHostException: services.gradle.org`)
 - Full functionality testing to be done when network is available
+
+### Phase 2 (2025-12-24)
+
+**Completed Tasks:**
+1. Created `feature/home/` package structure:
+   - `domain/model/` - HomeState, HomeSummary, DataInitializationConfig
+   - `domain/repository/` - HomeRepository interface
+   - `domain/usecase/` - GetHomeSummaryUseCase, CheckDataStatusUseCase, CheckFirstRunUseCase, GetDefaultDaysUseCase, SaveDialogDismissedUseCase
+   - `data/repository/` - HomeRepositoryImpl (wrapping legacy repositories)
+   - `di/` - HomeModule
+   - `presentation/component/` - HomeSummaryCard, HomeDialogs (DaysSelectionDialog, UnifiedInitializationDialog)
+   - `presentation/screen/` - HomeScreen
+   - `presentation/viewmodel/` - HomeViewModel
+
+2. Updated Navigation.kt:
+   - Changed import from `com.etfmonitor.ui.screens.home.HomeScreen` to `com.etfmonitor.feature.home.presentation.screen.HomeScreen`
+
+3. Deleted legacy files:
+   - `ui/screens/home/` folder (HomeScreen.kt, HomeViewModel.kt, HomeSummaryCard.kt, HomeDialogs.kt)
+
+**Architecture Decisions:**
+- HomeViewModel uses UseCases for all business operations
+- HomeRepositoryImpl wraps legacy repositories (DataRepository, FearGreedRepository, etc.)
+- Domain models (HomeState, HomeSummary) separated from UI components
+
+**Files Created (13 files):**
+```
+feature/home/
+├── data/
+│   └── repository/
+│       └── HomeRepositoryImpl.kt
+├── di/
+│   └── HomeModule.kt
+├── domain/
+│   ├── model/
+│   │   ├── DataInitializationConfig.kt
+│   │   ├── HomeState.kt
+│   │   └── HomeSummary.kt
+│   ├── repository/
+│   │   └── HomeRepository.kt
+│   └── usecase/
+│       ├── CheckDataStatusUseCase.kt
+│       ├── CheckFirstRunUseCase.kt
+│       ├── GetDefaultDaysUseCase.kt
+│       ├── GetHomeSummaryUseCase.kt
+│       └── SaveDialogDismissedUseCase.kt
+└── presentation/
+    ├── component/
+    │   ├── HomeDialogs.kt
+    │   └── HomeSummaryCard.kt
+    ├── screen/
+    │   └── HomeScreen.kt
+    └── viewmodel/
+        └── HomeViewModel.kt
+```
+
+**Pending:**
+- Build verification blocked by network issues
 
 ### Phase 3 (2025-12-24)
 
