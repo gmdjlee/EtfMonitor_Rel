@@ -20,9 +20,10 @@ object CollectionState {
     private val _isInitializing = MutableStateFlow(false)
     val isInitializing: StateFlow<Boolean> = _isInitializing.asStateFlow()
 
-    fun startCollection(isInitialize: Boolean) {
+    fun startCollection(isInitialize: Boolean, initialMessage: String = "준비 중...") {
         _isCollecting.value = true
         _isInitializing.value = isInitialize
+        _currentMessage.value = initialMessage
         _currentProgress.value = 0
     }
 
