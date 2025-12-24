@@ -2,9 +2,9 @@ package com.etfmonitor.repository
 
 import com.etfmonitor.core.network.ai.*
 import com.etfmonitor.core.common.util.AppLogger
-import com.etfmonitor.analysis.AnalysisContext
-import com.etfmonitor.analysis.CorrelationAnalyzer
-import com.etfmonitor.analysis.SignalType
+import com.etfmonitor.core.analysis.AnalysisContext
+import com.etfmonitor.core.analysis.CorrelationAnalyzer
+import com.etfmonitor.core.analysis.SignalType
 import com.etfmonitor.database.AIAnalysisDao
 import com.etfmonitor.database.CorrelationAnalysisDao
 import com.etfmonitor.database.DailyEtfStatisticsDao

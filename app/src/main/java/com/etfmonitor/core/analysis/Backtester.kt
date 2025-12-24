@@ -1,9 +1,9 @@
-package com.etfmonitor.analysis
+package com.etfmonitor.core.analysis
 
 import com.etfmonitor.core.network.ai.BacktestResult
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.network.ai.SignalRecord
-import com.etfmonitor.core.network.ai.SignalType
+import com.etfmonitor.core.network.ai.SignalType as AISignalType
 import com.etfmonitor.database.MarketIndexDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -201,11 +201,11 @@ class Backtester @Inject constructor(
     /**
      * 신호가 정확했는지 판단
      */
-    private fun isSignalCorrect(signal: SignalType, actualReturn: Double): Boolean {
+    private fun isSignalCorrect(signal: AISignalType, actualReturn: Double): Boolean {
         return when (signal) {
-            SignalType.STRONG_BUY, SignalType.BUY -> actualReturn > 0
-            SignalType.STRONG_SELL, SignalType.SELL -> actualReturn < 0
-            SignalType.NEUTRAL -> abs(actualReturn) < 1.0 // ±1% 이내
+            AISignalType.STRONG_BUY, AISignalType.BUY -> actualReturn > 0
+            AISignalType.STRONG_SELL, AISignalType.SELL -> actualReturn < 0
+            AISignalType.NEUTRAL -> abs(actualReturn) < 1.0 // ±1% 이내
         }
     }
 
@@ -253,8 +253,8 @@ class Backtester @Inject constructor(
      */
     suspend fun analyzeBySignalType(
         signals: List<SignalRecord>
-    ): Map<SignalType, SignalPerformance> = withContext(Dispatchers.IO) {
-        SignalType.values().associateWith { signalType ->
+    ): Map<AISignalType, SignalPerformance> = withContext(Dispatchers.IO) {
+        AISignalType.values().associateWith { signalType ->
             val filtered = signals.filter { it.signal == signalType && it.wasCorrect != null }
 
             if (filtered.isEmpty()) {
@@ -325,7 +325,7 @@ class Backtester @Inject constructor(
  * 신호 타입별 성과
  */
 data class SignalPerformance(
-    val signalType: SignalType,
+    val signalType: AISignalType,
     val count: Int,
     val accuracy: Double, // %
     val averageReturn: Double // %

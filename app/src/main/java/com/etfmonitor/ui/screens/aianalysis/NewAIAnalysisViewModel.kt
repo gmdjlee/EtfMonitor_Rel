@@ -5,9 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.etfmonitor.core.network.ai.AIApiClientFactory
 import com.etfmonitor.core.network.ai.AIProvider
 import com.etfmonitor.core.network.ai.ApiKeyProvider
-import com.etfmonitor.analysis.FullStockIndicatorCorrelationResult
-import com.etfmonitor.analysis.SignalType
-import com.etfmonitor.analysis.StockIndicatorCorrelationResult
+import com.etfmonitor.core.analysis.FullStockIndicatorCorrelationResult
+import com.etfmonitor.core.analysis.SignalType
+import com.etfmonitor.core.analysis.StockIndicatorCorrelationResult
 import com.etfmonitor.database.entities.AIChatMessage
 import com.etfmonitor.database.entities.AIChatSession
 import com.etfmonitor.database.entities.AIAnalysisResult
@@ -439,7 +439,7 @@ class NewAIAnalysisViewModel @Inject constructor(
             val detectedMarket = Stock.inferMarket(stock.first)
 
             val result = timeSeriesAnalysisRepository.analyzeStockIndicatorCorrelations(
-                com.etfmonitor.analysis.StockIndicatorCorrelationRequest(
+                com.etfmonitor.core.analysis.StockIndicatorCorrelationRequest(
                     ticker = stock.first,
                     name = stock.second,
                     market = detectedMarket,
@@ -551,7 +551,7 @@ class NewAIAnalysisViewModel @Inject constructor(
         _selectedStock.value = Pair(historyItem.ticker, historyItem.stockName)
 
         // AI 해석 결과만 생성 (상관관계 데이터는 없지만 표시 가능)
-        val aiInterpretation = com.etfmonitor.analysis.AIStockIndicatorInterpretation(
+        val aiInterpretation = com.etfmonitor.core.analysis.AIStockIndicatorInterpretation(
             ticker = historyItem.ticker,
             name = historyItem.stockName,
             period = historyItem.period,
@@ -561,7 +561,7 @@ class NewAIAnalysisViewModel @Inject constructor(
             downProbability = historyItem.downProbability,
             riskLevel = historyItem.riskLevel,
             keyCorrelations = try {
-                kotlinx.serialization.json.Json.decodeFromString(historyItem.keyCorrelations)
+                kotlinx.serialization.json.Json.decodeFromString<List<String>>(historyItem.keyCorrelations)
             } catch (e: Exception) {
                 emptyList()
             },
