@@ -3,8 +3,8 @@ package com.etfmonitor.ui.screens.settings
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.ai.AIProvider
-import com.etfmonitor.ai.ApiKeyProvider
+import com.etfmonitor.core.network.ai.AIProvider
+import com.etfmonitor.core.network.ai.ApiKeyProvider
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.entities.Setting
 import com.etfmonitor.repository.AIAnalysisRepository
@@ -12,12 +12,12 @@ import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.repository.FearGreedRepository
 import com.etfmonitor.repository.MarketDepositRepository
 import com.etfmonitor.repository.StockRepository
-import com.etfmonitor.ui.theme.ChartColorSettings
-import com.etfmonitor.ui.theme.FontScaleSettings
-import com.etfmonitor.ui.theme.SingleChartColorSettings
-import com.etfmonitor.ui.theme.ThemeManager
-import com.etfmonitor.utils.AppLogger
-import com.etfmonitor.worker.WorkManagerHelper
+import com.etfmonitor.core.ui.theme.ChartColorSettings
+import com.etfmonitor.core.ui.theme.FontScaleSettings
+import com.etfmonitor.core.ui.theme.SingleChartColorSettings
+import com.etfmonitor.core.ui.theme.ThemeManager
+import com.etfmonitor.core.common.util.AppLogger
+import com.etfmonitor.core.worker.WorkManagerHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -213,11 +213,11 @@ class SettingsViewModel @Inject constructor(
     private val _apiKeyTestState = MutableStateFlow<ApiKeyTestState>(ApiKeyTestState.Idle)
     val apiKeyTestState: StateFlow<ApiKeyTestState> = _apiKeyTestState.asStateFlow()
 
-    private val _claudeModels = MutableStateFlow<List<com.etfmonitor.ai.AIModel>>(emptyList())
-    val claudeModels: StateFlow<List<com.etfmonitor.ai.AIModel>> = _claudeModels.asStateFlow()
+    private val _claudeModels = MutableStateFlow<List<com.etfmonitor.core.network.ai.AIModel>>(emptyList())
+    val claudeModels: StateFlow<List<com.etfmonitor.core.network.ai.AIModel>> = _claudeModels.asStateFlow()
 
-    private val _geminiModels = MutableStateFlow<List<com.etfmonitor.ai.AIModel>>(emptyList())
-    val geminiModels: StateFlow<List<com.etfmonitor.ai.AIModel>> = _geminiModels.asStateFlow()
+    private val _geminiModels = MutableStateFlow<List<com.etfmonitor.core.network.ai.AIModel>>(emptyList())
+    val geminiModels: StateFlow<List<com.etfmonitor.core.network.ai.AIModel>> = _geminiModels.asStateFlow()
 
     private val _selectedClaudeModel = MutableStateFlow<String?>(null)
     val selectedClaudeModel: StateFlow<String?> = _selectedClaudeModel.asStateFlow()
@@ -878,11 +878,11 @@ class SettingsViewModel @Inject constructor(
     // ==================== Data Collection ====================
 
     fun initializeData(days: Int) = saveSetting("데이터 초기화를 시작합니다") {
-        com.etfmonitor.service.DataCollectionService.startInitialize(context, days)
+        com.etfmonitor.core.service.DataCollectionService.startInitialize(context, days)
     }
 
     fun updateData() = saveSetting("데이터 업데이트를 시작합니다") {
-        com.etfmonitor.service.DataCollectionService.startUpdate(context)
+        com.etfmonitor.core.service.DataCollectionService.startUpdate(context)
     }
 
     // ==================== Theme Settings ====================

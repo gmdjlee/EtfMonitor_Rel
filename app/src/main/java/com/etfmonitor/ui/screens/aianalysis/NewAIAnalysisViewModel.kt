@@ -2,9 +2,9 @@ package com.etfmonitor.ui.screens.aianalysis
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.ai.AIApiClientFactory
-import com.etfmonitor.ai.AIProvider
-import com.etfmonitor.ai.ApiKeyProvider
+import com.etfmonitor.core.network.ai.AIApiClientFactory
+import com.etfmonitor.core.network.ai.AIProvider
+import com.etfmonitor.core.network.ai.ApiKeyProvider
 import com.etfmonitor.analysis.FullStockIndicatorCorrelationResult
 import com.etfmonitor.analysis.SignalType
 import com.etfmonitor.analysis.StockIndicatorCorrelationResult

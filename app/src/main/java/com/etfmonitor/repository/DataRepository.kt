@@ -4,8 +4,8 @@ import com.etfmonitor.database.DailyEtfStatisticsDao
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.StockDao
 import com.etfmonitor.database.entities.*
-import com.etfmonitor.python.PyKrxClient
-import com.etfmonitor.utils.AppLogger
+import com.etfmonitor.core.network.python.PyKrxClient
+import com.etfmonitor.core.common.util.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll

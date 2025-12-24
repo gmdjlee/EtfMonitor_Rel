@@ -25,7 +25,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.etfmonitor.ui.theme.*
+import com.etfmonitor.core.ui.theme.*
 
 /**
  * Material Design 3 Custom Components

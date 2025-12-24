@@ -5,7 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
-import com.etfmonitor.worker.WorkManagerHelper
+import com.etfmonitor.core.worker.WorkManagerHelper
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 

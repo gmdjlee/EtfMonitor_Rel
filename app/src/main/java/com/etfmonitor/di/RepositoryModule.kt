@@ -2,9 +2,9 @@ package com.etfmonitor.di
 
 import com.chaquo.python.Python
 import com.etfmonitor.database.*
-import com.etfmonitor.oscillator.python.OscillatorPyClient
-import com.etfmonitor.python.MarketIndexPyClient
-import com.etfmonitor.python.PyKrxClient
+import com.etfmonitor.core.network.python.OscillatorPyClient
+import com.etfmonitor.core.network.python.MarketIndexPyClient
+import com.etfmonitor.core.network.python.PyKrxClient
 import com.etfmonitor.repository.*
 import dagger.Module
 import dagger.Provides

@@ -5,9 +5,9 @@ import com.etfmonitor.database.StockDao
 import com.etfmonitor.database.entities.StockAnalysisData
 import com.etfmonitor.database.entities.StockAnalysisWithName
 import com.etfmonitor.oscillator.model.StockData
-import com.etfmonitor.utils.AppLogger
-import com.etfmonitor.oscillator.python.OscillatorPyClient
-import com.etfmonitor.utils.DateFormatter
+import com.etfmonitor.core.common.util.AppLogger
+import com.etfmonitor.core.network.python.OscillatorPyClient
+import com.etfmonitor.core.common.util.DateFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject

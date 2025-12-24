@@ -2,7 +2,7 @@ package com.etfmonitor.ui.components
 
 import android.graphics.Color
 import androidx.compose.foundation.isSystemInDarkTheme
-import com.etfmonitor.utils.AppLogger
+import com.etfmonitor.core.common.util.AppLogger
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -18,7 +18,7 @@ import com.etfmonitor.oscillator.model.ElderImpulseData
 import com.etfmonitor.oscillator.model.ImpulseState
 import com.etfmonitor.oscillator.model.OscillatorResult
 import com.etfmonitor.oscillator.model.TrendSignalData
-import com.etfmonitor.ui.theme.*
+import com.etfmonitor.core.ui.theme.*
 import com.github.mikephil.charting.charts.CombinedChart
 import com.github.mikephil.charting.charts.ScatterChart
 import com.github.mikephil.charting.components.XAxis

@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.etfmonitor.database.*
 import com.etfmonitor.database.entities.*
 import com.etfmonitor.repository.AdvancedAnalysisRepository
-import com.etfmonitor.utils.AppLogger
+import com.etfmonitor.core.common.util.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

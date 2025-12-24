@@ -14,8 +14,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.etfmonitor.database.entities.HoldingStatus
 import com.etfmonitor.database.entities.StockChangeInfo
-import com.etfmonitor.ui.theme.*
-import com.etfmonitor.ui.utils.AmountFormatter
+import com.etfmonitor.core.ui.theme.*
+import com.etfmonitor.core.common.util.AmountFormatter
 
 /**
  * Statistics Screen - Stock Change Tab Components

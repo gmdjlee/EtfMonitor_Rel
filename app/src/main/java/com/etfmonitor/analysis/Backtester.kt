@@ -1,9 +1,9 @@
 package com.etfmonitor.analysis
 
-import com.etfmonitor.ai.BacktestResult
-import com.etfmonitor.utils.AppLogger
-import com.etfmonitor.ai.SignalRecord
-import com.etfmonitor.ai.SignalType
+import com.etfmonitor.core.network.ai.BacktestResult
+import com.etfmonitor.core.common.util.AppLogger
+import com.etfmonitor.core.network.ai.SignalRecord
+import com.etfmonitor.core.network.ai.SignalType
 import com.etfmonitor.database.MarketIndexDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

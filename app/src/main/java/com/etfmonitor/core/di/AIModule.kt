@@ -1,7 +1,7 @@
 package com.etfmonitor.core.di
 
 import android.content.Context
-import com.etfmonitor.ai.*
+import com.etfmonitor.core.network.ai.*
 import com.etfmonitor.analysis.Backtester
 import com.etfmonitor.analysis.CorrelationAnalyzer
 import com.etfmonitor.database.*
@@ -10,7 +10,7 @@ import com.etfmonitor.repository.AIChatRepository
 import com.etfmonitor.repository.CorrelationAnalysisRepository
 import com.etfmonitor.repository.MarketIndexRepository
 import com.etfmonitor.repository.TimeSeriesAnalysisRepository
-import com.etfmonitor.oscillator.python.OscillatorPyClient
+import com.etfmonitor.core.network.python.OscillatorPyClient
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

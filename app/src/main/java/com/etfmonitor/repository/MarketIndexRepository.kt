@@ -2,8 +2,8 @@ package com.etfmonitor.repository
 
 import com.etfmonitor.database.MarketIndexDao
 import com.etfmonitor.database.entities.MarketIndex
-import com.etfmonitor.python.MarketIndexPyClient
-import com.etfmonitor.utils.AppLogger
+import com.etfmonitor.core.network.python.MarketIndexPyClient
+import com.etfmonitor.core.common.util.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn

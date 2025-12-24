@@ -16,7 +16,7 @@ import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
-import com.etfmonitor.ui.theme.*
+import com.etfmonitor.core.ui.theme.*
 import com.github.mikephil.charting.interfaces.datasets.IScatterDataSet
 import com.github.mikephil.charting.renderer.scatter.IShapeRenderer
 import com.github.mikephil.charting.utils.ViewPortHandler

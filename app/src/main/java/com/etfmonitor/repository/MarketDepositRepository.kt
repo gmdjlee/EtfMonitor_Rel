@@ -3,9 +3,9 @@ package com.etfmonitor.repository
 import com.etfmonitor.database.MarketDepositDao
 import com.etfmonitor.database.entities.MarketDeposit
 import com.etfmonitor.oscillator.model.MarketDepositData
-import com.etfmonitor.oscillator.python.OscillatorPyClient
-import com.etfmonitor.utils.AppLogger
-import com.etfmonitor.utils.DateFormatter
+import com.etfmonitor.core.network.python.OscillatorPyClient
+import com.etfmonitor.core.common.util.AppLogger
+import com.etfmonitor.core.common.util.DateFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first

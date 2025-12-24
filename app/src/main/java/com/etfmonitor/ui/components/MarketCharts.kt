@@ -1,7 +1,7 @@
 package com.etfmonitor.ui.components
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import com.etfmonitor.utils.AppLogger
+import com.etfmonitor.core.common.util.AppLogger
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -14,7 +14,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
 import com.etfmonitor.oscillator.model.MarketDepositData
 import com.etfmonitor.oscillator.model.OscillatorResult
-import com.etfmonitor.ui.theme.*
+import com.etfmonitor.core.ui.theme.*
 import com.github.mikephil.charting.charts.CombinedChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.components.YAxis

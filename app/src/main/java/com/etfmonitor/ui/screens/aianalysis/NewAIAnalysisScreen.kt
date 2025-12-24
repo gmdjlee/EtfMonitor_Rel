@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.etfmonitor.ai.AIProvider
+import com.etfmonitor.core.network.ai.AIProvider
 import com.etfmonitor.analysis.AIStockIndicatorInterpretation
 import com.etfmonitor.analysis.FullStockIndicatorCorrelationResult
 import com.etfmonitor.analysis.IndicatorStockCorrelation
@@ -43,7 +43,7 @@ import com.etfmonitor.database.entities.CorrelationAnalysisResult
 import com.etfmonitor.database.entities.StockIndicatorAIResult
 import com.etfmonitor.repository.FullAnalysisResult
 import com.etfmonitor.ui.components.*
-import com.etfmonitor.ui.theme.*
+import com.etfmonitor.core.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 

@@ -29,7 +29,7 @@ import com.etfmonitor.R
 import com.etfmonitor.database.entities.MarketOscillatorData
 import com.etfmonitor.ui.components.LoadingCard
 import com.etfmonitor.ui.components.ErrorCard
-import com.etfmonitor.ui.theme.*
+import com.etfmonitor.core.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 

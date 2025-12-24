@@ -24,8 +24,8 @@ import com.etfmonitor.database.entities.HoldingStatus
 import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.database.entities.StockAnalysisResult
 import com.etfmonitor.database.entities.StockEtfDetail
-import com.etfmonitor.ui.theme.*
-import com.etfmonitor.ui.utils.AmountFormatter
+import com.etfmonitor.core.ui.theme.*
+import com.etfmonitor.core.common.util.AmountFormatter
 
 /**
  * Statistics Screen - Analysis Tab Components
