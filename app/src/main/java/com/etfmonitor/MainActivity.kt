@@ -23,7 +23,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.repository.StockRepository
-import com.etfmonitor.ui.Navigation
+import com.etfmonitor.navigation.Navigation
 import com.etfmonitor.core.ui.theme.ChartColorSettings
 import com.etfmonitor.core.ui.theme.EtfMonitorTheme
 import com.etfmonitor.core.ui.theme.FontScaleSettings

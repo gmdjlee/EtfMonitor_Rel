@@ -131,69 +131,101 @@ EtfMonitor_Rel/
 │   ├── java/com/etfmonitor/
 │   │   ├── MainActivity.kt              # Entry point
 │   │   ├── EtfMonitorApp.kt            # Hilt application
+│   │   │
+│   │   ├── core/                        # Core module (shared utilities)
+│   │   │   ├── common/util/             # AppLogger, etc.
+│   │   │   ├── analysis/                # Market analysis utilities
+│   │   │   │   ├── CorrelationAnalyzer.kt
+│   │   │   │   ├── Backtester.kt
+│   │   │   │   └── TimeSeriesData.kt
+│   │   │   ├── network/ai/              # AI API clients
+│   │   │   │   ├── AIApiClient.kt
+│   │   │   │   ├── ClaudeApiClient.kt
+│   │   │   │   ├── GeminiApiClient.kt
+│   │   │   │   └── MarketSignal.kt
+│   │   │   ├── ui/theme/                # Theme utilities
+│   │   │   ├── worker/                  # WorkManager helpers
+│   │   │   └── di/                      # Core DI modules
+│   │   │
+│   │   ├── feature/                     # Feature modules (Clean Architecture)
+│   │   │   ├── etf/                     # ETF feature
+│   │   │   │   ├── domain/              # Domain layer
+│   │   │   │   │   ├── model/           # Domain models
+│   │   │   │   │   ├── repository/      # Repository interfaces
+│   │   │   │   │   └── usecase/         # Use cases
+│   │   │   │   ├── data/                # Data layer
+│   │   │   │   │   ├── mapper/          # Entity ↔ Domain mappers
+│   │   │   │   │   └── repository/      # Repository implementations
+│   │   │   │   ├── presentation/        # Presentation layer
+│   │   │   │   │   ├── list/            # EtfListScreen, ViewModel
+│   │   │   │   │   └── detail/          # EtfDetailScreen, ViewModel
+│   │   │   │   └── di/                  # Feature DI module
+│   │   │   │
+│   │   │   ├── stock/                   # Stock feature
+│   │   │   │   ├── domain/
+│   │   │   │   ├── data/
+│   │   │   │   ├── presentation/
+│   │   │   │   └── di/
+│   │   │   │
+│   │   │   ├── analysis/                # Analysis feature
+│   │   │   │   ├── domain/
+│   │   │   │   ├── data/
+│   │   │   │   ├── presentation/
+│   │   │   │   └── di/
+│   │   │   │
+│   │   │   └── settings/                # Settings feature
+│   │   │       ├── domain/
+│   │   │       │   ├── model/           # SettingsModels.kt
+│   │   │       │   ├── repository/      # SettingsRepository.kt
+│   │   │       │   └── usecase/         # Theme, AI, Update UseCases
+│   │   │       ├── data/
+│   │   │       │   ├── mapper/
+│   │   │       │   └── repository/
+│   │   │       ├── presentation/
+│   │   │       └── di/                  # SettingsModule.kt
+│   │   │
+│   │   ├── navigation/                  # App navigation
+│   │   │   └── Navigation.kt            # NavHost, Screen routes
+│   │   │
 │   │   ├── database/                    # Room (19 entities, 16 DAOs)
 │   │   │   ├── AppDatabase.kt
-│   │   │   ├── entities/                # Entity classes (18 files, 19 entities)
-│   │   │   ├── *Dao.kt                  # DAO interfaces (16 files)
-│   │   │   ├── Converters.kt
-│   │   │   └── Migrations (inline in AppDatabase.kt, v1→v14)
-│   │   ├── di/                          # Hilt modules
-│   │   │   ├── DatabaseModule.kt
-│   │   │   ├── RepositoryModule.kt
-│   │   │   ├── PythonModule.kt
-│   │   │   ├── AIModule.kt
-│   │   │   └── WorkerModule.kt
-│   │   ├── repository/                  # Data layer (13 repos)
+│   │   │   ├── entities/                # Entity classes
+│   │   │   ├── *Dao.kt                  # DAO interfaces
+│   │   │   └── Migrations (inline)
+│   │   │
+│   │   ├── repository/                  # Legacy repositories (being migrated)
 │   │   ├── python/                      # Python bridge (PyKrxClient)
 │   │   ├── oscillator/                  # Technical analysis
-│   │   ├── ai/                          # AI integration (Claude, Gemini)
-│   │   │   ├── AIApiClient.kt
-│   │   │   ├── ClaudeApiClient.kt
-│   │   │   ├── GeminiApiClient.kt
-│   │   │   ├── MarketAnalysisPrompts.kt
-│   │   │   ├── AIApiClientFactory.kt
-│   │   │   ├── AIResponseParser.kt
-│   │   │   └── MarketSignal.kt
-│   │   ├── analysis/                    # Market analysis
-│   │   │   ├── CorrelationAnalyzer.kt
-│   │   │   └── Backtester.kt
-│   │   ├── ui/                          # Compose UI layer
-│   │   │   ├── Navigation.kt
-│   │   │   ├── screens/                 # 14 feature screens
-│   │   │   ├── components/              # Reusable components
-│   │   │   └── theme/                   # Material Design 3
+│   │   │
+│   │   ├── ui/                          # UI layer (screens being migrated)
+│   │   │   ├── screens/                 # Feature screens
+│   │   │   └── components/              # Shared components
+│   │   │
 │   │   ├── worker/                      # Background tasks
-│   │   ├── service/                     # Foreground services
-│   │   └── utils/                       # Formatters
+│   │   └── service/                     # Foreground services
+│   │
 │   ├── python/                          # Python scripts (10 files)
-│   │   ├── etfcollector.py              # ETF data collection
-│   │   ├── stocks.py                    # Stock data utilities
-│   │   ├── market.py                    # Market data fetcher
-│   │   ├── core.py                      # Core utilities
-│   │   ├── feargreed.py                 # Fear & Greed calculation
-│   │   ├── deposit_scraper.py           # Market deposit scraper
-│   │   ├── stock_predictor_v2.py        # ML predictions (28 features, ensemble)
-│   │   ├── data_collector.py            # Batch data collection for ML
-│   │   ├── feature_engineer.py          # Feature engineering for ML
-│   │   ├── trend_signal.py              # Trend signal analysis
-│   │   └── logger.py                    # Logging utilities
+│   │   ├── etfcollector.py
+│   │   ├── stocks.py
+│   │   ├── market.py
+│   │   ├── stock_predictor_v2.py        # ML predictions
+│   │   └── ...
+│   │
 │   ├── res/                             # Android resources
 │   └── AndroidManifest.xml
 ├── gradle/libs.versions.toml            # Version catalog
 └── build.gradle.kts                     # Build config
 ```
 
-**Key Package Organization:**
-- `ui.*` - Screens, components, theme (Material Design 3)
-- `database.*` - Room entities, DAOs, migrations
-- `repository.*` - Data access abstraction
-- `di.*` - Hilt dependency injection modules
-- `python.*` - Python integration bridge
-- `ai.*` - AI API clients (Claude, Gemini)
-- `analysis.*` - Correlation analysis, backtesting
-- `worker.*` - WorkManager background tasks
-- `service.*` - Foreground services
-- `oscillator.*` - Technical analysis calculations
+**Clean Architecture Organization:**
+- `core/` - Shared utilities, network clients, theme, analysis tools
+- `feature/*/domain/` - Business logic (models, repositories, use cases)
+- `feature/*/data/` - Data access (mappers, repository implementations)
+- `feature/*/presentation/` - UI (screens, ViewModels, state classes)
+- `feature/*/di/` - Feature-specific DI modules
+- `navigation/` - App-wide navigation
+- `database/` - Room entities, DAOs, migrations
+- `repository/` - Legacy repositories (gradually being migrated to feature modules)
 
 ---
 
@@ -1005,7 +1037,7 @@ fun Screen(viewModel: ViewModel = hiltViewModel()) {
 - **`EtfMonitorApp.kt`**: Hilt application, Python engine initialization, WorkManager config
 
 ### Navigation
-- **`ui/Navigation.kt`**: All screen routes (14 screens), NavHost setup
+- **`navigation/Navigation.kt`**: All screen routes (14 screens), NavHost setup
 
 ### ViewModels (13 total)
 
@@ -1528,7 +1560,7 @@ Before submitting changes, verify:
 
 ---
 
-**Last Updated**: 2025-12-15
+**Last Updated**: 2025-12-24
 **Codebase Version**: Schema v14, ~40,000 LOC
 **Maintainer**: gmdjlee
 
@@ -1581,3 +1613,24 @@ Before submitting changes, verify:
 - **Python cleanup**:
   - Removed unused functions from `market.py` (`get_realtime_oscillator`, `fetch_market_index`)
 - **Documentation updated** to reflect new v2 prediction system
+
+### 2025-12-24 - Clean Architecture Migration Phase 7 (Settings & Final Cleanup)
+- **Settings feature module created** (`feature/settings/`):
+  - Domain layer: `SettingsModels.kt` (theme, AI, schedule settings)
+  - Repository interface: `SettingsRepository.kt` with full settings contract
+  - UseCases: Theme keywords, general settings, update schedules, AI configuration
+  - Data layer: `SettingsRepositoryImpl.kt` wrapping legacy repositories
+  - DI module: `SettingsModule.kt`
+- **Navigation relocated** to `navigation/` package:
+  - Moved `Navigation.kt` from `ui/` to `navigation/`
+  - Updated MainActivity import
+- **Analysis utilities moved** to `core/analysis/`:
+  - Migrated `CorrelationAnalyzer.kt`, `Backtester.kt`, `TimeSeriesData.kt`
+  - Updated all dependent file imports
+- **Codebase structure updated** in CLAUDE.md:
+  - Updated directory tree to reflect Clean Architecture
+  - Documented feature module organization (domain/data/presentation/di)
+- **Clean Architecture status**:
+  - Core module: Complete (network/ai, common/util, ui/theme, analysis, worker, di)
+  - Feature modules: ETF, Stock, Analysis, Settings
+  - Legacy repositories: Gradually being migrated to feature modules

@@ -6,11 +6,11 @@ import com.etfmonitor.feature.analysis.domain.model.*
 import com.etfmonitor.feature.analysis.domain.repository.StockIndicatorAIHistoryItem
 import com.etfmonitor.feature.analysis.domain.repository.StockIndicatorRepository
 import com.etfmonitor.repository.TimeSeriesAnalysisRepository as LegacyTimeSeriesRepo
-import com.etfmonitor.analysis.StockIndicatorCorrelationRequest as LegacyRequest
-import com.etfmonitor.analysis.StockIndicatorCorrelationResult as LegacyCorrelationResult
-import com.etfmonitor.analysis.FullStockIndicatorCorrelationResult as LegacyFullResult
-import com.etfmonitor.analysis.AIStockIndicatorInterpretation as LegacyInterpretation
-import com.etfmonitor.analysis.IndicatorStockCorrelation as LegacyIndicatorCorrelation
+import com.etfmonitor.core.analysis.StockIndicatorCorrelationRequest as LegacyRequest
+import com.etfmonitor.core.analysis.StockIndicatorCorrelationResult as LegacyCorrelationResult
+import com.etfmonitor.core.analysis.FullStockIndicatorCorrelationResult as LegacyFullResult
+import com.etfmonitor.core.analysis.AIStockIndicatorInterpretation as LegacyInterpretation
+import com.etfmonitor.core.analysis.IndicatorStockCorrelation as LegacyIndicatorCorrelation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn

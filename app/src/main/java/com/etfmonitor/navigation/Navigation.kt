@@ -1,4 +1,4 @@
-package com.etfmonitor.ui
+package com.etfmonitor.navigation
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*

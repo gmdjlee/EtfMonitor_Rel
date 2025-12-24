@@ -5,9 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.etfmonitor.core.network.ai.AIApiClientFactory
 import com.etfmonitor.core.network.ai.AIProvider
 import com.etfmonitor.core.network.ai.ApiKeyProvider
-import com.etfmonitor.analysis.FullStockIndicatorCorrelationResult
-import com.etfmonitor.analysis.SignalType
-import com.etfmonitor.analysis.StockIndicatorCorrelationResult
+import com.etfmonitor.core.analysis.FullStockIndicatorCorrelationResult
+import com.etfmonitor.core.analysis.SignalType
+import com.etfmonitor.core.analysis.StockIndicatorCorrelationResult
 import com.etfmonitor.database.entities.AIChatMessage
 import com.etfmonitor.database.entities.AIChatSession
 import com.etfmonitor.database.entities.AIAnalysisResult

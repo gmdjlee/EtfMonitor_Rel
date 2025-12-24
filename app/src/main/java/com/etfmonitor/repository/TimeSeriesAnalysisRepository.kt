@@ -1,7 +1,7 @@
 package com.etfmonitor.repository
 
 import com.etfmonitor.core.network.ai.AIApiClientFactory
-import com.etfmonitor.analysis.*
+import com.etfmonitor.core.analysis.*
 import com.etfmonitor.database.*
 import com.etfmonitor.database.entities.*
 import com.etfmonitor.oscillator.model.StockOhlcvData
