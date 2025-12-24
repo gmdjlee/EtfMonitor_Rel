@@ -810,7 +810,7 @@ fun HoldingDomain.toEntity() = Holding.create(
 | Phase | Status | Start Date | End Date | Notes |
 |-------|--------|------------|----------|-------|
 | Phase 1: Core Module | ✅ Complete | 2025-12-24 | 2025-12-24 | All files moved, imports updated, old folders deleted |
-| Phase 2: Home Module | ⬜ Pending | - | - | - |
+| Phase 2: Home Module | ✅ Complete | 2025-12-24 | 2025-12-24 | Clean architecture applied, domain/data/presentation layers created |
 | Phase 3: ETF Module | ⬜ Pending | - | - | - |
 | Phase 4: Stock Module | ⬜ Pending | - | - | - |
 | Phase 5: Market Module | ⬜ Pending | - | - | - |
@@ -856,6 +856,43 @@ fun HoldingDomain.toEntity() = Holding.create(
 **Pending:**
 - Build verification blocked by network issues (`java.net.UnknownHostException: services.gradle.org`)
 - Full functionality testing to be done when network is available
+
+### Phase 2 (2025-12-24)
+
+**Completed Tasks:**
+1. Created `feature/home/` package structure:
+   - `domain/model/` - HomeState, HomeSummary, DataInitializationConfig, DataStatus
+   - `domain/repository/` - HomeRepository interface
+   - `domain/usecase/` - GetHomeSummaryUseCase, CheckDataStatusUseCase, CheckEtfDataUseCase, CheckFirstRunUseCase, DismissFirstRunDialogUseCase, SaveDialogDismissedUseCase, GetDefaultDaysUseCase
+   - `data/repository/` - HomeRepositoryImpl (combines existing repositories)
+   - `di/` - HomeModule (binds HomeRepository interface to implementation)
+   - `presentation/viewmodel/` - HomeViewModel (uses UseCases)
+   - `presentation/screen/` - HomeScreen (Compose UI)
+   - `presentation/component/` - HomeDialogs, HomeSummaryCard
+
+2. Clean Architecture applied:
+   - Domain layer defines models and repository interface
+   - Data layer implements repository using existing DAOs and repositories
+   - Presentation layer uses UseCases for business logic
+   - ViewModels depend on UseCases, not repositories directly (except for complex initialization)
+
+3. Updated Navigation.kt to use new HomeScreen from feature module
+
+**Key Design Decisions:**
+- HomeRepositoryImpl aggregates multiple existing repositories (DataRepository, FearGreedRepository, MarketDepositRepository, MarketOscillatorRepository)
+- UseCases are simple, single-responsibility functions with @Inject constructor
+- HomeViewModel still depends on individual repositories for complex initialization logic (FearGreed, MarketDeposit, MarketOscillator) as these operations are too complex to abstract into simple UseCases
+- Old `ui/screens/home/` files remain temporarily for reference until build is verified
+
+**Files Created (15 files):**
+- Domain Layer: 7 files (3 models, 1 repository interface, 5 usecases with 7 classes)
+- Data Layer: 1 file (HomeRepositoryImpl)
+- DI Layer: 1 file (HomeModule)
+- Presentation Layer: 4 files (HomeViewModel, HomeScreen, HomeDialogs, HomeSummaryCard)
+
+**Pending:**
+- Build verification (network issues)
+- Delete old `ui/screens/home/` files after build verification
 
 ---
 
