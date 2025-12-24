@@ -84,7 +84,9 @@ class ChatRepositoryImpl @Inject constructor(
         sessionId: String,
         question: String
     ): Result<ChatMessage> = withContext(Dispatchers.IO) {
-        legacyRepository.askAboutAnalysis(sessionId, question)
+        // 세션 컨텍스트를 활용하는 sendMessage 사용
+        // (askAboutAnalysis는 correlationResultId가 필요하지만, 세션에 이미 컨텍스트가 저장되어 있음)
+        legacyRepository.sendMessage(sessionId, question)
             .map { it.toDomain() }
     }
 
