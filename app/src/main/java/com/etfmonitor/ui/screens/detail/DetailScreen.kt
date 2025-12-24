@@ -18,7 +18,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.database.entities.HoldingStatus
 import com.etfmonitor.database.entities.HoldingWithComparison
 import com.etfmonitor.core.ui.theme.*
-import com.etfmonitor.ui.utils.AmountFormatter
+import com.etfmonitor.core.common.util.AmountFormatter
 
 /**
  * ETF Detail Screen - Moss Green Nature Theme

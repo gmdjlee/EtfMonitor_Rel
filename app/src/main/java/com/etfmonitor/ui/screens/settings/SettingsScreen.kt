@@ -173,7 +173,7 @@ fun SettingsScreen(
 @Composable
 private fun GeneralTab(
     isDarkTheme: Boolean?,
-    fontScaleSettings: com.etfmonitor.ui.theme.FontScaleSettings,
+    fontScaleSettings: com.etfmonitor.core.ui.theme.FontScaleSettings,
     quickChartAnalysisEnabled: Boolean,
     viewModel: SettingsViewModel
 ) {
@@ -423,7 +423,7 @@ private fun DataPeriodTab(
 // ==================== Chart Tab ====================
 @Composable
 private fun ChartTab(
-    chartColorSettings: com.etfmonitor.ui.theme.ChartColorSettings,
+    chartColorSettings: com.etfmonitor.core.ui.theme.ChartColorSettings,
     viewModel: SettingsViewModel
 ) {
     LazyColumn(
