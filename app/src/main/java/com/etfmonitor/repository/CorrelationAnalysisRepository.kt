@@ -11,6 +11,7 @@ import com.etfmonitor.database.DailyEtfStatisticsDao
 import com.etfmonitor.database.MarketIndexDao
 import com.etfmonitor.database.entities.AIAnalysisResult
 import com.etfmonitor.database.entities.CorrelationAnalysisResult
+import com.etfmonitor.feature.market.domain.repository.MarketIndexRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
