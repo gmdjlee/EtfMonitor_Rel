@@ -157,7 +157,7 @@ class DataCollectionService : Service() {
             ACTION_INITIALIZE -> {
                 val days = intent.getIntExtra(EXTRA_DAYS, 25)
                 acquireWakeLock()
-                CollectionState.startCollection(isInitialize = true)
+                CollectionState.startCollection(isInitialize = true, initialMessage = "초기화 준비 중...")
                 startForeground(NOTIFICATION_ID, createNotification("초기화 준비 중...", 0))
                 startInitialization(days)
             }
@@ -176,13 +176,13 @@ class DataCollectionService : Service() {
                     intent.getIntExtra(EXTRA_MARKET_INDEX_DAYS, 30)
                 } else null
                 acquireWakeLock()
-                CollectionState.startCollection(isInitialize = true)
+                CollectionState.startCollection(isInitialize = true, initialMessage = "통합 초기화 준비 중...")
                 startForeground(NOTIFICATION_ID, createNotification("통합 초기화 준비 중...", 0))
                 startUnifiedInitialization(etfDays)
             }
             ACTION_UPDATE -> {
                 acquireWakeLock()
-                CollectionState.startCollection(isInitialize = false)
+                CollectionState.startCollection(isInitialize = false, initialMessage = "업데이트 준비 중...")
                 startForeground(NOTIFICATION_ID, createNotification("업데이트 준비 중...", 0))
                 startUpdate()
             }
