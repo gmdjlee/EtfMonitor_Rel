@@ -30,12 +30,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
-import com.etfmonitor.database.entities.Etf
+import com.etfmonitor.feature.etf.domain.model.Etf
 import com.etfmonitor.database.entities.HoldingStatus
 import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.ui.components.TabNavigationBar
-import com.etfmonitor.ui.screens.list.EtfListViewModel
-import com.etfmonitor.ui.screens.list.ListState
+import com.etfmonitor.feature.etf.presentation.list.EtfListViewModel
+import com.etfmonitor.feature.etf.presentation.list.EtfListState
 import com.etfmonitor.ui.screens.statistics.StatisticsViewModel
 import com.etfmonitor.ui.screens.statistics.AmountRankingTab
 import com.etfmonitor.ui.screens.statistics.StockChangeTab
@@ -143,7 +143,7 @@ private fun EtfListHubContent(
         )
 
         when (val s = state) {
-            is ListState.Loading -> {
+            is EtfListState.Loading -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -151,7 +151,7 @@ private fun EtfListHubContent(
                     CircularProgressIndicator()
                 }
             }
-            is ListState.Success -> {
+            is EtfListState.Success -> {
                 LazyColumn(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -165,7 +165,7 @@ private fun EtfListHubContent(
                     }
                 }
             }
-            is ListState.Empty -> {
+            is EtfListState.Empty -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -188,7 +188,7 @@ private fun EtfListHubContent(
                     }
                 }
             }
-            is ListState.Error -> {
+            is EtfListState.Error -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center

@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.detail
+package com.etfmonitor.feature.etf.presentation.detail
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -15,8 +15,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.etfmonitor.database.entities.HoldingStatus
-import com.etfmonitor.database.entities.HoldingWithComparison
+import com.etfmonitor.feature.etf.domain.model.HoldingStatus
+import com.etfmonitor.feature.etf.domain.model.HoldingWithComparison
 import com.etfmonitor.core.ui.theme.*
 import com.etfmonitor.core.common.util.AmountFormatter
 
@@ -27,11 +27,11 @@ import com.etfmonitor.core.common.util.AmountFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DetailScreen(
+fun EtfDetailScreen(
     etfTicker: String,
     onNavigateBack: () -> Unit,
     onStockClick: (String) -> Unit,
-    viewModel: DetailViewModel = hiltViewModel()
+    viewModel: EtfDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val etfName by viewModel.etfName.collectAsState()
@@ -45,8 +45,8 @@ fun DetailScreen(
                             etfName,
                             style = MaterialTheme.typography.titleMedium
                         )
-                        if (state is DetailState.Success) {
-                            val comparison = (state as DetailState.Success).comparison
+                        if (state is EtfDetailState.Success) {
+                            val comparison = (state as EtfDetailState.Success).comparison
                             Text(
                                 "$etfTicker | 수집기간: ${comparison.collectionStartDate} ~ ${comparison.collectionEndDate}",
                                 style = MaterialTheme.typography.labelSmall
@@ -76,7 +76,7 @@ fun DetailScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         when (val s = state) {
-            is DetailState.Loading -> {
+            is EtfDetailState.Loading -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -89,14 +89,14 @@ fun DetailScreen(
                     )
                 }
             }
-            is DetailState.Success -> {
+            is EtfDetailState.Success -> {
                 ComparisonList(
                     items = s.comparison.items,
                     onStockClick = onStockClick,
                     modifier = Modifier.padding(padding)
                 )
             }
-            is DetailState.Error -> {
+            is EtfDetailState.Error -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()

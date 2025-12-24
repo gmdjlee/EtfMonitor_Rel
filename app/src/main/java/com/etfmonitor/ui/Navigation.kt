@@ -13,9 +13,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.etfmonitor.ui.components.MainBottomNavigationBar
 import com.etfmonitor.ui.components.MainNavItem
-import com.etfmonitor.ui.screens.detail.DetailScreen
+import com.etfmonitor.feature.etf.presentation.detail.EtfDetailScreen
 import com.etfmonitor.ui.screens.home.HomeScreen
-import com.etfmonitor.ui.screens.list.EtfListScreen
+import com.etfmonitor.feature.etf.presentation.list.EtfListScreen
 import com.etfmonitor.ui.screens.settings.SettingsScreen
 import com.etfmonitor.ui.screens.statistics.AggregatedStockTrendScreen
 import com.etfmonitor.ui.screens.trend.StockTrendScreen
@@ -239,7 +239,7 @@ fun Navigation(
                 arguments = listOf(navArgument("ticker") { type = NavType.StringType })
             ) { backStackEntry ->
                 val ticker = backStackEntry.arguments?.getString("ticker") ?: ""
-                DetailScreen(
+                EtfDetailScreen(
                     etfTicker = ticker,
                     onNavigateBack = { navController.popBackStack() },
                     onStockClick = { stockTicker ->
