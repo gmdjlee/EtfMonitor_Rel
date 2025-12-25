@@ -1,6 +1,13 @@
 package com.etfmonitor.feature.stock.domain.model
 
 /**
+ * 네트워크 오류를 나타내는 예외
+ *
+ * 종목 데이터 수집 시 네트워크 문제로 실패한 경우 발생합니다.
+ */
+class NetworkException(message: String) : Exception(message)
+
+/**
  * Stock Domain Model
  *
  * 종목 정보를 나타내는 도메인 모델입니다.

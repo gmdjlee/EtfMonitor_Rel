@@ -1,6 +1,6 @@
 package com.etfmonitor.feature.stock.domain.repository
 
-import com.etfmonitor.feature.stock.domain.model.StockAnalysis
+import com.etfmonitor.core.analysis.model.StockData
 
 /**
  * Stock Analysis Repository Interface
@@ -20,6 +20,10 @@ import com.etfmonitor.feature.stock.domain.model.StockAnalysis
  *
  * ## 스레드 안전성
  * - 모든 suspend 함수는 withContext(Dispatchers.IO)로 IO 스레드에서 실행됩니다.
+ *
+ * ## 참고
+ * - StockData는 core.analysis.model에 정의되어 있습니다.
+ * - OscillatorCalculator와 호환을 위해 core 모델을 직접 사용합니다.
  */
 interface StockAnalysisRepository {
 
@@ -33,7 +37,7 @@ interface StockAnalysisRepository {
      * @param days 조회할 일수 (기본값: 180)
      * @return 분석 데이터 또는 null
      */
-    suspend fun getStockAnalysis(ticker: String, days: Int = 180): StockAnalysis?
+    suspend fun getStockAnalysis(ticker: String, days: Int = 180): StockData?
 
     /**
      * 캐시 삭제 (특정 종목)

@@ -2,14 +2,14 @@ package com.etfmonitor.feature.stock.data.repository
 
 import com.etfmonitor.feature.stock.data.datasource.StockAnalysisLocalDataSource
 import com.etfmonitor.feature.stock.data.datasource.StockLocalDataSource
-import com.etfmonitor.feature.stock.data.mapper.StockMapper.toDomain
 import com.etfmonitor.feature.stock.domain.model.Stock
-import com.etfmonitor.feature.stock.domain.model.StockAnalysis
 import com.etfmonitor.feature.stock.domain.repository.StockAnalysisRepository
+import com.etfmonitor.core.analysis.model.StockData
 import com.etfmonitor.core.network.python.OscillatorPyClient
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.common.util.DateFormatter
 import com.etfmonitor.core.database.entities.StockAnalysisData
+import com.etfmonitor.core.database.entities.StockAnalysisWithName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -45,7 +45,7 @@ class StockAnalysisRepositoryImpl @Inject constructor(
         private const val DATA_EXPIRY_HOURS = 24
     }
 
-    override suspend fun getStockAnalysis(ticker: String, days: Int): StockAnalysis? = withContext(Dispatchers.IO) {
+    override suspend fun getStockAnalysis(ticker: String, days: Int): StockData? = withContext(Dispatchers.IO) {
         try {
             // 1. DB에서 기존 데이터 확인 (JOIN으로 name 포함)
             val cachedData = analysisLocalDataSource.getAnalysisDataWithName(ticker)
@@ -55,7 +55,7 @@ class StockAnalysisRepositoryImpl @Inject constructor(
 
             if (!shouldUpdate && cachedData != null) {
                 logger.d("Using cached data for $ticker")
-                return@withContext cachedData.toDomain()
+                return@withContext cachedData.toStockData()
             }
 
             // 2. Python에서 새 데이터 가져오기
@@ -64,7 +64,7 @@ class StockAnalysisRepositoryImpl @Inject constructor(
 
             if (stockData == null) {
                 logger.e("Failed to fetch data from Python for $ticker")
-                return@withContext cachedData?.toDomain()
+                return@withContext cachedData?.toStockData()
             }
 
             // 3. DB에 새 데이터 저장 (name 제외)
@@ -90,19 +90,24 @@ class StockAnalysisRepositoryImpl @Inject constructor(
             )
 
             logger.d("Saved analysis data for $ticker")
-            StockAnalysis(
-                ticker = stockData.ticker,
-                name = stockData.name,
-                dates = stockData.dates,
-                marketCap = stockData.marketCap,
-                foreign5d = stockData.foreign5d,
-                institution5d = stockData.institution5d
-            )
+            stockData
         } catch (e: Exception) {
             logger.e("Error getting stock analysis for $ticker", e)
             null
         }
     }
+
+    /**
+     * StockAnalysisWithName을 StockData로 변환
+     */
+    private fun StockAnalysisWithName.toStockData(): StockData = StockData(
+        ticker = ticker,
+        name = name,
+        dates = dates,
+        marketCap = marketCap,
+        foreign5d = foreign5d,
+        institution5d = institution5d
+    )
 
     private fun shouldUpdateData(
         cachedData: com.etfmonitor.core.database.entities.StockAnalysisWithName?,
