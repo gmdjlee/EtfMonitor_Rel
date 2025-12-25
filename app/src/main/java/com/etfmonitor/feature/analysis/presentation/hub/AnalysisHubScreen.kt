@@ -21,8 +21,8 @@ import androidx.navigation.NavHostController
 import com.etfmonitor.R
 import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.core.database.entities.Stock
-import com.etfmonitor.core.database.entities.CorrelationAnalysisResult
-import com.etfmonitor.repository.FullAnalysisResult
+import com.etfmonitor.feature.analysis.domain.model.CorrelationAnalysis
+import com.etfmonitor.feature.analysis.domain.model.FullAnalysis
 import com.etfmonitor.core.analysis.FullStockIndicatorCorrelationResult
 import com.etfmonitor.core.ui.component.TabNavigationBar
 import com.etfmonitor.core.ui.component.HubHeader
@@ -405,11 +405,11 @@ private fun HubCorrelationAnalysisContent(
     state: NewAIAnalysisState,
     selectedMarket: String,
     isApiKeyConfigured: Boolean,
-    analysisResult: FullAnalysisResult?,
+    analysisResult: FullAnalysis?,
     onMarketSelect: (String) -> Unit,
     onRunCorrelation: () -> Unit,
     onRunFullAnalysis: () -> Unit,
-    onInterpretWithAI: (CorrelationAnalysisResult) -> Unit,
+    onInterpretWithAI: (CorrelationAnalysis) -> Unit,
     onStartChat: () -> Unit,
     onClearError: () -> Unit
 ) {

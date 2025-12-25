@@ -3,8 +3,10 @@ package com.etfmonitor.feature.analysis.presentation.advanced
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.core.database.*
-import com.etfmonitor.core.database.entities.*
-import com.etfmonitor.repository.AdvancedAnalysisRepository
+import com.etfmonitor.core.database.entities.MarketIndex
+import com.etfmonitor.feature.analysis.data.mapper.toDomain
+import com.etfmonitor.feature.analysis.domain.model.*
+import com.etfmonitor.feature.analysis.domain.repository.AdvancedAnalysisRepository
 import com.etfmonitor.core.common.util.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -16,27 +18,6 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
-
-/**
- * 예측 정확도 데이터
- */
-data class PredictionAccuracy(
-    val totalPredictions: Int,
-    val correctPredictions: Int,
-    val hitRate: Double,  // 0.0 ~ 1.0
-    val details: List<PredictionDetail>
-)
-
-/**
- * 개별 예측 상세
- */
-data class PredictionDetail(
-    val date: String,
-    val prediction: String,      // 예측 신호 (BUY, SELL, NEUTRAL 등)
-    val actualResult: String,    // 실제 결과 (UP, DOWN, FLAT)
-    val actualChangeRate: Double,  // 실제 변동률 %
-    val isCorrect: Boolean
-)
 
 /**
  * 신호-결과 매칭 결과
@@ -71,54 +52,21 @@ sealed class AdvancedDashboardState {
 
 /**
  * 대시보드 통합 데이터
+ * 도메인 모델을 사용하여 Clean Architecture 준수
  */
 data class AdvancedDashboardData(
     val date: String,
-    val marketCapFlow: MarketCapWeightedFlow?,
-    val divergenceSummary: MarketDivergenceSummary?,
-    val liquidityAnalysis: LiquidityAnalysis?,
-    val allSectorAnalyses: List<SectorAnalysis>,
-    val topGreedSectors: List<SectorAnalysis>,
-    val topFearSectors: List<SectorAnalysis>,
-    val sectorRotationSignals: List<SectorRotationSignal>,
-    val highOverlapEtfs: List<EtfCorrelationCache>,
+    val marketCapFlow: MarketCapFlow?,
+    val divergenceSummary: DivergenceAnalysis?,
+    val liquidityAnalysis: LiquidityAnalysisData?,
+    val allSectorAnalyses: List<SectorAnalysisData>,
+    val topGreedSectors: List<SectorAnalysisData>,
+    val topFearSectors: List<SectorAnalysisData>,
+    val sectorRotationSignals: List<SectorRotation>,
+    val highOverlapEtfs: List<EtfCorrelation>,
     val overallSignal: OverallSignal,
     val dataAvailability: DataAvailability
 )
-
-/**
- * 데이터 가용성 상태
- */
-data class DataAvailability(
-    val holdingsData: DataSourceStatus,
-    val stockAnalysisData: DataSourceStatus,
-    val marketDepositData: DataSourceStatus,
-    val fearGreedData: DataSourceStatus,
-    val etfData: DataSourceStatus
-)
-
-/**
- * 개별 데이터 소스 상태
- */
-data class DataSourceStatus(
-    val available: Boolean,
-    val count: Int = 0,
-    val latestDate: String? = null,
-    val message: String = ""
-)
-
-/**
- * 종합 신호
- */
-data class OverallSignal(
-    val direction: SignalDirection,
-    val strength: Double,  // 0.0 ~ 1.0
-    val factors: List<String>
-)
-
-enum class SignalDirection {
-    STRONG_BUY, BUY, NEUTRAL, SELL, STRONG_SELL
-}
 
 @HiltViewModel
 class AdvancedDashboardViewModel @Inject constructor(
@@ -146,24 +94,24 @@ class AdvancedDashboardViewModel @Inject constructor(
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
     // 개별 분석 결과 캐시
-    private val _marketCapFlow = MutableStateFlow<MarketCapWeightedFlow?>(null)
-    val marketCapFlow: StateFlow<MarketCapWeightedFlow?> = _marketCapFlow.asStateFlow()
+    private val _marketCapFlow = MutableStateFlow<MarketCapFlow?>(null)
+    val marketCapFlow: StateFlow<MarketCapFlow?> = _marketCapFlow.asStateFlow()
 
-    private val _divergenceSummary = MutableStateFlow<MarketDivergenceSummary?>(null)
-    val divergenceSummary: StateFlow<MarketDivergenceSummary?> = _divergenceSummary.asStateFlow()
+    private val _divergenceSummary = MutableStateFlow<DivergenceAnalysis?>(null)
+    val divergenceSummary: StateFlow<DivergenceAnalysis?> = _divergenceSummary.asStateFlow()
 
-    private val _liquidityAnalysis = MutableStateFlow<LiquidityAnalysis?>(null)
-    val liquidityAnalysis: StateFlow<LiquidityAnalysis?> = _liquidityAnalysis.asStateFlow()
+    private val _liquidityAnalysis = MutableStateFlow<LiquidityAnalysisData?>(null)
+    val liquidityAnalysis: StateFlow<LiquidityAnalysisData?> = _liquidityAnalysis.asStateFlow()
 
-    private val _sectorAnalyses = MutableStateFlow<List<SectorAnalysis>>(emptyList())
-    val sectorAnalyses: StateFlow<List<SectorAnalysis>> = _sectorAnalyses.asStateFlow()
+    private val _sectorAnalyses = MutableStateFlow<List<SectorAnalysisData>>(emptyList())
+    val sectorAnalyses: StateFlow<List<SectorAnalysisData>> = _sectorAnalyses.asStateFlow()
 
     // 히스토리 데이터
-    private val _liquidityHistory = MutableStateFlow<List<LiquidityAnalysis>>(emptyList())
-    val liquidityHistory: StateFlow<List<LiquidityAnalysis>> = _liquidityHistory.asStateFlow()
+    private val _liquidityHistory = MutableStateFlow<List<LiquidityAnalysisData>>(emptyList())
+    val liquidityHistory: StateFlow<List<LiquidityAnalysisData>> = _liquidityHistory.asStateFlow()
 
-    private val _sectorHistory = MutableStateFlow<Map<String, List<SectorAnalysis>>>(emptyMap())
-    val sectorHistory: StateFlow<Map<String, List<SectorAnalysis>>> = _sectorHistory.asStateFlow()
+    private val _sectorHistory = MutableStateFlow<Map<String, List<SectorAnalysisData>>>(emptyMap())
+    val sectorHistory: StateFlow<Map<String, List<SectorAnalysisData>>> = _sectorHistory.asStateFlow()
 
     private val _marketCapFlowHistory = MutableStateFlow<List<MarketCapFlowHistoryItem>>(emptyList())
     val marketCapFlowHistory: StateFlow<List<MarketCapFlowHistoryItem>> = _marketCapFlowHistory.asStateFlow()
@@ -197,16 +145,18 @@ class AdvancedDashboardViewModel @Inject constructor(
     private fun loadHistoryData() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // 유동성 히스토리 로드
+                // 유동성 히스토리 로드 (Entity -> Domain 매핑)
                 val liquidityHistoryData = liquidityAnalysisDao.getRecentHistory(HISTORY_DAYS)
+                    .map { it.toDomain() }
                 _liquidityHistory.value = liquidityHistoryData
                 logger.d("Loaded ${liquidityHistoryData.size} liquidity history records")
 
-                // 섹터별 히스토리 로드
+                // 섹터별 히스토리 로드 (Entity -> Domain 매핑)
                 val allSectors = sectorAnalysisDao.getAllSectors()
-                val sectorHistoryMap = mutableMapOf<String, List<SectorAnalysis>>()
+                val sectorHistoryMap = mutableMapOf<String, List<SectorAnalysisData>>()
                 for (sector in allSectors) {
                     val history = sectorAnalysisDao.getBySector(sector, HISTORY_DAYS)
+                        .map { it.toDomain() }
                     if (history.isNotEmpty()) {
                         sectorHistoryMap[sector] = history
                     }
@@ -371,11 +321,11 @@ class AdvancedDashboardViewModel @Inject constructor(
                     ?: continue
 
                 val actualChangeRate = nextDayIndex.changeRate
-                val signal = try { LiquiditySignal.valueOf(liquidity.signal) } catch (e: Exception) { LiquiditySignal.NEUTRAL }
+                val signal = liquidity.signal
 
                 val prediction = when (signal) {
-                    LiquiditySignal.BULLISH_LIQUIDITY -> "BUY"
-                    LiquiditySignal.BEARISH_LEVERAGE -> "SELL"
+                    LiquiditySignalType.BULLISH_LIQUIDITY -> "BUY"
+                    LiquiditySignalType.BEARISH_LEVERAGE -> "SELL"
                     else -> "NEUTRAL"
                 }
                 val actualResult = when {
@@ -733,10 +683,10 @@ class AdvancedDashboardViewModel @Inject constructor(
      * 종합 신호 계산
      */
     private fun calculateOverallSignal(
-        flow: MarketCapWeightedFlow?,
-        divergence: MarketDivergenceSummary?,
-        liquidity: LiquidityAnalysis?,
-        sectors: List<SectorAnalysis>
+        flow: MarketCapFlow?,
+        divergence: DivergenceAnalysis?,
+        liquidity: LiquidityAnalysisData?,
+        sectors: List<SectorAnalysisData>
     ): OverallSignal {
         val factors = mutableListOf<String>()
         var score = 0.0
@@ -762,37 +712,37 @@ class AdvancedDashboardViewModel @Inject constructor(
         // 2. 수급 Divergence 신호 (25%)
         divergence?.let {
             val divergenceScore = when (it.marketSentiment) {
-                MarketSentimentType.CONSENSUS_BULLISH -> 0.9
-                MarketSentimentType.STRONG_FOREIGN_LED -> 0.8
-                MarketSentimentType.STRONG_INSTITUTION_LED -> 0.7
-                MarketSentimentType.MIXED -> 0.5
-                MarketSentimentType.CONSENSUS_BEARISH -> 0.2
+                MarketSentiment.CONSENSUS_BULLISH -> 0.9
+                MarketSentiment.STRONG_FOREIGN_LED -> 0.8
+                MarketSentiment.STRONG_INSTITUTION_LED -> 0.7
+                MarketSentiment.MIXED -> 0.5
+                MarketSentiment.CONSENSUS_BEARISH -> 0.2
             }
             score += divergenceScore * 0.25
             count++
 
             when (it.marketSentiment) {
-                MarketSentimentType.CONSENSUS_BULLISH -> factors.add("컨센서스상승")
-                MarketSentimentType.STRONG_FOREIGN_LED -> factors.add("외국인주도")
-                MarketSentimentType.STRONG_INSTITUTION_LED -> factors.add("기관주도")
-                MarketSentimentType.CONSENSUS_BEARISH -> factors.add("컨센서스하락")
+                MarketSentiment.CONSENSUS_BULLISH -> factors.add("컨센서스상승")
+                MarketSentiment.STRONG_FOREIGN_LED -> factors.add("외국인주도")
+                MarketSentiment.STRONG_INSTITUTION_LED -> factors.add("기관주도")
+                MarketSentiment.CONSENSUS_BEARISH -> factors.add("컨센서스하락")
                 else -> {}
             }
         }
 
         // 3. 유동성 신호 (20%)
         liquidity?.let {
-            val liquidityScore = when (LiquiditySignal.valueOf(it.signal)) {
-                LiquiditySignal.BULLISH_LIQUIDITY -> 0.9
-                LiquiditySignal.NEUTRAL -> 0.5
-                LiquiditySignal.DELEVERAGING -> 0.4
-                LiquiditySignal.BEARISH_LEVERAGE -> 0.2
+            val liquidityScore = when (it.signal) {
+                LiquiditySignalType.BULLISH_LIQUIDITY -> 0.9
+                LiquiditySignalType.NEUTRAL -> 0.5
+                LiquiditySignalType.DELEVERAGING -> 0.4
+                LiquiditySignalType.BEARISH_LEVERAGE -> 0.2
             }
             score += liquidityScore * 0.2
             count++
 
-            if (it.signal == LiquiditySignal.BULLISH_LIQUIDITY.name) factors.add("유동성(+)")
-            else if (it.signal == LiquiditySignal.BEARISH_LEVERAGE.name) factors.add("레버리지위험")
+            if (it.signal == LiquiditySignalType.BULLISH_LIQUIDITY) factors.add("유동성(+)")
+            else if (it.signal == LiquiditySignalType.BEARISH_LEVERAGE) factors.add("레버리지위험")
         }
 
         // 4. 섹터 심리 신호 (15%)

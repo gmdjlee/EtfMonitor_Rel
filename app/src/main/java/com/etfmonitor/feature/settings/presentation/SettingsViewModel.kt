@@ -13,7 +13,7 @@ import com.etfmonitor.feature.market.domain.repository.MarketIndexRepository
 import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
 import com.etfmonitor.feature.etf.domain.model.DataProgress
 import com.etfmonitor.feature.etf.domain.repository.EtfRepository
-import com.etfmonitor.repository.AIAnalysisRepository
+import com.etfmonitor.feature.analysis.domain.repository.AIAnalysisRepository
 import com.etfmonitor.feature.stock.domain.repository.StockRepository
 import com.etfmonitor.core.ui.theme.ChartColorSettings
 import com.etfmonitor.core.ui.theme.FontScaleSettings
