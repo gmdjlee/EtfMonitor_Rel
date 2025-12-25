@@ -34,6 +34,8 @@ import com.etfmonitor.ui.components.DemarkTDChart
 import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.ui.screens.oscillator.OscillatorViewModel
 import com.etfmonitor.ui.screens.oscillator.OscillatorState
+import com.etfmonitor.core.ui.component.StockSearchItem
+import com.etfmonitor.core.ui.component.UnifiedStockSearchField
 
 /**
  * Stocks Hub Screen - 종목
@@ -58,8 +60,6 @@ fun StocksHubScreen(
     val demarkTDInterval by viewModel.demarkTDInterval.collectAsState()
     val searchHistory by viewModel.searchHistory.collectAsState()
 
-    var showHistoryDialog by remember { mutableStateOf(false) }
-
     // Set initial ticker if provided (skip history save when navigating via FAB)
     LaunchedEffect(initialTicker) {
         initialTicker?.let { ticker ->
@@ -78,90 +78,32 @@ fun StocksHubScreen(
             onSettingsClick = onNavigateToSettings
         )
 
-        // Search Bar
-        Box(modifier = Modifier.fillMaxWidth()) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { viewModel.onSearchQueryChanged(it) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                placeholder = {
-                    Text(
-                        stringResource(R.string.search_hint),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+        // 통합 검색 필드
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            UnifiedStockSearchField(
+                searchQuery = searchQuery,
+                onSearchQueryChange = { query ->
+                    viewModel.onSearchQueryChanged(query)
+                },
+                searchResults = suggestions.map { stock ->
+                    StockSearchItem(
+                        ticker = stock.ticker,
+                        name = stock.name,
+                        market = stock.market
                     )
                 },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        // History button
-                        if (searchHistory.isNotEmpty() && searchQuery.isEmpty()) {
-                            IconButton(onClick = { showHistoryDialog = true }) {
-                                Icon(
-                                    Icons.Default.History,
-                                    contentDescription = stringResource(R.string.search_history),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        // Clear button
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = {
-                                viewModel.onSearchQueryChanged("")
-                                viewModel.onClearSuggestions()
-                            }) {
-                                Icon(
-                                    Icons.Default.Clear,
-                                    contentDescription = stringResource(R.string.action_clear),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                },
-                singleLine = true,
-                shape = MaterialTheme.shapes.large
-            )
-
-            // Autocomplete Dropdown
-            if (suggestions.isNotEmpty() && searchQuery.isNotBlank()) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 64.dp)
-                        .heightIn(max = 300.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                ) {
-                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                        items(suggestions, key = { it.ticker }) { stock ->
-                            ListItem(
-                                headlineContent = { Text(stock.name) },
-                                supportingContent = {
-                                    Text(
-                                        "${stock.ticker} • ${stock.market}",
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                },
-                                modifier = Modifier.clickable {
-                                    viewModel.onClearSuggestions()
-                                    viewModel.analyzeStock(stock.ticker)
-                                }
-                            )
-                            if (stock != suggestions.last()) {
-                                HorizontalDivider()
-                            }
-                        }
-                    }
+                searchHistory = searchHistory,
+                isSearching = false,
+                placeholder = stringResource(R.string.search_hint),
+                onSelectStock = { ticker, _ ->
+                    viewModel.onClearSuggestions()
+                    viewModel.analyzeStock(ticker)
                 }
-            }
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -448,18 +390,6 @@ fun StocksHubScreen(
                 }
             }
         }
-    }
-
-    // Search History Dialog
-    if (showHistoryDialog) {
-        StockSearchHistoryDialog(
-            searchHistory = searchHistory,
-            onDismiss = { showHistoryDialog = false },
-            onSelectStock = { ticker ->
-                showHistoryDialog = false
-                viewModel.analyzeStock(ticker)
-            }
-        )
     }
 }
 
@@ -767,74 +697,3 @@ private fun StockDataRow(label: String, value: String) {
     }
 }
 
-/**
- * Search History Dialog
- */
-@Composable
-private fun StockSearchHistoryDialog(
-    searchHistory: List<SearchHistory>,
-    onDismiss: () -> Unit,
-    onSelectStock: (String) -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    Icons.Default.History,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Text(stringResource(R.string.recent_search))
-            }
-        },
-        text = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 400.dp)
-            ) {
-                if (searchHistory.isEmpty()) {
-                    Text(
-                        stringResource(R.string.search_history_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(searchHistory, key = { it.id }) { history ->
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                ListItem(
-                                    headlineContent = { Text(history.name) },
-                                    supportingContent = {
-                                        Text(
-                                            "${history.ticker} • ${history.market}",
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    },
-                                    modifier = Modifier.clickable {
-                                        onSelectStock(history.ticker)
-                                    }
-                                )
-                                if (history != searchHistory.last()) {
-                                    HorizontalDivider()
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_close))
-            }
-        }
-    )
-}

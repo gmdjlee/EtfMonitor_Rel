@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.database.entities.CashDepositTrend
 import com.etfmonitor.database.entities.SearchHistory
+import com.etfmonitor.database.entities.SearchHistoryType
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.StockAmountRanking
 import com.etfmonitor.database.entities.StockAnalysisResult
@@ -91,8 +92,10 @@ class StatisticsViewModel @Inject constructor(
     private val _isAnalyzing = MutableStateFlow(false)
     val isAnalyzing: StateFlow<Boolean> = _isAnalyzing.asStateFlow()
 
-    // 검색 히스토리 (최근 20개)
-    val searchHistory: Flow<List<SearchHistory>> = searchHistoryDao.getRecentSearches(20)
+    // 검색 히스토리 (최근 20개) - STATISTICS 타입만
+    val searchHistory: Flow<List<SearchHistory>> = searchHistoryDao.getRecentSearchesByType(
+        SearchHistoryType.STATISTICS, 20
+    )
 
     init {
         loadStatistics()
@@ -163,10 +166,11 @@ class StatisticsViewModel @Inject constructor(
                                 SearchHistory(
                                     ticker = it.stockTicker,
                                     name = it.stockName,
-                                    market = market
+                                    market = market,
+                                    historyType = SearchHistoryType.STATISTICS
                                 )
                             )
-                            searchHistoryDao.deleteOldSearches(20)
+                            searchHistoryDao.deleteOldSearchesByType(SearchHistoryType.STATISTICS, 20)
                         } catch (e: Exception) {
                             // 히스토리 저장 실패 무시
                         }
