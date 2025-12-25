@@ -23,7 +23,7 @@ import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.core.database.entities.Stock
 import com.etfmonitor.feature.analysis.domain.model.CorrelationAnalysis
 import com.etfmonitor.feature.analysis.domain.model.FullAnalysis
-import com.etfmonitor.core.analysis.FullStockIndicatorCorrelationResult
+import com.etfmonitor.feature.analysis.domain.model.FullStockIndicatorAnalysis
 import com.etfmonitor.core.ui.component.TabNavigationBar
 import com.etfmonitor.core.ui.component.HubHeader
 import com.etfmonitor.feature.analysis.presentation.aianalysis.AnalysisTab
@@ -379,7 +379,7 @@ private fun AIAnalysisHubContent(
                         modifier = Modifier.heightIn(max = 400.dp)
                     ) {
                         items(stockIndicatorAIHistory, key = { it.id }) { historyItem ->
-                            StockIndicatorAIHistoryItem(
+                            StockIndicatorAIHistoryItemCard(
                                 item = historyItem,
                                 onClick = {
                                     viewModel.loadFromHistory(historyItem)
@@ -529,7 +529,7 @@ private fun HubStockIndicatorCorrelationContent(
     analysisPeriod: Int,
     isApiKeyConfigured: Boolean,
     selectedStock: Pair<String, String>?,
-    stockIndicatorCorrelationResult: FullStockIndicatorCorrelationResult?,
+    stockIndicatorCorrelationResult: FullStockIndicatorAnalysis?,
     stockSearchResults: List<Pair<String, String>>,
     isSearching: Boolean,
     historyCount: Int,

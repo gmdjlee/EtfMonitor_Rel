@@ -140,7 +140,7 @@ class StockStatisticsRepositoryImpl @Inject constructor(
                     decreasedCount++
                     HoldingStatus.DECREASE
                 }
-                else -> HoldingStatus.MAINTAINED
+                else -> HoldingStatus.MAINTAIN
             }
 
             StockEtfDetail(

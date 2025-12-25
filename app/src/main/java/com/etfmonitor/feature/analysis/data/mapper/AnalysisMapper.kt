@@ -203,6 +203,7 @@ fun StockIndicatorEntity.toHistoryItem(): StockIndicatorAIHistoryItem = StockInd
     ticker = ticker,
     stockName = stockName,
     market = market,
+    analysisDate = analysisDate,
     period = periodDays,
     signal = signal,
     confidence = confidence,

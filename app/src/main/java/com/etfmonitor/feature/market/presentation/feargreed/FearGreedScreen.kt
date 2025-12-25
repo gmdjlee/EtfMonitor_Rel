@@ -352,7 +352,7 @@ private fun FearGreedGaugeSection(
 }
 
 @Composable
-private fun StatsRow(data: List<com.etfmonitor.core.database.entities.FearGreedIndex>) {
+private fun StatsRow(data: List<com.etfmonitor.feature.market.domain.model.FearGreedIndex>) {
     val latest = data.firstOrNull()
     val yesterday = data.getOrNull(1)
     val weekAgo = data.getOrNull(5)
@@ -382,7 +382,7 @@ private fun StatsRow(data: List<com.etfmonitor.core.database.entities.FearGreedI
 
 @Composable
 private fun ChartSection(
-    data: List<com.etfmonitor.core.database.entities.FearGreedIndex>,
+    data: List<com.etfmonitor.feature.market.domain.model.FearGreedIndex>,
     selectedMarket: String,
     chartColors: SingleChartColorSettings
 ) {
@@ -536,7 +536,7 @@ private fun NoDataCard(onCollectClick: () -> Unit) {
 
 @Composable
 fun FearGreedChart(
-    data: List<com.etfmonitor.core.database.entities.FearGreedIndex>,
+    data: List<com.etfmonitor.feature.market.domain.model.FearGreedIndex>,
     chartColors: SingleChartColorSettings,
     modifier: Modifier = Modifier
 ) {

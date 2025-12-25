@@ -103,7 +103,7 @@ data class StockEtfDetail(
     val currentWeight: Float,
     val change: Float = 0f,
     val amount: Float,
-    val status: HoldingStatus = HoldingStatus.MAINTAINED
+    val status: HoldingStatus = HoldingStatus.MAINTAIN
 )
 
 /**

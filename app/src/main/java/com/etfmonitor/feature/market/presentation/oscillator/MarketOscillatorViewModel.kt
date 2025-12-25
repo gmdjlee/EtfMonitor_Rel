@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.feature.market.domain.model.MarketOscillator
 import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
-import com.etfmonitor.core.database.entities.MarketOscillatorData
 import com.etfmonitor.core.ui.theme.ThemeManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -58,8 +57,8 @@ class MarketOscillatorViewModel @Inject constructor(
     val selectedMarket: StateFlow<String> = _selectedMarket.asStateFlow()
 
     // 시장 데이터
-    private val _marketData = MutableStateFlow<List<MarketOscillatorData>>(emptyList())
-    val marketData: StateFlow<List<MarketOscillatorData>> = _marketData.asStateFlow()
+    private val _marketData = MutableStateFlow<List<MarketOscillator>>(emptyList())
+    val marketData: StateFlow<List<MarketOscillator>> = _marketData.asStateFlow()
 
     // 표시할 데이터 개수 (기본 15일)
     private val _displayDays = MutableStateFlow(15)
