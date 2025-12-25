@@ -747,14 +747,3 @@ sealed class NewAIAnalysisState {
     // 에러
     data class Error(val message: String) : NewAIAnalysisState()
 }
-
-/**
- * 신호 타입 확장 함수
- */
-fun String.toSignalType(): SignalType {
-    return try {
-        SignalType.valueOf(this)
-    } catch (e: Exception) {
-        SignalType.NEUTRAL
-    }
-}

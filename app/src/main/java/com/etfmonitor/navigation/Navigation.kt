@@ -11,8 +11,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.etfmonitor.ui.components.MainBottomNavigationBar
-import com.etfmonitor.ui.components.MainNavItem
+import com.etfmonitor.core.ui.component.MainBottomNavigationBar
+import com.etfmonitor.core.ui.component.MainNavItem
 import com.etfmonitor.feature.etf.presentation.detail.EtfDetailScreen
 import com.etfmonitor.feature.home.presentation.screen.HomeScreen
 import com.etfmonitor.feature.etf.presentation.list.EtfListScreen

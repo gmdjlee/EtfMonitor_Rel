@@ -6,8 +6,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -26,7 +24,7 @@ import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.CorrelationAnalysisResult
 import com.etfmonitor.repository.FullAnalysisResult
 import com.etfmonitor.core.analysis.FullStockIndicatorCorrelationResult
-import com.etfmonitor.ui.components.TabNavigationBar
+import com.etfmonitor.core.ui.component.TabNavigationBar
 import com.etfmonitor.ui.screens.aianalysis.AnalysisTab
 import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisViewModel
 import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisState
@@ -823,7 +821,7 @@ private fun AdvancedDashboardHubContent(
                         color = MaterialTheme.colorScheme.error
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = { viewModel.loadDashboardData() }) {
+                    Button(onClick = { viewModel.loadDashboard() }) {
                         Text("다시 시도")
                     }
                 }
@@ -860,30 +858,10 @@ private fun AdvancedDashboardHubContent(
                         .weight(1f)
                 ) {
                     when (selectedSubTab) {
-                        0 -> MarketCapFlowTab(
-                            data = data,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                        )
-                        1 -> LiquidityTab(
-                            data = data,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                        )
-                        2 -> SectorFearGreedTab(
-                            data = data,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                        )
-                        3 -> EtfCorrelationTab(
-                            data = data,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                        )
+                        0 -> MarketCapFlowTab(data = data)
+                        1 -> LiquidityTab(data = data)
+                        2 -> SectorFearGreedTab(data = data)
+                        3 -> EtfCorrelationTab(data = data)
                     }
                 }
             }

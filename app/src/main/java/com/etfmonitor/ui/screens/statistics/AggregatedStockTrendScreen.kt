@@ -24,7 +24,7 @@ import com.etfmonitor.database.entities.StockAggregatedTimePoint
 import com.etfmonitor.database.entities.StockAggregatedTrend
 import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.core.common.util.AmountFormatter
-import com.etfmonitor.ui.components.ChartCard
+import com.etfmonitor.core.ui.component.ChartCard
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject

@@ -28,7 +28,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.feature.etf.domain.model.Etf
-import com.etfmonitor.ui.components.FilterChipRow
+import com.etfmonitor.core.ui.component.FilterChipRow
 import com.etfmonitor.core.ui.theme.*
 
 /**

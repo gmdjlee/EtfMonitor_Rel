@@ -26,11 +26,11 @@ import com.etfmonitor.oscillator.model.DemarkTDData
 import com.etfmonitor.oscillator.model.FearGreedState
 import com.etfmonitor.oscillator.model.TrendSignalAnalysis
 import com.etfmonitor.oscillator.model.TrendTradeSignal
-import com.etfmonitor.ui.components.MarketCapOscillatorChart
-import com.etfmonitor.ui.components.MacdChart
-import com.etfmonitor.ui.components.TrendSignalChart
-import com.etfmonitor.ui.components.ElderImpulseChart
-import com.etfmonitor.ui.components.DemarkTDChart
+import com.etfmonitor.core.ui.component.MarketCapOscillatorChart
+import com.etfmonitor.core.ui.component.MacdChart
+import com.etfmonitor.core.ui.component.TrendSignalChart
+import com.etfmonitor.core.ui.component.ElderImpulseChart
+import com.etfmonitor.core.ui.component.DemarkTDChart
 import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.ui.screens.oscillator.OscillatorViewModel
 import com.etfmonitor.ui.screens.oscillator.OscillatorState

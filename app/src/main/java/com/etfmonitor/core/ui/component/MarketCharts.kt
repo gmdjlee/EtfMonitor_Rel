@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.components
+package com.etfmonitor.core.ui.component
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import com.etfmonitor.core.common.util.AppLogger
