@@ -1693,3 +1693,37 @@ Before submitting changes, verify:
 - Core module: Complete (network/ai, network/python, common/util, ui/theme, analysis, worker, service, di)
 - Feature modules: 6 modules (home, etf, stock, market, analysis, settings)
 - Legacy code: `repository/`, `ui/screens/`, `oscillator/` (gradually being migrated)
+
+### 2025-12-25 - Legacy Market Repository Cleanup (Phase 7 Complete)
+
+**Legacy Market Repositories Removed**:
+- Deleted `repository/FearGreedRepository.kt`
+- Deleted `repository/MarketDepositRepository.kt`
+- Deleted `repository/MarketOscillatorRepository.kt`
+- Deleted `repository/MarketIndexRepository.kt`
+
+**Feature Repository Implementations Updated** (no longer wrappers):
+- `feature/market/data/repository/FearGreedRepositoryImpl.kt` - Direct Python feargreed module integration
+- `feature/market/data/repository/MarketDepositRepositoryImpl.kt` - Direct OscillatorPyClient integration
+- `feature/market/data/repository/MarketOscillatorRepositoryImpl.kt` - Direct OscillatorPyClient integration
+- `feature/market/data/repository/MarketIndexRepositoryImpl.kt` - Direct MarketIndexPyClient integration
+
+**DI Module Updates**:
+- Removed legacy market repository providers from `RepositoryModule.kt`
+- `MarketModule.kt` now provides all market repositories via `@Binds` pattern
+
+**Consumer Updates** (using feature domain interfaces):
+- Workers: FearGreedUpdateWorker, MarketDepositUpdateWorker, MarketOscillatorUpdateWorker, MarketIndexUpdateWorker
+- ViewModels: FearGreedViewModel, MarketDepositViewModel, MarketOscillatorViewModel, HomeViewModel, SettingsViewModel
+- Services: DataCollectionService
+
+**Remaining Legacy Repositories** (9 files, still in use):
+- `DataRepository.kt` - Core ETF data operations
+- `StockRepository.kt` - Stock data operations
+- `AIAnalysisRepository.kt` - AI market analysis
+- `AIChatRepository.kt` - AI chat functionality
+- `AdvancedAnalysisRepository.kt` - Advanced dashboard analysis
+- `CorrelationAnalysisRepository.kt` - Correlation analysis
+- `TimeSeriesAnalysisRepository.kt` - Time series analysis
+- `StatisticsAnalysisRepository.kt` - Statistics analysis
+- `StockAnalysisRepository.kt` - Stock analysis

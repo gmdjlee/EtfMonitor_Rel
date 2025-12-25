@@ -3,7 +3,7 @@
 **Feature**: 클린 아키텍처 정리 (Clean Architecture Cleanup)
 **Scope**: Medium-Large (8 phases, 15-20 hours estimated)
 **Created**: 2025-12-25
-**Status**: In Progress (Phase 1-6 Complete, Phase 7-8 Pending)
+**Status**: In Progress (Phase 1-6 Complete, Phase 7.3 Complete, Phase 7.1-7.2/7.4-7.5/8 Pending)
 
 ---
 
@@ -365,13 +365,18 @@ app/src/main/java/com/etfmonitor/
 - [ ] Delete `repository/StockRepository.kt`
 - [ ] Delete `repository/StockAnalysisRepository.kt`
 
-**7.3 Market Repositories Elimination**:
-- [ ] Migrate Market workers to feature repositories
-- [ ] Update FearGreedRepositoryImpl to directly implement logic
-- [ ] Delete `repository/FearGreedRepository.kt`
-- [ ] Delete `repository/MarketOscillatorRepository.kt`
-- [ ] Delete `repository/MarketDepositRepository.kt`
-- [ ] Delete `repository/MarketIndexRepository.kt`
+**7.3 Market Repositories Elimination** ✅ COMPLETE (2025-12-25):
+- [x] Migrate Market workers to feature repositories
+- [x] Update FearGreedRepositoryImpl to directly implement logic
+- [x] Update MarketDepositRepositoryImpl to directly implement logic
+- [x] Update MarketOscillatorRepositoryImpl to directly implement logic
+- [x] Update MarketIndexRepositoryImpl to directly implement logic
+- [x] Delete `repository/FearGreedRepository.kt`
+- [x] Delete `repository/MarketOscillatorRepository.kt`
+- [x] Delete `repository/MarketDepositRepository.kt`
+- [x] Delete `repository/MarketIndexRepository.kt`
+- [x] Update RepositoryModule.kt to remove legacy market providers
+- [x] Update all consumers (ViewModels, Workers, Services) to use feature interfaces
 
 **7.4 Analysis Repositories Elimination**:
 - [ ] Migrate analysis repositories to feature implementations

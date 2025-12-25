@@ -3,8 +3,8 @@ package com.etfmonitor.feature.market.presentation.feargreed
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.core.database.entities.FearGreedIndex
-import com.etfmonitor.repository.FearGreedRepository
+import com.etfmonitor.feature.market.domain.model.FearGreedIndex
+import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*

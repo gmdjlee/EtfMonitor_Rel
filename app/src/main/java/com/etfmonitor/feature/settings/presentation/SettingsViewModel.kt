@@ -7,10 +7,12 @@ import com.etfmonitor.core.network.ai.AIProvider
 import com.etfmonitor.core.network.ai.ApiKeyProvider
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.entities.Setting
+import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
+import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
+import com.etfmonitor.feature.market.domain.repository.MarketIndexRepository
+import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
 import com.etfmonitor.repository.AIAnalysisRepository
 import com.etfmonitor.repository.DataRepository
-import com.etfmonitor.repository.FearGreedRepository
-import com.etfmonitor.repository.MarketDepositRepository
 import com.etfmonitor.repository.StockRepository
 import com.etfmonitor.core.ui.theme.ChartColorSettings
 import com.etfmonitor.core.ui.theme.FontScaleSettings
@@ -113,8 +115,8 @@ class SettingsViewModel @Inject constructor(
     private val stockRepository: StockRepository,
     private val marketDepositRepository: MarketDepositRepository,
     private val fearGreedRepository: FearGreedRepository,
-    private val marketOscillatorRepository: com.etfmonitor.repository.MarketOscillatorRepository,
-    private val marketIndexRepository: com.etfmonitor.repository.MarketIndexRepository,
+    private val marketOscillatorRepository: MarketOscillatorRepository,
+    private val marketIndexRepository: MarketIndexRepository,
     private val aiAnalysisRepository: AIAnalysisRepository,
     private val apiKeyProvider: ApiKeyProvider,
     private val etfDao: EtfDao,

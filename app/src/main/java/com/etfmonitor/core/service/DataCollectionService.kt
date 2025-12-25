@@ -13,10 +13,12 @@ import androidx.core.app.NotificationCompat
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.MainActivity
 import com.etfmonitor.R
+import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
+import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
+import com.etfmonitor.feature.market.domain.repository.MarketIndexRepository
+import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
 import com.etfmonitor.repository.DataProgress
 import com.etfmonitor.repository.DataRepository
-import com.etfmonitor.repository.FearGreedRepository
-import com.etfmonitor.repository.MarketDepositRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,10 +45,10 @@ class DataCollectionService : Service() {
     lateinit var fearGreedRepository: FearGreedRepository
 
     @Inject
-    lateinit var marketOscillatorRepository: com.etfmonitor.repository.MarketOscillatorRepository
+    lateinit var marketOscillatorRepository: MarketOscillatorRepository
 
     @Inject
-    lateinit var marketIndexRepository: com.etfmonitor.repository.MarketIndexRepository
+    lateinit var marketIndexRepository: MarketIndexRepository
 
     @Inject
     lateinit var marketDepositRepository: MarketDepositRepository
@@ -531,7 +533,7 @@ class DataCollectionService : Service() {
         }
     }
 
-    private fun updateFearGreed(fearGreedRepository: com.etfmonitor.repository.FearGreedRepository) {
+    private fun updateFearGreed(fearGreedRepository: FearGreedRepository) {
         serviceScope.launch {
             try {
                 logger.d("Starting Fear & Greed update")

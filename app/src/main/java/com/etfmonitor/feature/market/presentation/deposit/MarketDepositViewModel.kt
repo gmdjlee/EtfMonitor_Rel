@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.core.analysis.OscillatorCalculator
 import com.etfmonitor.core.analysis.model.*
-import com.etfmonitor.repository.MarketDepositRepository
+import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

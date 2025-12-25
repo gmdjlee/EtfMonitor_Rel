@@ -62,4 +62,14 @@ interface FearGreedRepository {
      * Fear & Greed 데이터 업데이트
      */
     suspend fun updateFearGreed(): Result<Int>
+
+    /**
+     * 다이얼로그 닫힘 상태 확인
+     */
+    suspend fun isDialogDismissed(): Boolean
+
+    /**
+     * 다이얼로그 닫힘 상태 저장
+     */
+    suspend fun saveDialogDismissed()
 }
