@@ -3,7 +3,7 @@
 **Feature**: 클린 아키텍처 정리 (Clean Architecture Cleanup)
 **Scope**: Medium-Large (8 phases, 15-20 hours estimated)
 **Created**: 2025-12-25
-**Status**: In Progress (Phase 1-6 Complete, Phase 7.3 Complete, Phase 7.1-7.2/7.4-7.5/8 Pending)
+**Status**: In Progress (Phase 1-6 Complete, Phase 7.1-7.3 Complete, Phase 7.4-7.5/8 Pending)
 
 ---
 
@@ -27,24 +27,18 @@
 ### 1.2 Identified Issues
 
 #### Issue 1: Legacy Repository Layer Still Exists
-**Location**: `repository/` (13 files)
+**Location**: `repository/` (6 files remaining after Phase 7.1-7.3)
 ```
 repository/
 ├── AIAnalysisRepository.kt
 ├── AIChatRepository.kt
 ├── AdvancedAnalysisRepository.kt
 ├── CorrelationAnalysisRepository.kt
-├── DataRepository.kt
-├── FearGreedRepository.kt
-├── MarketDepositRepository.kt
-├── MarketIndexRepository.kt
-├── MarketOscillatorRepository.kt
 ├── StatisticsAnalysisRepository.kt
-├── StockAnalysisRepository.kt
-├── StockRepository.kt
 └── TimeSeriesAnalysisRepository.kt
 ```
-**Problem**: Feature repositories wrap these but don't replace them. Workers, Services, and some ViewModels still directly depend on legacy repositories.
+**Problem**: Feature repositories wrap these but don't replace them. Some ViewModels still directly depend on legacy repositories.
+**Resolved**: DataRepository, StockRepository, StockAnalysisRepository, FearGreedRepository, MarketDepositRepository, MarketOscillatorRepository, MarketIndexRepository (eliminated in Phase 7.1-7.3)
 
 #### Issue 2: Legacy UI Layer Not Fully Migrated
 **Location**: `ui/screens/` (33 files)
@@ -121,19 +115,19 @@ oscillator/
 #### Issue 6: Duplicate/Similar Repository Names
 | Legacy Repository | Feature Repository | Status |
 |------------------|-------------------|--------|
-| DataRepository | EtfRepositoryImpl (partial) | Overlap |
-| StockRepository | StockRepositoryImpl | Wrapper |
-| StockAnalysisRepository | StockAnalysisRepositoryImpl | Wrapper |
-| FearGreedRepository | FearGreedRepositoryImpl | Wrapper |
-| MarketOscillatorRepository | MarketOscillatorRepositoryImpl | Wrapper |
-| MarketDepositRepository | MarketDepositRepositoryImpl | Wrapper |
-| MarketIndexRepository | MarketIndexRepositoryImpl | Wrapper |
-| AIAnalysisRepository | - | No wrapper yet |
-| AIChatRepository | ChatRepositoryImpl | Wrapper |
-| CorrelationAnalysisRepository | CorrelationAnalysisRepositoryImpl | Wrapper |
-| AdvancedAnalysisRepository | AdvancedAnalysisRepositoryImpl | Wrapper |
-| StatisticsAnalysisRepository | - | No wrapper yet |
-| TimeSeriesAnalysisRepository | - | No wrapper yet |
+| ~~DataRepository~~ | EtfRepositoryImpl | ✅ Eliminated (Phase 7.1) |
+| ~~StockRepository~~ | StockRepositoryImpl | ✅ Eliminated (Phase 7.2) |
+| ~~StockAnalysisRepository~~ | StockAnalysisRepositoryImpl | ✅ Eliminated (Phase 7.2) |
+| ~~FearGreedRepository~~ | FearGreedRepositoryImpl | ✅ Eliminated (Phase 7.3) |
+| ~~MarketOscillatorRepository~~ | MarketOscillatorRepositoryImpl | ✅ Eliminated (Phase 7.3) |
+| ~~MarketDepositRepository~~ | MarketDepositRepositoryImpl | ✅ Eliminated (Phase 7.3) |
+| ~~MarketIndexRepository~~ | MarketIndexRepositoryImpl | ✅ Eliminated (Phase 7.3) |
+| AIAnalysisRepository | - | ⏳ Pending (Phase 7.4) |
+| AIChatRepository | ChatRepositoryImpl | ⏳ Pending (Phase 7.4) |
+| CorrelationAnalysisRepository | CorrelationAnalysisRepositoryImpl | ⏳ Pending (Phase 7.4) |
+| AdvancedAnalysisRepository | AdvancedAnalysisRepositoryImpl | ⏳ Pending (Phase 7.4) |
+| StatisticsAnalysisRepository | - | ⏳ Pending (Phase 7.4) |
+| TimeSeriesAnalysisRepository | StockIndicatorRepositoryImpl | ⏳ Pending (Phase 7.4) |
 
 ---
 
@@ -352,18 +346,22 @@ app/src/main/java/com/etfmonitor/
 
 **Tasks**:
 
-**7.1 DataRepository Elimination**:
-- [ ] Identify all DataRepository consumers
-- [ ] Migrate EtfUpdateWorker to EtfRepository
-- [ ] Migrate DataCollectionService to feature repositories
-- [ ] Migrate remaining ViewModels
-- [ ] Delete `repository/DataRepository.kt`
+**7.1 DataRepository Elimination** ✅ COMPLETE (2025-12-25):
+- [x] Identify all DataRepository consumers
+- [x] Migrate EtfUpdateWorker to EtfRepository
+- [x] Migrate DataCollectionService to feature repositories
+- [x] Migrate remaining ViewModels
+- [x] Delete `repository/DataRepository.kt`
 
-**7.2 Stock Repositories Elimination**:
-- [ ] Migrate StockUpdateWorker to StockRepository
-- [ ] Update StockAnalysisRepositoryImpl to directly implement logic
-- [ ] Delete `repository/StockRepository.kt`
-- [ ] Delete `repository/StockAnalysisRepository.kt`
+**7.2 Stock Repositories Elimination** ✅ COMPLETE (2025-12-25):
+- [x] Migrate StockUpdateWorker to feature StockRepository
+- [x] Migrate MainActivity to feature StockRepository
+- [x] Migrate SettingsViewModel to feature StockRepository
+- [x] Migrate OscillatorViewModel to feature repositories
+- [x] Update StockAnalysisRepositoryImpl to use core StockData model
+- [x] Delete `repository/StockRepository.kt`
+- [x] Delete `repository/StockAnalysisRepository.kt`
+- [x] Delete unused domain StockAnalysis model
 
 **7.3 Market Repositories Elimination** ✅ COMPLETE (2025-12-25):
 - [x] Migrate Market workers to feature repositories

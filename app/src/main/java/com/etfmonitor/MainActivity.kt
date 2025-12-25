@@ -22,7 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.etfmonitor.core.database.EtfDao
-import com.etfmonitor.repository.StockRepository
+import com.etfmonitor.feature.stock.domain.model.NetworkException
+import com.etfmonitor.feature.stock.domain.repository.StockRepository
 import com.etfmonitor.navigation.Navigation
 import com.etfmonitor.core.ui.theme.ChartColorSettings
 import com.etfmonitor.core.ui.theme.EtfMonitorTheme
@@ -175,7 +176,7 @@ class MainActivity : ComponentActivity() {
                 } else {
                     val exception = result.exceptionOrNull()
                     logger.e("Failed to initialize stock database: ${exception?.message}")
-                    if (exception is StockRepository.NetworkException) {
+                    if (exception is NetworkException) {
                         networkErrorMessage.value = exception.message ?: "네트워크 연결을 확인해 주세요."
                         showNetworkErrorDialog.value = true
                     }
@@ -238,7 +239,7 @@ class MainActivity : ComponentActivity() {
                         val exception = result.exceptionOrNull()
                         logger.e("Failed to initialize stock database: ${exception?.message}")
                         // 네트워크 에러인 경우 다이얼로그 표시
-                        if (exception is StockRepository.NetworkException) {
+                        if (exception is NetworkException) {
                             networkErrorMessage.value = exception.message ?: "네트워크 연결을 확인해 주세요."
                             showNetworkErrorDialog.value = true
                         }

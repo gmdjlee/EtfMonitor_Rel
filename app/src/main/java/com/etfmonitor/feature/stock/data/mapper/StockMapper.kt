@@ -1,14 +1,12 @@
 package com.etfmonitor.feature.stock.data.mapper
 
 import com.etfmonitor.core.database.entities.Stock as StockEntity
-import com.etfmonitor.core.database.entities.StockAnalysisWithName
 import com.etfmonitor.core.database.entities.HoldingTimeSeries as HoldingTimeSeriesEntity
 import com.etfmonitor.core.database.entities.StockAmountRanking as StockAmountRankingEntity
 import com.etfmonitor.core.database.entities.StockChangeInfo as StockChangeInfoEntity
 import com.etfmonitor.core.database.entities.CashDepositTrend as CashDepositTrendEntity
 import com.etfmonitor.core.database.StockSearchResult as StockSearchResultDb
 import com.etfmonitor.feature.stock.domain.model.Stock
-import com.etfmonitor.feature.stock.domain.model.StockAnalysis
 import com.etfmonitor.feature.stock.domain.model.HoldingTimeSeries
 import com.etfmonitor.feature.stock.domain.model.StockAmountRanking
 import com.etfmonitor.feature.stock.domain.model.StockChangeInfo
@@ -42,17 +40,6 @@ object StockMapper {
     )
 
     fun List<StockEntity>.toDomain(): List<Stock> = map { it.toDomain() }
-
-    // ========== StockAnalysis ==========
-
-    fun StockAnalysisWithName.toDomain(): StockAnalysis = StockAnalysis(
-        ticker = ticker,
-        name = name,
-        dates = dates,
-        marketCap = marketCap,
-        foreign5d = foreign5d,
-        institution5d = institution5d
-    )
 
     // ========== HoldingTimeSeries ==========
 

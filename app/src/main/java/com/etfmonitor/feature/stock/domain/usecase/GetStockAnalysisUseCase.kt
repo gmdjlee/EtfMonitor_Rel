@@ -1,6 +1,6 @@
 package com.etfmonitor.feature.stock.domain.usecase
 
-import com.etfmonitor.feature.stock.domain.model.StockAnalysis
+import com.etfmonitor.core.analysis.model.StockData
 import com.etfmonitor.feature.stock.domain.repository.StockAnalysisRepository
 import javax.inject.Inject
 
@@ -22,7 +22,7 @@ class GetStockAnalysisUseCase @Inject constructor(
      * @param days 조회할 일수 (기본값: 180)
      * @return 분석 데이터 또는 null
      */
-    suspend operator fun invoke(ticker: String, days: Int = 180): StockAnalysis? {
+    suspend operator fun invoke(ticker: String, days: Int = 180): StockData? {
         return repository.getStockAnalysis(ticker, days)
     }
 }

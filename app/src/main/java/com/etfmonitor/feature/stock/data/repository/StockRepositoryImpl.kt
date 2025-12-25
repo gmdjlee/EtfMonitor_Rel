@@ -2,6 +2,7 @@ package com.etfmonitor.feature.stock.data.repository
 
 import com.etfmonitor.feature.stock.data.datasource.StockLocalDataSource
 import com.etfmonitor.feature.stock.data.mapper.StockMapper.toDomain
+import com.etfmonitor.feature.stock.domain.model.NetworkException
 import com.etfmonitor.feature.stock.domain.model.Stock
 import com.etfmonitor.feature.stock.domain.repository.StockRepository
 import com.etfmonitor.core.network.python.OscillatorPyClient
@@ -38,11 +39,6 @@ class StockRepositoryImpl @Inject constructor(
     companion object {
         private val logger = AppLogger.getLogger("StockRepositoryImpl")
     }
-
-    /**
-     * 네트워크 오류를 나타내는 예외
-     */
-    class NetworkException(message: String) : Exception(message)
 
     // ========== 조회 ==========
 
