@@ -1,58 +1,36 @@
 package com.etfmonitor.ui.screens.hub
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.etfmonitor.R
-import com.etfmonitor.core.analysis.AIStockIndicatorInterpretation
-import com.etfmonitor.core.analysis.FullStockIndicatorCorrelationResult
-import com.etfmonitor.core.analysis.IndicatorStockCorrelation
-import com.etfmonitor.core.analysis.MarketIndicatorType
-import com.etfmonitor.core.analysis.SignalType
-import com.etfmonitor.core.analysis.StockIndicatorCorrelationResult
-import com.etfmonitor.core.analysis.StockMetricType
-import com.etfmonitor.core.ui.component.StockSearchItem
-import com.etfmonitor.core.ui.component.UnifiedStockSearchField
-import com.etfmonitor.database.entities.AIChatMessage
-import com.etfmonitor.database.entities.AIChatSession
-import com.etfmonitor.database.entities.CorrelationAnalysisResult
 import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.database.entities.Stock
-import com.etfmonitor.database.entities.StockIndicatorAIResult
+import com.etfmonitor.database.entities.CorrelationAnalysisResult
 import com.etfmonitor.repository.FullAnalysisResult
+import com.etfmonitor.core.analysis.FullStockIndicatorCorrelationResult
 import com.etfmonitor.ui.components.TabNavigationBar
 import com.etfmonitor.ui.screens.aianalysis.AnalysisTab
 import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisViewModel
 import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisState
+import com.etfmonitor.ui.screens.aianalysis.*
 import com.etfmonitor.ui.screens.advanced.AdvancedDashboardViewModel
 import com.etfmonitor.ui.screens.advanced.AdvancedDashboardState
 import com.etfmonitor.ui.screens.advanced.MarketCapFlowTab
@@ -60,7 +38,6 @@ import com.etfmonitor.ui.screens.advanced.LiquidityTab
 import com.etfmonitor.ui.screens.advanced.SectorFearGreedTab
 import com.etfmonitor.ui.screens.advanced.EtfCorrelationTab
 import kotlinx.coroutines.launch
-import kotlin.math.abs
 
 /**
  * Analysis Hub Screen - 분석
@@ -192,7 +169,7 @@ private fun AIAnalysisHubContent(
                             )
                         }
                     }
-                    HubChatScreen(
+                    ChatScreen(
                         messages = chatMessages,
                         isSending = isSendingMessage,
                         onSendMessage = { viewModel.sendMessage(it) },
@@ -251,7 +228,7 @@ private fun AIAnalysisHubContent(
                     // 탭 내용
                     when (selectedTab) {
                         AnalysisTab.CORRELATION -> {
-                            HubCorrelationAnalysisScreen(
+                            HubCorrelationAnalysisContent(
                                 state = state,
                                 selectedMarket = selectedMarket,
                                 isApiKeyConfigured = isApiKeyConfigured,
@@ -265,7 +242,7 @@ private fun AIAnalysisHubContent(
                             )
                         }
                         AnalysisTab.STOCK_INDICATOR -> {
-                            HubStockIndicatorCorrelationScreen(
+                            HubStockIndicatorCorrelationContent(
                                 state = state,
                                 analysisPeriod = analysisPeriod,
                                 isApiKeyConfigured = isApiKeyConfigured,
@@ -365,7 +342,7 @@ private fun AIAnalysisHubContent(
                 } else {
                     LazyColumn {
                         items(chatSessions, key = { it.id }) { session ->
-                            HubSessionItem(
+                            SessionItem(
                                 session = session,
                                 onClick = {
                                     viewModel.openSession(session.id)
@@ -403,7 +380,7 @@ private fun AIAnalysisHubContent(
                         modifier = Modifier.heightIn(max = 400.dp)
                     ) {
                         items(stockIndicatorAIHistory, key = { it.id }) { historyItem ->
-                            HubStockIndicatorAIHistoryItem(
+                            StockIndicatorAIHistoryItem(
                                 item = historyItem,
                                 onClick = {
                                     viewModel.loadFromHistory(historyItem)
@@ -420,283 +397,12 @@ private fun AIAnalysisHubContent(
         }
     }
 }
-// 고급 분석 세부 탭 정의
-private val ADVANCED_SUB_TABS = listOf("시총가중", "유동성", "섹터심리", "ETF상관")
-
-@Composable
-private fun AdvancedDashboardHubContent(
-    viewModel: AdvancedDashboardViewModel,
-    navController: NavHostController
-) {
-    val state by viewModel.state.collectAsState()
-    val isRefreshing by viewModel.isRefreshing.collectAsState()
-    val subPagerState = rememberPagerState(pageCount = { ADVANCED_SUB_TABS.size })
-    val scope = rememberCoroutineScope()
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        // 헤더: 탭과 새로고침 버튼
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 세부 탭 네비게이션
-            ScrollableTabRow(
-                selectedTabIndex = subPagerState.currentPage,
-                modifier = Modifier.weight(1f),
-                edgePadding = 8.dp,
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.primary,
-                divider = {}
-            ) {
-                ADVANCED_SUB_TABS.forEachIndexed { index, title ->
-                    Tab(
-                        selected = subPagerState.currentPage == index,
-                        onClick = { scope.launch { subPagerState.animateScrollToPage(index) } },
-                        text = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                    )
-                }
-            }
-
-            // 새로 고침 버튼
-            IconButton(
-                onClick = { viewModel.forceRefresh() },
-                enabled = !isRefreshing
-            ) {
-                Icon(
-                    Icons.Default.Refresh,
-                    contentDescription = "새로고침",
-                    tint = if (isRefreshing)
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                    else
-                        MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-
-        // 컨텐츠
-        Box(modifier = Modifier.fillMaxSize()) {
-            when (val currentState = state) {
-                is AdvancedDashboardState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
-                is AdvancedDashboardState.Error -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Error,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = currentState.message,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { viewModel.loadDashboard() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("다시 시도")
-                        }
-                    }
-                }
-                is AdvancedDashboardState.Success -> {
-                    // 히스토리 데이터 수집
-                    val marketCapFlowHistory by viewModel.marketCapFlowHistory.collectAsState()
-                    val liquidityHistory by viewModel.liquidityHistory.collectAsState()
-                    val sectorHistory by viewModel.sectorHistory.collectAsState()
-
-                    // 예측 정확도 데이터 수집
-                    val marketCapFlowAccuracy by viewModel.marketCapFlowAccuracy.collectAsState()
-                    val liquidityAccuracy by viewModel.liquidityAccuracy.collectAsState()
-
-                    // ETF 상관관계 계산 상태
-                    val isCalculatingCorrelation by viewModel.isCalculatingCorrelation.collectAsState()
-
-                    HorizontalPager(
-                        state = subPagerState,
-                        modifier = Modifier.fillMaxSize()
-                    ) { page ->
-                        when (page) {
-                            0 -> MarketCapFlowTab(
-                                data = currentState.data,
-                                history = marketCapFlowHistory,
-                                accuracy = marketCapFlowAccuracy
-                            )
-                            1 -> LiquidityTab(
-                                data = currentState.data,
-                                history = liquidityHistory,
-                                accuracy = liquidityAccuracy
-                            )
-                            2 -> SectorFearGreedTab(currentState.data, sectorHistory)
-                            3 -> EtfCorrelationTab(
-                                data = currentState.data,
-                                isCalculating = isCalculatingCorrelation,
-                                onCalculate = { viewModel.calculateEtfCorrelation() }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 로딩 오버레이
-            if (isRefreshing) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.3f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
-            }
-        }
-    }
-}
-
-private fun formatTimestamp(timestamp: Long): String {
-    val now = System.currentTimeMillis()
-    val diff = now - timestamp
-    return when {
-        diff < 60_000 -> "방금 전"
-        diff < 3600_000 -> "${diff / 60_000}분 전"
-        diff < 86400_000 -> "${diff / 3600_000}시간 전"
-        else -> "${diff / 86400_000}일 전"
-    }
-}
-
-// ========== AI Analysis Hub Helper Composables ==========
 
 /**
- * 종목-지표 AI 분석 히스토리 아이템
+ * Hub 상관관계 분석 화면 콘텐츠
  */
 @Composable
-private fun HubStockIndicatorAIHistoryItem(
-    item: StockIndicatorAIResult,
-    onClick: () -> Unit,
-    onDelete: () -> Unit
-) {
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 신호 아이콘
-            val signalColor = when (item.signal) {
-                "STRONG_BUY" -> Color(0xFF4CAF50)
-                "BUY" -> Color(0xFF8BC34A)
-                "NEUTRAL" -> Color(0xFFFFB300)
-                "SELL" -> Color(0xFFFF9800)
-                "STRONG_SELL" -> Color(0xFFF44336)
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(signalColor.copy(alpha = 0.2f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = when (item.signal) {
-                        "STRONG_BUY", "BUY" -> Icons.Default.TrendingUp
-                        "STRONG_SELL", "SELL" -> Icons.Default.TrendingDown
-                        else -> Icons.Default.TrendingFlat
-                    },
-                    contentDescription = null,
-                    tint = signalColor,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "${item.stockName} (${item.ticker})",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    "${item.analysisDate} | ${item.market}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        item.signal.replace("_", " "),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = signalColor,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "신뢰도 ${(item.confidence * 100).toInt()}%",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            IconButton(onClick = { showDeleteConfirm = true }) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "삭제",
-                    tint = MaterialTheme.colorScheme.error
-                )
-            }
-        }
-    }
-
-    // 삭제 확인 다이얼로그
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("분석 결과 삭제") },
-            text = { Text("${item.stockName}의 분석 결과를 삭제하시겠습니까?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    onDelete()
-                    showDeleteConfirm = false
-                }) {
-                    Text("삭제", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("취소")
-                }
-            }
-        )
-    }
-}
-
-@Composable
-private fun HubCorrelationAnalysisScreen(
+private fun HubCorrelationAnalysisContent(
     state: NewAIAnalysisState,
     selectedMarket: String,
     isApiKeyConfigured: Boolean,
@@ -716,7 +422,7 @@ private fun HubCorrelationAnalysisScreen(
     ) {
         // 시장 선택
         item {
-            HubAnalysisMarketSelector(
+            AnalysisMarketSelector(
                 selectedMarket = selectedMarket,
                 onMarketSelect = onMarketSelect
             )
@@ -751,7 +457,7 @@ private fun HubCorrelationAnalysisScreen(
 
         // 분석 버튼
         item {
-            HubAnalysisButtons(
+            AnalysisButtons(
                 state = state,
                 isApiKeyConfigured = isApiKeyConfigured,
                 hasCorrelationResult = analysisResult?.correlationResult != null,
@@ -767,7 +473,7 @@ private fun HubCorrelationAnalysisScreen(
         when (state) {
             is NewAIAnalysisState.Error -> {
                 item {
-                    HubAnalysisErrorCard(message = state.message, onDismiss = onClearError)
+                    AnalysisErrorCard(message = state.message, onDismiss = onClearError)
                 }
             }
             else -> {}
@@ -776,7 +482,7 @@ private fun HubCorrelationAnalysisScreen(
         // 분석 결과
         analysisResult?.let { result ->
             item {
-                HubCorrelationResultCard(
+                CorrelationResultCard(
                     result = result.correlationResult,
                     aiResult = result.aiResult
                 )
@@ -785,7 +491,7 @@ private fun HubCorrelationAnalysisScreen(
             // AI 해석 결과
             result.aiResult?.let { aiResult ->
                 item {
-                    HubAIInterpretationCard(
+                    AIInterpretationCard(
                         signal = aiResult.signal,
                         confidence = aiResult.confidence,
                         upProbability = aiResult.upProbability,
@@ -816,10 +522,10 @@ private fun HubCorrelationAnalysisScreen(
 }
 
 /**
- * 종목-지표 상관관계 분석 화면
+ * Hub 종목-지표 상관관계 분석 화면 콘텐츠
  */
 @Composable
-private fun HubStockIndicatorCorrelationScreen(
+private fun HubStockIndicatorCorrelationContent(
     state: NewAIAnalysisState,
     analysisPeriod: Int,
     isApiKeyConfigured: Boolean,
@@ -857,7 +563,7 @@ private fun HubStockIndicatorCorrelationScreen(
     ) {
         // 종목 검색
         item {
-            HubStockSearchSection(
+            StockSearchSection(
                 searchQuery = searchQuery,
                 onSearchQueryChange = {
                     searchQuery = it
@@ -872,11 +578,7 @@ private fun HubStockIndicatorCorrelationScreen(
                     onSelectStock(ticker, name)
                     searchQuery = ""
                 },
-                onClearStock = onClearStock,
-                onSelectFromHistory = { ticker, name ->
-                    onSelectStock(ticker, name)
-                    searchQuery = ""
-                }
+                onClearStock = onClearStock
             )
         }
 
@@ -924,7 +626,7 @@ private fun HubStockIndicatorCorrelationScreen(
 
         // 분석 기간 선택
         item {
-            HubTimeSeriesPeriodSelector(
+            TimeSeriesPeriodSelector(
                 period = analysisPeriod,
                 onPeriodChange = onPeriodChange
             )
@@ -959,7 +661,7 @@ private fun HubStockIndicatorCorrelationScreen(
 
         // 분석 버튼
         item {
-            HubStockIndicatorCorrelationButtons(
+            StockIndicatorCorrelationButtons(
                 state = state,
                 isApiKeyConfigured = isApiKeyConfigured,
                 hasSelectedStock = selectedStock != null,
@@ -974,7 +676,7 @@ private fun HubStockIndicatorCorrelationScreen(
         when (state) {
             is NewAIAnalysisState.Error -> {
                 item {
-                    HubAnalysisErrorCard(message = state.message, onDismiss = onClearError)
+                    AnalysisErrorCard(message = state.message, onDismiss = onClearError)
                 }
             }
             else -> {}
@@ -984,13 +686,13 @@ private fun HubStockIndicatorCorrelationScreen(
         stockIndicatorCorrelationResult?.correlationResult?.let { result ->
             // 종목 정보 요약 카드
             item {
-                HubStockIndicatorSummaryCard(result = result)
+                StockIndicatorSummaryCard(result = result)
             }
 
             // Fear & Greed 상관관계 차트
             if (result.fearGreedCorrelations.isNotEmpty()) {
                 item {
-                    HubCorrelationCategoryCard(
+                    CorrelationCategoryCard(
                         title = "심리 지표 상관관계",
                         subtitle = "Fear & Greed, RSI, 모멘텀",
                         icon = Icons.Default.Psychology,
@@ -1003,7 +705,7 @@ private fun HubStockIndicatorCorrelationScreen(
             // Oscillator 상관관계 차트
             if (result.oscillatorCorrelations.isNotEmpty()) {
                 item {
-                    HubCorrelationCategoryCard(
+                    CorrelationCategoryCard(
                         title = "기술 지표 상관관계",
                         subtitle = "시장 과매수/과매도",
                         icon = Icons.Default.TrendingUp,
@@ -1016,7 +718,7 @@ private fun HubStockIndicatorCorrelationScreen(
             // 예탁금/신용 상관관계 차트
             if (result.depositCorrelations.isNotEmpty()) {
                 item {
-                    HubCorrelationCategoryCard(
+                    CorrelationCategoryCard(
                         title = "자금 동향 상관관계",
                         subtitle = "고객예탁금, 신용잔고",
                         icon = Icons.Default.AccountBalance,
@@ -1029,7 +731,7 @@ private fun HubStockIndicatorCorrelationScreen(
             // ETF 수급 상관관계 차트
             if (result.etfCorrelations.isNotEmpty()) {
                 item {
-                    HubCorrelationCategoryCard(
+                    CorrelationCategoryCard(
                         title = "ETF 수급 상관관계",
                         subtitle = "ETF 편입/편출, 비중 변화",
                         icon = Icons.Default.ShowChart,
@@ -1042,18 +744,18 @@ private fun HubStockIndicatorCorrelationScreen(
             // Top 상관관계 요약
             if (result.topPositiveCorrelations.isNotEmpty() || result.topNegativeCorrelations.isNotEmpty()) {
                 item {
-                    HubTopCorrelationsCard(
+                    TopCorrelationsCard(
                         topPositive = result.topPositiveCorrelations,
                         topNegative = result.topNegativeCorrelations
                     )
                 }
             }
-        }
 
-        // AI 해석 결과 (히스토리에서 로드할 때도 표시되도록 correlationResult 블록 밖에 배치)
-        stockIndicatorCorrelationResult?.aiInterpretation?.let { aiResult ->
-            item {
-                HubStockIndicatorAIInterpretationCard(interpretation = aiResult)
+            // AI 해석 결과
+            stockIndicatorCorrelationResult.aiInterpretation?.let { aiResult ->
+                item {
+                    StockIndicatorAIInterpretationCard(interpretation = aiResult)
+                }
             }
 
             // 채팅 시작 버튼
@@ -1073,1269 +775,118 @@ private fun HubStockIndicatorCorrelationScreen(
 }
 
 /**
- * 종목 검색 섹션 - UnifiedStockSearchField 사용
+ * 고급 분석 대시보드 콘텐츠
  */
 @Composable
-private fun HubStockSearchSection(
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    searchResults: List<Pair<String, String>>,
-    isSearching: Boolean,
-    selectedStock: Pair<String, String>?,
-    detectedMarket: String? = null,
-    searchHistory: List<SearchHistory> = emptyList(),
-    onSelectStock: (String, String) -> Unit,
-    onClearStock: () -> Unit,
-    onSelectFromHistory: ((String, String) -> Unit)? = null
+private fun AdvancedDashboardHubContent(
+    viewModel: AdvancedDashboardViewModel,
+    navController: NavHostController
 ) {
-    Column {
-        Text(
-            "종목 선택",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+    val state by viewModel.state.collectAsState()
 
-        // 선택된 종목 표시
-        if (selectedStock != null) {
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                selectedStock.second,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium
-                            )
-                            // 감지된 시장 표시
-                            if (detectedMarket != null) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Surface(
-                                    color = if (detectedMarket == "KOSPI")
-                                        Color(0xFF1976D2).copy(alpha = 0.15f)
-                                    else
-                                        Color(0xFFE64A19).copy(alpha = 0.15f),
-                                    shape = RoundedCornerShape(4.dp)
-                                ) {
-                                    Text(
-                                        text = detectedMarket,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (detectedMarket == "KOSPI")
-                                            Color(0xFF1976D2)
-                                        else
-                                            Color(0xFFE64A19),
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-                        }
-                        Text(
-                            "${selectedStock.first}${if (detectedMarket != null) " • ${detectedMarket} 지표로 분석" else ""}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                        )
-                    }
-                    IconButton(onClick = onClearStock) {
-                        Icon(Icons.Default.Close, contentDescription = "선택 해제")
-                    }
-                }
-            }
-        } else {
-            // 통합 검색 필드
-            UnifiedStockSearchField(
-                searchQuery = searchQuery,
-                onSearchQueryChange = onSearchQueryChange,
-                searchResults = searchResults.map { (ticker, name) ->
-                    StockSearchItem(ticker = ticker, name = name, market = "")
-                },
-                searchHistory = searchHistory,
-                isSearching = isSearching,
-                placeholder = "종목명 또는 종목코드 입력",
-                onSelectStock = onSelectStock,
-                onSelectFromHistory = onSelectFromHistory
-            )
-        }
-    }
-}
-
-/**
- * 종목-지표 상관관계 분석 버튼
- */
-@Composable
-private fun HubStockIndicatorCorrelationButtons(
-    state: NewAIAnalysisState,
-    isApiKeyConfigured: Boolean,
-    hasSelectedStock: Boolean,
-    hasCorrelationResult: Boolean,
-    onRunAnalysis: () -> Unit,
-    onRunFullAnalysis: () -> Unit,
-    onInterpretWithAI: () -> Unit
-) {
-    val isLoading = state is NewAIAnalysisState.AnalyzingStockIndicatorCorrelation ||
-            state is NewAIAnalysisState.AnalyzingStockIndicatorCorrelationFull ||
-            state is NewAIAnalysisState.InterpretingStockIndicatorCorrelation
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // 상관관계 분석 (로컬만)
-        OutlinedButton(
-            onClick = onRunAnalysis,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading && hasSelectedStock
-        ) {
-            if (state is NewAIAnalysisState.AnalyzingStockIndicatorCorrelation) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp
-                )
-            } else {
-                Icon(Icons.Default.Analytics, contentDescription = null)
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("상관관계 분석 (로컬)")
-        }
-
-        // 전체 분석 (상관관계 + AI 해석)
-        Button(
-            onClick = onRunFullAnalysis,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading && isApiKeyConfigured && hasSelectedStock
-        ) {
-            if (state is NewAIAnalysisState.AnalyzingStockIndicatorCorrelationFull) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Icon(Icons.Default.Psychology, contentDescription = null)
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("전체 분석 (+ AI)")
-        }
-
-        // AI 해석 추가
-        if (hasCorrelationResult && isApiKeyConfigured) {
-            TextButton(
-                onClick = onInterpretWithAI,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading
-            ) {
-                if (state is NewAIAnalysisState.InterpretingStockIndicatorCorrelation) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = null)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("AI 해석 추가")
-            }
-        }
-    }
-}
-
-/**
- * 종목-지표 상관관계 요약 카드
- */
-@Composable
-private fun HubStockIndicatorSummaryCard(
-    result: StockIndicatorCorrelationResult
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.Assessment,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "상관관계 분석 결과",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                "${result.stockName} (${result.ticker})",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                "${result.market} | ${result.startDate} ~ ${result.endDate} | ${result.totalDataPoints}일",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // 분석 요약
-            Text(
-                result.summary,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-/**
- * 카테고리별 상관관계 카드 (차트 포함)
- */
-@Composable
-private fun HubCorrelationCategoryCard(
-    title: String,
-    subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    correlations: List<IndicatorStockCorrelation>,
-    color: Color
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    tint = color
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Column {
-                    Text(
-                        title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 상관관계 바 차트
-            correlations.forEach { correlation ->
-                HubCorrelationBarItem(
-                    label = getIndicatorDisplayName(correlation.indicatorType) +
-                            " vs " + getMetricDisplayName(correlation.stockMetricType),
-                    value = correlation.correlation,
-                    leadLagDays = correlation.leadLagDays,
-                    color = color
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-        }
-    }
-}
-
-/**
- * 상관관계 바 아이템
- */
-@Composable
-private fun HubCorrelationBarItem(
-    label: String,
-    value: Double,
-    leadLagDays: Int = 0,
-    color: Color
-) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 레이블과 선행/후행 표시
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    label,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                // 선행/후행 배지
-                if (leadLagDays != 0) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    val isLeading = leadLagDays > 0
-                    Surface(
-                        color = if (isLeading)
-                            Color(0xFF2196F3).copy(alpha = 0.15f)
-                        else
-                            Color(0xFFFF9800).copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = if (isLeading)
-                                    Icons.Default.TrendingUp
-                                else
-                                    Icons.Default.TrendingDown,
-                                contentDescription = null,
-                                modifier = Modifier.size(10.dp),
-                                tint = if (isLeading) Color(0xFF2196F3) else Color(0xFFFF9800)
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text(
-                                text = if (isLeading)
-                                    "${leadLagDays}일 선행"
-                                else
-                                    "${-leadLagDays}일 후행",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (isLeading) Color(0xFF2196F3) else Color(0xFFFF9800),
-                                fontSize = 9.sp
-                            )
-                        }
-                    }
-                }
-            }
-            // 상관계수 값
-            Text(
-                String.format("%+.3f", value),
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Medium,
-                color = when {
-                    value > 0.3 -> Color(0xFF4CAF50)
-                    value < -0.3 -> Color(0xFFE53935)
-                    else -> MaterialTheme.colorScheme.onSurface
-                }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // 상관관계 바
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
-                .clip(RoundedCornerShape(4.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            val barWidth = abs(value).coerceIn(0.0, 1.0).toFloat()
-            val barColor = if (value >= 0) Color(0xFF4CAF50) else Color(0xFFE53935)
-
+    when (val currentState = state) {
+        is AdvancedDashboardState.Loading -> {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth(barWidth)
-                    .fillMaxHeight()
-                    .align(if (value >= 0) Alignment.CenterStart else Alignment.CenterEnd)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(barColor.copy(alpha = 0.7f))
-            )
-        }
-    }
-}
-
-/**
- * Top 상관관계 카드
- */
-@Composable
-private fun HubTopCorrelationsCard(
-    topPositive: List<IndicatorStockCorrelation>,
-    topNegative: List<IndicatorStockCorrelation>
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.Star,
-                    contentDescription = null,
-                    tint = Color(0xFFFFA726)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "주요 상관관계",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            if (topPositive.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    "강한 양의 상관관계",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFF4CAF50)
-                )
-                topPositive.take(3).forEach { correlation ->
-                    Text(
-                        "- ${correlation.description}",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-            }
-
-            if (topNegative.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    "강한 음의 상관관계",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFFE53935)
-                )
-                topNegative.take(3).forEach { correlation ->
-                    Text(
-                        "- ${correlation.description}",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * 종목-지표 상관관계 AI 해석 카드
- */
-@Composable
-private fun HubStockIndicatorAIInterpretationCard(
-    interpretation: AIStockIndicatorInterpretation
-) {
-    val signalType = interpretation.signal.toSignalType()
-    val signalColor = when (signalType) {
-        SignalType.STRONG_BUY -> Color(0xFF1B5E20)
-        SignalType.BUY -> Color(0xFF4CAF50)
-        SignalType.NEUTRAL -> Color(0xFF757575)
-        SignalType.SELL -> Color(0xFFE53935)
-        SignalType.STRONG_SELL -> Color(0xFFB71C1C)
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.Psychology,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "AI 상관관계 분석",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Text(
-                "${interpretation.name} (${interpretation.ticker}) | ${interpretation.period}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 신호 표시
-            HubSignalIndicator(
-                signal = interpretation.signal,
-                confidence = interpretation.confidence,
-                upProbability = interpretation.upProbability,
-                downProbability = interpretation.downProbability
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 시장 심리 영향
-            if (interpretation.marketSentimentImpact.isNotBlank()) {
-                Text(
-                    "시장 심리 영향",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFF6750A4)
-                )
-                Text(
-                    interpretation.marketSentimentImpact,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // 자금 흐름 영향
-            if (interpretation.fundFlowImpact.isNotBlank()) {
-                Text(
-                    "자금 흐름 영향",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFF388E3C)
-                )
-                Text(
-                    interpretation.fundFlowImpact,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // ETF 수급 영향
-            if (interpretation.etfFlowImpact.isNotBlank()) {
-                Text(
-                    "ETF 수급 영향",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFFE64A19)
-                )
-                Text(
-                    interpretation.etfFlowImpact,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // 핵심 상관관계
-            if (interpretation.keyCorrelations.isNotEmpty()) {
-                Text(
-                    "핵심 상관관계",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                interpretation.keyCorrelations.forEach { correlation ->
-                    Text(
-                        "- $correlation",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // 분석 근거
-            Text(
-                "분석 근거",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                interpretation.reasoning,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // 권장사항
-            Text(
-                "권장사항",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                interpretation.recommendation,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 위험도
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                val riskColor = when (interpretation.riskLevel) {
-                    "LOW" -> Color(0xFF4CAF50)
-                    "HIGH" -> Color(0xFFE53935)
-                    else -> Color(0xFFFFA726)
-                }
-                Text(
-                    "위험도: ${interpretation.riskLevel}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = riskColor
-                )
-            }
-        }
-    }
-}
-
-/**
- * 지표 타입 표시 이름 변환
- */
-private fun getIndicatorDisplayName(indicatorType: String): String {
-    return try {
-        MarketIndicatorType.valueOf(indicatorType).displayName
-    } catch (e: Exception) {
-        indicatorType
-    }
-}
-
-/**
- * 종목 지표 타입 표시 이름 변환
- */
-private fun getMetricDisplayName(metricType: String): String {
-    return try {
-        StockMetricType.valueOf(metricType).displayName
-    } catch (e: Exception) {
-        metricType
-    }
-}
-
-/**
- * 시계열 분석 기간 선택
- */
-@Composable
-private fun HubTimeSeriesPeriodSelector(
-    period: Int,
-    onPeriodChange: (Int) -> Unit
-) {
-    val periodOptions = listOf(7, 14, 30, 60, 90, 180, 365)
-
-    Column {
-        Text(
-            "분석 기간: ${period}일",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            periodOptions.forEach { days ->
-                FilterChip(
-                    selected = period == days,
-                    onClick = { onPeriodChange(days) },
-                    label = {
-                        Text(
-                            when (days) {
-                                7 -> "1주"
-                                14 -> "2주"
-                                30 -> "1개월"
-                                60 -> "2개월"
-                                90 -> "3개월"
-                                180 -> "6개월"
-                                365 -> "1년"
-                                else -> "${days}일"
-                            },
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun HubAnalysisMarketSelector(
-    selectedMarket: String,
-    onMarketSelect: (String) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        listOf("KOSPI", "KOSDAQ").forEach { market ->
-            FilterChip(
-                selected = market == selectedMarket,
-                onClick = { onMarketSelect(market) },
-                label = { Text(market) },
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun HubAnalysisButtons(
-    state: NewAIAnalysisState,
-    isApiKeyConfigured: Boolean,
-    hasCorrelationResult: Boolean,
-    onRunCorrelation: () -> Unit,
-    onRunFullAnalysis: () -> Unit,
-    onInterpretWithAI: () -> Unit
-) {
-    val isLoading = state is NewAIAnalysisState.AnalyzingCorrelation ||
-            state is NewAIAnalysisState.AnalyzingFull ||
-            state is NewAIAnalysisState.InterpretingWithAI
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // 상관관계 분석만
-        OutlinedButton(
-            onClick = onRunCorrelation,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading
-        ) {
-            if (state is NewAIAnalysisState.AnalyzingCorrelation) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp
-                )
-            } else {
-                Icon(Icons.Default.Analytics, contentDescription = null)
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("상관관계 분석 (로컬)")
-        }
-
-        // 전체 분석 (상관관계 + AI)
-        Button(
-            onClick = onRunFullAnalysis,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading && isApiKeyConfigured
-        ) {
-            if (state is NewAIAnalysisState.AnalyzingFull) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Icon(Icons.Default.Psychology, contentDescription = null)
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("전체 분석 (상관관계 + AI)")
-        }
-
-        // AI 해석 추가
-        if (hasCorrelationResult && isApiKeyConfigured) {
-            TextButton(
-                onClick = onInterpretWithAI,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading
-            ) {
-                if (state is NewAIAnalysisState.InterpretingWithAI) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = null)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("AI 해석 추가")
-            }
-        }
-    }
-}
-
-@Composable
-private fun HubCorrelationResultCard(
-    result: CorrelationAnalysisResult,
-    aiResult: com.etfmonitor.database.entities.AIAnalysisResult?
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "상관관계 분석 결과",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                "${result.market} | ${result.analysisDate} | ${result.periodDays}일간",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 신호 표시
-            HubSignalIndicator(
-                signal = if (aiResult != null) aiResult.signal else result.signal,
-                confidence = if (aiResult != null) aiResult.confidence else result.confidence,
-                upProbability = if (aiResult != null) aiResult.upProbability else result.upProbability,
-                downProbability = if (aiResult != null) aiResult.downProbability else result.downProbability
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 주요 상관관계
-            Text(
-                "주요 상관관계",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            HubCorrelationItem("ETF 순편입 vs 지수", result.etfNetFlowCorrelation)
-            HubCorrelationItem("원화예금 변화 vs 지수", result.cashDepositCorrelation)
-            result.fearGreedCorrelation?.let {
-                HubCorrelationItem("Fear&Greed vs 지수", it)
-            }
-            result.oscillatorCorrelation?.let {
-                HubCorrelationItem("Oscillator vs 지수", it)
-            }
-        }
-    }
-}
-
-@Composable
-private fun HubCorrelationItem(label: String, value: Double) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(label, style = MaterialTheme.typography.bodySmall)
-        Text(
-            String.format("%+.3f", value),
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Medium,
-            color = when {
-                value > 0.3 -> Color(0xFF4CAF50)
-                value < -0.3 -> Color(0xFFE53935)
-                else -> MaterialTheme.colorScheme.onSurface
-            }
-        )
-    }
-}
-
-@Composable
-private fun HubSignalIndicator(
-    signal: String,
-    confidence: Double,
-    upProbability: Double,
-    downProbability: Double
-) {
-    val signalType = signal.toSignalType()
-    val signalColor = when (signalType) {
-        SignalType.STRONG_BUY -> Color(0xFF1B5E20)
-        SignalType.BUY -> Color(0xFF4CAF50)
-        SignalType.NEUTRAL -> Color(0xFF757575)
-        SignalType.SELL -> Color(0xFFE53935)
-        SignalType.STRONG_SELL -> Color(0xFFB71C1C)
-    }
-
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = signalColor.copy(alpha = 0.1f)
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                signalType.toKorean(),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = signalColor
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        "신뢰도",
-                        style = MaterialTheme.typography.labelSmall,
+                        "분석 데이터 로딩 중...",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Text(
-                        "${String.format("%.0f", confidence * 100)}%",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "상승 확률",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF4CAF50)
-                    )
-                    Text(
-                        "${String.format("%.0f", upProbability)}%",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF4CAF50)
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "하락 확률",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFFE53935)
-                    )
-                    Text(
-                        "${String.format("%.0f", downProbability)}%",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFE53935)
-                    )
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun HubAIInterpretationCard(
-    signal: String,
-    confidence: Double,
-    upProbability: Double,
-    downProbability: Double,
-    reasoning: String,
-    recommendation: String,
-    riskLevel: String
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.Psychology,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "AI 분석",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                "분석 근거",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                reasoning,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                "권장사항",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                recommendation,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+        is AdvancedDashboardState.Error -> {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                val riskColor = when (riskLevel) {
-                    "LOW" -> Color(0xFF4CAF50)
-                    "HIGH" -> Color(0xFFE53935)
-                    else -> Color(0xFFFFA726)
-                }
-                Text(
-                    "위험도: $riskLevel",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = riskColor
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun HubChatScreen(
-    messages: List<AIChatMessage>,
-    isSending: Boolean,
-    onSendMessage: (String) -> Unit,
-    state: NewAIAnalysisState
-) {
-    var inputText by remember { mutableStateOf("") }
-    val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-    val keyboardController = LocalSoftwareKeyboardController.current
-
-    // 새 메시지가 오면 스크롤
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
-        }
-    }
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        // 메시지 목록
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            state = listState,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(vertical = 16.dp)
-        ) {
-            items(messages, key = { it.id }) { message ->
-                HubChatMessageItem(message = message)
-            }
-
-            // 로딩 표시
-            if (isSending) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Start
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "AI가 답변 중...",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-
-        // 에러 표시
-        if (state is NewAIAnalysisState.ChatError) {
-            Text(
-                state.message,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
-        }
-
-        // 입력 영역
-        Surface(
-            tonalElevation = 2.dp
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = inputText,
-                    onValueChange = { inputText = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("메시지를 입력하세요") },
-                    maxLines = 3,
-                    enabled = !isSending,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(onSend = {
-                        if (inputText.isNotBlank()) {
-                            keyboardController?.hide()
-                            onSendMessage(inputText)
-                            inputText = ""
-                        }
-                    })
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                IconButton(
-                    onClick = {
-                        if (inputText.isNotBlank()) {
-                            keyboardController?.hide()
-                            onSendMessage(inputText)
-                            inputText = ""
-                        }
-                    },
-                    enabled = inputText.isNotBlank() && !isSending
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(32.dp)
                 ) {
                     Icon(
-                        Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "전송",
-                        tint = if (inputText.isNotBlank() && !isSending)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                        Icons.Default.Error,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(48.dp)
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        currentState.message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = { viewModel.loadDashboardData() }) {
+                        Text("다시 시도")
+                    }
                 }
             }
         }
-    }
-}
+        is AdvancedDashboardState.Success -> {
+            val data = currentState.data
 
-@Composable
-private fun HubChatMessageItem(message: AIChatMessage) {
-    val isUser = message.role == "user"
+            // 고급 분석 서브탭
+            var selectedSubTab by remember { mutableIntStateOf(0) }
+            val subTabs = listOf("시총가중", "유동성", "섹터심리", "ETF상관")
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
-    ) {
-        Card(
-            modifier = Modifier.widthIn(max = 300.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (isUser)
-                    MaterialTheme.colorScheme.primaryContainer
-                else
-                    MaterialTheme.colorScheme.surfaceVariant
-            ),
-            shape = RoundedCornerShape(
-                topStart = 16.dp,
-                topEnd = 16.dp,
-                bottomStart = if (isUser) 16.dp else 4.dp,
-                bottomEnd = if (isUser) 4.dp else 16.dp
-            )
-        ) {
-            Text(
-                message.content,
-                modifier = Modifier.padding(12.dp),
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-    }
-}
-
-@Composable
-private fun HubSessionItem(
-    session: AIChatSession,
-    onClick: () -> Unit,
-    onDelete: () -> Unit
-) {
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    session.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    "${session.market ?: "일반"} | ${session.messageCount}개 메시지",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            IconButton(onClick = { showDeleteConfirm = true }) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "삭제",
-                    tint = MaterialTheme.colorScheme.error
-                )
-            }
-        }
-    }
-
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("대화 삭제") },
-            text = { Text("이 대화를 삭제하시겠습니까?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    onDelete()
-                    showDeleteConfirm = false
-                }) {
-                    Text("삭제", color = MaterialTheme.colorScheme.error)
+            Column(modifier = Modifier.fillMaxSize()) {
+                // 서브탭 네비게이션
+                ScrollableTabRow(
+                    selectedTabIndex = selectedSubTab,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    edgePadding = 16.dp
+                ) {
+                    subTabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedSubTab == index,
+                            onClick = { selectedSubTab = index },
+                            text = { Text(title, style = MaterialTheme.typography.labelLarge) }
+                        )
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("취소")
+
+                // 탭 내용
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(1f)
+                ) {
+                    when (selectedSubTab) {
+                        0 -> MarketCapFlowTab(
+                            data = data,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                        )
+                        1 -> LiquidityTab(
+                            data = data,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                        )
+                        2 -> SectorFearGreedTab(
+                            data = data,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                        )
+                        3 -> EtfCorrelationTab(
+                            data = data,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                        )
+                    }
                 }
             }
-        )
-    }
-}
-
-@Composable
-private fun HubAnalysisErrorCard(message: String, onDismiss: () -> Unit) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.Error,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                message,
-                modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.onErrorContainer
-            )
-            IconButton(onClick = onDismiss) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "닫기"
-                )
-            }
         }
-    }
-}
-
-// Extension function for SignalType
-private fun String.toSignalType(): SignalType {
-    return when (this.uppercase()) {
-        "STRONG_BUY", "강력매수" -> SignalType.STRONG_BUY
-        "BUY", "매수" -> SignalType.BUY
-        "NEUTRAL", "중립" -> SignalType.NEUTRAL
-        "SELL", "매도" -> SignalType.SELL
-        "STRONG_SELL", "강력매도" -> SignalType.STRONG_SELL
-        else -> SignalType.NEUTRAL
-    }
-}
-
-private fun SignalType.toKorean(): String {
-    return when (this) {
-        SignalType.STRONG_BUY -> "강력 매수"
-        SignalType.BUY -> "매수"
-        SignalType.NEUTRAL -> "중립"
-        SignalType.SELL -> "매도"
-        SignalType.STRONG_SELL -> "강력 매도"
     }
 }
