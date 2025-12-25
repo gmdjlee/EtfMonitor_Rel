@@ -5,8 +5,6 @@ import com.etfmonitor.core.network.ai.*
 import com.etfmonitor.core.analysis.Backtester
 import com.etfmonitor.core.analysis.CorrelationAnalyzer
 import com.etfmonitor.core.database.*
-import com.etfmonitor.repository.TimeSeriesAnalysisRepository
-import com.etfmonitor.core.network.python.OscillatorPyClient
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -17,9 +15,9 @@ import javax.inject.Singleton
 /**
  * Hilt 모듈: AI 분석 컴포넌트 제공
  *
- * Phase 7.4: Analysis repositories migrated to feature layer
- * - AIAnalysisRepository, AIChatRepository 제거됨 (AnalysisModule로 이관)
- * - TimeSeriesAnalysisRepository 유지 (Phase 7.5에서 마이그레이션 예정)
+ * Phase 7.5: All analysis repositories migrated to feature layer
+ * - AIAnalysisRepository, AIChatRepository → AnalysisModule
+ * - TimeSeriesAnalysisRepository → feature/analysis/data/internal/TimeSeriesAnalysisHelper
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -110,34 +108,5 @@ object AIModule {
 
     // CorrelationAnalysisRepository: Provided by AnalysisModule as CorrelationAnalysisRepositoryImpl
     // AIChatRepository: Provided by AnalysisModule as ChatRepositoryImpl
-
-    /**
-     * TimeSeriesAnalysisRepository
-     * 시계열 데이터 수집 및 분석 Repository
-     */
-    @Provides
-    @Singleton
-    fun provideTimeSeriesAnalysisRepository(
-        marketIndexDao: MarketIndexDao,
-        fearGreedDao: FearGreedDao,
-        marketOscillatorDao: MarketOscillatorDao,
-        marketDepositDao: MarketDepositDao,
-        dailyEtfStatisticsDao: DailyEtfStatisticsDao,
-        aiApiClientFactory: AIApiClientFactory,
-        oscillatorPyClient: OscillatorPyClient,
-        etfDao: EtfDao,
-        stockIndicatorAIResultDao: StockIndicatorAIResultDao
-    ): TimeSeriesAnalysisRepository {
-        return TimeSeriesAnalysisRepository(
-            marketIndexDao,
-            fearGreedDao,
-            marketOscillatorDao,
-            marketDepositDao,
-            dailyEtfStatisticsDao,
-            aiApiClientFactory,
-            oscillatorPyClient,
-            etfDao,
-            stockIndicatorAIResultDao
-        )
-    }
+    // TimeSeriesAnalysisHelper: Auto-injected via @Inject constructor (feature/analysis/data/internal/)
 }

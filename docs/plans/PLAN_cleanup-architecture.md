@@ -3,7 +3,7 @@
 **Feature**: 클린 아키텍처 정리 (Clean Architecture Cleanup)
 **Scope**: Medium-Large (8 phases, 15-20 hours estimated)
 **Created**: 2025-12-25
-**Status**: In Progress (Phase 1-6 Complete, Phase 7.1-7.3 Complete, Phase 7.4-7.5/8 Pending)
+**Status**: In Progress (Phase 1-6 Complete, Phase 7.1-7.5 Complete, Phase 8 Pending)
 
 ---
 
@@ -26,19 +26,14 @@
 
 ### 1.2 Identified Issues
 
-#### Issue 1: Legacy Repository Layer Still Exists
-**Location**: `repository/` (6 files remaining after Phase 7.1-7.3)
-```
-repository/
-├── AIAnalysisRepository.kt
-├── AIChatRepository.kt
-├── AdvancedAnalysisRepository.kt
-├── CorrelationAnalysisRepository.kt
-├── StatisticsAnalysisRepository.kt
-└── TimeSeriesAnalysisRepository.kt
-```
-**Problem**: Feature repositories wrap these but don't replace them. Some ViewModels still directly depend on legacy repositories.
-**Resolved**: DataRepository, StockRepository, StockAnalysisRepository, FearGreedRepository, MarketDepositRepository, MarketOscillatorRepository, MarketIndexRepository (eliminated in Phase 7.1-7.3)
+#### Issue 1: Legacy Repository Layer ✅ RESOLVED
+**Location**: `repository/` folder has been completely deleted
+**Resolution**: Phase 7.1-7.5 eliminated all legacy repositories:
+- Phase 7.1: DataRepository
+- Phase 7.2: StockRepository, StockAnalysisRepository
+- Phase 7.3: FearGreedRepository, MarketDepositRepository, MarketOscillatorRepository, MarketIndexRepository
+- Phase 7.4: AIAnalysisRepository, AIChatRepository, CorrelationAnalysisRepository, AdvancedAnalysisRepository, StatisticsAnalysisRepository, TimeSeriesAnalysisRepository (→ feature/analysis/data/internal/TimeSeriesAnalysisHelper)
+- Phase 7.5: RepositoryModule.kt deleted, repository/ folder deleted
 
 #### Issue 2: Legacy UI Layer Not Fully Migrated
 **Location**: `ui/screens/` (33 files)
@@ -112,7 +107,7 @@ oscillator/
 | analysis | ✅ | ✅ | ⚠️ State classes only |
 | settings | ✅ | ✅ | ❌ Still in ui/screens/ |
 
-#### Issue 6: Duplicate/Similar Repository Names
+#### Issue 6: Duplicate/Similar Repository Names ✅ RESOLVED
 | Legacy Repository | Feature Repository | Status |
 |------------------|-------------------|--------|
 | ~~DataRepository~~ | EtfRepositoryImpl | ✅ Eliminated (Phase 7.1) |
@@ -122,12 +117,12 @@ oscillator/
 | ~~MarketOscillatorRepository~~ | MarketOscillatorRepositoryImpl | ✅ Eliminated (Phase 7.3) |
 | ~~MarketDepositRepository~~ | MarketDepositRepositoryImpl | ✅ Eliminated (Phase 7.3) |
 | ~~MarketIndexRepository~~ | MarketIndexRepositoryImpl | ✅ Eliminated (Phase 7.3) |
-| AIAnalysisRepository | - | ⏳ Pending (Phase 7.4) |
-| AIChatRepository | ChatRepositoryImpl | ⏳ Pending (Phase 7.4) |
-| CorrelationAnalysisRepository | CorrelationAnalysisRepositoryImpl | ⏳ Pending (Phase 7.4) |
-| AdvancedAnalysisRepository | AdvancedAnalysisRepositoryImpl | ⏳ Pending (Phase 7.4) |
-| StatisticsAnalysisRepository | - | ⏳ Pending (Phase 7.4) |
-| TimeSeriesAnalysisRepository | StockIndicatorRepositoryImpl | ⏳ Pending (Phase 7.4) |
+| ~~AIAnalysisRepository~~ | AIAnalysisRepositoryImpl | ✅ Eliminated (Phase 7.4) |
+| ~~AIChatRepository~~ | ChatRepositoryImpl | ✅ Eliminated (Phase 7.4) |
+| ~~CorrelationAnalysisRepository~~ | CorrelationAnalysisRepositoryImpl | ✅ Eliminated (Phase 7.4) |
+| ~~AdvancedAnalysisRepository~~ | AdvancedAnalysisRepositoryImpl | ✅ Eliminated (Phase 7.4) |
+| ~~StatisticsAnalysisRepository~~ | StatisticsAnalysisRepositoryImpl | ✅ Eliminated (Phase 7.4) |
+| ~~TimeSeriesAnalysisRepository~~ | TimeSeriesAnalysisHelper (internal) | ✅ Eliminated (Phase 7.5) |
 
 ---
 
@@ -169,10 +164,10 @@ app/src/main/java/com/etfmonitor/
 ```
 
 **To be deleted**:
-- `repository/` (13 files) → Logic moved to feature repositories
+- ~~`repository/` (13 files)~~ → ✅ Deleted (Phase 7.4-7.5)
 - `ui/screens/` (33 files) → Moved to feature modules
 - `oscillator/` (3 files) → Moved to core/analysis/
-- `di/RepositoryModule.kt` → Merged to core/di/
+- ~~`di/RepositoryModule.kt`~~ → ✅ Deleted (Phase 7.5)
 
 ---
 
@@ -376,24 +371,25 @@ app/src/main/java/com/etfmonitor/
 - [x] Update RepositoryModule.kt to remove legacy market providers
 - [x] Update all consumers (ViewModels, Workers, Services) to use feature interfaces
 
-**7.4 Analysis Repositories Elimination**:
-- [ ] Migrate analysis repositories to feature implementations
-- [ ] Delete `repository/AIAnalysisRepository.kt`
-- [ ] Delete `repository/AIChatRepository.kt`
-- [ ] Delete `repository/CorrelationAnalysisRepository.kt`
-- [ ] Delete `repository/AdvancedAnalysisRepository.kt`
-- [ ] Delete `repository/StatisticsAnalysisRepository.kt`
-- [ ] Delete `repository/TimeSeriesAnalysisRepository.kt`
+**7.4 Analysis Repositories Elimination** ✅ COMPLETE (2025-12-25):
+- [x] Migrate analysis repositories to feature implementations
+- [x] Delete `repository/AIAnalysisRepository.kt` (previously deleted)
+- [x] Delete `repository/AIChatRepository.kt` (previously deleted)
+- [x] Delete `repository/CorrelationAnalysisRepository.kt` (previously deleted)
+- [x] Delete `repository/AdvancedAnalysisRepository.kt` (previously deleted)
+- [x] Delete `repository/StatisticsAnalysisRepository.kt` (previously deleted)
+- [x] Delete `repository/TimeSeriesAnalysisRepository.kt`
+- [x] Move TimeSeriesAnalysisRepository to feature/analysis/data/internal/TimeSeriesAnalysisHelper
 
-**7.5 RepositoryModule Cleanup**:
-- [ ] Move remaining providers to feature modules
-- [ ] Delete `core/di/RepositoryModule.kt` (after moving from di/)
-- [ ] Delete `repository/` folder entirely
-
-**Files to Delete**: 13 files + 1 DI module
+**7.5 RepositoryModule Cleanup** ✅ COMPLETE (2025-12-25):
+- [x] All providers moved to feature modules
+- [x] Delete `core/di/RepositoryModule.kt`
+- [x] Delete `repository/` folder entirely
+- [x] Remove dead code from EtfMapper.kt (reference to deleted ComparisonResult)
 
 **Quality Gate**:
-- [ ] `./gradlew assembleDebug` succeeds
+- [x] No references to `com.etfmonitor.repository` package
+- [ ] `./gradlew assembleDebug` succeeds (network unavailable for testing)
 - [ ] All workers execute correctly
 - [ ] DataCollectionService works
 - [ ] No runtime crashes

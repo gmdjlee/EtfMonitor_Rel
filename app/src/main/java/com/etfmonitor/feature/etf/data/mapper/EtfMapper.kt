@@ -7,7 +7,6 @@ import com.etfmonitor.core.database.entities.HoldingStatus as HoldingStatusEntit
 import com.etfmonitor.feature.etf.domain.model.Etf
 import com.etfmonitor.feature.etf.domain.model.HoldingWithComparison
 import com.etfmonitor.feature.etf.domain.model.HoldingStatus
-import com.etfmonitor.feature.etf.domain.model.ComparisonResult
 
 /**
  * ETF Mapper
@@ -80,18 +79,4 @@ object EtfMapper {
      */
     fun List<HoldingWithComparisonEntity>.toDomainComparisons(): List<HoldingWithComparison> =
         map { it.toDomain() }
-
-    // ========== ComparisonResult ==========
-
-    /**
-     * Repository에서 생성한 ComparisonResult Entity → Domain ComparisonResult
-     */
-    fun com.etfmonitor.repository.ComparisonResult.toDomain(): ComparisonResult = ComparisonResult(
-        etfTicker = etfTicker,
-        currentDate = currentDate,
-        previousDate = previousDate,
-        items = items.toDomainComparisons(),
-        collectionStartDate = collectionStartDate,
-        collectionEndDate = collectionEndDate
-    )
 }

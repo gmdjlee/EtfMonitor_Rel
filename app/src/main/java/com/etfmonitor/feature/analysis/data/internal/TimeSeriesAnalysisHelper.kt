@@ -1,4 +1,4 @@
-package com.etfmonitor.repository
+package com.etfmonitor.feature.analysis.data.internal
 
 import com.etfmonitor.core.network.ai.AIApiClientFactory
 import com.etfmonitor.core.analysis.*
@@ -27,7 +27,7 @@ import kotlin.math.sqrt
  * 모든 수집된 데이터를 시계열로 통합하여 분석
  */
 @Singleton
-class TimeSeriesAnalysisRepository @Inject constructor(
+class TimeSeriesAnalysisHelper @Inject constructor(
     private val marketIndexDao: MarketIndexDao,
     private val fearGreedDao: FearGreedDao,
     private val marketOscillatorDao: MarketOscillatorDao,
