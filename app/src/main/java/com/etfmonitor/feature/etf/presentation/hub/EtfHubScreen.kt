@@ -34,6 +34,7 @@ import com.etfmonitor.feature.etf.domain.model.Etf
 import com.etfmonitor.core.database.entities.HoldingStatus
 import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.core.ui.component.TabNavigationBar
+import com.etfmonitor.core.ui.component.HubHeader
 import com.etfmonitor.feature.etf.presentation.list.EtfListViewModel
 import com.etfmonitor.feature.etf.presentation.list.EtfListState
 import com.etfmonitor.feature.stock.presentation.statistics.StatisticsViewModel

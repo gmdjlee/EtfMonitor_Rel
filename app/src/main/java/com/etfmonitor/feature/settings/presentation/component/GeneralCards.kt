@@ -17,7 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import com.etfmonitor.R
 import com.etfmonitor.core.network.ai.AIModel
 import com.etfmonitor.core.network.ai.AIProvider
-import com.etfmonitor.ui.screens.settings.ApiKeyTestState
+import com.etfmonitor.feature.settings.presentation.SettingsViewModel.ApiKeyTestState
 import com.etfmonitor.core.ui.theme.FontScaleSettings
 
 /**

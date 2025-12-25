@@ -33,7 +33,8 @@ import com.etfmonitor.core.ui.component.ElderImpulseChart
 import com.etfmonitor.core.ui.component.DemarkTDChart
 import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.feature.stock.presentation.oscillator.OscillatorViewModel
-import com.etfmonitor.ui.screens.oscillator.OscillatorState
+import com.etfmonitor.feature.stock.presentation.oscillator.OscillatorState
+import com.etfmonitor.core.ui.component.HubHeader
 import com.etfmonitor.core.ui.component.StockSearchItem
 import com.etfmonitor.core.ui.component.UnifiedStockSearchField
 

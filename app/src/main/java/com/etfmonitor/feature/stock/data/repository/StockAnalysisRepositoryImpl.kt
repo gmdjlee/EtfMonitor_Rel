@@ -105,7 +105,7 @@ class StockAnalysisRepositoryImpl @Inject constructor(
     }
 
     private fun shouldUpdateData(
-        cachedData: com.etfmonitor.database.entities.StockAnalysisWithName?,
+        cachedData: com.etfmonitor.core.database.entities.StockAnalysisWithName?,
         today: String,
         requestedDays: Int
     ): Boolean {

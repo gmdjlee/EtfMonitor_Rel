@@ -83,7 +83,7 @@ fun FearGreedContent(
     var showManualPeriodDialog by remember { mutableStateOf(false) }
 
     // Get chart colors from settings
-    val settingsViewModel: com.etfmonitor.ui.screens.settings.SettingsViewModel = hiltViewModel()
+    val settingsViewModel: com.etfmonitor.feature.settings.presentation.SettingsViewModel = hiltViewModel()
     val chartColorSettings by settingsViewModel.chartColorSettings.collectAsState()
 
     // First run dialog
@@ -352,7 +352,7 @@ private fun FearGreedGaugeSection(
 }
 
 @Composable
-private fun StatsRow(data: List<com.etfmonitor.database.entities.FearGreedIndex>) {
+private fun StatsRow(data: List<com.etfmonitor.core.database.entities.FearGreedIndex>) {
     val latest = data.firstOrNull()
     val yesterday = data.getOrNull(1)
     val weekAgo = data.getOrNull(5)
@@ -382,7 +382,7 @@ private fun StatsRow(data: List<com.etfmonitor.database.entities.FearGreedIndex>
 
 @Composable
 private fun ChartSection(
-    data: List<com.etfmonitor.database.entities.FearGreedIndex>,
+    data: List<com.etfmonitor.core.database.entities.FearGreedIndex>,
     selectedMarket: String,
     chartColors: SingleChartColorSettings
 ) {
@@ -536,7 +536,7 @@ private fun NoDataCard(onCollectClick: () -> Unit) {
 
 @Composable
 fun FearGreedChart(
-    data: List<com.etfmonitor.database.entities.FearGreedIndex>,
+    data: List<com.etfmonitor.core.database.entities.FearGreedIndex>,
     chartColors: SingleChartColorSettings,
     modifier: Modifier = Modifier
 ) {
