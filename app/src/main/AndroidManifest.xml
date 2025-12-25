@@ -35,7 +35,7 @@
         </activity>
 
         <service
-            android:name=".service.DataCollectionService"
+            android:name=".core.service.DataCollectionService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
