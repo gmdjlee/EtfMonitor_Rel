@@ -1,5 +1,7 @@
 package com.etfmonitor.feature.stock.domain.model
 
+import com.etfmonitor.core.database.entities.HoldingStatus
+
 /**
  * Stock Amount Ranking Domain Model
  *
@@ -34,18 +36,20 @@ data class StockAmountRanking(
  * @property stockName 종목명
  * @property etfTicker ETF 종목코드
  * @property etfName ETF 이름
- * @property weight 비중 (%)
- * @property amount 평가금액
+ * @property currentWeight 현재 비중 (%)
+ * @property currentAmount 현재 평가금액
  * @property previousWeight 이전 비중 (%)
+ * @property change 비중 변화 (%)
  */
 data class StockChangeInfo(
     val stockTicker: String,
     val stockName: String,
     val etfTicker: String,
     val etfName: String,
-    val weight: Float,
-    val amount: Float,
-    val previousWeight: Float = 0f
+    val currentWeight: Float,
+    val currentAmount: Float,
+    val previousWeight: Float = 0f,
+    val change: Float = 0f
 )
 
 /**
@@ -57,18 +61,53 @@ data class StockChangeInfo(
  * @property stockName 종목명
  * @property etfDetails ETF별 보유 상세
  * @property totalAmount 총 평가금액
- * @property etfCount 보유 ETF 수
+ * @property currentEtfCount 현재 포함된 ETF 수
+ * @property previousEtfCount 이전 포함된 ETF 수
+ * @property increasedCount 비중 증가 ETF 수
+ * @property decreasedCount 비중 감소 ETF 수
+ * @property newIncludedCount 신규 편입 ETF 수
+ * @property removedCount 제외된 ETF 수
+ * @property avgWeight 평균 비중
+ * @property maxWeight 최대 비중
  */
 data class StockAnalysisResult(
     val stockTicker: String,
     val stockName: String,
-    val etfDetails: List<EtfDetail>,
+    val etfDetails: List<StockEtfDetail>,
     val totalAmount: Float,
-    val etfCount: Int
+    val currentEtfCount: Int,
+    val previousEtfCount: Int = 0,
+    val increasedCount: Int = 0,
+    val decreasedCount: Int = 0,
+    val newIncludedCount: Int = 0,
+    val removedCount: Int = 0,
+    val avgWeight: Float = 0f,
+    val maxWeight: Float = 0f
 )
 
 /**
- * ETF Detail for Stock Analysis
+ * ETF Detail for Stock Analysis (with status)
+ *
+ * @property etfTicker ETF 종목코드
+ * @property etfName ETF 이름
+ * @property previousWeight 이전 비중 (%)
+ * @property currentWeight 현재 비중 (%)
+ * @property change 비중 변화 (%)
+ * @property amount 평가금액
+ * @property status 보유 상태
+ */
+data class StockEtfDetail(
+    val etfTicker: String,
+    val etfName: String,
+    val previousWeight: Float = 0f,
+    val currentWeight: Float,
+    val change: Float = 0f,
+    val amount: Float,
+    val status: HoldingStatus = HoldingStatus.MAINTAINED
+)
+
+/**
+ * Simple ETF Detail (for basic usage)
  *
  * @property etfTicker ETF 종목코드
  * @property etfName ETF 이름

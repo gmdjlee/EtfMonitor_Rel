@@ -75,9 +75,10 @@ object StockMapper {
         stockName = stockName,
         etfTicker = etfTicker,
         etfName = etfName,
-        weight = currentWeight,
-        amount = currentAmount,
-        previousWeight = previousWeight
+        currentWeight = currentWeight,
+        currentAmount = currentAmount,
+        previousWeight = previousWeight,
+        change = change
     )
 
     fun List<StockChangeInfoEntity>.toChangeInfoDomain(): List<StockChangeInfo> =

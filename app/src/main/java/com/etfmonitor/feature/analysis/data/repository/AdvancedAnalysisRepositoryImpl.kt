@@ -13,6 +13,12 @@ import com.etfmonitor.core.database.LiquidityAnalysisDao
 
 // Database entities - only what's needed (no conflicts)
 import com.etfmonitor.core.database.entities.Etf as EntityEtf
+import com.etfmonitor.core.database.entities.LiquidityAnalysis
+import com.etfmonitor.core.database.entities.SectorAnalysis
+import com.etfmonitor.core.database.entities.EtfCorrelationCache
+import com.etfmonitor.core.database.entities.StockAmountRanking
+import com.etfmonitor.core.database.entities.Holding
+import com.etfmonitor.core.database.entities.CommonStock as EntityCommonStock
 
 // Domain models - use these for return types
 import com.etfmonitor.feature.analysis.domain.model.MarketCapFlow

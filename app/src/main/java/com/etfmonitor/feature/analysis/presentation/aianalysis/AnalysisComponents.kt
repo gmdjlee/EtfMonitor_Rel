@@ -37,6 +37,7 @@ import com.etfmonitor.feature.analysis.domain.model.AIAnalysis
 import com.etfmonitor.feature.analysis.domain.model.ChatMessage
 import com.etfmonitor.feature.analysis.domain.model.ChatSession
 import com.etfmonitor.feature.analysis.domain.model.CorrelationAnalysis
+import com.etfmonitor.feature.analysis.domain.model.MessageRole
 import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.core.database.entities.Stock
 import com.etfmonitor.core.database.entities.StockIndicatorAIResult
@@ -1199,7 +1200,7 @@ fun ChatScreen(
 
 @Composable
 fun ChatMessageItem(message: ChatMessage) {
-    val isUser = message.role == "user"
+    val isUser = message.role == MessageRole.USER
 
     Row(
         modifier = Modifier.fillMaxWidth(),
