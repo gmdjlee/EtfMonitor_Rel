@@ -3,7 +3,6 @@ package com.etfmonitor.feature.market.presentation.feargreed
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.entities.FearGreedIndex
 import com.etfmonitor.repository.FearGreedRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,7 +39,6 @@ sealed class FearGreedState {
 @HiltViewModel
 class FearGreedViewModel @Inject constructor(
     private val repository: FearGreedRepository,
-    private val etfDao: EtfDao,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -64,12 +62,12 @@ class FearGreedViewModel @Inject constructor(
 
     private fun checkFirstRun() {
         viewModelScope.launch {
-            val dialogDismissed = etfDao.getSetting("fear_greed_dialog_dismissed")
+            val dialogDismissed = repository.isDialogDismissed()
             val hasData = repository.getCountByMarket("KOSPI") > 0 ||
                          repository.getCountByMarket("KOSDAQ") > 0
 
             // 데이터가 없고 다이얼로그를 본 적이 없으면 표시
-            if (!hasData && dialogDismissed != "true") {
+            if (!hasData && !dialogDismissed) {
                 _showFirstRunDialog.value = true
             }
         }
@@ -83,9 +81,7 @@ class FearGreedViewModel @Inject constructor(
     fun onFirstRunDialogConfirmed() {
         // "수집 시작"을 클릭한 경우: 다이얼로그 닫고 더 이상 표시하지 않음
         viewModelScope.launch {
-            etfDao.saveSetting(
-                com.etfmonitor.database.entities.Setting("fear_greed_dialog_dismissed", "true")
-            )
+            repository.saveDialogDismissed()
             _showFirstRunDialog.value = false
         }
     }

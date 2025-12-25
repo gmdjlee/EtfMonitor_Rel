@@ -59,7 +59,7 @@ class AIApiClientFactory @Inject constructor(
     private fun getDefaultModel(provider: AIProvider): String {
         return when (provider) {
             AIProvider.CLAUDE -> "claude-3-5-sonnet-20241022"
-            AIProvider.GEMINI -> "gemini-2.0-flash-exp"
+            AIProvider.GEMINI -> "gemini-2.0-flash"  // GeminiApiClient.MODEL과 동일
         }
     }
 

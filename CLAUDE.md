@@ -112,7 +112,7 @@ fearGreedRepository.initializeFearGreed(days = 90)  // Request 3x days
 |------------|-------------|-------------------|
 | StockAnalysisRepository | 24 hours | OR missing today's data OR <80% requested days |
 | MarketDepositRepository | 12 hours | AND latest date == today |
-| FearGreedRepository | No auto-expiry | Check latest date manually |
+| FearGreedRepository | 12 hours | OR latest date != today |
 
 ### ViewModel State Patterns
 **Note:** Not all ViewModels use sealed classes. Two ViewModels use individual StateFlows for granular control:

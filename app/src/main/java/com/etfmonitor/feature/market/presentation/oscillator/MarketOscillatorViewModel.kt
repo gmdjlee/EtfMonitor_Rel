@@ -3,7 +3,6 @@ package com.etfmonitor.feature.market.presentation.oscillator
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.entities.MarketOscillatorData
 import com.etfmonitor.repository.MarketOscillatorRepository
 import com.etfmonitor.core.ui.theme.ThemeManager
@@ -41,7 +40,6 @@ sealed class MarketOscillatorState {
 @HiltViewModel
 class MarketOscillatorViewModel @Inject constructor(
     private val repository: MarketOscillatorRepository,
-    private val etfDao: EtfDao,
     private val themeManager: ThemeManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -86,12 +84,12 @@ class MarketOscillatorViewModel @Inject constructor(
 
     private fun checkFirstRun() {
         viewModelScope.launch {
-            val dialogDismissed = etfDao.getSetting("market_oscillator_dialog_dismissed")
+            val dialogDismissed = repository.isDialogDismissed()
             val hasData = repository.getDataCount("KOSPI") > 0 ||
                          repository.getDataCount("KOSDAQ") > 0
 
             // 데이터가 없고 다이얼로그를 본 적이 없으면 표시
-            if (!hasData && dialogDismissed != "true") {
+            if (!hasData && !dialogDismissed) {
                 _showFirstRunDialog.value = true
             }
         }
@@ -105,9 +103,7 @@ class MarketOscillatorViewModel @Inject constructor(
     fun onFirstRunDialogConfirmed() {
         // "수집 시작"을 클릭한 경우: 다이얼로그 닫고 더 이상 표시하지 않음
         viewModelScope.launch {
-            etfDao.saveSetting(
-                com.etfmonitor.database.entities.Setting("market_oscillator_dialog_dismissed", "true")
-            )
+            repository.saveDialogDismissed()
             _showFirstRunDialog.value = false
         }
     }

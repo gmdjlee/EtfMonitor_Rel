@@ -43,9 +43,10 @@ class SharedPreferencesApiKeyProvider @Inject constructor(
 
     override fun setApiKey(provider: AIProvider, apiKey: String) {
         val key = getKeyForProvider(provider)
+        // API 키는 중요한 보안 데이터이므로 동기적으로 저장 (앱 크래시 시 손실 방지)
         sharedPreferences.edit()
             .putString(key, apiKey)
-            .apply()
+            .commit()
     }
 
     override fun removeApiKey(provider: AIProvider) {

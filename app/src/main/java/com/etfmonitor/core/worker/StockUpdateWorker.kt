@@ -47,7 +47,7 @@ class StockUpdateWorker @AssistedInject constructor(
                 Result.success()
             } else {
                 logger.e("Failed to update stocks: ${result.exceptionOrNull()?.message}")
-                Result.retry()
+                if (runAttemptCount < 3) Result.retry() else Result.failure()
             }
         } catch (e: Exception) {
             logger.e("Error in StockUpdateWorker", e)

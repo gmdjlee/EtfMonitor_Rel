@@ -38,12 +38,17 @@ class MarketDepositRepository @Inject constructor(
     fun getRecentDeposits(limit: Int = 100): Flow<List<MarketDeposit>> =
         marketDepositDao.getRecentDeposits(limit).flowOn(Dispatchers.IO)
 
-    suspend fun getDepositByDate(date: String): MarketDeposit? =
+    suspend fun getDepositByDate(date: String): MarketDeposit? = withContext(Dispatchers.IO) {
         marketDepositDao.getDepositByDate(date)
+    }
 
-    suspend fun getDepositCount(): Int = marketDepositDao.getCount()
+    suspend fun getDepositCount(): Int = withContext(Dispatchers.IO) {
+        marketDepositDao.getCount()
+    }
 
-    suspend fun getLastUpdateTime(): Long? = marketDepositDao.getLastUpdateTime()
+    suspend fun getLastUpdateTime(): Long? = withContext(Dispatchers.IO) {
+        marketDepositDao.getLastUpdateTime()
+    }
 
     /**
      * 증시 자금 데이터 초기화 (Python에서 가져와서 DB에 저장)

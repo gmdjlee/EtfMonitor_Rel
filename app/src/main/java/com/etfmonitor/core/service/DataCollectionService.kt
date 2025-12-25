@@ -74,7 +74,7 @@ class DataCollectionService : Service() {
         private const val CHANNEL_ID = "data_collection_channel"
         private const val CHANNEL_NAME = "데이터 수집"
         private const val WAKELOCK_TAG = "EtfMonitor:DataCollectionWakeLock"
-        private const val WAKELOCK_TIMEOUT_MS = 30 * 60 * 1000L  // 30 minutes max
+        private const val WAKELOCK_TIMEOUT_MS = 180 * 60 * 1000L  // 3 hours max (FearGreed 90d + Oscillator 365d)
 
         const val ACTION_INITIALIZE = "action_initialize"
         const val ACTION_INITIALIZE_ALL = "action_initialize_all"

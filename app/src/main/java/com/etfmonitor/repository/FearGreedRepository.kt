@@ -11,19 +11,38 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.etfmonitor.database.EtfDao
+import com.etfmonitor.database.entities.Setting
 
 @Singleton
 class FearGreedRepository @Inject constructor(
     private val fearGreedDao: FearGreedDao,
+    private val etfDao: EtfDao,
     private val python: Python
 ) {
     companion object {
         private val logger = AppLogger.getLogger("FearGreedRepo")
         private const val DATA_EXPIRY_HOURS = 12 // 12시간 후 데이터 만료
+        private const val KEY_DIALOG_DISMISSED = "fear_greed_dialog_dismissed"
+    }
+
+    /**
+     * 다이얼로그 닫힘 상태 확인
+     */
+    suspend fun isDialogDismissed(): Boolean = withContext(Dispatchers.IO) {
+        etfDao.getSetting(KEY_DIALOG_DISMISSED) == "true"
+    }
+
+    /**
+     * 다이얼로그 닫힘 상태 저장
+     */
+    suspend fun saveDialogDismissed() = withContext(Dispatchers.IO) {
+        etfDao.saveSetting(Setting(KEY_DIALOG_DISMISSED, "true"))
     }
 
     fun getAllByMarket(market: String): Flow<List<FearGreedIndex>> =
@@ -35,14 +54,21 @@ class FearGreedRepository @Inject constructor(
     fun getByMarketAndDateRange(market: String, startDate: String, endDate: String): Flow<List<FearGreedIndex>> =
         fearGreedDao.getByMarketAndDateRange(market, startDate, endDate).flowOn(Dispatchers.IO)
 
-    suspend fun getByMarketAndDate(market: String, date: String): FearGreedIndex? =
+    suspend fun getByMarketAndDate(market: String, date: String): FearGreedIndex? = withContext(Dispatchers.IO) {
         fearGreedDao.getByMarketAndDate(market, date)
+    }
 
-    suspend fun getCountByMarket(market: String): Int = fearGreedDao.getCountByMarket(market)
+    suspend fun getCountByMarket(market: String): Int = withContext(Dispatchers.IO) {
+        fearGreedDao.getCountByMarket(market)
+    }
 
-    suspend fun getLatestDate(market: String): String? = fearGreedDao.getLatestDate(market)
+    suspend fun getLatestDate(market: String): String? = withContext(Dispatchers.IO) {
+        fearGreedDao.getLatestDate(market)
+    }
 
-    suspend fun getLastUpdateTime(market: String): Long? = fearGreedDao.getLastUpdateTime(market)
+    suspend fun getLastUpdateTime(market: String): Long? = withContext(Dispatchers.IO) {
+        fearGreedDao.getLastUpdateTime(market)
+    }
 
     /**
      * Fear & Greed Index 데이터 초기화 (지정된 기간 동안의 데이터 수집)
@@ -172,7 +198,9 @@ class FearGreedRepository @Inject constructor(
                     return@withContext emptyList()
                 }
 
-                val dfObject = combineFunc.call(startDate, endDate)
+                val dfObject = withTimeout(60_000L) {
+                    combineFunc.call(startDate, endDate)
+                }
                 if (dfObject == null || dfObject.toString() == "None") {
                     logger.e( "Failed to get combined data from Python (returned None)")
                     return@withContext emptyList()
@@ -188,7 +216,9 @@ class FearGreedRepository @Inject constructor(
                     return@withContext emptyList()
                 }
 
-                val result = analyzeFunc.call(dfObject)
+                val result = withTimeout(60_000L) {
+                    analyzeFunc.call(dfObject)
+                }
                 if (result == null) {
                     logger.e( "analyze function returned null")
                     return@withContext emptyList()

@@ -48,7 +48,7 @@ class MarketOscillatorUpdateWorker @AssistedInject constructor(
                 val error = kospiResult.exceptionOrNull() ?: kosdaqResult.exceptionOrNull()
                 error?.let { logger.e("Failed to update market oscillator data: ${it.message}", it) }
                     ?: logger.e("Failed to update market oscillator data: unknown error")
-                Result.retry()
+                if (runAttemptCount < 3) Result.retry() else Result.failure()
             }
         } catch (e: Exception) {
             logger.e("Error in MarketOscillatorUpdateWorker", e)

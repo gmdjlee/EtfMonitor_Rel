@@ -232,8 +232,12 @@ class ClaudeApiClient @Inject constructor(
      */
     override suspend fun testApiKey(): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
+            val apiKey = apiKeyProvider.getApiKey(AIProvider.CLAUDE)
+            if (apiKey.isNullOrBlank()) {
+                return@withContext Result.failure(ApiAuthenticationException("Claude"))
+            }
             val testPrompt = "Hello, please respond with 'OK'"
-            val response = callClaudeApi(apiKeyProvider.getApiKey(AIProvider.CLAUDE) ?: "", testPrompt, 0.0)
+            val response = callClaudeApi(apiKey, testPrompt, 0.0)
             Result.success(response.isNotBlank())
         } catch (e: Exception) {
             logger.e("API key test failed", e)

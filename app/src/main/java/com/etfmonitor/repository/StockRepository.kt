@@ -46,11 +46,17 @@ class StockRepository @Inject constructor(
         stockDao.getStockName(ticker) ?: ticker
     }
 
-    suspend fun getStockCount(): Int = stockDao.getCount()
+    suspend fun getStockCount(): Int = withContext(Dispatchers.IO) {
+        stockDao.getCount()
+    }
 
-    suspend fun getEtfHoldingCount(): Int = stockDao.getEtfHoldingCount()
+    suspend fun getEtfHoldingCount(): Int = withContext(Dispatchers.IO) {
+        stockDao.getEtfHoldingCount()
+    }
 
-    suspend fun getLastUpdateTime(): Long? = stockDao.getLastUpdateTime()
+    suspend fun getLastUpdateTime(): Long? = withContext(Dispatchers.IO) {
+        stockDao.getLastUpdateTime()
+    }
 
     // ========== ETF 보유 종목 동기화 ==========
 
