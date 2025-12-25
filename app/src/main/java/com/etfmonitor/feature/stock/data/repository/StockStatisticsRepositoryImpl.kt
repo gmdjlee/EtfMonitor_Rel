@@ -7,6 +7,8 @@ import com.etfmonitor.feature.stock.data.mapper.StockMapper.toCashDepositDomain
 import com.etfmonitor.feature.stock.data.mapper.StockMapper.toSearchResultDomain
 import com.etfmonitor.feature.stock.domain.model.CashDepositTrend
 import com.etfmonitor.feature.stock.domain.model.EtfDetail
+import com.etfmonitor.feature.stock.domain.model.StockAggregatedTrend
+import com.etfmonitor.feature.stock.domain.model.StockAggregatedTimePoint
 import com.etfmonitor.feature.stock.domain.model.StockAmountRanking
 import com.etfmonitor.feature.stock.domain.model.StockAnalysisResult
 import com.etfmonitor.feature.stock.domain.model.StockChangeInfo
@@ -130,5 +132,28 @@ class StockStatisticsRepositoryImpl @Inject constructor(
 
     override suspend fun getCashDepositTrend(): List<CashDepositTrend> = withContext(Dispatchers.IO) {
         localDataSource.getCashDepositTrend().toCashDepositDomain()
+    }
+
+    // ========== 종목 통합 추이 ==========
+
+    override suspend fun getStockAggregatedTrend(stockTicker: String): StockAggregatedTrend? = withContext(Dispatchers.IO) {
+        val timeSeries = localDataSource.getStockAggregatedTrend(stockTicker)
+        if (timeSeries.isEmpty()) return@withContext null
+
+        val stockName = localDataSource.getStockName(stockTicker) ?: stockTicker
+
+        StockAggregatedTrend(
+            stockTicker = stockTicker,
+            stockName = stockName,
+            timeSeries = timeSeries.map { entity ->
+                StockAggregatedTimePoint(
+                    date = entity.date,
+                    totalAmount = entity.totalAmount,
+                    etfCount = entity.etfCount,
+                    maxWeight = entity.maxWeight,
+                    avgWeight = entity.avgWeight
+                )
+            }
+        )
     }
 }

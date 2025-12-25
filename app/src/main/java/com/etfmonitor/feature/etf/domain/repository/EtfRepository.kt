@@ -1,6 +1,7 @@
 package com.etfmonitor.feature.etf.domain.repository
 
 import com.etfmonitor.feature.etf.domain.model.ComparisonResult
+import com.etfmonitor.feature.etf.domain.model.DataProgress
 import com.etfmonitor.feature.etf.domain.model.DataStatus
 import com.etfmonitor.feature.etf.domain.model.Etf
 import kotlinx.coroutines.flow.Flow
@@ -76,4 +77,100 @@ interface EtfRepository {
      * @return 비교 결과 또는 null (데이터가 없는 경우)
      */
     suspend fun getComparison(etfTicker: String): ComparisonResult?
+
+    // ========== Data Collection ==========
+
+    /**
+     * 초기 데이터 수집
+     *
+     * 지정된 일수만큼의 영업일에 대해 ETF 데이터를 수집합니다.
+     *
+     * @param days 수집할 영업일 수 (기본값: 25일)
+     * @return 진행 상태 Flow
+     */
+    fun initializeData(days: Int = 25): Flow<DataProgress>
+
+    /**
+     * 데이터 업데이트
+     *
+     * 마지막 수집일 이후의 새로운 영업일 데이터만 수집합니다.
+     *
+     * @return 진행 상태 Flow
+     */
+    fun updateData(): Flow<DataProgress>
+
+    /**
+     * 데이터베이스 초기화
+     *
+     * 모든 ETF 및 Holdings 데이터를 삭제합니다.
+     */
+    suspend fun resetDatabase()
+
+    /**
+     * 지정 기간 외의 데이터 삭제
+     *
+     * 새 기간의 시작일 이전 데이터만 삭제하여:
+     * - 기존 기간 내 데이터는 유지
+     * - initializeData() 호출 시 빈 날짜만 수집
+     *
+     * @param days 유지할 기간 (일)
+     * @return 삭제된 날짜 수
+     */
+    suspend fun trimDataToPeriod(days: Int): Int
+
+    /**
+     * 기본 수집 일수 조회
+     *
+     * @return 기본 수집 일수
+     */
+    suspend fun getDefaultDays(): Int
+
+    /**
+     * 기본 수집 일수 설정
+     *
+     * @param days 기본 수집 일수
+     */
+    suspend fun setDefaultDays(days: Int)
+
+    /**
+     * 테마 키워드 목록 조회
+     *
+     * @return 테마 키워드 목록
+     */
+    suspend fun getThemes(): List<String>
+
+    /**
+     * 테마 키워드 추가
+     *
+     * @param theme 추가할 테마
+     */
+    suspend fun addTheme(theme: String)
+
+    /**
+     * 테마 키워드 삭제
+     *
+     * @param theme 삭제할 테마
+     */
+    suspend fun removeTheme(theme: String)
+
+    /**
+     * 제외 키워드 목록 조회
+     *
+     * @return 제외 키워드 목록
+     */
+    suspend fun getExclusions(): List<String>
+
+    /**
+     * 제외 키워드 추가
+     *
+     * @param keyword 추가할 키워드
+     */
+    suspend fun addExclusion(keyword: String)
+
+    /**
+     * 제외 키워드 삭제
+     *
+     * @param keyword 삭제할 키워드
+     */
+    suspend fun removeExclusion(keyword: String)
 }

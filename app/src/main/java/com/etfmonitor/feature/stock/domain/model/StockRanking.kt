@@ -96,3 +96,37 @@ data class CashDepositTrend(
     val totalAmount: Float,
     val etfCount: Int
 )
+
+/**
+ * Stock Aggregated Trend Domain Model
+ *
+ * 특정 종목의 일별 통합 추이 데이터입니다.
+ *
+ * @property stockTicker 종목코드
+ * @property stockName 종목명
+ * @property timeSeries 시계열 데이터
+ */
+data class StockAggregatedTrend(
+    val stockTicker: String,
+    val stockName: String,
+    val timeSeries: List<StockAggregatedTimePoint>
+)
+
+/**
+ * Stock Aggregated Time Point Domain Model
+ *
+ * 특정 날짜의 종목 통합 데이터입니다.
+ *
+ * @property date 날짜
+ * @property totalAmount 총 평가금액
+ * @property etfCount 보유 ETF 수
+ * @property maxWeight 최대 비중 (%)
+ * @property avgWeight 평균 비중 (%)
+ */
+data class StockAggregatedTimePoint(
+    val date: String,
+    val totalAmount: Float,
+    val etfCount: Int,
+    val maxWeight: Float,
+    val avgWeight: Float
+)

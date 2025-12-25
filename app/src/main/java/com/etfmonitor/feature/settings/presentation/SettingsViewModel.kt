@@ -11,8 +11,9 @@ import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
 import com.etfmonitor.feature.market.domain.repository.MarketIndexRepository
 import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
+import com.etfmonitor.feature.etf.domain.model.DataProgress
+import com.etfmonitor.feature.etf.domain.repository.EtfRepository
 import com.etfmonitor.repository.AIAnalysisRepository
-import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.repository.StockRepository
 import com.etfmonitor.core.ui.theme.ChartColorSettings
 import com.etfmonitor.core.ui.theme.FontScaleSettings
@@ -111,7 +112,7 @@ enum class ColorProperty { LINE1, LINE2, TEXT, LEGEND, POSITIVE, NEGATIVE }
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val repository: DataRepository,
+    private val etfRepository: EtfRepository,
     private val stockRepository: StockRepository,
     private val marketDepositRepository: MarketDepositRepository,
     private val fearGreedRepository: FearGreedRepository,
@@ -271,9 +272,9 @@ class SettingsViewModel @Inject constructor(
     }
 
     private suspend fun loadBasicSettings() {
-        _themes.value = repository.getThemes()
-        _exclusions.value = repository.getExclusions()
-        _defaultDays.value = repository.getDefaultDays()
+        _themes.value = etfRepository.getThemes()
+        _exclusions.value = etfRepository.getExclusions()
+        _defaultDays.value = etfRepository.getDefaultDays()
         _searchHistoryLimit.value = etfDao.getSetting(Keys.SEARCH_HISTORY_LIMIT)?.toIntOrNull() ?: 15
         _fearGreedPeriodDays.value = etfDao.getSetting(Keys.FEAR_GREED_PERIOD)?.toIntOrNull() ?: 365
         _marketOscillatorPeriodDays.value = etfDao.getSetting(Keys.OSCILLATOR_PERIOD)?.toIntOrNull() ?: 365
@@ -463,28 +464,28 @@ class SettingsViewModel @Inject constructor(
     fun setDefaultDays(days: Int, reinitialize: Boolean = false) {
         viewModelScope.launch {
             try {
-                repository.setDefaultDays(days)
+                etfRepository.setDefaultDays(days)
                 _defaultDays.value = days
 
                 if (reinitialize) {
                     _etfUpdateSettings.value = _etfUpdateSettings.value.copy(isUpdating = true)
                     _message.value = "기간 외 데이터 정리 중..."
-                    val deletedCount = repository.trimDataToPeriod(days)
+                    val deletedCount = etfRepository.trimDataToPeriod(days)
                     if (deletedCount > 0) {
                         _message.value = "기간 외 데이터 ${deletedCount}일치 삭제됨, 수집 중..."
                     } else {
                         _message.value = "ETF 데이터 수집 중..."
                     }
-                    repository.initializeData(days).collect { progress ->
+                    etfRepository.initializeData(days).collect { progress ->
                         when (progress) {
-                            is com.etfmonitor.repository.DataProgress.Loading -> {
+                            is DataProgress.Loading -> {
                                 _message.value = progress.message
                             }
-                            is com.etfmonitor.repository.DataProgress.Success -> {
+                            is DataProgress.Success -> {
                                 loadDataInfo()
                                 _message.value = "기본 수집 기간이 ${days}일로 설정되었습니다 (재수집 완료)"
                             }
-                            is com.etfmonitor.repository.DataProgress.Error -> {
+                            is DataProgress.Error -> {
                                 _message.value = "재수집 실패: ${progress.message}"
                             }
                         }
@@ -503,30 +504,30 @@ class SettingsViewModel @Inject constructor(
     fun addTheme(theme: String) {
         if (theme.isBlank()) { _message.value = "키워드를 입력하세요"; return }
         saveSetting("테마 추가됨: $theme") {
-            repository.addTheme(theme)
-            _themes.value = repository.getThemes()
+            etfRepository.addTheme(theme)
+            _themes.value = etfRepository.getThemes()
         }
     }
 
     fun removeTheme(theme: String) = saveSetting("테마 제거됨: $theme") {
-        repository.removeTheme(theme)
-        _themes.value = repository.getThemes()
+        etfRepository.removeTheme(theme)
+        _themes.value = etfRepository.getThemes()
     }
 
     fun addExclusion(keyword: String) {
         if (keyword.isBlank()) { _message.value = "키워드를 입력하세요"; return }
         saveSetting("제외 키워드 추가됨: $keyword") {
-            repository.addExclusion(keyword)
-            _exclusions.value = repository.getExclusions()
+            etfRepository.addExclusion(keyword)
+            _exclusions.value = etfRepository.getExclusions()
         }
     }
 
     fun removeExclusion(keyword: String) = saveSetting("제외 키워드 제거됨: $keyword") {
-        repository.removeExclusion(keyword)
-        _exclusions.value = repository.getExclusions()
+        etfRepository.removeExclusion(keyword)
+        _exclusions.value = etfRepository.getExclusions()
     }
 
-    fun resetDatabase() = saveSetting("데이터베이스가 초기화되었습니다") { repository.resetDatabase() }
+    fun resetDatabase() = saveSetting("데이터베이스가 초기화되었습니다") { etfRepository.resetDatabase() }
 
     fun setSearchHistoryLimit(limit: Int) = saveSetting("검색 히스토리가 최대 ${limit}개로 설정되었습니다") {
         etfDao.saveSetting(Setting(Keys.SEARCH_HISTORY_LIMIT, limit.toString()))
@@ -855,16 +856,16 @@ class SettingsViewModel @Inject constructor(
             _message.value = "ETF 데이터 업데이트 중..."
             try {
                 // Flow 기반 업데이트로 진행 상황 추적
-                repository.updateData().collect { progress ->
+                etfRepository.updateData().collect { progress ->
                     when (progress) {
-                        is com.etfmonitor.repository.DataProgress.Loading -> {
+                        is DataProgress.Loading -> {
                             _message.value = progress.message
                         }
-                        is com.etfmonitor.repository.DataProgress.Success -> {
+                        is DataProgress.Success -> {
                             loadDataInfo()
                             _message.value = progress.message
                         }
-                        is com.etfmonitor.repository.DataProgress.Error -> {
+                        is DataProgress.Error -> {
                             _message.value = progress.message
                         }
                     }

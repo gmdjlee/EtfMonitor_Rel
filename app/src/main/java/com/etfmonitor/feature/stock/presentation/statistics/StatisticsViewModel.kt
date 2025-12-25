@@ -2,15 +2,16 @@ package com.etfmonitor.feature.stock.presentation.statistics
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.core.database.entities.CashDepositTrend
 import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.core.database.entities.SearchHistoryType
 import com.etfmonitor.core.database.entities.Stock
-import com.etfmonitor.core.database.entities.StockAmountRanking
-import com.etfmonitor.core.database.entities.StockAnalysisResult
-import com.etfmonitor.core.database.entities.StockChangeInfo
 import com.etfmonitor.core.database.SearchHistoryDao
-import com.etfmonitor.repository.DataRepository
+import com.etfmonitor.feature.stock.domain.model.CashDepositTrend
+import com.etfmonitor.feature.stock.domain.model.StockAmountRanking
+import com.etfmonitor.feature.stock.domain.model.StockAnalysisResult
+import com.etfmonitor.feature.stock.domain.model.StockChangeInfo
+import com.etfmonitor.feature.stock.domain.repository.StockSearchResult
+import com.etfmonitor.feature.stock.domain.repository.StockStatisticsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,7 +34,7 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class StatisticsViewModel @Inject constructor(
-    private val repository: DataRepository,
+    private val repository: StockStatisticsRepository,
     private val etfDao: com.etfmonitor.core.database.EtfDao,
     private val searchHistoryDao: SearchHistoryDao
 ) : ViewModel() {
@@ -83,8 +84,8 @@ class StatisticsViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    private val _searchResults = MutableStateFlow<List<com.etfmonitor.core.database.StockSearchResult>>(emptyList())
-    val searchResults: StateFlow<List<com.etfmonitor.core.database.StockSearchResult>> = _searchResults.asStateFlow()
+    private val _searchResults = MutableStateFlow<List<StockSearchResult>>(emptyList())
+    val searchResults: StateFlow<List<StockSearchResult>> = _searchResults.asStateFlow()
 
     private val _analysisResult = MutableStateFlow<StockAnalysisResult?>(null)
     val analysisResult: StateFlow<StockAnalysisResult?> = _analysisResult.asStateFlow()

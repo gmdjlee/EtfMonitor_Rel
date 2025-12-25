@@ -1,6 +1,7 @@
 package com.etfmonitor.feature.stock.domain.repository
 
 import com.etfmonitor.feature.stock.domain.model.CashDepositTrend
+import com.etfmonitor.feature.stock.domain.model.StockAggregatedTrend
 import com.etfmonitor.feature.stock.domain.model.StockAmountRanking
 import com.etfmonitor.feature.stock.domain.model.StockAnalysisResult
 import com.etfmonitor.feature.stock.domain.model.StockChangeInfo
@@ -96,6 +97,16 @@ interface StockStatisticsRepository {
      * @return 원화예금 추이 목록
      */
     suspend fun getCashDepositTrend(): List<CashDepositTrend>
+
+    // ========== 종목 통합 추이 ==========
+
+    /**
+     * 종목 통합 추이 조회
+     *
+     * @param stockTicker 종목코드
+     * @return 종목 통합 추이 또는 null
+     */
+    suspend fun getStockAggregatedTrend(stockTicker: String): StockAggregatedTrend?
 }
 
 /**

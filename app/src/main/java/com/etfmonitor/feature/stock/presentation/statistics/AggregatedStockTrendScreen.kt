@@ -20,9 +20,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.etfmonitor.R
-import com.etfmonitor.core.database.entities.StockAggregatedTimePoint
-import com.etfmonitor.core.database.entities.StockAggregatedTrend
-import com.etfmonitor.repository.DataRepository
+import com.etfmonitor.feature.stock.domain.model.StockAggregatedTimePoint
+import com.etfmonitor.feature.stock.domain.model.StockAggregatedTrend
+import com.etfmonitor.feature.stock.domain.repository.StockStatisticsRepository
 import com.etfmonitor.core.common.util.AmountFormatter
 import com.etfmonitor.core.ui.component.ChartCard
 import dagger.assisted.Assisted
@@ -383,7 +383,7 @@ private fun AggregatedDataTable(timeSeries: List<StockAggregatedTimePoint>) {
  */
 class AggregatedStockTrendViewModel @AssistedInject constructor(
     @Assisted val stockTicker: String,
-    private val repository: DataRepository,
+    private val stockStatisticsRepository: StockStatisticsRepository,
     private val etfDao: com.etfmonitor.core.database.EtfDao,
     val pyClient: com.etfmonitor.core.network.python.OscillatorPyClient
 ) : ViewModel() {
@@ -421,7 +421,7 @@ class AggregatedStockTrendViewModel @AssistedInject constructor(
     private fun loadTrend() {
         viewModelScope.launch {
             try {
-                val trend = repository.getStockAggregatedTrend(stockTicker)
+                val trend = stockStatisticsRepository.getStockAggregatedTrend(stockTicker)
                 _state.value = if (trend != null) {
                     AggregatedTrendState.Success(trend)
                 } else {
