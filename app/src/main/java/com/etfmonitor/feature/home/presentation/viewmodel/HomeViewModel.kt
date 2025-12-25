@@ -262,11 +262,15 @@ class HomeViewModel @Inject constructor(
     fun initialize(days: Int? = null) {
         viewModelScope.launch {
             val daysToUse = days ?: getDefaultDaysUseCase()
+            // Race condition 방지: Service 시작 전에 CollectionState 먼저 설정
+            CollectionState.startCollection(isInitialize = true, initialMessage = "초기화 준비 중...")
             DataCollectionService.startInitialize(context, daysToUse)
         }
     }
 
     fun update() {
+        // Race condition 방지: Service 시작 전에 CollectionState 먼저 설정
+        CollectionState.startCollection(isInitialize = false, initialMessage = "업데이트 준비 중...")
         DataCollectionService.startUpdate(context)
     }
 
@@ -290,7 +294,10 @@ class HomeViewModel @Inject constructor(
             saveDialogDismissedUseCase.saveAllDialogsDismissed()
             _showUnifiedInitDialog.value = false
 
-            _state.value = HomeState.Initializing("데이터 수집 시작...", 0)
+            // Race condition 방지: Service 시작 전에 CollectionState 먼저 설정
+            // 이렇게 하면 observeCollectionState()가 isCollecting=true를 감지하여
+            // checkData()로 상태를 Idle로 되돌리지 않음
+            CollectionState.startCollection(isInitialize = true, initialMessage = "통합 초기화 준비 중...")
             DataCollectionService.startInitializeAll(
                 context = context,
                 etfDays = etfDays,
