@@ -63,7 +63,7 @@ import com.etfmonitor.database.entities.StockIndicatorAIResult
         LiquidityAnalysis::class,
         StockIndicatorAIResult::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -725,5 +725,22 @@ val MIGRATION_15_16 = object : Migration(15, 16) {
         database.execSQL("CREATE INDEX IF NOT EXISTS index_stock_indicator_ai_result_ticker ON stock_indicator_ai_result(ticker)")
         database.execSQL("CREATE INDEX IF NOT EXISTS index_stock_indicator_ai_result_ticker_date ON stock_indicator_ai_result(ticker, analysisDate)")
         database.execSQL("CREATE INDEX IF NOT EXISTS index_stock_indicator_ai_result_createdAt ON stock_indicator_ai_result(createdAt)")
+    }
+}
+
+/**
+ * Migration from version 16 to 17: Add historyType to SearchHistory
+ * 검색 히스토리 유형 필드 추가 (메뉴별 분리 저장)
+ */
+val MIGRATION_16_17 = object : Migration(16, 17) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // 1. historyType 컬럼 추가 (기본값: STATISTICS)
+        database.execSQL(
+            "ALTER TABLE search_history ADD COLUMN historyType TEXT NOT NULL DEFAULT 'STATISTICS'"
+        )
+
+        // 2. 인덱스 생성
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_search_history_historyType ON search_history(historyType)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_search_history_historyType_searchedAt ON search_history(historyType, searchedAt)")
     }
 }

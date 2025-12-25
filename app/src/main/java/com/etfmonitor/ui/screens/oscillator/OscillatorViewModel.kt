@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.etfmonitor.database.EtfDao
 import com.etfmonitor.database.SearchHistoryDao
 import com.etfmonitor.database.entities.SearchHistory
+import com.etfmonitor.database.entities.SearchHistoryType
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.oscillator.calculator.OscillatorCalculator
 import com.etfmonitor.oscillator.calculator.TrendSignalCalculator
@@ -110,7 +111,7 @@ class OscillatorViewModel @Inject constructor(
     }
 
     /**
-     * 검색 히스토리 로드
+     * 검색 히스토리 로드 - STOCK 타입만
      */
     private fun loadSearchHistory() {
         viewModelScope.launch {
@@ -119,7 +120,7 @@ class OscillatorViewModel @Inject constructor(
                 val limitStr = etfDao.getSetting("search_history_limit")
                 val limit = limitStr?.toIntOrNull() ?: 15
 
-                searchHistoryDao.getRecentSearches(limit).collect { history ->
+                searchHistoryDao.getRecentSearchesByType(SearchHistoryType.STOCK, limit).collect { history ->
                     _searchHistory.value = history
                 }
             } catch (e: CancellationException) {
@@ -132,27 +133,28 @@ class OscillatorViewModel @Inject constructor(
     }
 
     /**
-     * 검색 히스토리에 저장
+     * 검색 히스토리에 저장 - STOCK 타입으로
      */
     private suspend fun saveToHistory(ticker: String, name: String, market: String) {
         try {
             val limitStr = etfDao.getSetting("search_history_limit")
             val limit = limitStr?.toIntOrNull() ?: 15
 
-            // 기존 동일 종목 삭제 (중복 방지)
-            searchHistoryDao.deleteByTicker(ticker)
+            // 기존 동일 종목 + 타입 삭제 (중복 방지)
+            searchHistoryDao.deleteByTickerAndType(ticker, SearchHistoryType.STOCK)
 
             // 새 히스토리 추가
             searchHistoryDao.insertSearch(
                 SearchHistory(
                     ticker = ticker,
                     name = name,
-                    market = market
+                    market = market,
+                    historyType = SearchHistoryType.STOCK
                 )
             )
 
-            // 오래된 히스토리 삭제 (limit 개수 초과분)
-            searchHistoryDao.deleteOldSearches(limit)
+            // 오래된 히스토리 삭제 (limit 개수 초과분) - STOCK 타입만
+            searchHistoryDao.deleteOldSearchesByType(SearchHistoryType.STOCK, limit)
 
         } catch (e: Exception) {
             android.util.Log.e("OscillatorViewModel", "Error saving search history", e)

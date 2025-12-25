@@ -13,6 +13,7 @@ import com.etfmonitor.database.entities.AIChatSession
 import com.etfmonitor.database.entities.AIAnalysisResult
 import com.etfmonitor.database.entities.CorrelationAnalysisResult
 import com.etfmonitor.database.entities.SearchHistory
+import com.etfmonitor.database.entities.SearchHistoryType
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.StockIndicatorAIResult
 import com.etfmonitor.database.SearchHistoryDao
@@ -125,8 +126,10 @@ class NewAIAnalysisViewModel @Inject constructor(
     val allStockIndicatorAIHistory: Flow<List<StockIndicatorAIResult>> =
         timeSeriesAnalysisRepository.getAllStockIndicatorAIHistory(50)
 
-    // 검색 히스토리 (최근 20개)
-    val searchHistory: Flow<List<SearchHistory>> = searchHistoryDao.getRecentSearches(20)
+    // 검색 히스토리 (최근 20개) - AI_ANALYSIS 타입만
+    val searchHistory: Flow<List<SearchHistory>> = searchHistoryDao.getRecentSearchesByType(
+        SearchHistoryType.AI_ANALYSIS, 20
+    )
 
     init {
         checkApiKey()
@@ -398,7 +401,7 @@ class NewAIAnalysisViewModel @Inject constructor(
         _selectedStock.value = Pair(ticker, name)
         _stockSearchResults.value = emptyList()
 
-        // 검색 히스토리에 저장
+        // 검색 히스토리에 저장 - AI_ANALYSIS 타입으로
         viewModelScope.launch {
             try {
                 val market = Stock.inferMarket(ticker)
@@ -406,11 +409,12 @@ class NewAIAnalysisViewModel @Inject constructor(
                     SearchHistory(
                         ticker = ticker,
                         name = name,
-                        market = market
+                        market = market,
+                        historyType = SearchHistoryType.AI_ANALYSIS
                     )
                 )
-                // 오래된 히스토리 정리 (최대 20개 유지)
-                searchHistoryDao.deleteOldSearches(20)
+                // 오래된 히스토리 정리 (최대 20개 유지) - AI_ANALYSIS 타입만
+                searchHistoryDao.deleteOldSearchesByType(SearchHistoryType.AI_ANALYSIS, 20)
             } catch (e: Exception) {
                 // 히스토리 저장 실패 무시
             }
