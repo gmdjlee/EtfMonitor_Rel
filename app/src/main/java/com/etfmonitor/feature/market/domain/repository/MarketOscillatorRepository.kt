@@ -64,4 +64,14 @@ interface MarketOscillatorRepository {
      * 모든 데이터 삭제
      */
     suspend fun deleteAll()
+
+    /**
+     * 다이얼로그 닫힘 상태 확인
+     */
+    suspend fun isDialogDismissed(): Boolean
+
+    /**
+     * 다이얼로그 닫힘 상태 저장
+     */
+    suspend fun saveDialogDismissed()
 }

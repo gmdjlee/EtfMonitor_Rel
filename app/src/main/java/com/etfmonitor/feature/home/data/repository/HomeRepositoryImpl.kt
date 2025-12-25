@@ -5,10 +5,10 @@ import com.etfmonitor.core.database.entities.Setting
 import com.etfmonitor.feature.home.domain.model.DataStatus
 import com.etfmonitor.feature.home.domain.model.HomeSummary
 import com.etfmonitor.feature.home.domain.repository.HomeRepository
+import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
+import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
+import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
 import com.etfmonitor.repository.DataRepository
-import com.etfmonitor.repository.FearGreedRepository
-import com.etfmonitor.repository.MarketDepositRepository
-import com.etfmonitor.repository.MarketOscillatorRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
