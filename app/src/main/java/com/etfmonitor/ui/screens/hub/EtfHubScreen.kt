@@ -36,11 +36,11 @@ import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.core.ui.component.TabNavigationBar
 import com.etfmonitor.feature.etf.presentation.list.EtfListViewModel
 import com.etfmonitor.feature.etf.presentation.list.EtfListState
-import com.etfmonitor.ui.screens.statistics.StatisticsViewModel
-import com.etfmonitor.ui.screens.statistics.AmountRankingTab
-import com.etfmonitor.ui.screens.statistics.StockChangeTab
-import com.etfmonitor.ui.screens.statistics.CashDepositTrendTab
-import com.etfmonitor.ui.screens.statistics.StockAnalysisTab
+import com.etfmonitor.feature.stock.presentation.statistics.StatisticsViewModel
+import com.etfmonitor.feature.stock.presentation.statistics.AmountRankingTab
+import com.etfmonitor.feature.stock.presentation.statistics.StockChangeTab
+import com.etfmonitor.feature.stock.presentation.statistics.CashDepositTrendTab
+import com.etfmonitor.feature.stock.presentation.statistics.StockAnalysisTab
 import kotlinx.coroutines.launch
 
 /**

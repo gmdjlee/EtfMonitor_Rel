@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.oscillator
+package com.etfmonitor.feature.stock.presentation.oscillator
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

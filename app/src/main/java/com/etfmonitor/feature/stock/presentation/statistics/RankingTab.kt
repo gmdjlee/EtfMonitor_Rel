@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.statistics
+package com.etfmonitor.feature.stock.presentation.statistics
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.statistics
+package com.etfmonitor.feature.stock.presentation.statistics
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState

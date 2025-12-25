@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.hub
+package com.etfmonitor.feature.stock.presentation.hub
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,7 +32,7 @@ import com.etfmonitor.core.ui.component.TrendSignalChart
 import com.etfmonitor.core.ui.component.ElderImpulseChart
 import com.etfmonitor.core.ui.component.DemarkTDChart
 import com.etfmonitor.core.database.entities.SearchHistory
-import com.etfmonitor.ui.screens.oscillator.OscillatorViewModel
+import com.etfmonitor.feature.stock.presentation.oscillator.OscillatorViewModel
 import com.etfmonitor.ui.screens.oscillator.OscillatorState
 import com.etfmonitor.core.ui.component.StockSearchItem
 import com.etfmonitor.core.ui.component.UnifiedStockSearchField

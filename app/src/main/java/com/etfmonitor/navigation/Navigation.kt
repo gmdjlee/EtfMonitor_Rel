@@ -17,9 +17,9 @@ import com.etfmonitor.feature.etf.presentation.detail.EtfDetailScreen
 import com.etfmonitor.feature.home.presentation.screen.HomeScreen
 import com.etfmonitor.feature.etf.presentation.list.EtfListScreen
 import com.etfmonitor.ui.screens.settings.SettingsScreen
-import com.etfmonitor.ui.screens.statistics.AggregatedStockTrendScreen
+import com.etfmonitor.feature.stock.presentation.statistics.AggregatedStockTrendScreen
 import com.etfmonitor.feature.stock.presentation.trend.StockTrendScreen
-import com.etfmonitor.ui.screens.oscillator.OscillatorScreen
+import com.etfmonitor.feature.stock.presentation.oscillator.OscillatorScreen
 import com.etfmonitor.feature.market.presentation.deposit.MarketDepositScreen
 import com.etfmonitor.feature.market.presentation.feargreed.FearGreedScreen
 import com.etfmonitor.feature.market.presentation.oscillator.MarketOscillatorScreen
@@ -27,7 +27,7 @@ import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisScreen
 import com.etfmonitor.ui.screens.advanced.AdvancedDashboardScreen
 import com.etfmonitor.feature.market.presentation.hub.MarketIndicatorHubScreen
 import com.etfmonitor.ui.screens.hub.EtfHubScreen
-import com.etfmonitor.ui.screens.hub.StocksHubScreen
+import com.etfmonitor.feature.stock.presentation.hub.StocksHubScreen
 import com.etfmonitor.ui.screens.hub.AnalysisHubScreen
 
 sealed class Screen(val route: String) {
