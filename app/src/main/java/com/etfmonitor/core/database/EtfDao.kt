@@ -15,6 +15,9 @@ interface EtfDao {
     @Query("SELECT * FROM etfs ORDER BY name")
     fun getAllEtfs(): Flow<List<Etf>>
 
+    @Query("SELECT * FROM etfs ORDER BY name")
+    suspend fun getAllEtfsSuspend(): List<Etf>
+
     @Query("SELECT * FROM etfs WHERE name LIKE '%' || :query || '%' ORDER BY name")
     fun searchEtfs(query: String): Flow<List<Etf>>
 

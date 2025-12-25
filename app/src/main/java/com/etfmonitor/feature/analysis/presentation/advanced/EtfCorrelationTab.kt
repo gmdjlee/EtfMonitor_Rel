@@ -21,15 +21,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.etfmonitor.R
-import com.etfmonitor.core.database.entities.*
-import kotlinx.serialization.json.Json
+import com.etfmonitor.feature.analysis.domain.model.CommonStock
+import com.etfmonitor.feature.analysis.domain.model.EtfCorrelation
 
 /**
  * Advanced Dashboard Screen - ETF Correlation Tab
  * Contains ETF overlap and correlation analysis with detailed interpretation
  */
-
-private val json = Json { ignoreUnknownKeys = true }
 
 @Composable
 internal fun EtfCorrelationTab(
@@ -150,7 +148,7 @@ internal fun EtfCorrelationTab(
 }
 
 @Composable
-internal fun CorrelationSummaryCard(overlaps: List<EtfCorrelationCache>) {
+internal fun CorrelationSummaryCard(overlaps: List<EtfCorrelation>) {
     val highOverlapCount = overlaps.count { it.overlapRatio > 0.7 }
     val avgOverlap = if (overlaps.isNotEmpty()) overlaps.map { it.overlapRatio }.average() else 0.0
 
@@ -211,7 +209,7 @@ internal fun CorrelationSummaryCard(overlaps: List<EtfCorrelationCache>) {
 }
 
 @Composable
-internal fun EtfCorrelationRowWithInterpretation(pair: EtfCorrelationCache) {
+internal fun EtfCorrelationRowWithInterpretation(pair: EtfCorrelation) {
     var isExpanded by remember { mutableStateOf(false) }
 
     val overlapLevel = when {
@@ -310,7 +308,7 @@ internal fun EtfCorrelationRowWithInterpretation(pair: EtfCorrelationCache) {
                     WeightCorrelationSection(pair.weightCorrelation)
 
                     // 주요 공통 종목
-                    if (pair.topCommonStocks.isNotBlank() && pair.topCommonStocks != "[]") {
+                    if (pair.topCommonStocks.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
                         TopCommonStocksSection(pair)
                     }
@@ -325,7 +323,7 @@ internal fun EtfCorrelationRowWithInterpretation(pair: EtfCorrelationCache) {
 }
 
 @Composable
-private fun InterpretationSection(overlapLevel: OverlapLevel, pair: EtfCorrelationCache) {
+private fun InterpretationSection(overlapLevel: OverlapLevel, pair: EtfCorrelation) {
     val levelLabel = when (overlapLevel) {
         OverlapLevel.VERY_HIGH -> stringResource(R.string.advanced_overlap_very_high)
         OverlapLevel.HIGH -> stringResource(R.string.advanced_overlap_high)
@@ -437,14 +435,8 @@ private fun WeightCorrelationSection(weightCorrelation: Double) {
 }
 
 @Composable
-private fun TopCommonStocksSection(pair: EtfCorrelationCache) {
-    val commonStocks = remember(pair.topCommonStocks) {
-        try {
-            json.decodeFromString<List<CommonStock>>(pair.topCommonStocks)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
+private fun TopCommonStocksSection(pair: EtfCorrelation) {
+    val commonStocks = pair.topCommonStocks
 
     if (commonStocks.isEmpty()) return
 
@@ -551,7 +543,7 @@ private fun InvestmentSuggestionSection(overlapLevel: OverlapLevel) {
 }
 
 @Composable
-internal fun EtfCorrelationRow(pair: EtfCorrelationCache) {
+internal fun EtfCorrelationRow(pair: EtfCorrelation) {
     val overlapColor = when {
         pair.overlapRatio > 0.7 -> Color(0xFFD32F2F)
         pair.overlapRatio > 0.4 -> OrangeAccent

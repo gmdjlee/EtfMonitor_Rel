@@ -15,7 +15,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.etfmonitor.R
-import com.etfmonitor.core.database.entities.*
+import com.etfmonitor.feature.analysis.domain.model.MarketCapSize
+import com.etfmonitor.feature.analysis.domain.model.StockFlow
 
 /**
  * Advanced Dashboard Screen - Market Cap Flow Tab
