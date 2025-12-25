@@ -26,7 +26,7 @@ import com.etfmonitor.feature.market.presentation.oscillator.MarketOscillatorScr
 import com.etfmonitor.feature.analysis.presentation.aianalysis.NewAIAnalysisScreen
 import com.etfmonitor.feature.analysis.presentation.advanced.AdvancedDashboardScreen
 import com.etfmonitor.feature.market.presentation.hub.MarketIndicatorHubScreen
-import com.etfmonitor.ui.screens.hub.EtfHubScreen
+import com.etfmonitor.feature.etf.presentation.hub.EtfHubScreen
 import com.etfmonitor.feature.stock.presentation.hub.StocksHubScreen
 import com.etfmonitor.feature.analysis.presentation.hub.AnalysisHubScreen
 
