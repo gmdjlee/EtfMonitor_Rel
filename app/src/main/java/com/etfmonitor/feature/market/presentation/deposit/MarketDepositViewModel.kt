@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.etfmonitor.core.analysis.model.MarketDepositData as CoreMarketDepositData
 
 sealed class MarketDepositState {
     data object Idle : MarketDepositState()
@@ -61,8 +62,15 @@ class MarketDepositViewModel @Inject constructor(
                     return@launch
                 }
 
-                // 시장 분석
-                val analysis = OscillatorCalculator.analyzeMarketDeposit(marketData)
+                // 시장 분석 - Convert domain model to core model for OscillatorCalculator
+                val coreMarketData = CoreMarketDepositData(
+                    dates = marketData.dates,
+                    depositAmounts = marketData.depositAmounts,
+                    depositChanges = marketData.depositChanges,
+                    creditAmounts = marketData.creditAmounts,
+                    creditChanges = marketData.creditChanges
+                )
+                val analysis = OscillatorCalculator.analyzeMarketDeposit(coreMarketData)
 
                 _state.value = MarketDepositState.Success(
                     data = marketData,

@@ -53,7 +53,14 @@ class StockIndicatorRepositoryImpl @Inject constructor(
         periodDays: Int
     ): Result<FullStockIndicatorAnalysis> = withContext(Dispatchers.IO) {
         timeSeriesHelper.runFullStockIndicatorCorrelationAnalysis(ticker, name, market, periodDays)
-            .map { it.toDomain() }
+            .map { legacyResult ->
+                // Pass through core types directly for UI compatibility
+                FullStockIndicatorAnalysis(
+                    correlationResult = legacyResult.correlationResult,
+                    aiInterpretation = legacyResult.aiInterpretation,
+                    errorMessage = legacyResult.errorMessage
+                )
+            }
     }
 
     override suspend fun interpretStockIndicatorCorrelationsWithAI(
@@ -178,12 +185,6 @@ class StockIndicatorRepositoryImpl @Inject constructor(
         correlationValue = correlation,
         strength = CorrelationStrength.fromValue(correlation),
         description = description
-    )
-
-    private fun LegacyFullResult.toDomain(): FullStockIndicatorAnalysis = FullStockIndicatorAnalysis(
-        correlationResult = correlationResult?.toDomain(),
-        aiInterpretation = aiInterpretation?.toDomain(),
-        errorMessage = errorMessage
     )
 
     private fun LegacyInterpretation.toDomain(): StockIndicatorInterpretation = StockIndicatorInterpretation(

@@ -1,5 +1,8 @@
 package com.etfmonitor.feature.analysis.domain.model
 
+import com.etfmonitor.core.analysis.AIStockIndicatorInterpretation
+import com.etfmonitor.core.analysis.StockIndicatorCorrelationResult
+
 /**
  * AI 채팅 세션 도메인 모델
  */
@@ -137,10 +140,11 @@ data class StockIndicatorInterpretation(
 
 /**
  * 종목-지표 전체 분석 결과
+ * Note: Uses core types directly for UI component compatibility
  */
 data class FullStockIndicatorAnalysis(
-    val correlationResult: StockIndicatorCorrelation?,
-    val aiInterpretation: StockIndicatorInterpretation?,
+    val correlationResult: StockIndicatorCorrelationResult?,
+    val aiInterpretation: AIStockIndicatorInterpretation?,
     val errorMessage: String?
 )
 
