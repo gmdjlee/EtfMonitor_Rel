@@ -61,7 +61,7 @@ fun EtfHubScreen(
     onNavigateToSettings: () -> Unit,
     onEtfClick: (String) -> Unit,
     onStockClick: (String) -> Unit,
-    onNavigateToOscillator: (String) -> Unit,
+    onNavigateToStocks: (String) -> Unit,
     initialStockTicker: String? = null,
     listViewModel: EtfListViewModel = hiltViewModel(),
     statisticsViewModel: StatisticsViewModel = hiltViewModel()
@@ -74,10 +74,10 @@ fun EtfHubScreen(
     )
     val coroutineScope = rememberCoroutineScope()
 
-    // Trigger stock analysis when initialStockTicker is provided
+    // Trigger stock analysis when initialStockTicker is provided (skip history save when navigating via FAB)
     LaunchedEffect(initialStockTicker) {
         if (initialStockTicker != null) {
-            statisticsViewModel.analyzeStock(initialStockTicker)
+            statisticsViewModel.analyzeStock(initialStockTicker, saveHistory = false)
         }
     }
 
@@ -116,7 +116,7 @@ fun EtfHubScreen(
                 1 -> StatisticsHubContent(
                     viewModel = statisticsViewModel,
                     onStockClick = onStockClick,
-                    onNavigateToOscillator = onNavigateToOscillator,
+                    onNavigateToStocks = onNavigateToStocks,
                     initialStockTicker = initialStockTicker
                 )
             }
@@ -350,7 +350,7 @@ private fun EtfListItemCompact(
 private fun StatisticsHubContent(
     viewModel: StatisticsViewModel,
     onStockClick: (String) -> Unit,
-    onNavigateToOscillator: (String) -> Unit,
+    onNavigateToStocks: (String) -> Unit,
     initialStockTicker: String? = null
 ) {
     // ViewModel states
@@ -439,10 +439,10 @@ private fun StatisticsHubContent(
             }
         }
 
-        // Floating Action Button for navigating to chart analysis
+        // Floating Action Button for navigating to stock analysis
         if (showFab && analysisResult != null) {
             ExtendedFloatingActionButton(
-                onClick = { onNavigateToOscillator(analysisResult!!.stockTicker) },
+                onClick = { onNavigateToStocks(analysisResult!!.stockTicker) },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(16.dp),
@@ -452,7 +452,7 @@ private fun StatisticsHubContent(
                     Icon(Icons.Default.ShowChart, contentDescription = null)
                 },
                 text = {
-                    Text(stringResource(R.string.fab_chart_analysis))
+                    Text(stringResource(R.string.fab_stock_analysis))
                 }
             )
         }

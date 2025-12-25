@@ -76,7 +76,7 @@ fun AnalysisHubScreen(
     isDarkTheme: Boolean,
     onToggleTheme: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToOscillator: (String) -> Unit,
+    onNavigateToStocks: (String) -> Unit,
     aiAnalysisViewModel: NewAIAnalysisViewModel = hiltViewModel(),
     advancedDashboardViewModel: AdvancedDashboardViewModel = hiltViewModel()
 ) {
@@ -113,7 +113,7 @@ fun AnalysisHubScreen(
             when (page) {
                 0 -> AIAnalysisHubContent(
                     viewModel = aiAnalysisViewModel,
-                    onNavigateToOscillator = onNavigateToOscillator
+                    onNavigateToStocks = onNavigateToStocks
                 )
                 1 -> AdvancedDashboardHubContent(
                     viewModel = advancedDashboardViewModel,
@@ -128,7 +128,7 @@ fun AnalysisHubScreen(
 @Composable
 private fun AIAnalysisHubContent(
     viewModel: NewAIAnalysisViewModel,
-    onNavigateToOscillator: (String) -> Unit
+    onNavigateToStocks: (String) -> Unit
 ) {
     val state by viewModel.state.collectAsState()
     val selectedMarket by viewModel.selectedMarket.collectAsState()
@@ -288,9 +288,9 @@ private fun AIAnalysisHubContent(
                 // FAB
                 if (showFab && selectedStock != null) {
                     ExtendedFloatingActionButton(
-                        onClick = { onNavigateToOscillator(selectedStock!!.first) },
+                        onClick = { onNavigateToStocks(selectedStock!!.first) },
                         icon = { Icon(Icons.Default.ShowChart, contentDescription = null) },
-                        text = { Text("차트 분석") },
+                        text = { Text(stringResource(R.string.fab_stock_analysis)) },
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier

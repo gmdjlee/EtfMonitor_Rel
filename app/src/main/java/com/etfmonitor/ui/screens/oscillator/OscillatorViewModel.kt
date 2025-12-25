@@ -275,7 +275,7 @@ class OscillatorViewModel @Inject constructor(
         }
     }
 
-    fun analyzeStock(ticker: String, days: Int = 180) {
+    fun analyzeStock(ticker: String, days: Int = 180, saveHistory: Boolean = true) {
         viewModelScope.launch {
             try {
                 _state.value = OscillatorState.Loading
@@ -287,13 +287,15 @@ class OscillatorViewModel @Inject constructor(
                     return@launch
                 }
 
-                // 검색 히스토리에 저장
-                val stock = stockRepository.searchStocks(ticker)
-                    .flowOn(Dispatchers.IO)
-                    .first()
-                    .firstOrNull()
-                if (stock != null) {
-                    saveToHistory(stock.ticker, stock.name, stock.market)
+                // 검색 히스토리에 저장 (FAB 네비게이션 시에는 저장하지 않음)
+                if (saveHistory) {
+                    val stock = stockRepository.searchStocks(ticker)
+                        .flowOn(Dispatchers.IO)
+                        .first()
+                        .firstOrNull()
+                    if (stock != null) {
+                        saveToHistory(stock.ticker, stock.name, stock.market)
+                    }
                 }
 
                 // 오실레이터 계산

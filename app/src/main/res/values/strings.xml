@@ -255,6 +255,7 @@
     <string name="go_to_oscillator_analysis">종목 수급 분석 보기</string>
     <string name="fab_etf_analysis">ETF 편입 분석</string>
     <string name="fab_chart_analysis">차트 분석</string>
+    <string name="fab_stock_analysis">종목 분석</string>
     <string name="quick_chart_analysis_section_title">차트 분석</string>
     <string name="quick_chart_analysis_loading">차트 분석 데이터 로딩 중…</string>
     <string name="quick_chart_analysis_error">차트 분석 데이터를 가져올 수 없습니다</string>
