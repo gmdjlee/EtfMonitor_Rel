@@ -74,9 +74,12 @@ fun EtfHubScreen(
     )
     val coroutineScope = rememberCoroutineScope()
 
-    // Trigger stock analysis when initialStockTicker is provided (skip history save when navigating via FAB)
+    // Trigger stock analysis and navigate to Statistics tab when initialStockTicker is provided
     LaunchedEffect(initialStockTicker) {
         if (initialStockTicker != null) {
+            // Navigate to Statistics tab (page 1)
+            pagerState.scrollToPage(1)
+            // Trigger analysis (skip history save when navigating via FAB)
             statisticsViewModel.analyzeStock(initialStockTicker, saveHistory = false)
         }
     }
@@ -371,6 +374,13 @@ private fun StatisticsHubContent(
 
     // Start on Analysis tab (6) if initialStockTicker is provided
     var selectedTab by remember { mutableIntStateOf(if (initialStockTicker != null) 6 else 0) }
+
+    // Force navigate to Analysis tab (6) when initialStockTicker changes
+    LaunchedEffect(initialStockTicker) {
+        if (initialStockTicker != null) {
+            selectedTab = 6
+        }
+    }
 
     val tabs = listOf(
         stringResource(R.string.statistics_tab_amount_ranking),
