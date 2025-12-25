@@ -40,9 +40,12 @@ import com.etfmonitor.core.analysis.MarketIndicatorType
 import com.etfmonitor.core.analysis.SignalType
 import com.etfmonitor.core.analysis.StockIndicatorCorrelationResult
 import com.etfmonitor.core.analysis.StockMetricType
+import com.etfmonitor.core.ui.component.StockSearchItem
+import com.etfmonitor.core.ui.component.UnifiedStockSearchField
 import com.etfmonitor.database.entities.AIChatMessage
 import com.etfmonitor.database.entities.AIChatSession
 import com.etfmonitor.database.entities.CorrelationAnalysisResult
+import com.etfmonitor.database.entities.SearchHistory
 import com.etfmonitor.database.entities.Stock
 import com.etfmonitor.database.entities.StockIndicatorAIResult
 import com.etfmonitor.repository.FullAnalysisResult
@@ -145,6 +148,7 @@ private fun AIAnalysisHubContent(
     val isSendingMessage by viewModel.isSendingMessage.collectAsState()
     val chatSessions by viewModel.chatSessions.collectAsState(initial = emptyList())
     val stockIndicatorAIHistory by viewModel.stockIndicatorAIHistory.collectAsState(initial = emptyList())
+    val searchHistory by viewModel.searchHistory.collectAsState(initial = emptyList())
     val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
 
     var showProviderDialog by remember { mutableStateOf(false) }
@@ -270,6 +274,7 @@ private fun AIAnalysisHubContent(
                                 stockSearchResults = stockSearchResults,
                                 isSearching = isSearching,
                                 historyCount = stockIndicatorAIHistory.size,
+                                searchHistory = searchHistory,
                                 onPeriodChange = { viewModel.setAnalysisPeriod(it) },
                                 onSearchStock = { viewModel.searchStock(it) },
                                 onSelectStock = { ticker, name -> viewModel.selectStock(ticker, name) },
@@ -823,6 +828,7 @@ private fun HubStockIndicatorCorrelationScreen(
     stockSearchResults: List<Pair<String, String>>,
     isSearching: Boolean,
     historyCount: Int,
+    searchHistory: List<SearchHistory>,
     onPeriodChange: (Int) -> Unit,
     onSearchStock: (String) -> Unit,
     onSelectStock: (String, String) -> Unit,
@@ -861,11 +867,16 @@ private fun HubStockIndicatorCorrelationScreen(
                 isSearching = isSearching,
                 selectedStock = selectedStock,
                 detectedMarket = detectedMarket,
+                searchHistory = searchHistory,
                 onSelectStock = { ticker, name ->
                     onSelectStock(ticker, name)
                     searchQuery = ""
                 },
-                onClearStock = onClearStock
+                onClearStock = onClearStock,
+                onSelectFromHistory = { ticker, name ->
+                    onSelectStock(ticker, name)
+                    searchQuery = ""
+                }
             )
         }
 
@@ -1062,7 +1073,7 @@ private fun HubStockIndicatorCorrelationScreen(
 }
 
 /**
- * 종목 검색 섹션
+ * 종목 검색 섹션 - UnifiedStockSearchField 사용
  */
 @Composable
 private fun HubStockSearchSection(
@@ -1072,8 +1083,10 @@ private fun HubStockSearchSection(
     isSearching: Boolean,
     selectedStock: Pair<String, String>?,
     detectedMarket: String? = null,
+    searchHistory: List<SearchHistory> = emptyList(),
     onSelectStock: (String, String) -> Unit,
-    onClearStock: () -> Unit
+    onClearStock: () -> Unit,
+    onSelectFromHistory: ((String, String) -> Unit)? = null
 ) {
     Column {
         Text(
@@ -1138,49 +1151,19 @@ private fun HubStockSearchSection(
                 }
             }
         } else {
-            // 검색 입력
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("종목명 또는 종목코드 입력") },
-                leadingIcon = {
-                    if (isSearching) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(Icons.Default.Search, contentDescription = null)
-                    }
+            // 통합 검색 필드
+            UnifiedStockSearchField(
+                searchQuery = searchQuery,
+                onSearchQueryChange = onSearchQueryChange,
+                searchResults = searchResults.map { (ticker, name) ->
+                    StockSearchItem(ticker = ticker, name = name, market = "")
                 },
-                singleLine = true
+                searchHistory = searchHistory,
+                isSearching = isSearching,
+                placeholder = "종목명 또는 종목코드 입력",
+                onSelectStock = onSelectStock,
+                onSelectFromHistory = onSelectFromHistory
             )
-
-            // 검색 결과
-            if (searchResults.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Card {
-                    Column(modifier = Modifier.padding(8.dp)) {
-                        searchResults.forEach { (ticker, name) ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onSelectStock(ticker, name) }
-                                    .padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(name, style = MaterialTheme.typography.bodyMedium)
-                                Text(
-                                    ticker,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 }
