@@ -1,6 +1,6 @@
 package com.etfmonitor.feature.analysis.data.repository
 
-import com.etfmonitor.database.StockIndicatorAIResultDao
+import com.etfmonitor.core.database.StockIndicatorAIResultDao
 import com.etfmonitor.feature.analysis.data.mapper.toHistoryItem
 import com.etfmonitor.feature.analysis.domain.model.*
 import com.etfmonitor.feature.analysis.domain.repository.StockIndicatorAIHistoryItem

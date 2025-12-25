@@ -2,8 +2,8 @@ package com.etfmonitor.repository
 
 import com.chaquo.python.Python
 import com.chaquo.python.PyObject
-import com.etfmonitor.database.FearGreedDao
-import com.etfmonitor.database.entities.FearGreedIndex
+import com.etfmonitor.core.database.FearGreedDao
+import com.etfmonitor.core.database.entities.FearGreedIndex
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.common.util.DateFormatter
 import kotlinx.coroutines.Dispatchers
@@ -16,8 +16,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.etfmonitor.database.EtfDao
-import com.etfmonitor.database.entities.Setting
+import com.etfmonitor.core.database.EtfDao
+import com.etfmonitor.core.database.entities.Setting
 
 @Singleton
 class FearGreedRepository @Inject constructor(

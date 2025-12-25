@@ -1,8 +1,8 @@
 package com.etfmonitor.feature.etf.data.datasource
 
-import com.etfmonitor.database.EtfDao
-import com.etfmonitor.database.entities.Etf
-import com.etfmonitor.database.entities.Holding
+import com.etfmonitor.core.database.EtfDao
+import com.etfmonitor.core.database.entities.Etf
+import com.etfmonitor.core.database.entities.Holding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext

@@ -3,7 +3,7 @@ package com.etfmonitor.core.network.python
 import android.content.Context
 import com.chaquo.python.Python
 import com.etfmonitor.core.common.util.AppLogger
-import com.etfmonitor.database.entities.MarketIndex
+import com.etfmonitor.core.database.entities.MarketIndex
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

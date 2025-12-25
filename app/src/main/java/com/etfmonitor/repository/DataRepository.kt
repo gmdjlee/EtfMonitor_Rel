@@ -1,9 +1,9 @@
 package com.etfmonitor.repository
 
-import com.etfmonitor.database.DailyEtfStatisticsDao
-import com.etfmonitor.database.EtfDao
-import com.etfmonitor.database.StockDao
-import com.etfmonitor.database.entities.*
+import com.etfmonitor.core.database.DailyEtfStatisticsDao
+import com.etfmonitor.core.database.EtfDao
+import com.etfmonitor.core.database.StockDao
+import com.etfmonitor.core.database.entities.*
 import com.etfmonitor.core.network.python.PyKrxClient
 import com.etfmonitor.core.common.util.AppLogger
 import kotlinx.coroutines.Dispatchers

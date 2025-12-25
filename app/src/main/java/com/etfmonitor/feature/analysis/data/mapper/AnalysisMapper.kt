@@ -1,29 +1,29 @@
 package com.etfmonitor.feature.analysis.data.mapper
 
-import com.etfmonitor.database.entities.AIAnalysisResult as AIAnalysisEntity
-import com.etfmonitor.database.entities.AIChatMessage as ChatMessageEntity
-import com.etfmonitor.database.entities.AIChatSession as ChatSessionEntity
-import com.etfmonitor.database.entities.CorrelationAnalysisResult as CorrelationEntity
-import com.etfmonitor.database.entities.LiquidityAnalysis as LiquidityEntity
-import com.etfmonitor.database.entities.SectorAnalysis as SectorEntity
-import com.etfmonitor.database.entities.EtfCorrelationCache as EtfCorrelationEntity
-import com.etfmonitor.database.entities.StockIndicatorAIResult as StockIndicatorEntity
-import com.etfmonitor.database.entities.TrendDirection as EntityTrendDirection
-import com.etfmonitor.database.entities.SectorSentiment as EntitySectorSentiment
-import com.etfmonitor.database.entities.MarketCapWeightedFlow as EntityMarketCapFlow
-import com.etfmonitor.database.entities.StockFlow as EntityStockFlow
-import com.etfmonitor.database.entities.MarketCapSize as EntityMarketCapSize
-import com.etfmonitor.database.entities.MarketDivergenceSummary as EntityDivergence
-import com.etfmonitor.database.entities.SupplyDemandDivergence as EntitySupplyDemand
-import com.etfmonitor.database.entities.DivergenceType as EntityDivergenceType
-import com.etfmonitor.database.entities.MarketSentimentType as EntityMarketSentiment
-import com.etfmonitor.database.entities.LiquidityTrend as EntityLiquidityTrend
-import com.etfmonitor.database.entities.PortfolioDiversification as EntityPortfolio
-import com.etfmonitor.database.entities.EtfCorrelation as EntityEtfCorr
-import com.etfmonitor.database.entities.DiversificationSuggestion as EntitySuggestion
-import com.etfmonitor.database.entities.SuggestionType as EntitySuggestionType
-import com.etfmonitor.database.entities.SectorRotationSignal as EntitySectorRotation
-import com.etfmonitor.database.entities.CommonStock as EntityCommonStock
+import com.etfmonitor.core.database.entities.AIAnalysisResult as AIAnalysisEntity
+import com.etfmonitor.core.database.entities.AIChatMessage as ChatMessageEntity
+import com.etfmonitor.core.database.entities.AIChatSession as ChatSessionEntity
+import com.etfmonitor.core.database.entities.CorrelationAnalysisResult as CorrelationEntity
+import com.etfmonitor.core.database.entities.LiquidityAnalysis as LiquidityEntity
+import com.etfmonitor.core.database.entities.SectorAnalysis as SectorEntity
+import com.etfmonitor.core.database.entities.EtfCorrelationCache as EtfCorrelationEntity
+import com.etfmonitor.core.database.entities.StockIndicatorAIResult as StockIndicatorEntity
+import com.etfmonitor.core.database.entities.TrendDirection as EntityTrendDirection
+import com.etfmonitor.core.database.entities.SectorSentiment as EntitySectorSentiment
+import com.etfmonitor.core.database.entities.MarketCapWeightedFlow as EntityMarketCapFlow
+import com.etfmonitor.core.database.entities.StockFlow as EntityStockFlow
+import com.etfmonitor.core.database.entities.MarketCapSize as EntityMarketCapSize
+import com.etfmonitor.core.database.entities.MarketDivergenceSummary as EntityDivergence
+import com.etfmonitor.core.database.entities.SupplyDemandDivergence as EntitySupplyDemand
+import com.etfmonitor.core.database.entities.DivergenceType as EntityDivergenceType
+import com.etfmonitor.core.database.entities.MarketSentimentType as EntityMarketSentiment
+import com.etfmonitor.core.database.entities.LiquidityTrend as EntityLiquidityTrend
+import com.etfmonitor.core.database.entities.PortfolioDiversification as EntityPortfolio
+import com.etfmonitor.core.database.entities.EtfCorrelation as EntityEtfCorr
+import com.etfmonitor.core.database.entities.DiversificationSuggestion as EntitySuggestion
+import com.etfmonitor.core.database.entities.SuggestionType as EntitySuggestionType
+import com.etfmonitor.core.database.entities.SectorRotationSignal as EntitySectorRotation
+import com.etfmonitor.core.database.entities.CommonStock as EntityCommonStock
 import com.etfmonitor.feature.analysis.domain.model.*
 import com.etfmonitor.feature.analysis.domain.repository.StockIndicatorAIHistoryItem
 import kotlinx.serialization.json.Json

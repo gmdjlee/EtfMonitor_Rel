@@ -3,7 +3,7 @@ package com.etfmonitor.feature.market.presentation.oscillator
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.database.entities.MarketOscillatorData
+import com.etfmonitor.core.database.entities.MarketOscillatorData
 import com.etfmonitor.repository.MarketOscillatorRepository
 import com.etfmonitor.core.ui.theme.ThemeManager
 import dagger.hilt.android.lifecycle.HiltViewModel

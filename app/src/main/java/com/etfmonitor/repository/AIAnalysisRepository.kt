@@ -2,11 +2,11 @@ package com.etfmonitor.repository
 
 import com.etfmonitor.core.network.ai.*
 import com.etfmonitor.core.common.util.AppLogger
-import com.etfmonitor.database.DailyEtfStatisticsDao
-import com.etfmonitor.database.FearGreedDao
-import com.etfmonitor.database.MarketDepositDao
-import com.etfmonitor.database.MarketIndexDao
-import com.etfmonitor.database.MarketOscillatorDao
+import com.etfmonitor.core.database.DailyEtfStatisticsDao
+import com.etfmonitor.core.database.FearGreedDao
+import com.etfmonitor.core.database.MarketDepositDao
+import com.etfmonitor.core.database.MarketIndexDao
+import com.etfmonitor.core.database.MarketOscillatorDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject

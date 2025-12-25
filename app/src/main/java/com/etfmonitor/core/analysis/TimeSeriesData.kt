@@ -1,6 +1,6 @@
 package com.etfmonitor.core.analysis
 
-import com.etfmonitor.database.entities.TrendDirection
+import com.etfmonitor.core.database.entities.TrendDirection
 import kotlinx.serialization.Serializable
 
 /**

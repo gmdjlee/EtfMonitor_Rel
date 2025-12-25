@@ -2,8 +2,8 @@ package com.etfmonitor.feature.market.presentation.deposit
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.oscillator.calculator.OscillatorCalculator
-import com.etfmonitor.oscillator.model.*
+import com.etfmonitor.core.analysis.OscillatorCalculator
+import com.etfmonitor.core.analysis.model.*
 import com.etfmonitor.repository.MarketDepositRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

@@ -1,7 +1,7 @@
 package com.etfmonitor.feature.home.data.repository
 
-import com.etfmonitor.database.EtfDao
-import com.etfmonitor.database.entities.Setting
+import com.etfmonitor.core.database.EtfDao
+import com.etfmonitor.core.database.entities.Setting
 import com.etfmonitor.feature.home.domain.model.DataStatus
 import com.etfmonitor.feature.home.domain.model.HomeSummary
 import com.etfmonitor.feature.home.domain.repository.HomeRepository

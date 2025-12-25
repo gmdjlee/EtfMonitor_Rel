@@ -1,9 +1,9 @@
 package com.etfmonitor.feature.analysis.data.repository
 
-import com.etfmonitor.database.AIAnalysisDao
-import com.etfmonitor.database.CorrelationAnalysisDao
-import com.etfmonitor.database.entities.AIAnalysisResult as AIAnalysisEntity
-import com.etfmonitor.database.entities.CorrelationAnalysisResult as CorrelationEntity
+import com.etfmonitor.core.database.AIAnalysisDao
+import com.etfmonitor.core.database.CorrelationAnalysisDao
+import com.etfmonitor.core.database.entities.AIAnalysisResult as AIAnalysisEntity
+import com.etfmonitor.core.database.entities.CorrelationAnalysisResult as CorrelationEntity
 import com.etfmonitor.feature.analysis.data.mapper.toDomain
 import com.etfmonitor.feature.analysis.domain.model.AIAnalysis
 import com.etfmonitor.feature.analysis.domain.model.CorrelationAnalysis

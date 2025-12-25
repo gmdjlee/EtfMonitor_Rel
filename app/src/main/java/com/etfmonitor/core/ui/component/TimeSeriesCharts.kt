@@ -12,7 +12,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
 import com.etfmonitor.core.analysis.*
-import com.etfmonitor.database.entities.TrendDirection
+import com.etfmonitor.core.database.entities.TrendDirection
 import com.etfmonitor.core.ui.theme.*
 import com.etfmonitor.core.common.util.AppLogger
 import com.github.mikephil.charting.charts.CombinedChart

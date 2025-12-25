@@ -4,7 +4,7 @@ import android.content.Context
 import com.etfmonitor.core.network.ai.*
 import com.etfmonitor.core.analysis.Backtester
 import com.etfmonitor.core.analysis.CorrelationAnalyzer
-import com.etfmonitor.database.*
+import com.etfmonitor.core.database.*
 import com.etfmonitor.repository.AIAnalysisRepository
 import com.etfmonitor.repository.AIChatRepository
 import com.etfmonitor.repository.MarketIndexRepository

@@ -1,8 +1,8 @@
 package com.etfmonitor.feature.analysis.data.repository
 
-import com.etfmonitor.database.AIChatDao
-import com.etfmonitor.database.entities.CorrelationAnalysisResult as CorrelationEntity
-import com.etfmonitor.database.entities.AIAnalysisResult as AIAnalysisEntity
+import com.etfmonitor.core.database.AIChatDao
+import com.etfmonitor.core.database.entities.CorrelationAnalysisResult as CorrelationEntity
+import com.etfmonitor.core.database.entities.AIAnalysisResult as AIAnalysisEntity
 import com.etfmonitor.feature.analysis.data.mapper.toDomain
 import com.etfmonitor.feature.analysis.domain.model.AIAnalysis
 import com.etfmonitor.feature.analysis.domain.model.ChatMessage

@@ -4,7 +4,7 @@ import com.etfmonitor.core.network.ai.BacktestResult
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.network.ai.SignalRecord
 import com.etfmonitor.core.network.ai.SignalType as AISignalType
-import com.etfmonitor.database.MarketIndexDao
+import com.etfmonitor.core.database.MarketIndexDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject

@@ -1,9 +1,9 @@
 package com.etfmonitor.feature.etf.data.mapper
 
-import com.etfmonitor.database.entities.Etf as EtfEntity
-import com.etfmonitor.database.entities.Holding as HoldingEntity
-import com.etfmonitor.database.entities.HoldingWithComparison as HoldingWithComparisonEntity
-import com.etfmonitor.database.entities.HoldingStatus as HoldingStatusEntity
+import com.etfmonitor.core.database.entities.Etf as EtfEntity
+import com.etfmonitor.core.database.entities.Holding as HoldingEntity
+import com.etfmonitor.core.database.entities.HoldingWithComparison as HoldingWithComparisonEntity
+import com.etfmonitor.core.database.entities.HoldingStatus as HoldingStatusEntity
 import com.etfmonitor.feature.etf.domain.model.Etf
 import com.etfmonitor.feature.etf.domain.model.HoldingWithComparison
 import com.etfmonitor.feature.etf.domain.model.HoldingStatus

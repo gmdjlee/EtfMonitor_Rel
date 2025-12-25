@@ -1,12 +1,12 @@
 package com.etfmonitor.feature.analysis.di
 
-import com.etfmonitor.database.AIAnalysisDao
-import com.etfmonitor.database.AIChatDao
-import com.etfmonitor.database.CorrelationAnalysisDao
-import com.etfmonitor.database.EtfCorrelationDao
-import com.etfmonitor.database.LiquidityAnalysisDao
-import com.etfmonitor.database.SectorAnalysisDao
-import com.etfmonitor.database.StockIndicatorAIResultDao
+import com.etfmonitor.core.database.AIAnalysisDao
+import com.etfmonitor.core.database.AIChatDao
+import com.etfmonitor.core.database.CorrelationAnalysisDao
+import com.etfmonitor.core.database.EtfCorrelationDao
+import com.etfmonitor.core.database.LiquidityAnalysisDao
+import com.etfmonitor.core.database.SectorAnalysisDao
+import com.etfmonitor.core.database.StockIndicatorAIResultDao
 import com.etfmonitor.feature.analysis.data.repository.AdvancedAnalysisRepositoryImpl
 import com.etfmonitor.feature.analysis.data.repository.ChatRepositoryImpl
 import com.etfmonitor.feature.analysis.data.repository.CorrelationAnalysisRepositoryImpl

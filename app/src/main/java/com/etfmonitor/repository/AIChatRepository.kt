@@ -2,13 +2,13 @@ package com.etfmonitor.repository
 
 import com.etfmonitor.core.network.ai.*
 import com.etfmonitor.core.common.util.AppLogger
-import com.etfmonitor.database.AIChatDao
-import com.etfmonitor.database.AIAnalysisDao
-import com.etfmonitor.database.CorrelationAnalysisDao
-import com.etfmonitor.database.entities.AIChatMessage
-import com.etfmonitor.database.entities.AIChatSession
-import com.etfmonitor.database.entities.AIAnalysisResult
-import com.etfmonitor.database.entities.CorrelationAnalysisResult
+import com.etfmonitor.core.database.AIChatDao
+import com.etfmonitor.core.database.AIAnalysisDao
+import com.etfmonitor.core.database.CorrelationAnalysisDao
+import com.etfmonitor.core.database.entities.AIChatMessage
+import com.etfmonitor.core.database.entities.AIChatSession
+import com.etfmonitor.core.database.entities.AIAnalysisResult
+import com.etfmonitor.core.database.entities.CorrelationAnalysisResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn

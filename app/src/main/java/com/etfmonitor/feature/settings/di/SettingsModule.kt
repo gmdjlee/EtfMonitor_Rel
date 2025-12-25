@@ -3,7 +3,7 @@ package com.etfmonitor.feature.settings.di
 import android.content.Context
 import com.etfmonitor.core.network.ai.ApiKeyProvider
 import com.etfmonitor.core.ui.theme.ThemeManager
-import com.etfmonitor.database.EtfDao
+import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.feature.settings.data.repository.SettingsRepositoryImpl
 import com.etfmonitor.feature.settings.domain.repository.SettingsRepository
 import com.etfmonitor.repository.AIAnalysisRepository

@@ -1,7 +1,7 @@
 package com.etfmonitor.feature.stock.data.datasource
 
-import com.etfmonitor.database.StockDao
-import com.etfmonitor.database.entities.Stock
+import com.etfmonitor.core.database.StockDao
+import com.etfmonitor.core.database.entities.Stock
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton

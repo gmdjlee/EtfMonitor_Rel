@@ -1,7 +1,7 @@
 package com.etfmonitor.repository
 
-import com.etfmonitor.database.MarketOscillatorDao
-import com.etfmonitor.database.entities.MarketOscillatorData
+import com.etfmonitor.core.database.MarketOscillatorDao
+import com.etfmonitor.core.database.entities.MarketOscillatorData
 import com.etfmonitor.core.network.python.OscillatorPyClient
 import com.etfmonitor.core.common.util.AppLogger
 import kotlinx.coroutines.Dispatchers
@@ -15,8 +15,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.etfmonitor.database.EtfDao
-import com.etfmonitor.database.entities.Setting
+import com.etfmonitor.core.database.EtfDao
+import com.etfmonitor.core.database.entities.Setting
 
 /**
  * 시장 과매수/과매도 데이터 Repository
