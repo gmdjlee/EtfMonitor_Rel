@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
-import com.etfmonitor.core.database.entities.MarketOscillatorData
+import com.etfmonitor.feature.market.domain.model.MarketOscillator
 import com.etfmonitor.core.ui.component.TabNavigationBar
 import com.etfmonitor.core.ui.component.MarketDepositChart
 import com.etfmonitor.core.ui.component.HubHeader
@@ -453,7 +453,7 @@ private fun NoDataCard(message: String) {
 
 @Composable
 private fun OscillatorLatestDataCard(
-    latest: MarketOscillatorData,
+    latest: MarketOscillator,
     overboughtThreshold: Double,
     oversoldThreshold: Double
 ) {
@@ -536,7 +536,7 @@ private fun OscillatorLatestDataCard(
 
 @Composable
 private fun OscillatorDataTable(
-    data: List<MarketOscillatorData>,
+    data: List<MarketOscillator>,
     overboughtThreshold: Double,
     oversoldThreshold: Double,
     bodyScale: Float

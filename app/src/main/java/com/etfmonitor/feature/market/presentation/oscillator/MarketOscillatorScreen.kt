@@ -26,7 +26,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
-import com.etfmonitor.core.database.entities.MarketOscillatorData
+import com.etfmonitor.feature.market.domain.model.MarketOscillator
 import com.etfmonitor.core.ui.component.LoadingCard
 import com.etfmonitor.core.ui.component.ErrorCard
 import com.etfmonitor.core.ui.theme.*
@@ -241,7 +241,7 @@ fun MarketOscillatorScreen(
 
 @Composable
 private fun LatestDataCard(
-    latest: MarketOscillatorData,
+    latest: MarketOscillator,
     overboughtThreshold: Double,
     oversoldThreshold: Double
 ) {
@@ -325,7 +325,7 @@ private fun LatestDataCard(
 
 @Composable
 private fun DataTable(
-    data: List<MarketOscillatorData>,
+    data: List<MarketOscillator>,
     overboughtThreshold: Double,
     oversoldThreshold: Double,
     bodyScale: Float

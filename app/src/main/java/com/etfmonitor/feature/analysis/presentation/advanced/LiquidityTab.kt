@@ -18,6 +18,7 @@ import com.etfmonitor.R
 import com.etfmonitor.feature.analysis.domain.model.LeverageRisk
 import com.etfmonitor.feature.analysis.domain.model.LiquidityAnalysisData
 import com.etfmonitor.feature.analysis.domain.model.LiquiditySignalType
+import com.etfmonitor.feature.analysis.domain.model.PredictionAccuracy
 
 /**
  * Advanced Dashboard Screen - Liquidity Tab
