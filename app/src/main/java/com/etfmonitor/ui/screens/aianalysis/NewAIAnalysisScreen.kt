@@ -284,7 +284,7 @@ fun NewAIAnalysisScreen(
                     )
                 } else {
                     LazyColumn {
-                        items(chatSessions) { session ->
+                        items(chatSessions, key = { it.id }) { session ->
                             SessionItem(
                                 session = session,
                                 onClick = {
@@ -322,7 +322,7 @@ fun NewAIAnalysisScreen(
                     LazyColumn(
                         modifier = Modifier.heightIn(max = 400.dp)
                     ) {
-                        items(stockIndicatorAIHistory) { historyItem ->
+                        items(stockIndicatorAIHistory, key = { it.id }) { historyItem ->
                             StockIndicatorAIHistoryItem(
                                 item = historyItem,
                                 onClick = {
@@ -1004,7 +1004,7 @@ private fun StockSearchSection(
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            items(searchResults) { (ticker, name) ->
+                            items(searchResults, key = { it.first }) { (ticker, name) ->
                                 ListItem(
                                     headlineContent = { Text(name) },
                                     supportingContent = {
@@ -1057,7 +1057,7 @@ private fun StockSearchSection(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(searchHistory) { history ->
+                        items(searchHistory, key = { it.id }) { history ->
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 ListItem(
                                     headlineContent = { Text(history.name) },
@@ -2022,7 +2022,7 @@ private fun ChatScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
-            items(messages) { message ->
+            items(messages, key = { it.id }) { message ->
                 ChatMessageItem(message = message)
             }
 

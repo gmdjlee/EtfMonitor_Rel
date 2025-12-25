@@ -359,7 +359,7 @@ private fun AIAnalysisHubContent(
                     )
                 } else {
                     LazyColumn {
-                        items(chatSessions) { session ->
+                        items(chatSessions, key = { it.id }) { session ->
                             HubSessionItem(
                                 session = session,
                                 onClick = {
@@ -397,7 +397,7 @@ private fun AIAnalysisHubContent(
                     LazyColumn(
                         modifier = Modifier.heightIn(max = 400.dp)
                     ) {
-                        items(stockIndicatorAIHistory) { historyItem ->
+                        items(stockIndicatorAIHistory, key = { it.id }) { historyItem ->
                             HubStockIndicatorAIHistoryItem(
                                 item = historyItem,
                                 onClick = {
@@ -2115,7 +2115,7 @@ private fun HubChatScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
-            items(messages) { message ->
+            items(messages, key = { it.id }) { message ->
                 HubChatMessageItem(message = message)
             }
 

@@ -15,6 +15,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.etfmonitor.database.EtfDao
+import com.etfmonitor.database.entities.Setting
 
 /**
  * 시장 과매수/과매도 데이터 Repository
@@ -22,11 +24,27 @@ import javax.inject.Singleton
 @Singleton
 class MarketOscillatorRepository @Inject constructor(
     private val dao: MarketOscillatorDao,
+    private val etfDao: EtfDao,
     private val pyClient: OscillatorPyClient
 ) {
     companion object {
         private val logger = AppLogger.getLogger("MarketOscillatorRepo")
         private const val DEFAULT_KEEP_DAYS = 365 // 기본 1년치 데이터 유지
+        private const val KEY_DIALOG_DISMISSED = "market_oscillator_dialog_dismissed"
+    }
+
+    /**
+     * 다이얼로그 닫힘 상태 확인
+     */
+    suspend fun isDialogDismissed(): Boolean = withContext(Dispatchers.IO) {
+        etfDao.getSetting(KEY_DIALOG_DISMISSED) == "true"
+    }
+
+    /**
+     * 다이얼로그 닫힘 상태 저장
+     */
+    suspend fun saveDialogDismissed() = withContext(Dispatchers.IO) {
+        etfDao.saveSetting(Setting(KEY_DIALOG_DISMISSED, "true"))
     }
 
     private val json = Json {

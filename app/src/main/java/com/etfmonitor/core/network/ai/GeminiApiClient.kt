@@ -374,7 +374,10 @@ class GeminiApiClient @Inject constructor(
      */
     override suspend fun testApiKey(): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
-            val apiKey = apiKeyProvider.getApiKey(AIProvider.GEMINI) ?: ""
+            val apiKey = apiKeyProvider.getApiKey(AIProvider.GEMINI)
+            if (apiKey.isNullOrBlank()) {
+                return@withContext Result.failure(ApiAuthenticationException("Gemini"))
+            }
             val testPrompt = "Hello, please respond with 'OK'"
             val response = callGeminiApi(apiKey, testPrompt, 0.0)
             Result.success(response.isNotBlank())

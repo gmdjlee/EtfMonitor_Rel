@@ -46,7 +46,7 @@ class MarketDepositUpdateWorker @AssistedInject constructor(
                 val error = result.exceptionOrNull()
                 error?.let { logger.e("Failed to update market deposits: ${it.message}", it) }
                     ?: logger.e("Failed to update market deposits: unknown error")
-                Result.retry()
+                if (runAttemptCount < 3) Result.retry() else Result.failure()
             }
         } catch (e: Exception) {
             logger.e("Error in MarketDepositUpdateWorker", e)

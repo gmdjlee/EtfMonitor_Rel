@@ -155,7 +155,11 @@ class AdvancedAnalysisWorker @AssistedInject constructor(
             }
         } catch (e: Exception) {
             logger.e("Error in AdvancedAnalysisWorker", e)
-            Result.failure(workDataOf(KEY_ERROR_MESSAGE to (e.message ?: "Unknown error")))
+            if (runAttemptCount < 3) {
+                Result.retry()
+            } else {
+                Result.failure(workDataOf(KEY_ERROR_MESSAGE to (e.message ?: "Unknown error")))
+            }
         }
     }
 

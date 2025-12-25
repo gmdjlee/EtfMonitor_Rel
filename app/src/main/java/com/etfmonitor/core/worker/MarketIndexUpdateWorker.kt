@@ -44,7 +44,7 @@ class MarketIndexUpdateWorker @AssistedInject constructor(
                 val error = result.exceptionOrNull()
                 error?.let { logger.e("Failed to update market index: ${it.message}", it) }
                     ?: logger.e("Failed to update market index: unknown error")
-                Result.retry()
+                if (runAttemptCount < 3) Result.retry() else Result.failure()
             }
         } catch (e: Exception) {
             logger.e("Error in MarketIndexUpdateWorker", e)

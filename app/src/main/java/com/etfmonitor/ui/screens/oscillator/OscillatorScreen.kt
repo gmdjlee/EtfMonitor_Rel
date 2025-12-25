@@ -207,7 +207,7 @@ fun OscillatorScreen(
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            items(suggestions) { stock ->
+                            items(suggestions, key = { it.ticker }) { stock ->
                                 ListItem(
                                     headlineContent = { Text(stock.name) },
                                     supportingContent = {
@@ -624,7 +624,7 @@ private fun SearchHistoryDialog(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(searchHistory) { history ->
+                        items(searchHistory, key = { it.id }) { history ->
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 ListItem(
                                     headlineContent = { Text(history.name) },
