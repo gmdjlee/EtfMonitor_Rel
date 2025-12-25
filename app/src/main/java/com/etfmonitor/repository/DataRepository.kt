@@ -336,7 +336,7 @@ class DataRepository @Inject constructor(
     /**
      * 종목 검색
      */
-    suspend fun searchStocks(query: String): List<com.etfmonitor.database.StockSearchResult> = withContext(Dispatchers.IO) {
+    suspend fun searchStocks(query: String): List<com.etfmonitor.core.database.StockSearchResult> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()
         dao.searchStocks(query)
     }

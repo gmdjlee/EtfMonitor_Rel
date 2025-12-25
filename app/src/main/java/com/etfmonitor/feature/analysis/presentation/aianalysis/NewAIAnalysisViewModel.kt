@@ -40,7 +40,7 @@ class NewAIAnalysisViewModel @Inject constructor(
     private val chatRepository: AIChatRepository,
     private val apiKeyProvider: ApiKeyProvider,
     private val aiApiClientFactory: AIApiClientFactory,
-    private val etfDao: com.etfmonitor.database.EtfDao,
+    private val etfDao: com.etfmonitor.core.database.EtfDao,
     private val searchHistoryDao: SearchHistoryDao
 ) : ViewModel() {
 
