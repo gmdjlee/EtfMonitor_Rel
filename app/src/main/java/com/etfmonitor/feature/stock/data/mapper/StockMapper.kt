@@ -1,12 +1,12 @@
 package com.etfmonitor.feature.stock.data.mapper
 
-import com.etfmonitor.database.entities.Stock as StockEntity
-import com.etfmonitor.database.entities.StockAnalysisWithName
-import com.etfmonitor.database.entities.HoldingTimeSeries as HoldingTimeSeriesEntity
-import com.etfmonitor.database.entities.StockAmountRanking as StockAmountRankingEntity
-import com.etfmonitor.database.entities.StockChangeInfo as StockChangeInfoEntity
-import com.etfmonitor.database.entities.CashDepositTrend as CashDepositTrendEntity
-import com.etfmonitor.database.StockSearchResult as StockSearchResultDb
+import com.etfmonitor.core.database.entities.Stock as StockEntity
+import com.etfmonitor.core.database.entities.StockAnalysisWithName
+import com.etfmonitor.core.database.entities.HoldingTimeSeries as HoldingTimeSeriesEntity
+import com.etfmonitor.core.database.entities.StockAmountRanking as StockAmountRankingEntity
+import com.etfmonitor.core.database.entities.StockChangeInfo as StockChangeInfoEntity
+import com.etfmonitor.core.database.entities.CashDepositTrend as CashDepositTrendEntity
+import com.etfmonitor.core.database.StockSearchResult as StockSearchResultDb
 import com.etfmonitor.feature.stock.domain.model.Stock
 import com.etfmonitor.feature.stock.domain.model.StockAnalysis
 import com.etfmonitor.feature.stock.domain.model.HoldingTimeSeries

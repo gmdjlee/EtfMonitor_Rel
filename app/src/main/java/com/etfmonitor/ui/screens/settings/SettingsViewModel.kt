@@ -5,8 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.core.network.ai.AIProvider
 import com.etfmonitor.core.network.ai.ApiKeyProvider
-import com.etfmonitor.database.EtfDao
-import com.etfmonitor.database.entities.Setting
+import com.etfmonitor.core.database.EtfDao
+import com.etfmonitor.core.database.entities.Setting
 import com.etfmonitor.repository.AIAnalysisRepository
 import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.repository.FearGreedRepository

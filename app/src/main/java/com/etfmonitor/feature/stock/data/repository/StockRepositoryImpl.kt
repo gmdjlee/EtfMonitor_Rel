@@ -6,7 +6,7 @@ import com.etfmonitor.feature.stock.domain.model.Stock
 import com.etfmonitor.feature.stock.domain.repository.StockRepository
 import com.etfmonitor.core.network.python.OscillatorPyClient
 import com.etfmonitor.core.common.util.AppLogger
-import com.etfmonitor.database.entities.Stock as StockEntity
+import com.etfmonitor.core.database.entities.Stock as StockEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn

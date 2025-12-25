@@ -3,7 +3,7 @@ package com.etfmonitor.feature.stock.presentation.trend
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.database.EtfDao
+import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.network.python.OscillatorPyClient
 import com.etfmonitor.feature.stock.domain.usecase.GetStockTrendUseCase
 import com.etfmonitor.core.common.util.AppLogger

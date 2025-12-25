@@ -12,8 +12,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.etfmonitor.database.entities.HoldingStatus
-import com.etfmonitor.database.entities.StockChangeInfo
+import com.etfmonitor.core.database.entities.HoldingStatus
+import com.etfmonitor.core.database.entities.StockChangeInfo
 import com.etfmonitor.core.ui.theme.*
 import com.etfmonitor.core.common.util.AmountFormatter
 

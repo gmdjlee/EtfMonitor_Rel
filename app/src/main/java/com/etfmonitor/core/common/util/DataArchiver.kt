@@ -1,9 +1,9 @@
 package com.etfmonitor.core.common.util
 
-import com.etfmonitor.database.EtfDao
-import com.etfmonitor.database.SnapshotTypeCount
-import com.etfmonitor.database.entities.Holding
-import com.etfmonitor.database.entities.SnapshotType
+import com.etfmonitor.core.database.EtfDao
+import com.etfmonitor.core.database.SnapshotTypeCount
+import com.etfmonitor.core.database.entities.Holding
+import com.etfmonitor.core.database.entities.SnapshotType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.DayOfWeek

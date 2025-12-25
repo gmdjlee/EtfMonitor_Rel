@@ -20,8 +20,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.etfmonitor.R
-import com.etfmonitor.database.entities.StockAggregatedTimePoint
-import com.etfmonitor.database.entities.StockAggregatedTrend
+import com.etfmonitor.core.database.entities.StockAggregatedTimePoint
+import com.etfmonitor.core.database.entities.StockAggregatedTrend
 import com.etfmonitor.repository.DataRepository
 import com.etfmonitor.core.common.util.AmountFormatter
 import com.etfmonitor.core.ui.component.ChartCard

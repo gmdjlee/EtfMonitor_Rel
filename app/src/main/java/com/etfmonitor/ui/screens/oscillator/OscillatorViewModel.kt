@@ -2,11 +2,11 @@ package com.etfmonitor.ui.screens.oscillator
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.database.EtfDao
-import com.etfmonitor.database.SearchHistoryDao
-import com.etfmonitor.database.entities.SearchHistory
-import com.etfmonitor.database.entities.SearchHistoryType
-import com.etfmonitor.database.entities.Stock
+import com.etfmonitor.core.database.EtfDao
+import com.etfmonitor.core.database.SearchHistoryDao
+import com.etfmonitor.core.database.entities.SearchHistory
+import com.etfmonitor.core.database.entities.SearchHistoryType
+import com.etfmonitor.core.database.entities.Stock
 import com.etfmonitor.oscillator.calculator.OscillatorCalculator
 import com.etfmonitor.oscillator.calculator.TrendSignalCalculator
 import com.etfmonitor.oscillator.model.*

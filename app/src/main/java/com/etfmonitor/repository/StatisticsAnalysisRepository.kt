@@ -1,11 +1,11 @@
 package com.etfmonitor.repository
 
-import com.etfmonitor.database.DailyEtfStatisticsDao
+import com.etfmonitor.core.database.DailyEtfStatisticsDao
 import com.etfmonitor.core.common.util.AppLogger
-import com.etfmonitor.database.EtfDao
-import com.etfmonitor.database.MarketIndexDao
-import com.etfmonitor.database.entities.DailyEtfStatistics
-import com.etfmonitor.database.entities.MarketIndex
+import com.etfmonitor.core.database.EtfDao
+import com.etfmonitor.core.database.MarketIndexDao
+import com.etfmonitor.core.database.entities.DailyEtfStatistics
+import com.etfmonitor.core.database.entities.MarketIndex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn

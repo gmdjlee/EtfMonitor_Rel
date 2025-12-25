@@ -33,12 +33,12 @@ import com.etfmonitor.core.analysis.StockIndicatorCorrelationResult
 import com.etfmonitor.core.analysis.StockMetricType
 import com.etfmonitor.core.ui.component.StockSearchItem
 import com.etfmonitor.core.ui.component.UnifiedStockSearchField
-import com.etfmonitor.database.entities.AIChatMessage
-import com.etfmonitor.database.entities.AIChatSession
-import com.etfmonitor.database.entities.CorrelationAnalysisResult
-import com.etfmonitor.database.entities.SearchHistory
-import com.etfmonitor.database.entities.Stock
-import com.etfmonitor.database.entities.StockIndicatorAIResult
+import com.etfmonitor.core.database.entities.AIChatMessage
+import com.etfmonitor.core.database.entities.AIChatSession
+import com.etfmonitor.core.database.entities.CorrelationAnalysisResult
+import com.etfmonitor.core.database.entities.SearchHistory
+import com.etfmonitor.core.database.entities.Stock
+import com.etfmonitor.core.database.entities.StockIndicatorAIResult
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 

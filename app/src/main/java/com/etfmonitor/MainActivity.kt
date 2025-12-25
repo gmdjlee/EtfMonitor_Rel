@@ -21,7 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import com.etfmonitor.database.EtfDao
+import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.repository.StockRepository
 import com.etfmonitor.navigation.Navigation
 import com.etfmonitor.core.ui.theme.ChartColorSettings

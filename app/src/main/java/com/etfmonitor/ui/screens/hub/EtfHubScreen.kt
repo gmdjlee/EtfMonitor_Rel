@@ -31,8 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
 import com.etfmonitor.feature.etf.domain.model.Etf
-import com.etfmonitor.database.entities.HoldingStatus
-import com.etfmonitor.database.entities.SearchHistory
+import com.etfmonitor.core.database.entities.HoldingStatus
+import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.core.ui.component.TabNavigationBar
 import com.etfmonitor.feature.etf.presentation.list.EtfListViewModel
 import com.etfmonitor.feature.etf.presentation.list.EtfListState

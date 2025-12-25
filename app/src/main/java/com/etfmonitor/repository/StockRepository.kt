@@ -1,7 +1,7 @@
 package com.etfmonitor.repository
 
-import com.etfmonitor.database.StockDao
-import com.etfmonitor.database.entities.Stock
+import com.etfmonitor.core.database.StockDao
+import com.etfmonitor.core.database.entities.Stock
 import com.etfmonitor.core.network.python.OscillatorPyClient
 import com.etfmonitor.core.common.util.AppLogger
 import kotlinx.coroutines.Dispatchers

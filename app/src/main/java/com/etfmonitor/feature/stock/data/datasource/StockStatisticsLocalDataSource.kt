@@ -1,11 +1,11 @@
 package com.etfmonitor.feature.stock.data.datasource
 
-import com.etfmonitor.database.EtfDao
-import com.etfmonitor.database.entities.HoldingTimeSeries
-import com.etfmonitor.database.entities.StockAmountRanking
-import com.etfmonitor.database.entities.StockChangeInfo
-import com.etfmonitor.database.entities.CashDepositTrend
-import com.etfmonitor.database.StockSearchResult
+import com.etfmonitor.core.database.EtfDao
+import com.etfmonitor.core.database.entities.HoldingTimeSeries
+import com.etfmonitor.core.database.entities.StockAmountRanking
+import com.etfmonitor.core.database.entities.StockChangeInfo
+import com.etfmonitor.core.database.entities.CashDepositTrend
+import com.etfmonitor.core.database.StockSearchResult
 import javax.inject.Inject
 import javax.inject.Singleton
 

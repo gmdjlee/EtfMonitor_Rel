@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import com.etfmonitor.database.entities.SearchHistory
+import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.core.ui.theme.*
 
 /**

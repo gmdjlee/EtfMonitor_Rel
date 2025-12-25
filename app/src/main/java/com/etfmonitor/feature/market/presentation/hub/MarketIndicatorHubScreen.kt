@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
-import com.etfmonitor.database.entities.MarketOscillatorData
+import com.etfmonitor.core.database.entities.MarketOscillatorData
 import com.etfmonitor.core.ui.component.TabNavigationBar
 import com.etfmonitor.core.ui.component.MarketDepositChart
 import com.etfmonitor.ui.screens.hub.HubHeader

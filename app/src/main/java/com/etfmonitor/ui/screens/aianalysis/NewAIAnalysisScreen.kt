@@ -7,7 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
-import com.etfmonitor.database.entities.SearchHistory
+import com.etfmonitor.core.database.entities.SearchHistory
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,8 +17,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.core.analysis.FullStockIndicatorCorrelationResult
-import com.etfmonitor.database.entities.Stock
-import com.etfmonitor.database.entities.CorrelationAnalysisResult
+import com.etfmonitor.core.database.entities.Stock
+import com.etfmonitor.core.database.entities.CorrelationAnalysisResult
 import com.etfmonitor.repository.FullAnalysisResult
 
 /**

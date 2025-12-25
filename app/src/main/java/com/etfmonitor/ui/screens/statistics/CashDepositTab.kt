@@ -9,7 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.etfmonitor.database.entities.CashDepositTrend
+import com.etfmonitor.core.database.entities.CashDepositTrend
 import com.etfmonitor.core.ui.component.ChartCard
 import com.etfmonitor.core.ui.theme.*
 import com.etfmonitor.core.common.util.AmountFormatter

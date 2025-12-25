@@ -1,8 +1,8 @@
 package com.etfmonitor.feature.stock.data.datasource
 
-import com.etfmonitor.database.StockAnalysisDao
-import com.etfmonitor.database.entities.StockAnalysisData
-import com.etfmonitor.database.entities.StockAnalysisWithName
+import com.etfmonitor.core.database.StockAnalysisDao
+import com.etfmonitor.core.database.entities.StockAnalysisData
+import com.etfmonitor.core.database.entities.StockAnalysisWithName
 import javax.inject.Inject
 import javax.inject.Singleton
 

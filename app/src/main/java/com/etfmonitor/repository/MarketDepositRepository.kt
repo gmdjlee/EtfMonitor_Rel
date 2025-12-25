@@ -1,7 +1,7 @@
 package com.etfmonitor.repository
 
-import com.etfmonitor.database.MarketDepositDao
-import com.etfmonitor.database.entities.MarketDeposit
+import com.etfmonitor.core.database.MarketDepositDao
+import com.etfmonitor.core.database.entities.MarketDeposit
 import com.etfmonitor.oscillator.model.MarketDepositData
 import com.etfmonitor.core.network.python.OscillatorPyClient
 import com.etfmonitor.core.common.util.AppLogger

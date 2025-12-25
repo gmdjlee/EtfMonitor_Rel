@@ -2,9 +2,9 @@ package com.etfmonitor.core.network.python
 
 import com.chaquo.python.Python
 import com.etfmonitor.core.common.util.AppLogger
-import com.etfmonitor.database.entities.Etf
-import com.etfmonitor.database.entities.Holding
-import com.etfmonitor.database.entities.SnapshotType
+import com.etfmonitor.core.database.entities.Etf
+import com.etfmonitor.core.database.entities.Holding
+import com.etfmonitor.core.database.entities.SnapshotType
 import com.etfmonitor.core.common.util.DataParsingException
 import com.etfmonitor.core.common.util.PythonRuntimeException
 import com.etfmonitor.core.common.util.PythonTimeoutException

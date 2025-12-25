@@ -19,9 +19,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.etfmonitor.R
-import com.etfmonitor.database.entities.SearchHistory
-import com.etfmonitor.database.entities.Stock
-import com.etfmonitor.database.entities.CorrelationAnalysisResult
+import com.etfmonitor.core.database.entities.SearchHistory
+import com.etfmonitor.core.database.entities.Stock
+import com.etfmonitor.core.database.entities.CorrelationAnalysisResult
 import com.etfmonitor.repository.FullAnalysisResult
 import com.etfmonitor.core.analysis.FullStockIndicatorCorrelationResult
 import com.etfmonitor.core.ui.component.TabNavigationBar

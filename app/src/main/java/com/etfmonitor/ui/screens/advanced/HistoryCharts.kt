@@ -13,7 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.etfmonitor.database.entities.*
+import com.etfmonitor.core.database.entities.*
 import kotlin.math.abs
 
 /**

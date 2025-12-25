@@ -1,6 +1,6 @@
 package com.etfmonitor.feature.analysis.domain.repository
 
-import com.etfmonitor.database.entities.DailyEtfStatistics
+import com.etfmonitor.core.database.entities.DailyEtfStatistics
 import kotlinx.coroutines.flow.Flow
 
 /**

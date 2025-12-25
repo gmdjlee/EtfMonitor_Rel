@@ -1,9 +1,9 @@
 package com.etfmonitor.feature.market.data.mapper
 
-import com.etfmonitor.database.entities.FearGreedIndex as FearGreedEntity
-import com.etfmonitor.database.entities.MarketDeposit as MarketDepositEntity
-import com.etfmonitor.database.entities.MarketOscillatorData as MarketOscillatorEntity
-import com.etfmonitor.database.entities.MarketIndex as MarketIndexEntity
+import com.etfmonitor.core.database.entities.FearGreedIndex as FearGreedEntity
+import com.etfmonitor.core.database.entities.MarketDeposit as MarketDepositEntity
+import com.etfmonitor.core.database.entities.MarketOscillatorData as MarketOscillatorEntity
+import com.etfmonitor.core.database.entities.MarketIndex as MarketIndexEntity
 import com.etfmonitor.feature.market.domain.model.FearGreedIndex
 import com.etfmonitor.feature.market.domain.model.MarketDeposit
 import com.etfmonitor.feature.market.domain.model.MarketDepositData

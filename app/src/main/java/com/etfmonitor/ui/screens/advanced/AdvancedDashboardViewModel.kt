@@ -2,8 +2,8 @@ package com.etfmonitor.ui.screens.advanced
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.database.*
-import com.etfmonitor.database.entities.*
+import com.etfmonitor.core.database.*
+import com.etfmonitor.core.database.entities.*
 import com.etfmonitor.repository.AdvancedAnalysisRepository
 import com.etfmonitor.core.common.util.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel

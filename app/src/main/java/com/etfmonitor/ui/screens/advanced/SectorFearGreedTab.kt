@@ -15,7 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.etfmonitor.R
-import com.etfmonitor.database.entities.*
+import com.etfmonitor.core.database.entities.*
 
 /**
  * Advanced Dashboard Screen - Sector Fear & Greed Tab

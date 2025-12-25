@@ -9,7 +9,7 @@ import com.etfmonitor.feature.stock.domain.repository.StockAnalysisRepository
 import com.etfmonitor.core.network.python.OscillatorPyClient
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.common.util.DateFormatter
-import com.etfmonitor.database.entities.StockAnalysisData
+import com.etfmonitor.core.database.entities.StockAnalysisData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject

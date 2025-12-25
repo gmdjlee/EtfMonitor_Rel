@@ -8,8 +8,8 @@ import com.etfmonitor.core.ui.theme.FontScaleSettings
 import com.etfmonitor.core.ui.theme.SingleChartColorSettings
 import com.etfmonitor.core.ui.theme.ThemeManager
 import com.etfmonitor.core.worker.WorkManagerHelper
-import com.etfmonitor.database.EtfDao
-import com.etfmonitor.database.entities.Setting
+import com.etfmonitor.core.database.EtfDao
+import com.etfmonitor.core.database.entities.Setting
 import com.etfmonitor.feature.settings.data.mapper.SettingsMapper.toDomain
 import com.etfmonitor.feature.settings.data.mapper.SettingsMapper.toDomainModels
 import com.etfmonitor.feature.settings.data.mapper.SettingsMapper.toDataModel

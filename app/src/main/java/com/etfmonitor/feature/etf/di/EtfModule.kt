@@ -1,6 +1,6 @@
 package com.etfmonitor.feature.etf.di
 
-import com.etfmonitor.database.EtfDao
+import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.feature.etf.data.datasource.EtfLocalDataSource
 import com.etfmonitor.feature.etf.data.repository.EtfRepositoryImpl
 import com.etfmonitor.feature.etf.domain.repository.EtfRepository

@@ -1,8 +1,8 @@
 package com.etfmonitor.feature.analysis.data.repository
 
-import com.etfmonitor.database.EtfCorrelationDao
-import com.etfmonitor.database.LiquidityAnalysisDao
-import com.etfmonitor.database.SectorAnalysisDao
+import com.etfmonitor.core.database.EtfCorrelationDao
+import com.etfmonitor.core.database.LiquidityAnalysisDao
+import com.etfmonitor.core.database.SectorAnalysisDao
 import com.etfmonitor.feature.analysis.data.mapper.toDomain
 import com.etfmonitor.feature.analysis.domain.model.*
 import com.etfmonitor.feature.analysis.domain.repository.AdvancedAnalysisRepository

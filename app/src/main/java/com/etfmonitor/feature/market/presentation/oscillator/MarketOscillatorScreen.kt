@@ -26,7 +26,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
-import com.etfmonitor.database.entities.MarketOscillatorData
+import com.etfmonitor.core.database.entities.MarketOscillatorData
 import com.etfmonitor.core.ui.component.LoadingCard
 import com.etfmonitor.core.ui.component.ErrorCard
 import com.etfmonitor.core.ui.theme.*

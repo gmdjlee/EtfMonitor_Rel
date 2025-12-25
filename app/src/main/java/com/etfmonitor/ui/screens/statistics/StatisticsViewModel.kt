@@ -2,14 +2,14 @@ package com.etfmonitor.ui.screens.statistics
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.database.entities.CashDepositTrend
-import com.etfmonitor.database.entities.SearchHistory
-import com.etfmonitor.database.entities.SearchHistoryType
-import com.etfmonitor.database.entities.Stock
-import com.etfmonitor.database.entities.StockAmountRanking
-import com.etfmonitor.database.entities.StockAnalysisResult
-import com.etfmonitor.database.entities.StockChangeInfo
-import com.etfmonitor.database.SearchHistoryDao
+import com.etfmonitor.core.database.entities.CashDepositTrend
+import com.etfmonitor.core.database.entities.SearchHistory
+import com.etfmonitor.core.database.entities.SearchHistoryType
+import com.etfmonitor.core.database.entities.Stock
+import com.etfmonitor.core.database.entities.StockAmountRanking
+import com.etfmonitor.core.database.entities.StockAnalysisResult
+import com.etfmonitor.core.database.entities.StockChangeInfo
+import com.etfmonitor.core.database.SearchHistoryDao
 import com.etfmonitor.repository.DataRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
