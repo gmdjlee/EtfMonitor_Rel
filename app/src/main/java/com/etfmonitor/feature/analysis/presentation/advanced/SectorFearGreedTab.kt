@@ -15,7 +15,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.etfmonitor.R
-import com.etfmonitor.core.database.entities.*
+import com.etfmonitor.feature.analysis.domain.model.SectorAnalysisData
+import com.etfmonitor.feature.analysis.domain.model.SectorRotation
 
 /**
  * Advanced Dashboard Screen - Sector Fear & Greed Tab
@@ -25,7 +26,7 @@ import com.etfmonitor.core.database.entities.*
 @Composable
 internal fun SectorFearGreedTab(
     data: AdvancedDashboardData,
-    sectorHistory: Map<String, List<SectorAnalysis>> = emptyMap()
+    sectorHistory: Map<String, List<SectorAnalysisData>> = emptyMap()
 ) {
     val allSectors = data.allSectorAnalyses.sortedByDescending { it.fearGreedValue }
 
@@ -160,7 +161,7 @@ internal fun SectorFearGreedTab(
 }
 
 @Composable
-internal fun SectorHeatmapItem(modifier: Modifier, sector: SectorAnalysis) {
+internal fun SectorHeatmapItem(modifier: Modifier, sector: SectorAnalysisData) {
     val color = getFearGreedColor(sector.fearGreedValue)
 
     Card(
@@ -189,7 +190,7 @@ internal fun SectorHeatmapItem(modifier: Modifier, sector: SectorAnalysis) {
 }
 
 @Composable
-internal fun SectorDetailRow(rank: Int, sector: SectorAnalysis) {
+internal fun SectorDetailRow(rank: Int, sector: SectorAnalysisData) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically

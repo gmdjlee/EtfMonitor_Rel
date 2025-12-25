@@ -1,10 +1,51 @@
 package com.etfmonitor.feature.analysis.data.repository
 
-import com.etfmonitor.core.database.*
-import com.etfmonitor.core.database.entities.*
+// Database DAOs
+import com.etfmonitor.core.database.EtfDao
+import com.etfmonitor.core.database.StockDao
+import com.etfmonitor.core.database.StockAnalysisDao
+import com.etfmonitor.core.database.MarketDepositDao
+import com.etfmonitor.core.database.FearGreedDao
+import com.etfmonitor.core.database.MarketIndexDao
+import com.etfmonitor.core.database.SectorAnalysisDao
+import com.etfmonitor.core.database.EtfCorrelationDao
+import com.etfmonitor.core.database.LiquidityAnalysisDao
+
+// Database entities - only what's needed (no conflicts)
+import com.etfmonitor.core.database.entities.Etf as EntityEtf
+
+// Domain models - use these for return types
+import com.etfmonitor.feature.analysis.domain.model.MarketCapFlow
+import com.etfmonitor.feature.analysis.domain.model.StockFlow
+import com.etfmonitor.feature.analysis.domain.model.MarketCapSize
+import com.etfmonitor.feature.analysis.domain.model.DivergenceAnalysis
+import com.etfmonitor.feature.analysis.domain.model.DivergenceType
+import com.etfmonitor.feature.analysis.domain.model.SupplyDemandItem
+import com.etfmonitor.feature.analysis.domain.model.MarketSentiment
+import com.etfmonitor.feature.analysis.domain.model.LiquidityAnalysisData
+import com.etfmonitor.feature.analysis.domain.model.LiquidityTrendData
+import com.etfmonitor.feature.analysis.domain.model.LeverageRisk
+import com.etfmonitor.feature.analysis.domain.model.LiquiditySignalType
+import com.etfmonitor.feature.analysis.domain.model.TrendDirection
+import com.etfmonitor.feature.analysis.domain.model.SectorAnalysisData
+import com.etfmonitor.feature.analysis.domain.model.SectorSentimentType
+import com.etfmonitor.feature.analysis.domain.model.SectorRotation
+import com.etfmonitor.feature.analysis.domain.model.EtfCorrelation
+import com.etfmonitor.feature.analysis.domain.model.CommonStock
+import com.etfmonitor.feature.analysis.domain.model.EtfPairCorrelation
+import com.etfmonitor.feature.analysis.domain.model.PortfolioDiversificationResult
+import com.etfmonitor.feature.analysis.domain.model.DiversificationAdvice
+import com.etfmonitor.feature.analysis.domain.model.AdviceType
+import com.etfmonitor.feature.analysis.domain.model.DataAvailability
+import com.etfmonitor.feature.analysis.domain.model.DataSourceStatus
+import com.etfmonitor.feature.analysis.domain.model.AdvancedDashboard
+import com.etfmonitor.feature.analysis.domain.model.OverallSignal
+import com.etfmonitor.feature.analysis.domain.model.SignalDirection
+import com.etfmonitor.feature.analysis.domain.model.MarketCapFlowHistory
+import com.etfmonitor.feature.analysis.domain.model.PredictionAccuracy
+
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.feature.analysis.data.mapper.toDomain
-import com.etfmonitor.feature.analysis.domain.model.*
 import com.etfmonitor.feature.analysis.domain.repository.AdvancedAnalysisRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -19,7 +60,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.abs
 import kotlin.math.sqrt
-import com.etfmonitor.core.database.entities.CommonStock as EntityCommonStock
 
 /**
  * 고급 분석 Repository 구현체
@@ -103,7 +143,7 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
                     status = determineStatus(stock)
                 )
 
-                val size = MarketCapSize.fromAmount(stock.totalAmount.toLong())
+                val size = MarketCapSize.fromMarketCap(stock.totalAmount.toLong())
 
                 if (flowAmount > 0) {
                     inflowStocks.add(stockFlow)
@@ -251,7 +291,7 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
                 val creditRatio = (deposit.creditAmount / deposit.depositAmount) * 100
                 val percentile = liquidityAnalysisDao.getDepositRatioPercentile(depositRatio) ?: 50.0
 
-                val riskLevel = LeverageRisk.fromRatio(creditRatio)
+                val riskLevel = LeverageRisk.fromCreditDepositRatio(creditRatio)
                 val signal = LiquiditySignalType.calculate(deposit.depositChange, deposit.creditChange, creditRatio)
 
                 val analysis = LiquidityAnalysis(

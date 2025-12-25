@@ -97,10 +97,10 @@ data class StockFlow(
 /**
  * 시총 규모 분류
  */
-enum class MarketCapSize {
-    LARGE,      // 대형주 (10조원 이상)
-    MID,        // 중형주 (1조원 ~ 10조원)
-    SMALL;      // 소형주 (1조원 미만)
+enum class MarketCapSize(val displayName: String) {
+    LARGE("대형주"),      // 10조원 이상
+    MID("중형주"),        // 1조원 ~ 10조원
+    SMALL("소형주");      // 1조원 미만
 
     companion object {
         fun fromMarketCap(marketCap: Long): MarketCapSize {
@@ -135,10 +135,10 @@ data class LiquidityAnalysisData(
 /**
  * 레버리지 위험 수준
  */
-enum class LeverageRisk {
-    LOW,
-    MEDIUM,
-    HIGH;
+enum class LeverageRisk(val displayName: String) {
+    LOW("낮음"),
+    MEDIUM("보통"),
+    HIGH("높음");
 
     companion object {
         fun fromCreditDepositRatio(ratio: Double): LeverageRisk {
@@ -154,11 +154,11 @@ enum class LeverageRisk {
 /**
  * 유동성 신호 타입
  */
-enum class LiquiditySignalType {
-    BULLISH_LIQUIDITY,   // 유동성 증가 (긍정적)
-    NEUTRAL,             // 중립
-    DELEVERAGING,        // 디레버리징 (단기 하락 가능)
-    BEARISH_LEVERAGE;    // 과도한 레버리지 (위험)
+enum class LiquiditySignalType(val displayName: String) {
+    BULLISH_LIQUIDITY("상승 여력"),   // 유동성 증가 (긍정적)
+    NEUTRAL("중립"),                  // 중립
+    DELEVERAGING("디레버리징"),       // 디레버리징 (단기 하락 가능)
+    BEARISH_LEVERAGE("하락 위험");    // 과도한 레버리지 (위험)
 
     companion object {
         fun calculate(depositChange: Double, creditChange: Double, creditRatio: Double): LiquiditySignalType {

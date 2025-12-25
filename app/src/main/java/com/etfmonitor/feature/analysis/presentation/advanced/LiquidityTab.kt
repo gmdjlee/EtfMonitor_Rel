@@ -15,7 +15,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.etfmonitor.R
-import com.etfmonitor.core.database.entities.*
+import com.etfmonitor.feature.analysis.domain.model.LeverageRisk
+import com.etfmonitor.feature.analysis.domain.model.LiquidityAnalysisData
+import com.etfmonitor.feature.analysis.domain.model.LiquiditySignalType
 
 /**
  * Advanced Dashboard Screen - Liquidity Tab
@@ -25,7 +27,7 @@ import com.etfmonitor.core.database.entities.*
 @Composable
 internal fun LiquidityTab(
     data: AdvancedDashboardData,
-    history: List<LiquidityAnalysis> = emptyList(),
+    history: List<LiquidityAnalysisData> = emptyList(),
     accuracy: PredictionAccuracy? = null
 ) {
     val liquidity = data.liquidityAnalysis
@@ -35,8 +37,8 @@ internal fun LiquidityTab(
         return
     }
 
-    val signal = try { LiquiditySignal.valueOf(liquidity.signal) } catch (e: Exception) { LiquiditySignal.NEUTRAL }
-    val riskLevel = try { LeverageRiskLevel.valueOf(liquidity.riskLevel) } catch (e: Exception) { LeverageRiskLevel.MEDIUM }
+    val signal = liquidity.signal
+    val riskLevel = liquidity.riskLevel
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -82,8 +84,8 @@ internal fun LiquidityTab(
                     title = stringResource(R.string.advanced_liquidity_signal),
                     value = signal.displayName,
                     color = when (signal) {
-                        LiquiditySignal.BULLISH_LIQUIDITY -> GreenPositive
-                        LiquiditySignal.BEARISH_LEVERAGE -> RedNegative
+                        LiquiditySignalType.BULLISH_LIQUIDITY -> GreenPositive
+                        LiquiditySignalType.BEARISH_LEVERAGE -> RedNegative
                         else -> MaterialTheme.colorScheme.onSurface
                     }
                 )
@@ -92,10 +94,9 @@ internal fun LiquidityTab(
                     title = stringResource(R.string.advanced_leverage_risk),
                     value = riskLevel.displayName,
                     color = when (riskLevel) {
-                        LeverageRiskLevel.LOW -> GreenPositive
-                        LeverageRiskLevel.MEDIUM -> OrangeAccent
-                        LeverageRiskLevel.HIGH -> RedNegative
-                        LeverageRiskLevel.EXTREME -> Color(0xFFD32F2F)
+                        LeverageRisk.LOW -> GreenPositive
+                        LeverageRisk.MEDIUM -> OrangeAccent
+                        LeverageRisk.HIGH -> RedNegative
                     }
                 )
             }

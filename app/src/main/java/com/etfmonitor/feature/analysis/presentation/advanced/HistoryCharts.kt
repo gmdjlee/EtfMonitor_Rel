@@ -13,7 +13,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.etfmonitor.core.database.entities.*
+import com.etfmonitor.feature.analysis.domain.model.LiquidityAnalysisData
+import com.etfmonitor.feature.analysis.domain.model.LiquiditySignalType
+import com.etfmonitor.feature.analysis.domain.model.SectorAnalysisData
 import kotlin.math.abs
 
 /**
@@ -130,7 +132,7 @@ private fun HistoryBarRow(date: String, netFlow: Double, maxValue: Double) {
  * 유동성 분석 히스토리 차트
  */
 @Composable
-internal fun LiquidityHistoryCard(history: List<LiquidityAnalysis>) {
+internal fun LiquidityHistoryCard(history: List<LiquidityAnalysisData>) {
     if (history.isEmpty()) return
 
     SectionCard("유동성 분석 추이 (최근 ${history.size}일)") {
@@ -151,7 +153,7 @@ internal fun LiquidityHistoryCard(history: List<LiquidityAnalysis>) {
             // 데이터 행
             history.take(10).forEachIndexed { index, item ->
                 val backgroundColor = if (index % 2 == 0) Color.Transparent else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
-                val signal = try { LiquiditySignal.valueOf(item.signal) } catch (e: Exception) { LiquiditySignal.NEUTRAL }
+                val signal = item.signal
 
                 Row(
                     modifier = Modifier
@@ -183,8 +185,8 @@ internal fun LiquidityHistoryCard(history: List<LiquidityAnalysis>) {
                         modifier = Modifier.width(60.dp),
                         textAlign = TextAlign.Center,
                         color = when (signal) {
-                            LiquiditySignal.BULLISH_LIQUIDITY -> GreenPositive
-                            LiquiditySignal.BEARISH_LEVERAGE -> RedNegative
+                            LiquiditySignalType.BULLISH_LIQUIDITY -> GreenPositive
+                            LiquiditySignalType.BEARISH_LEVERAGE -> RedNegative
                             else -> MaterialTheme.colorScheme.onSurface
                         }
                     )
@@ -236,7 +238,7 @@ private fun SimpleLiquiditySparkline(data: List<Double>, modifier: Modifier) {
  * 섹터 Fear & Greed 히스토리 차트
  */
 @Composable
-internal fun SectorHistoryCard(sectorHistory: Map<String, List<SectorAnalysis>>) {
+internal fun SectorHistoryCard(sectorHistory: Map<String, List<SectorAnalysisData>>) {
     if (sectorHistory.isEmpty()) return
 
     SectionCard("섹터별 심리 추이") {
@@ -299,7 +301,7 @@ internal fun SectorHistoryCard(sectorHistory: Map<String, List<SectorAnalysis>>)
 }
 
 @Composable
-private fun SectorHistoryRow(sectorCode: String, history: List<SectorAnalysis>) {
+private fun SectorHistoryRow(sectorCode: String, history: List<SectorAnalysisData>) {
     val sectorName = SectorMapping.getSectorDisplayName(sectorCode)
     val latestValue = history.firstOrNull()?.fearGreedValue ?: 0.5
     val previousValue = history.getOrNull(1)?.fearGreedValue ?: latestValue

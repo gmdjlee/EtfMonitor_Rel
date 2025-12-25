@@ -132,31 +132,39 @@ EtfMonitor_Rel/
 │   │   ├── MainActivity.kt              # Entry point
 │   │   ├── EtfMonitorApp.kt            # Hilt application
 │   │   │
-│   │   ├── core/                        # Core module (shared utilities)
-│   │   │   ├── common/util/             # AppLogger, DateFormatter, Exceptions, etc.
-│   │   │   ├── analysis/                # Market analysis utilities
+│   │   ├── core/                        # Core module (97 files)
+│   │   │   ├── common/util/             # AppLogger, DateFormatter, Exceptions, etc. (6 files)
+│   │   │   ├── analysis/                # Market analysis utilities (6 files)
 │   │   │   │   ├── CorrelationAnalyzer.kt
 │   │   │   │   ├── Backtester.kt
-│   │   │   │   └── TimeSeriesData.kt
+│   │   │   │   ├── TimeSeriesData.kt
+│   │   │   │   ├── OscillatorCalculator.kt
+│   │   │   │   ├── TrendSignalCalculator.kt
+│   │   │   │   └── model/StockData.kt
+│   │   │   ├── database/                # Room (36 files: 18 entities, 17 DAOs, AppDatabase, Converters)
+│   │   │   │   ├── AppDatabase.kt
+│   │   │   │   ├── Converters.kt
+│   │   │   │   ├── entities/            # 18 entity files (19 entities)
+│   │   │   │   └── *Dao.kt              # 17 DAO interfaces
 │   │   │   ├── network/
-│   │   │   │   ├── ai/                  # AI API clients
+│   │   │   │   ├── ai/                  # AI API clients (14 files)
 │   │   │   │   │   ├── AIApiClient.kt
 │   │   │   │   │   ├── ClaudeApiClient.kt
 │   │   │   │   │   ├── GeminiApiClient.kt
 │   │   │   │   │   └── MarketSignal.kt
-│   │   │   │   └── python/              # Python bridge clients
+│   │   │   │   └── python/              # Python bridge clients (3 files)
 │   │   │   │       ├── PyKrxClient.kt
 │   │   │   │       ├── MarketIndexPyClient.kt
 │   │   │   │       └── OscillatorPyClient.kt
-│   │   │   ├── ui/                      # Shared UI
+│   │   │   ├── ui/                      # Shared UI (20 files)
 │   │   │   │   ├── theme/               # Material 3 theme
-│   │   │   │   └── component/           # StateCards, BottomNav, etc.
-│   │   │   ├── worker/                  # Background workers
-│   │   │   ├── service/                 # Foreground services
-│   │   │   └── di/                      # Core DI modules
+│   │   │   │   └── component/           # StateCards, BottomNav, HubComponents, etc.
+│   │   │   ├── worker/                  # Background workers (9 files)
+│   │   │   ├── service/                 # Foreground services (2 files)
+│   │   │   └── di/                      # Core DI modules (4 files)
 │   │   │
-│   │   ├── feature/                     # Feature modules (Clean Architecture)
-│   │   │   ├── home/                    # Home feature
+│   │   ├── feature/                     # Feature modules (155 files)
+│   │   │   ├── home/                    # Home feature (15 files)
 │   │   │   │   ├── domain/              # Domain layer
 │   │   │   │   │   ├── model/           # HomeState, HomeSummary
 │   │   │   │   │   ├── repository/      # HomeRepository interface
@@ -165,26 +173,24 @@ EtfMonitor_Rel/
 │   │   │   │   ├── presentation/        # HomeScreen, HomeViewModel
 │   │   │   │   └── di/                  # HomeModule.kt
 │   │   │   │
-│   │   │   ├── etf/                     # ETF feature
+│   │   │   ├── etf/                     # ETF feature (23 files)
 │   │   │   │   ├── domain/              # Domain layer
-│   │   │   │   │   ├── model/           # Domain models
-│   │   │   │   │   ├── repository/      # Repository interfaces
+│   │   │   │   │   ├── model/           # Etf, Holding, ComparisonResult, DataProgress
+│   │   │   │   │   ├── repository/      # EtfRepository interface
 │   │   │   │   │   └── usecase/         # Use cases
 │   │   │   │   ├── data/                # Data layer
-│   │   │   │   │   ├── mapper/          # Entity ↔ Domain mappers
-│   │   │   │   │   └── repository/      # Repository implementations
-│   │   │   │   ├── presentation/        # Presentation layer
-│   │   │   │   │   ├── list/            # EtfListScreen, ViewModel
-│   │   │   │   │   └── detail/          # EtfDetailScreen, ViewModel
-│   │   │   │   └── di/                  # Feature DI module
+│   │   │   │   │   ├── mapper/          # EtfMapper
+│   │   │   │   │   └── repository/      # EtfRepositoryImpl
+│   │   │   │   ├── presentation/        # EtfListScreen, EtfDetailScreen, EtfHubScreen
+│   │   │   │   └── di/                  # EtfModule.kt
 │   │   │   │
-│   │   │   ├── stock/                   # Stock feature
-│   │   │   │   ├── domain/
-│   │   │   │   ├── data/
-│   │   │   │   ├── presentation/
-│   │   │   │   └── di/
+│   │   │   ├── stock/                   # Stock feature (38 files)
+│   │   │   │   ├── domain/              # Stock, StockAnalysis, StockTrend models
+│   │   │   │   ├── data/                # LocalDataSources, Mapper, Repositories
+│   │   │   │   ├── presentation/        # StockTrendScreen, OscillatorScreen, StatisticsScreen
+│   │   │   │   └── di/                  # StockModule.kt
 │   │   │   │
-│   │   │   ├── market/                  # Market indicators feature
+│   │   │   ├── market/                  # Market indicators feature (22 files)
 │   │   │   │   ├── domain/              # FearGreed, Deposit, Oscillator, Index
 │   │   │   │   │   ├── model/           # MarketModels.kt
 │   │   │   │   │   ├── repository/      # 4 repository interfaces
@@ -199,13 +205,13 @@ EtfMonitor_Rel/
 │   │   │   │   │   └── hub/             # MarketIndicatorHubScreen
 │   │   │   │   └── di/                  # MarketModule.kt
 │   │   │   │
-│   │   │   ├── analysis/                # Analysis feature
-│   │   │   │   ├── domain/
-│   │   │   │   ├── data/
-│   │   │   │   ├── presentation/
-│   │   │   │   └── di/
+│   │   │   ├── analysis/                # Analysis feature (37 files)
+│   │   │   │   ├── domain/              # AI, Correlation, Dashboard models
+│   │   │   │   ├── data/                # Repository implementations
+│   │   │   │   ├── presentation/        # AI Analysis, Advanced Dashboard screens
+│   │   │   │   └── di/                  # AnalysisModule.kt
 │   │   │   │
-│   │   │   └── settings/                # Settings feature
+│   │   │   └── settings/                # Settings feature (20 files)
 │   │   │       ├── domain/
 │   │   │       │   ├── model/           # SettingsModels.kt
 │   │   │       │   ├── repository/      # SettingsRepository.kt
@@ -213,25 +219,11 @@ EtfMonitor_Rel/
 │   │   │       ├── data/
 │   │   │       │   ├── mapper/
 │   │   │       │   └── repository/
-│   │   │       ├── presentation/
+│   │   │       ├── presentation/        # SettingsScreen, SettingsViewModel, components/
 │   │   │       └── di/                  # SettingsModule.kt
 │   │   │
-│   │   ├── navigation/                  # App navigation
-│   │   │   └── Navigation.kt            # NavHost, Screen routes
-│   │   │
-│   │   ├── database/                    # Room (19 entities, 16 DAOs)
-│   │   │   ├── AppDatabase.kt
-│   │   │   ├── entities/                # Entity classes
-│   │   │   ├── *Dao.kt                  # DAO interfaces
-│   │   │   └── Migrations (inline)
-│   │   │
-│   │   ├── repository/                  # Legacy repositories (being migrated)
-│   │   ├── di/                          # Legacy DI (RepositoryModule.kt)
-│   │   ├── oscillator/                  # Technical analysis (legacy)
-│   │   │
-│   │   └── ui/                          # UI layer (screens being migrated)
-│   │       ├── screens/                 # Legacy screens (OscillatorScreen, etc.)
-│   │       └── components/              # Shared components
+│   │   └── navigation/                  # App navigation (1 file)
+│   │       └── Navigation.kt            # NavHost, Screen routes
 │   │
 │   ├── python/                          # Python scripts (8 files)
 │   │   ├── etfcollector.py
@@ -249,15 +241,20 @@ EtfMonitor_Rel/
 └── build.gradle.kts                     # Build config
 ```
 
-**Clean Architecture Organization:**
-- `core/` - Shared utilities, network clients, theme, analysis tools
-- `feature/*/domain/` - Business logic (models, repositories, use cases)
-- `feature/*/data/` - Data access (mappers, repository implementations)
-- `feature/*/presentation/` - UI (screens, ViewModels, state classes)
-- `feature/*/di/` - Feature-specific DI modules
-- `navigation/` - App-wide navigation
-- `database/` - Room entities, DAOs, migrations
-- `repository/` - Legacy repositories (gradually being migrated to feature modules)
+**Clean Architecture Organization (~255 Kotlin files):**
+- `core/` (97 files) - Shared infrastructure: database, network, UI theme, workers, services, DI
+- `feature/` (155 files) - 6 feature modules with domain/data/presentation layers
+- `navigation/` (1 file) - App-wide navigation
+- `MainActivity.kt`, `EtfMonitorApp.kt` - Entry points
+
+**Feature Module Structure (per feature):**
+- `domain/model/` - Business models
+- `domain/repository/` - Repository interfaces
+- `domain/usecase/` - Use cases
+- `data/mapper/` - Entity ↔ Domain mappers
+- `data/repository/` - Repository implementations
+- `presentation/` - Screens, ViewModels, components
+- `di/` - Feature-specific DI module
 
 ---
 
@@ -1593,8 +1590,8 @@ Before submitting changes, verify:
 
 ---
 
-**Last Updated**: 2025-12-24
-**Codebase Version**: Schema v14, ~40,000 LOC
+**Last Updated**: 2025-12-25
+**Codebase Version**: Schema v14, ~255 Kotlin files
 **Maintainer**: gmdjlee
 
 ---
@@ -1647,116 +1644,44 @@ Before submitting changes, verify:
   - Removed unused functions from `market.py` (`get_realtime_oscillator`, `fetch_market_index`)
 - **Documentation updated** to reflect new v2 prediction system
 
-### 2025-12-24 - Clean Architecture Migration (7 Phases Complete)
+### 2025-12-24 - Clean Architecture Migration Started
 
-**Phase 1: Core Module Setup**
-- Created `core/` package structure:
-  - `core/common/util/` - AppLogger, DateFormatter, Exceptions, DataArchiver, AmountFormatter
-  - `core/network/python/` - PyKrxClient, MarketIndexPyClient, OscillatorPyClient
-  - `core/network/ai/` - All AI API clients
-  - `core/ui/theme/` - Material 3 theme files
-  - `core/ui/component/` - StateCards, Material3Components, BottomNavigationBar
-  - `core/worker/` - 8 WorkManager workers
-  - `core/service/` - DataCollectionService, CollectionState
-  - `core/di/` - DatabaseModule, WorkerModule, PythonModule, AIModule
-  - `core/analysis/` - CorrelationAnalyzer, Backtester, TimeSeriesData
+**Phase 1-6: Feature Module Setup**
+- Created `core/` package structure with common utilities, network clients, UI theme, workers, services, DI
+- Created 6 feature modules: home, etf, stock, market, analysis, settings
+- Each feature follows domain/data/presentation layer pattern
 
-**Phase 2: Home Feature Module** (`feature/home/`)
-- Domain: HomeState, HomeSummary, HomeRepository interface, 5 UseCases
-- Data: HomeRepositoryImpl wrapping legacy repositories
-- Presentation: HomeScreen, HomeViewModel, HomeSummaryCard, HomeDialogs
+### 2025-12-25 - Clean Architecture Migration Complete (Phase 7-8)
 
-**Phase 3: ETF Feature Module** (`feature/etf/`)
-- Domain: Etf, Holding, ComparisonResult models, EtfRepository interface, 5 UseCases
-- Data: EtfLocalDataSource, EtfMapper, EtfRepositoryImpl
-- Presentation: EtfListScreen, EtfDetailScreen, ViewModels
+**Phase 7: Legacy Repository Elimination (Complete)**
 
-**Phase 4: Stock Feature Module** (`feature/stock/`)
-- Domain: Stock, StockAnalysis, StockTrend models, 4 repository interfaces, 9 UseCases
-- Data: 3 LocalDataSources, StockMapper, 4 repository implementations
-- Presentation: StockTrendScreen, StatisticsViewModel
+All legacy repositories migrated to feature modules:
+- `DataRepository` → `EtfRepositoryImpl` (Phase 7.1)
+- `StockRepository`, `StockAnalysisRepository` → `StockRepositoryImpl`, `StockAnalysisRepositoryImpl` (Phase 7.2)
+- `FearGreedRepository`, `MarketDepositRepository`, `MarketOscillatorRepository`, `MarketIndexRepository` → Feature implementations (Phase 7.3)
+- `AIAnalysisRepository`, `AIChatRepository`, `CorrelationAnalysisRepository`, `AdvancedAnalysisRepository`, `StatisticsAnalysisRepository` → Feature implementations (Phase 7.4)
+- `TimeSeriesAnalysisRepository` → `TimeSeriesAnalysisHelper` (internal utility) (Phase 7.5)
+- `RepositoryModule.kt` deleted, all bindings moved to feature modules
 
-**Phase 5: Market Feature Module** (`feature/market/`)
-- Domain: MarketModels (FearGreed, Deposit, Oscillator, Index), 4 interfaces, 37 UseCases
-- Data: MarketMapper, 4 repository implementations (wrapping legacy)
-- Presentation: FearGreedScreen, MarketOscillatorScreen, MarketDepositScreen, MarketIndicatorHubScreen
+**Phase 8: Final Cleanup & Documentation**
 
-**Phase 6: Analysis Feature Module** (`feature/analysis/`)
-- Domain: AnalysisModels, ChatModels, DashboardModels, 6 interfaces, 30+ UseCases
-- Data: AnalysisMapper, 4 repository implementations
-- Presentation: State classes (ViewModels remain in ui/screens/)
+Deleted legacy folders:
+- `repository/` - All 13 legacy repository files
+- `ui/screens/` - All screens migrated to feature modules
+- `database/` - Moved to `core/database/`
+- `oscillator/` - Moved to `core/analysis/`
+- `di/` - Consolidated into `core/di/`
 
-**Phase 7: Settings & Final Cleanup**
-- Settings feature module created with full domain/data/di layers
-- Navigation relocated to `navigation/` package
-- Analysis utilities moved to `core/analysis/`
+**Final Architecture** (~255 Kotlin files):
+```
+com/etfmonitor/
+├── core/          (97 files) - Shared infrastructure
+├── feature/       (155 files) - 6 feature modules
+├── navigation/    (1 file) - App navigation
+├── MainActivity.kt
+└── EtfMonitorApp.kt
+```
 
-**Clean Architecture Summary**:
-- Core module: Complete (network/ai, network/python, common/util, ui/theme, analysis, worker, service, di)
-- Feature modules: 6 modules (home, etf, stock, market, analysis, settings)
-- Legacy code: `repository/`, `ui/screens/`, `oscillator/` (gradually being migrated)
-
-### 2025-12-25 - Legacy Market Repository Cleanup (Phase 7 Complete)
-
-**Legacy Market Repositories Removed**:
-- Deleted `repository/FearGreedRepository.kt`
-- Deleted `repository/MarketDepositRepository.kt`
-- Deleted `repository/MarketOscillatorRepository.kt`
-- Deleted `repository/MarketIndexRepository.kt`
-
-**Feature Repository Implementations Updated** (no longer wrappers):
-- `feature/market/data/repository/FearGreedRepositoryImpl.kt` - Direct Python feargreed module integration
-- `feature/market/data/repository/MarketDepositRepositoryImpl.kt` - Direct OscillatorPyClient integration
-- `feature/market/data/repository/MarketOscillatorRepositoryImpl.kt` - Direct OscillatorPyClient integration
-- `feature/market/data/repository/MarketIndexRepositoryImpl.kt` - Direct MarketIndexPyClient integration
-
-**DI Module Updates**:
-- Removed legacy market repository providers from `RepositoryModule.kt`
-- `MarketModule.kt` now provides all market repositories via `@Binds` pattern
-
-**Consumer Updates** (using feature domain interfaces):
-- Workers: FearGreedUpdateWorker, MarketDepositUpdateWorker, MarketOscillatorUpdateWorker, MarketIndexUpdateWorker
-- ViewModels: FearGreedViewModel, MarketDepositViewModel, MarketOscillatorViewModel, HomeViewModel, SettingsViewModel
-- Services: DataCollectionService
-
-**Remaining Legacy Repositories** (8 files, still in use):
-- `StockRepository.kt` - Stock data operations
-- `AIAnalysisRepository.kt` - AI market analysis
-- `AIChatRepository.kt` - AI chat functionality
-- `AdvancedAnalysisRepository.kt` - Advanced dashboard analysis
-- `CorrelationAnalysisRepository.kt` - Correlation analysis
-- `TimeSeriesAnalysisRepository.kt` - Time series analysis
-- `StatisticsAnalysisRepository.kt` - Statistics analysis
-- `StockAnalysisRepository.kt` - Stock analysis
-
-### 2025-12-25 - DataRepository Elimination (Phase 7.1)
-
-**DataRepository Migrated to EtfRepository**:
-- Deleted `repository/DataRepository.kt`
-- All data collection functionality moved to `feature/etf/domain/repository/EtfRepository`
-- New domain model: `DataProgress` in `feature/etf/domain/model/`
-
-**EtfRepository Extended Methods**:
-- `initializeData(days)`: Flow-based ETF data collection with progress
-- `updateData()`: Incremental ETF data updates
-- `resetDatabase()`: Database cleanup
-- `trimDataToPeriod(days)`: Data retention management
-- Settings methods: `getThemes()`, `addTheme()`, `removeTheme()`, `getExclusions()`, etc.
-
-**Consumer Updates** (migrated from DataRepository to EtfRepository):
-- `EtfRepositoryImpl.kt` - Full implementation with data collection
-- `SettingsRepositoryImpl.kt` - Uses EtfRepository for settings
-- `SettingsViewModel.kt` - Uses EtfRepository for data operations
-- `HomeRepositoryImpl.kt` - Uses EtfRepository
-- `EtfUpdateWorker.kt` - Uses EtfRepository
-- `DataCollectionService.kt` - Uses EtfRepository
-
-**StockStatisticsRepository Extended**:
-- Added `getStockAggregatedTrend()` method
-- Added domain models: `StockAggregatedTrend`, `StockAggregatedTimePoint`
-- `AggregatedStockTrendScreen.kt` now uses `StockStatisticsRepository`
-
-**DI Module Updates**:
-- Removed DataRepository provider from `RepositoryModule.kt`
-- Updated `SettingsModule.kt` to use EtfRepository
-- Updated `EtfModule.kt` with additional dependencies
+**DI Modules** (10 total, all in feature/*/di/ or core/di/):
+- Core: DatabaseModule, WorkerModule, PythonModule, AIModule
+- Features: HomeModule, EtfModule, StockModule, MarketModule, AnalysisModule, SettingsModule
