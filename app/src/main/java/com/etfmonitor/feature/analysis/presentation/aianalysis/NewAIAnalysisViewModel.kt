@@ -553,12 +553,12 @@ class NewAIAnalysisViewModel @Inject constructor(
     /**
      * 히스토리에서 분석 결과 로드
      */
-    fun loadFromHistory(historyItem: StockIndicatorAIResult) {
+    fun loadFromHistory(historyItem: StockIndicatorAIHistoryItem) {
         // 종목 선택
         _selectedStock.value = Pair(historyItem.ticker, historyItem.stockName)
 
         // AI 해석 결과만 생성 (상관관계 데이터는 없지만 표시 가능)
-        val aiInterpretation = com.etfmonitor.core.analysis.AIStockIndicatorInterpretation(
+        val aiInterpretation = StockIndicatorInterpretation(
             ticker = historyItem.ticker,
             name = historyItem.stockName,
             period = historyItem.period,
@@ -579,7 +579,7 @@ class NewAIAnalysisViewModel @Inject constructor(
             reasoning = historyItem.reasoning
         )
 
-        _stockIndicatorCorrelationResult.value = FullStockIndicatorCorrelationResult(
+        _stockIndicatorCorrelationResult.value = FullStockIndicatorAnalysis(
             correlationResult = null,  // 히스토리에서 로드시 상관관계 데이터 없음
             aiInterpretation = aiInterpretation,
             errorMessage = null

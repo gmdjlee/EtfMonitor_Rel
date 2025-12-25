@@ -64,6 +64,7 @@ data class StockIndicatorAIHistoryItem(
     val ticker: String,
     val stockName: String,
     val market: String,
+    val analysisDate: String,
     val period: Int,
     val signal: String,
     val confidence: Double,

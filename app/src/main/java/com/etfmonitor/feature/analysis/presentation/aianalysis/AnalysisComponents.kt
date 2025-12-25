@@ -40,7 +40,7 @@ import com.etfmonitor.feature.analysis.domain.model.CorrelationAnalysis
 import com.etfmonitor.feature.analysis.domain.model.MessageRole
 import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.core.database.entities.Stock
-import com.etfmonitor.core.database.entities.StockIndicatorAIResult
+import com.etfmonitor.feature.analysis.domain.repository.StockIndicatorAIHistoryItem
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -1300,8 +1300,8 @@ fun SessionItem(
 // ========== Stock Indicator AI History Item ==========
 
 @Composable
-fun StockIndicatorAIHistoryItem(
-    item: StockIndicatorAIResult,
+fun StockIndicatorAIHistoryItemCard(
+    item: StockIndicatorAIHistoryItem,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
