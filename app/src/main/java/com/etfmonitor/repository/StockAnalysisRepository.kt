@@ -4,7 +4,7 @@ import com.etfmonitor.core.database.StockAnalysisDao
 import com.etfmonitor.core.database.StockDao
 import com.etfmonitor.core.database.entities.StockAnalysisData
 import com.etfmonitor.core.database.entities.StockAnalysisWithName
-import com.etfmonitor.oscillator.model.StockData
+import com.etfmonitor.core.analysis.model.StockData
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.network.python.OscillatorPyClient
 import com.etfmonitor.core.common.util.DateFormatter

@@ -4,7 +4,7 @@ import com.etfmonitor.core.network.ai.AIApiClientFactory
 import com.etfmonitor.core.analysis.*
 import com.etfmonitor.core.database.*
 import com.etfmonitor.core.database.entities.*
-import com.etfmonitor.oscillator.model.StockOhlcvData
+import com.etfmonitor.core.analysis.model.StockOhlcvData
 import com.etfmonitor.core.network.python.OscillatorPyClient
 import com.etfmonitor.core.common.util.AppLogger
 import kotlinx.coroutines.Dispatchers

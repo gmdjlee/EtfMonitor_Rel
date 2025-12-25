@@ -9,7 +9,7 @@ import com.etfmonitor.feature.market.domain.model.MarketDeposit
 import com.etfmonitor.feature.market.domain.model.MarketDepositData
 import com.etfmonitor.feature.market.domain.model.MarketOscillator
 import com.etfmonitor.feature.market.domain.model.MarketIndex
-import com.etfmonitor.oscillator.model.MarketDepositData as LegacyMarketDepositData
+import com.etfmonitor.core.analysis.model.MarketDepositData as LegacyMarketDepositData
 
 /**
  * Market 관련 Entity <-> Domain Model 변환 Mapper

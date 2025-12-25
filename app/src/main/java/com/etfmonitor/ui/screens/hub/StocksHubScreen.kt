@@ -22,10 +22,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
-import com.etfmonitor.oscillator.model.DemarkTDData
-import com.etfmonitor.oscillator.model.FearGreedState
-import com.etfmonitor.oscillator.model.TrendSignalAnalysis
-import com.etfmonitor.oscillator.model.TrendTradeSignal
+import com.etfmonitor.core.analysis.model.DemarkTDData
+import com.etfmonitor.core.analysis.model.FearGreedState
+import com.etfmonitor.core.analysis.model.TrendSignalAnalysis
+import com.etfmonitor.core.analysis.model.TrendTradeSignal
 import com.etfmonitor.core.ui.component.MarketCapOscillatorChart
 import com.etfmonitor.core.ui.component.MacdChart
 import com.etfmonitor.core.ui.component.TrendSignalChart

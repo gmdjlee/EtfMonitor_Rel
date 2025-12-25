@@ -14,11 +14,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.etfmonitor.R
-import com.etfmonitor.oscillator.calculator.TrendSignalCalculator
-import com.etfmonitor.oscillator.model.FearGreedState
-import com.etfmonitor.oscillator.model.TrendSignalAnalysis
-import com.etfmonitor.oscillator.model.TrendSignalData
-import com.etfmonitor.oscillator.model.TrendTradeSignal
+import com.etfmonitor.core.analysis.TrendSignalCalculator
+import com.etfmonitor.core.analysis.model.FearGreedState
+import com.etfmonitor.core.analysis.model.TrendSignalAnalysis
+import com.etfmonitor.core.analysis.model.TrendSignalData
+import com.etfmonitor.core.analysis.model.TrendTradeSignal
 import com.etfmonitor.core.network.python.OscillatorPyClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

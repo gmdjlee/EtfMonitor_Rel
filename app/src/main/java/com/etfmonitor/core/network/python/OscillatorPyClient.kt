@@ -2,12 +2,12 @@ package com.etfmonitor.core.network.python
 
 import com.chaquo.python.Python
 import com.etfmonitor.core.common.util.AppLogger
-import com.etfmonitor.oscillator.model.DemarkTDData
-import com.etfmonitor.oscillator.model.ElderImpulseData
-import com.etfmonitor.oscillator.model.MarketDepositData
-import com.etfmonitor.oscillator.model.StockData
-import com.etfmonitor.oscillator.model.StockOhlcvData
-import com.etfmonitor.oscillator.model.TrendSignalData
+import com.etfmonitor.core.analysis.model.DemarkTDData
+import com.etfmonitor.core.analysis.model.ElderImpulseData
+import com.etfmonitor.core.analysis.model.MarketDepositData
+import com.etfmonitor.core.analysis.model.StockData
+import com.etfmonitor.core.analysis.model.StockOhlcvData
+import com.etfmonitor.core.analysis.model.TrendSignalData
 import com.etfmonitor.core.common.util.DataParsingException
 import com.etfmonitor.core.common.util.PythonRuntimeException
 import com.etfmonitor.core.common.util.PythonTimeoutException

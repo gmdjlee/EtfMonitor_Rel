@@ -1,6 +1,6 @@
-package com.etfmonitor.oscillator.calculator
+package com.etfmonitor.core.analysis
 
-import com.etfmonitor.oscillator.model.*
+import com.etfmonitor.core.analysis.model.*
 import kotlin.math.abs
 
 /**

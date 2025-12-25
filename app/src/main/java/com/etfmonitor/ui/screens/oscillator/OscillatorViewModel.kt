@@ -7,11 +7,11 @@ import com.etfmonitor.core.database.SearchHistoryDao
 import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.core.database.entities.SearchHistoryType
 import com.etfmonitor.core.database.entities.Stock
-import com.etfmonitor.oscillator.calculator.OscillatorCalculator
-import com.etfmonitor.oscillator.calculator.TrendSignalCalculator
-import com.etfmonitor.oscillator.model.*
-import com.etfmonitor.oscillator.model.ElderImpulseData
-import com.etfmonitor.oscillator.model.DemarkTDData
+import com.etfmonitor.core.analysis.OscillatorCalculator
+import com.etfmonitor.core.analysis.TrendSignalCalculator
+import com.etfmonitor.core.analysis.model.*
+import com.etfmonitor.core.analysis.model.ElderImpulseData
+import com.etfmonitor.core.analysis.model.DemarkTDData
 import com.etfmonitor.core.network.python.OscillatorPyClient
 import com.etfmonitor.repository.StockAnalysisRepository
 import com.etfmonitor.repository.StockRepository

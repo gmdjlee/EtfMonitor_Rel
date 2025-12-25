@@ -1,4 +1,4 @@
-package com.etfmonitor.oscillator.model
+package com.etfmonitor.core.analysis.model
 
 /**
  * UI 상태

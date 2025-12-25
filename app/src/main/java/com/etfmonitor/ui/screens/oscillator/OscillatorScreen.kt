@@ -38,11 +38,11 @@ import com.etfmonitor.core.ui.component.ErrorCard
 import com.etfmonitor.core.ui.component.IdleCard
 import com.etfmonitor.core.ui.component.ElderImpulseChart
 import com.etfmonitor.core.ui.component.DemarkTDChart
-import com.etfmonitor.oscillator.model.TrendSignalAnalysis
-import com.etfmonitor.oscillator.model.TrendTradeSignal
-import com.etfmonitor.oscillator.model.FearGreedState
-import com.etfmonitor.oscillator.model.ElderImpulseData
-import com.etfmonitor.oscillator.model.DemarkTDData
+import com.etfmonitor.core.analysis.model.TrendSignalAnalysis
+import com.etfmonitor.core.analysis.model.TrendTradeSignal
+import com.etfmonitor.core.analysis.model.FearGreedState
+import com.etfmonitor.core.analysis.model.ElderImpulseData
+import com.etfmonitor.core.analysis.model.DemarkTDData
 import com.etfmonitor.core.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
