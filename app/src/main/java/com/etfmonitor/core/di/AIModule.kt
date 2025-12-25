@@ -7,7 +7,6 @@ import com.etfmonitor.core.analysis.CorrelationAnalyzer
 import com.etfmonitor.database.*
 import com.etfmonitor.repository.AIAnalysisRepository
 import com.etfmonitor.repository.AIChatRepository
-import com.etfmonitor.repository.CorrelationAnalysisRepository
 import com.etfmonitor.repository.MarketIndexRepository
 import com.etfmonitor.repository.TimeSeriesAnalysisRepository
 import com.etfmonitor.core.network.python.OscillatorPyClient
@@ -136,31 +135,8 @@ object AIModule {
         )
     }
 
-    /**
-     * CorrelationAnalysisRepository
-     * 상관관계 분석 + AI 해석 통합 Repository
-     */
-    @Provides
-    @Singleton
-    fun provideCorrelationAnalysisRepository(
-        correlationAnalyzer: CorrelationAnalyzer,
-        correlationAnalysisDao: CorrelationAnalysisDao,
-        aiAnalysisDao: AIAnalysisDao,
-        marketIndexDao: MarketIndexDao,
-        marketIndexRepository: MarketIndexRepository,
-        dailyEtfStatisticsDao: DailyEtfStatisticsDao,
-        aiApiClientFactory: AIApiClientFactory
-    ): CorrelationAnalysisRepository {
-        return CorrelationAnalysisRepository(
-            correlationAnalyzer,
-            correlationAnalysisDao,
-            aiAnalysisDao,
-            marketIndexDao,
-            marketIndexRepository,
-            dailyEtfStatisticsDao,
-            aiApiClientFactory
-        )
-    }
+    // CorrelationAnalysisRepository is auto-injected via @Inject constructor
+    // (removed explicit provider to avoid DI duplicate with AnalysisModule)
 
     /**
      * AIChatRepository

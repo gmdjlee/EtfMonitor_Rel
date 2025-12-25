@@ -73,8 +73,8 @@ class GeminiApiClient @Inject constructor(
             var model = apiKeyProvider.getSelectedModel(AIProvider.GEMINI) ?: MODEL
             logger.d("Retrieved model from settings: $model")
 
-            // 잘못된 모델명 검증 및 수정
-            model = validateAndFixModelName(model)
+            // 잘못된 모델명 검증 및 수정 (수정 시 설정에 저장)
+            model = validateAndPersistModelName(model)
             logger.d("Validated model name: $model")
 
             logger.d("Analyzing market with Gemini API using model: $model")
@@ -185,46 +185,55 @@ class GeminiApiClient @Inject constructor(
     }
 
     /**
-     * 모델명 검증 및 수정
+     * 모델명 검증 (순수 함수, side effect 없음)
      * - 공백이나 잘못된 문자 처리
      * - '-latest' 접미사 제거
      * - 잘못된 모델명을 기본값으로 대체
+     * @return 검증된 모델명
      */
-    private fun validateAndFixModelName(modelName: String): String {
+    private fun validateModelName(modelName: String): String {
         var fixedModel = modelName.trim()
 
         // 공백이 포함된 경우 (예: "gemini 2.5 pro")
         if (fixedModel.contains(" ")) {
             logger.w("Invalid model name with spaces: '$fixedModel'")
-            fixedModel = MODEL
-            apiKeyProvider.setSelectedModel(AIProvider.GEMINI, MODEL)
-            return fixedModel
+            return MODEL
         }
 
         // -latest 접미사 제거 (v1beta에서 지원 안됨)
         if (fixedModel.endsWith("-latest")) {
             logger.w("Model name with '-latest' suffix: $fixedModel, removing suffix")
             fixedModel = fixedModel.removeSuffix("-latest")
-            apiKeyProvider.setSelectedModel(AIProvider.GEMINI, fixedModel)
         }
 
         // experimental 모델은 무료 티어에서 사용 불가 - stable 버전으로 대체
         if (fixedModel.endsWith("-exp")) {
             logger.w("Experimental model '$fixedModel' may not have free tier quota, using stable: $MODEL")
-            fixedModel = MODEL
-            apiKeyProvider.setSelectedModel(AIProvider.GEMINI, MODEL)
-            return fixedModel
+            return MODEL
         }
 
         // 유효한 모델명 패턴 검증 (gemini-x.x-xxx 형식)
         val validPattern = "^gemini-[0-9]+(\\.[0-9]+)?-[a-z]+(-[a-z]+)?$".toRegex()
         if (!validPattern.matches(fixedModel)) {
             logger.w("Invalid model name format: '$fixedModel', using default: $MODEL")
-            fixedModel = MODEL
-            apiKeyProvider.setSelectedModel(AIProvider.GEMINI, MODEL)
+            return MODEL
         }
 
         return fixedModel
+    }
+
+    /**
+     * 모델명 검증 후 수정된 경우 설정에 저장
+     * @return 검증된 모델명
+     */
+    private fun validateAndPersistModelName(modelName: String): String {
+        val validatedModel = validateModelName(modelName)
+        if (validatedModel != modelName.trim()) {
+            // 수정이 필요한 경우에만 설정에 저장
+            apiKeyProvider.setSelectedModel(AIProvider.GEMINI, validatedModel)
+            logger.d("Model name corrected and saved: $modelName -> $validatedModel")
+        }
+        return validatedModel
     }
 
     /**
@@ -242,7 +251,7 @@ class GeminiApiClient @Inject constructor(
             }
 
             var model = apiKeyProvider.getSelectedModel(AIProvider.GEMINI) ?: MODEL
-            model = validateAndFixModelName(model)
+            model = validateAndPersistModelName(model)
 
             withTimeout(TIMEOUT_SECONDS * 1000) {
                 val response = callGeminiChatApi(apiKey, messages, systemPrompt, temperature, model)
