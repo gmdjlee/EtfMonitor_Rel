@@ -22,6 +22,7 @@ import com.etfmonitor.repository.CorrelationAnalysisRepository
 import com.etfmonitor.repository.FullAnalysisResult
 import com.etfmonitor.repository.TimeSeriesAnalysisRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -370,6 +371,8 @@ class NewAIAnalysisViewModel @Inject constructor(
 
     /**
      * 종목 검색
+     * 로컬 DB(EtfDao)를 사용하여 빠른 자동완성 제공
+     * 최대 10개의 검색 결과 반환
      */
     fun searchStock(query: String) {
         if (query.isBlank()) {
@@ -377,14 +380,12 @@ class NewAIAnalysisViewModel @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _isSearching.value = true
             try {
-                val result = timeSeriesAnalysisRepository.searchStock(query)
-                if (result != null) {
-                    _stockSearchResults.value = listOf(result)
-                } else {
-                    _stockSearchResults.value = emptyList()
+                val results = etfDao.searchStocks(query)
+                _stockSearchResults.value = results.take(10).map {
+                    Pair(it.stockTicker, it.stockName)
                 }
             } catch (e: Exception) {
                 _stockSearchResults.value = emptyList()
