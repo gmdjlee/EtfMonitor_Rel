@@ -10,13 +10,13 @@ import com.etfmonitor.core.ui.theme.ThemeManager
 import com.etfmonitor.core.worker.WorkManagerHelper
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.entities.Setting
+import com.etfmonitor.feature.etf.domain.repository.EtfRepository
 import com.etfmonitor.feature.settings.data.mapper.SettingsMapper.toDomain
 import com.etfmonitor.feature.settings.data.mapper.SettingsMapper.toDomainModels
 import com.etfmonitor.feature.settings.data.mapper.SettingsMapper.toDataModel
 import com.etfmonitor.feature.settings.domain.model.*
 import com.etfmonitor.feature.settings.domain.repository.*
 import com.etfmonitor.repository.AIAnalysisRepository
-import com.etfmonitor.repository.DataRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -31,7 +31,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class SettingsRepositoryImpl @Inject constructor(
-    private val dataRepository: DataRepository,
+    private val etfRepository: EtfRepository,
     private val aiAnalysisRepository: AIAnalysisRepository,
     private val apiKeyProvider: ApiKeyProvider,
     private val etfDao: EtfDao,
@@ -57,34 +57,34 @@ class SettingsRepositoryImpl @Inject constructor(
     // ==================== Theme Keywords ====================
 
     override suspend fun getThemes(): List<String> = withContext(Dispatchers.IO) {
-        dataRepository.getThemes()
+        etfRepository.getThemes()
     }
 
     override suspend fun addTheme(theme: String) = withContext(Dispatchers.IO) {
-        dataRepository.addTheme(theme)
+        etfRepository.addTheme(theme)
     }
 
     override suspend fun removeTheme(theme: String) = withContext(Dispatchers.IO) {
-        dataRepository.removeTheme(theme)
+        etfRepository.removeTheme(theme)
     }
 
     override suspend fun getExclusions(): List<String> = withContext(Dispatchers.IO) {
-        dataRepository.getExclusions()
+        etfRepository.getExclusions()
     }
 
     override suspend fun addExclusion(keyword: String) = withContext(Dispatchers.IO) {
-        dataRepository.addExclusion(keyword)
+        etfRepository.addExclusion(keyword)
     }
 
     override suspend fun removeExclusion(keyword: String) = withContext(Dispatchers.IO) {
-        dataRepository.removeExclusion(keyword)
+        etfRepository.removeExclusion(keyword)
     }
 
     // ==================== General Settings ====================
 
     override suspend fun getGeneralSettings(): GeneralSettings = withContext(Dispatchers.IO) {
         GeneralSettings(
-            defaultDays = dataRepository.getDefaultDays(),
+            defaultDays = etfRepository.getDefaultDays(),
             searchHistoryLimit = etfDao.getSetting(KEY_SEARCH_HISTORY_LIMIT)?.toIntOrNull() ?: 15,
             fearGreedPeriodDays = etfDao.getSetting(KEY_FEAR_GREED_PERIOD)?.toIntOrNull() ?: 365,
             marketOscillatorPeriodDays = etfDao.getSetting(KEY_OSCILLATOR_PERIOD)?.toIntOrNull() ?: 365,
@@ -93,7 +93,7 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun setDefaultDays(days: Int) = withContext(Dispatchers.IO) {
-        dataRepository.setDefaultDays(days)
+        etfRepository.setDefaultDays(days)
     }
 
     override suspend fun setSearchHistoryLimit(limit: Int) = withContext(Dispatchers.IO) {
@@ -377,10 +377,10 @@ class SettingsRepositoryImpl @Inject constructor(
     // ==================== Data Management ====================
 
     override suspend fun resetDatabase() = withContext(Dispatchers.IO) {
-        dataRepository.resetDatabase()
+        etfRepository.resetDatabase()
     }
 
     override suspend fun trimDataToPeriod(days: Int): Int = withContext(Dispatchers.IO) {
-        dataRepository.trimDataToPeriod(days)
+        etfRepository.trimDataToPeriod(days)
     }
 }

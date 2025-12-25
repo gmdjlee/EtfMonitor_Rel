@@ -273,7 +273,7 @@ EtfMonitor_Rel/
            │
 ┌──────────▼──────────────────────────┐
 │   Repository Layer                  │  @Singleton
-│   DataRepository, StockRepository   │  Business logic
+│   EtfRepository, StockRepository    │  Business logic
 └──────────┬──────────────────────────┘
            │
 ┌──────────▼──────────────────────────┐
@@ -332,17 +332,19 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
 #### 2. Repository Pattern with Flow
 ```kotlin
 @Singleton
-class DataRepository @Inject constructor(
-    private val dao: EtfDao,
-    private val pyKrx: PyKrxClient
-) {
+class EtfRepositoryImpl @Inject constructor(
+    private val localDataSource: EtfLocalDataSource,
+    private val etfDao: EtfDao,
+    private val pyKrxClient: PyKrxClient
+) : EtfRepository {
     // Reactive data stream
-    fun getAllEtfs(): Flow<List<Etf>> = dao.getAllEtfs()
+    override fun getAllEtfs(): Flow<List<Etf>> = localDataSource.getAllEtfs()
+        .map { it.toDomain() }
         .flowOn(Dispatchers.IO)
 
     // One-time suspend operation
-    suspend fun hasData(): Boolean = withContext(Dispatchers.IO) {
-        dao.getEtfCount() > 0
+    override suspend fun hasData(): Boolean = withContext(Dispatchers.IO) {
+        etfDao.getEtfCount() > 0
     }
 }
 ```
@@ -1153,7 +1155,7 @@ _searchQuery
 #### Core Data Repositories
 | Repository | Dependencies | Key Methods | Error Pattern |
 |------------|--------------|-------------|---------------|
-| **DataRepository** | EtfDao, DailyEtfStatisticsDao, StockDao, PyKrxClient | `initializeData()`, `updateData()`, `getComparison()` | Flow<DataProgress> |
+| **EtfRepository** | EtfDao, DailyEtfStatisticsDao, StockDao, PyKrxClient | `initializeData()`, `updateData()`, `getComparison()` | Flow<DataProgress> |
 | **StockRepository** | StockDao, OscillatorPyClient | `syncFromHoldings()`, `initializeStocks()` | Result<Int> |
 | **StockAnalysisRepository** | StockAnalysisDao, StockDao, OscillatorPyClient | `getStockAnalysis()` (24h cache) | nullable return |
 | **MarketIndexRepository** | MarketIndexDao, MarketIndexPyClient | `initializeMarketIndex()`, `updateMarketIndex()` | Result<Int> |
@@ -1717,8 +1719,7 @@ Before submitting changes, verify:
 - ViewModels: FearGreedViewModel, MarketDepositViewModel, MarketOscillatorViewModel, HomeViewModel, SettingsViewModel
 - Services: DataCollectionService
 
-**Remaining Legacy Repositories** (9 files, still in use):
-- `DataRepository.kt` - Core ETF data operations
+**Remaining Legacy Repositories** (8 files, still in use):
 - `StockRepository.kt` - Stock data operations
 - `AIAnalysisRepository.kt` - AI market analysis
 - `AIChatRepository.kt` - AI chat functionality
@@ -1727,3 +1728,35 @@ Before submitting changes, verify:
 - `TimeSeriesAnalysisRepository.kt` - Time series analysis
 - `StatisticsAnalysisRepository.kt` - Statistics analysis
 - `StockAnalysisRepository.kt` - Stock analysis
+
+### 2025-12-25 - DataRepository Elimination (Phase 7.1)
+
+**DataRepository Migrated to EtfRepository**:
+- Deleted `repository/DataRepository.kt`
+- All data collection functionality moved to `feature/etf/domain/repository/EtfRepository`
+- New domain model: `DataProgress` in `feature/etf/domain/model/`
+
+**EtfRepository Extended Methods**:
+- `initializeData(days)`: Flow-based ETF data collection with progress
+- `updateData()`: Incremental ETF data updates
+- `resetDatabase()`: Database cleanup
+- `trimDataToPeriod(days)`: Data retention management
+- Settings methods: `getThemes()`, `addTheme()`, `removeTheme()`, `getExclusions()`, etc.
+
+**Consumer Updates** (migrated from DataRepository to EtfRepository):
+- `EtfRepositoryImpl.kt` - Full implementation with data collection
+- `SettingsRepositoryImpl.kt` - Uses EtfRepository for settings
+- `SettingsViewModel.kt` - Uses EtfRepository for data operations
+- `HomeRepositoryImpl.kt` - Uses EtfRepository
+- `EtfUpdateWorker.kt` - Uses EtfRepository
+- `DataCollectionService.kt` - Uses EtfRepository
+
+**StockStatisticsRepository Extended**:
+- Added `getStockAggregatedTrend()` method
+- Added domain models: `StockAggregatedTrend`, `StockAggregatedTimePoint`
+- `AggregatedStockTrendScreen.kt` now uses `StockStatisticsRepository`
+
+**DI Module Updates**:
+- Removed DataRepository provider from `RepositoryModule.kt`
+- Updated `SettingsModule.kt` to use EtfRepository
+- Updated `EtfModule.kt` with additional dependencies

@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.etfmonitor.repository.DataProgress
-import com.etfmonitor.repository.DataRepository
+import com.etfmonitor.feature.etf.domain.model.DataProgress
+import com.etfmonitor.feature.etf.domain.repository.EtfRepository
 import com.etfmonitor.core.common.util.AppLogger
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -25,13 +25,13 @@ import kotlinx.coroutines.withContext
  * - 주기: 매일
  * - 조건: 네트워크 연결 필요
  *
- * @see DataRepository.updateData
+ * @see EtfRepository.updateData
  */
 @HiltWorker
 class EtfUpdateWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val dataRepository: DataRepository
+    private val etfRepository: EtfRepository
 ) : CoroutineWorker(context, params) {
 
     companion object {
@@ -45,7 +45,7 @@ class EtfUpdateWorker @AssistedInject constructor(
 
             var lastProgress: DataProgress? = null
 
-            dataRepository.updateData()
+            etfRepository.updateData()
                 .catch { e ->
                     logger.e("Error during ETF update", e)
                     lastProgress = DataProgress.Error(e.message ?: "Unknown error")

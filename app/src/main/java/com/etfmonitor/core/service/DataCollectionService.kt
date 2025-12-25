@@ -13,12 +13,12 @@ import androidx.core.app.NotificationCompat
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.MainActivity
 import com.etfmonitor.R
+import com.etfmonitor.feature.etf.domain.model.DataProgress
+import com.etfmonitor.feature.etf.domain.repository.EtfRepository
 import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
 import com.etfmonitor.feature.market.domain.repository.MarketIndexRepository
 import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
-import com.etfmonitor.repository.DataProgress
-import com.etfmonitor.repository.DataRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,7 +39,7 @@ import javax.inject.Inject
 class DataCollectionService : Service() {
 
     @Inject
-    lateinit var repository: DataRepository
+    lateinit var etfRepository: EtfRepository
 
     @Inject
     lateinit var fearGreedRepository: FearGreedRepository
@@ -226,7 +226,7 @@ class DataCollectionService : Service() {
             logger.d("Starting initialization with $days days")
 
             // ETF 데이터 초기화 (단독으로 실행, 완료 후 HomeViewModel이 다음 단계 처리)
-            repository.initializeData(days)
+            etfRepository.initializeData(days)
                 .catch { e ->
                     logger.e("Error in ETF initialization", e)
                     val errorMsg = "ETF 초기화 실패: ${e.message}"
@@ -300,7 +300,7 @@ class DataCollectionService : Service() {
                      "MarketIndex: $pendingMarketIndexDays days")
 
             // Step 1: ETF 데이터 초기화
-            repository.initializeData(etfDays)
+            etfRepository.initializeData(etfDays)
                 .catch { e ->
                     logger.e("Error in ETF initialization", e)
                     val errorMsg = "ETF 초기화 실패: ${e.message}"
@@ -474,7 +474,7 @@ class DataCollectionService : Service() {
             logger.d("Starting update")
 
             // Step 1: ETF 데이터 업데이트
-            repository.updateData()
+            etfRepository.updateData()
                 .catch { e ->
                     logger.e("Error in ETF update", e)
                     val errorMsg = "ETF 업데이트 실패: ${e.message}"

@@ -5,6 +5,7 @@ import com.etfmonitor.core.database.entities.HoldingTimeSeries
 import com.etfmonitor.core.database.entities.StockAmountRanking
 import com.etfmonitor.core.database.entities.StockChangeInfo
 import com.etfmonitor.core.database.entities.CashDepositTrend
+import com.etfmonitor.core.database.entities.StockAggregatedTimePoint
 import com.etfmonitor.core.database.StockSearchResult
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -78,6 +79,12 @@ class StockStatisticsLocalDataSource @Inject constructor(
 
     suspend fun getCashDepositTrend(): List<CashDepositTrend> {
         return etfDao.getCashDepositTrend()
+    }
+
+    // ========== 종목 통합 추이 ==========
+
+    suspend fun getStockAggregatedTrend(stockTicker: String): List<StockAggregatedTimePoint> {
+        return etfDao.getStockAggregatedTrend(stockTicker)
     }
 
     // ========== ETF 정보 ==========
