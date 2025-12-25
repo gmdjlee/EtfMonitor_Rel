@@ -4,10 +4,10 @@ import com.etfmonitor.core.analysis.CorrelationAnalyzer
 import com.etfmonitor.core.database.*
 import com.etfmonitor.core.network.ai.AIApiClientFactory
 import com.etfmonitor.core.network.python.OscillatorPyClient
+import com.etfmonitor.feature.analysis.data.internal.TimeSeriesAnalysisHelper
 import com.etfmonitor.feature.analysis.data.repository.*
 import com.etfmonitor.feature.analysis.domain.repository.*
 import com.etfmonitor.feature.market.domain.repository.MarketIndexRepository
-import com.etfmonitor.repository.TimeSeriesAnalysisRepository as LegacyTimeSeriesRepo
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -97,17 +97,17 @@ object AnalysisModule {
     }
 
     /**
-     * StockIndicatorRepository는 TimeSeriesAnalysisRepository 래퍼로 유지
-     * Phase 7.5에서 직접 구현으로 마이그레이션 예정
+     * StockIndicatorRepository
+     * Phase 7.5: TimeSeriesAnalysisHelper로 마이그레이션 완료
      */
     @Provides
     @Singleton
     fun provideStockIndicatorRepository(
-        legacyRepository: LegacyTimeSeriesRepo,
+        timeSeriesHelper: TimeSeriesAnalysisHelper,
         stockIndicatorAIResultDao: StockIndicatorAIResultDao
     ): StockIndicatorRepository {
         return StockIndicatorRepositoryImpl(
-            legacyRepository,
+            timeSeriesHelper,
             stockIndicatorAIResultDao
         )
     }

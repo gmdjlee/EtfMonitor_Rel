@@ -5,7 +5,7 @@ import com.etfmonitor.feature.analysis.data.mapper.toHistoryItem
 import com.etfmonitor.feature.analysis.domain.model.*
 import com.etfmonitor.feature.analysis.domain.repository.StockIndicatorAIHistoryItem
 import com.etfmonitor.feature.analysis.domain.repository.StockIndicatorRepository
-import com.etfmonitor.repository.TimeSeriesAnalysisRepository as LegacyTimeSeriesRepo
+import com.etfmonitor.feature.analysis.data.internal.TimeSeriesAnalysisHelper
 import com.etfmonitor.core.analysis.StockIndicatorCorrelationRequest as LegacyRequest
 import com.etfmonitor.core.analysis.StockIndicatorCorrelationResult as LegacyCorrelationResult
 import com.etfmonitor.core.analysis.FullStockIndicatorCorrelationResult as LegacyFullResult
@@ -24,13 +24,13 @@ import javax.inject.Singleton
  */
 @Singleton
 class StockIndicatorRepositoryImpl @Inject constructor(
-    private val legacyRepository: LegacyTimeSeriesRepo,
+    private val timeSeriesHelper: TimeSeriesAnalysisHelper,
     private val stockIndicatorAIResultDao: StockIndicatorAIResultDao
 ) : StockIndicatorRepository {
 
     override suspend fun searchStock(query: String): Pair<String, String>? =
         withContext(Dispatchers.IO) {
-            legacyRepository.searchStock(query)
+            timeSeriesHelper.searchStock(query)
         }
 
     override suspend fun analyzeStockIndicatorCorrelations(
@@ -42,7 +42,7 @@ class StockIndicatorRepositoryImpl @Inject constructor(
             market = request.market,
             periodDays = request.periodDays
         )
-        legacyRepository.analyzeStockIndicatorCorrelations(legacyRequest)
+        timeSeriesHelper.analyzeStockIndicatorCorrelations(legacyRequest)
             .map { it.toDomain() }
     }
 
@@ -52,7 +52,7 @@ class StockIndicatorRepositoryImpl @Inject constructor(
         market: String,
         periodDays: Int
     ): Result<FullStockIndicatorAnalysis> = withContext(Dispatchers.IO) {
-        legacyRepository.runFullStockIndicatorCorrelationAnalysis(ticker, name, market, periodDays)
+        timeSeriesHelper.runFullStockIndicatorCorrelationAnalysis(ticker, name, market, periodDays)
             .map { it.toDomain() }
     }
 
@@ -60,7 +60,7 @@ class StockIndicatorRepositoryImpl @Inject constructor(
         correlationResult: StockIndicatorCorrelation
     ): Result<StockIndicatorInterpretation> = withContext(Dispatchers.IO) {
         val legacyResult = correlationResult.toLegacy()
-        legacyRepository.interpretStockIndicatorCorrelationsWithAI(legacyResult)
+        timeSeriesHelper.interpretStockIndicatorCorrelationsWithAI(legacyResult)
             .map { it.toDomain() }
     }
 
