@@ -133,21 +133,38 @@ EtfMonitor_Rel/
 │   │   ├── EtfMonitorApp.kt            # Hilt application
 │   │   │
 │   │   ├── core/                        # Core module (shared utilities)
-│   │   │   ├── common/util/             # AppLogger, etc.
+│   │   │   ├── common/util/             # AppLogger, DateFormatter, Exceptions, etc.
 │   │   │   ├── analysis/                # Market analysis utilities
 │   │   │   │   ├── CorrelationAnalyzer.kt
 │   │   │   │   ├── Backtester.kt
 │   │   │   │   └── TimeSeriesData.kt
-│   │   │   ├── network/ai/              # AI API clients
-│   │   │   │   ├── AIApiClient.kt
-│   │   │   │   ├── ClaudeApiClient.kt
-│   │   │   │   ├── GeminiApiClient.kt
-│   │   │   │   └── MarketSignal.kt
-│   │   │   ├── ui/theme/                # Theme utilities
-│   │   │   ├── worker/                  # WorkManager helpers
+│   │   │   ├── network/
+│   │   │   │   ├── ai/                  # AI API clients
+│   │   │   │   │   ├── AIApiClient.kt
+│   │   │   │   │   ├── ClaudeApiClient.kt
+│   │   │   │   │   ├── GeminiApiClient.kt
+│   │   │   │   │   └── MarketSignal.kt
+│   │   │   │   └── python/              # Python bridge clients
+│   │   │   │       ├── PyKrxClient.kt
+│   │   │   │       ├── MarketIndexPyClient.kt
+│   │   │   │       └── OscillatorPyClient.kt
+│   │   │   ├── ui/                      # Shared UI
+│   │   │   │   ├── theme/               # Material 3 theme
+│   │   │   │   └── component/           # StateCards, BottomNav, etc.
+│   │   │   ├── worker/                  # Background workers
+│   │   │   ├── service/                 # Foreground services
 │   │   │   └── di/                      # Core DI modules
 │   │   │
 │   │   ├── feature/                     # Feature modules (Clean Architecture)
+│   │   │   ├── home/                    # Home feature
+│   │   │   │   ├── domain/              # Domain layer
+│   │   │   │   │   ├── model/           # HomeState, HomeSummary
+│   │   │   │   │   ├── repository/      # HomeRepository interface
+│   │   │   │   │   └── usecase/         # GetHomeSummary, CheckDataStatus, etc.
+│   │   │   │   ├── data/repository/     # HomeRepositoryImpl
+│   │   │   │   ├── presentation/        # HomeScreen, HomeViewModel
+│   │   │   │   └── di/                  # HomeModule.kt
+│   │   │   │
 │   │   │   ├── etf/                     # ETF feature
 │   │   │   │   ├── domain/              # Domain layer
 │   │   │   │   │   ├── model/           # Domain models
@@ -166,6 +183,21 @@ EtfMonitor_Rel/
 │   │   │   │   ├── data/
 │   │   │   │   ├── presentation/
 │   │   │   │   └── di/
+│   │   │   │
+│   │   │   ├── market/                  # Market indicators feature
+│   │   │   │   ├── domain/              # FearGreed, Deposit, Oscillator, Index
+│   │   │   │   │   ├── model/           # MarketModels.kt
+│   │   │   │   │   ├── repository/      # 4 repository interfaces
+│   │   │   │   │   └── usecase/         # 37 UseCases
+│   │   │   │   ├── data/
+│   │   │   │   │   ├── mapper/          # MarketMapper.kt
+│   │   │   │   │   └── repository/      # 4 repository implementations
+│   │   │   │   ├── presentation/
+│   │   │   │   │   ├── feargreed/       # FearGreedScreen, ViewModel
+│   │   │   │   │   ├── oscillator/      # MarketOscillatorScreen, ViewModel
+│   │   │   │   │   ├── deposit/         # MarketDepositScreen, ViewModel
+│   │   │   │   │   └── hub/             # MarketIndicatorHubScreen
+│   │   │   │   └── di/                  # MarketModule.kt
 │   │   │   │
 │   │   │   ├── analysis/                # Analysis feature
 │   │   │   │   ├── domain/
@@ -194,22 +226,22 @@ EtfMonitor_Rel/
 │   │   │   └── Migrations (inline)
 │   │   │
 │   │   ├── repository/                  # Legacy repositories (being migrated)
-│   │   ├── python/                      # Python bridge (PyKrxClient)
-│   │   ├── oscillator/                  # Technical analysis
+│   │   ├── di/                          # Legacy DI (RepositoryModule.kt)
+│   │   ├── oscillator/                  # Technical analysis (legacy)
 │   │   │
-│   │   ├── ui/                          # UI layer (screens being migrated)
-│   │   │   ├── screens/                 # Feature screens
-│   │   │   └── components/              # Shared components
-│   │   │
-│   │   ├── worker/                      # Background tasks
-│   │   └── service/                     # Foreground services
+│   │   └── ui/                          # UI layer (screens being migrated)
+│   │       ├── screens/                 # Legacy screens (OscillatorScreen, etc.)
+│   │       └── components/              # Shared components
 │   │
-│   ├── python/                          # Python scripts (10 files)
+│   ├── python/                          # Python scripts (8 files)
 │   │   ├── etfcollector.py
 │   │   ├── stocks.py
 │   │   ├── market.py
-│   │   ├── stock_predictor_v2.py        # ML predictions
-│   │   └── ...
+│   │   ├── feargreed.py
+│   │   ├── deposit_scraper.py
+│   │   ├── trend_signal.py
+│   │   ├── core.py
+│   │   └── logger.py
 │   │
 │   ├── res/                             # Android resources
 │   └── AndroidManifest.xml
@@ -1147,56 +1179,55 @@ _searchQuery
 | **ClaudeApiClient** | `api.anthropic.com/v1/messages` | `claude-3-5-sonnet-20241022` | 60s |
 | **GeminiApiClient** | `generativelanguage.googleapis.com/v1beta/models` | `gemini-2.0-flash-exp` | 60s |
 
-#### AI Files
-- **`ai/AIApiClient.kt`**: Interface with `analyzeMarket()`, `chat()`, `isApiAvailable()`, `testApiKey()`, `listModels()`
-- **`ai/ClaudeApiClient.kt`**: Anthropic API (headers: `x-api-key`, `anthropic-version: 2023-06-01`)
-- **`ai/GeminiApiClient.kt`**: Google API with `validateAndFixModelName()`, SAFETY/RECITATION block handling
-- **`ai/AIApiClientFactory.kt`**: Factory pattern for client selection based on `ApiKeyProvider.getSelectedProvider()`
-- **`ai/AIResponseParser.kt`**: Extracts JSON from `\`\`\`json...\`\`\`` blocks or raw `{...}`, parses Korean signal names
-- **`ai/MarketAnalysisPrompts.kt`**: Templates for `COMPREHENSIVE`, `ETF_ONLY`, `TECHNICAL_ONLY`, `SENTIMENT_ONLY` analysis
-- **`ai/ApiKeyProvider.kt`**: Interface for API key management
-- **`ai/SharedPreferencesApiKeyProvider.kt`**: **AES256-GCM encrypted** storage via Android Keystore
-- **`ai/AIModel.kt`**: Model definitions with id, name, provider, contextWindow, maxOutputTokens
-- **`ai/AIProvider.kt`**: Enum (CLAUDE, GEMINI) with `toDisplayName()`, `fromString()`
-- **`ai/MarketSignal.kt`**: Signal data class with `SignalType` (STRONG_BUY→STRONG_SELL), `RiskLevel` (LOW/MEDIUM/HIGH)
+#### AI Files (in `core/network/ai/`)
+- **`AIApiClient.kt`**: Interface with `analyzeMarket()`, `chat()`, `isApiAvailable()`, `testApiKey()`, `listModels()`
+- **`ClaudeApiClient.kt`**: Anthropic API (headers: `x-api-key`, `anthropic-version: 2023-06-01`)
+- **`GeminiApiClient.kt`**: Google API with `validateAndFixModelName()`, SAFETY/RECITATION block handling
+- **`AIApiClientFactory.kt`**: Factory pattern for client selection based on `ApiKeyProvider.getSelectedProvider()`
+- **`AIResponseParser.kt`**: Extracts JSON from `\`\`\`json...\`\`\`` blocks or raw `{...}`, parses Korean signal names
+- **`MarketAnalysisPrompts.kt`**: Templates for `COMPREHENSIVE`, `ETF_ONLY`, `TECHNICAL_ONLY`, `SENTIMENT_ONLY` analysis
+- **`ApiKeyProvider.kt`**: Interface for API key management
+- **`SharedPreferencesApiKeyProvider.kt`**: **AES256-GCM encrypted** storage via Android Keystore
+- **`AIModel.kt`**: Model definitions with id, name, provider, contextWindow, maxOutputTokens
+- **`AIProvider.kt`**: Enum (CLAUDE, GEMINI) with `toDisplayName()`, `fromString()`
+- **`MarketSignal.kt`**: Signal data class with `SignalType` (STRONG_BUY→STRONG_SELL), `RiskLevel` (LOW/MEDIUM/HIGH)
 
-### Analysis
-- **`analysis/CorrelationAnalyzer.kt`**: ETF flow vs market correlation
-- **`analysis/Backtester.kt`**: Strategy backtesting
+### Analysis (in `core/analysis/`)
+- **`CorrelationAnalyzer.kt`**: ETF flow vs market correlation
+- **`Backtester.kt`**: Strategy backtesting
+- **`TimeSeriesData.kt`**: Time series data structures
 
-### Python Bridge (4 Kotlin Clients)
-- **`python/PyKrxClient.kt`**: Main Python integration (ETF/stock data)
+### Python Bridge (3 Kotlin Clients in `core/network/python/`)
+- **`PyKrxClient.kt`**: Main Python integration (ETF/stock data)
   - `getFilteredEtfList()`, `getEtfList()`, `getHoldings()`, `getBusinessDays()`, `getStockName()`
   - Uses: `etfcollector`, `stocks`, `core` modules
   - Retry: 2 retries for holdings data with exponential backoff
-- **`python/MarketIndexPyClient.kt`**: Market index data fetcher
+- **`MarketIndexPyClient.kt`**: Market index data fetcher
   - `fetchMarketIndices()`, `fetchRecentDays()`, `getLatestIndex()`
   - Uses: `market` module
-- **`python/EnhancedPredictorClient.kt`**: Enhanced ML stock prediction client
-  - `trainAndPredictEnhanced()`, `getModelStatus()`, `clearModelCache()`
-  - Uses: `stock_predictor_v2`, `data_collector`, `feature_engineer` modules
-  - Timeout: 120s, supports XGBoost/LightGBM/Random Forest/Gradient Boosting ensemble
-- **`oscillator/python/OscillatorPyClient.kt`**: Technical analysis client
+- **`OscillatorPyClient.kt`**: Technical analysis client
   - `searchStock()`, `getStockAnalysis()`, `getMarketDepositData()`, `getAllStocksList()`
   - `getMarketOscillator()` (180s timeout), `getTrendSignalData()`, `getElderImpulseData()`, `getDemarkTDData()`
   - Uses: `stocks`, `deposit_scraper`, `market`, `trend_signal` modules
 
-### UI Theme
-- **`ui/theme/Theme.kt`**: Material Design 3 color schemes, typography
-- **`ui/theme/ThemeManager.kt`**: Global theme state (dark mode, font, colors)
+### UI Theme (in `core/ui/theme/`)
+- **`Theme.kt`**: Material Design 3 color schemes, typography
+- **`ThemeManager.kt`**: Global theme state (dark mode, font, colors)
 
-### Background Tasks (6 workers + 1 utility)
-- **`worker/StockUpdateWorker.kt`**: Daily stock data refresh
-- **`worker/DataArchiveWorker.kt`**: Data archiving
-- **`worker/AdvancedAnalysisWorker.kt`**: Advanced analysis tasks
-- **`worker/MarketOscillatorUpdateWorker.kt`**: Market oscillator updates
-- **`worker/MarketDepositUpdateWorker.kt`**: Market deposit updates
-- **`worker/FearGreedUpdateWorker.kt`**: Fear & Greed index updates
-- **`worker/WorkManagerHelper.kt`**: WorkManager scheduling utilities (not a Worker)
+### Background Tasks (8 workers + 1 utility in `core/worker/`)
+- **`EtfUpdateWorker.kt`**: Daily ETF data refresh
+- **`StockUpdateWorker.kt`**: Daily stock data refresh
+- **`DataArchiveWorker.kt`**: Data archiving
+- **`AdvancedAnalysisWorker.kt`**: Advanced analysis tasks
+- **`MarketOscillatorUpdateWorker.kt`**: Market oscillator updates
+- **`MarketDepositUpdateWorker.kt`**: Market deposit updates
+- **`FearGreedUpdateWorker.kt`**: Fear & Greed index updates
+- **`MarketIndexUpdateWorker.kt`**: Market index updates
+- **`WorkManagerHelper.kt`**: WorkManager scheduling utilities (not a Worker)
 
-### Services
-- **`service/DataCollectionService.kt`**: Foreground ETF sync service
-- **`service/CollectionState.kt`**: Collection state management
+### Services (in `core/service/`)
+- **`DataCollectionService.kt`**: Foreground ETF sync service
+- **`CollectionState.kt`**: Collection state management
 
 ### Dependency Injection (5 Modules, 43 Singleton Providers)
 
@@ -1614,23 +1645,51 @@ Before submitting changes, verify:
   - Removed unused functions from `market.py` (`get_realtime_oscillator`, `fetch_market_index`)
 - **Documentation updated** to reflect new v2 prediction system
 
-### 2025-12-24 - Clean Architecture Migration Phase 7 (Settings & Final Cleanup)
-- **Settings feature module created** (`feature/settings/`):
-  - Domain layer: `SettingsModels.kt` (theme, AI, schedule settings)
-  - Repository interface: `SettingsRepository.kt` with full settings contract
-  - UseCases: Theme keywords, general settings, update schedules, AI configuration
-  - Data layer: `SettingsRepositoryImpl.kt` wrapping legacy repositories
-  - DI module: `SettingsModule.kt`
-- **Navigation relocated** to `navigation/` package:
-  - Moved `Navigation.kt` from `ui/` to `navigation/`
-  - Updated MainActivity import
-- **Analysis utilities moved** to `core/analysis/`:
-  - Migrated `CorrelationAnalyzer.kt`, `Backtester.kt`, `TimeSeriesData.kt`
-  - Updated all dependent file imports
-- **Codebase structure updated** in CLAUDE.md:
-  - Updated directory tree to reflect Clean Architecture
-  - Documented feature module organization (domain/data/presentation/di)
-- **Clean Architecture status**:
-  - Core module: Complete (network/ai, common/util, ui/theme, analysis, worker, di)
-  - Feature modules: ETF, Stock, Analysis, Settings
-  - Legacy repositories: Gradually being migrated to feature modules
+### 2025-12-24 - Clean Architecture Migration (7 Phases Complete)
+
+**Phase 1: Core Module Setup**
+- Created `core/` package structure:
+  - `core/common/util/` - AppLogger, DateFormatter, Exceptions, DataArchiver, AmountFormatter
+  - `core/network/python/` - PyKrxClient, MarketIndexPyClient, OscillatorPyClient
+  - `core/network/ai/` - All AI API clients
+  - `core/ui/theme/` - Material 3 theme files
+  - `core/ui/component/` - StateCards, Material3Components, BottomNavigationBar
+  - `core/worker/` - 8 WorkManager workers
+  - `core/service/` - DataCollectionService, CollectionState
+  - `core/di/` - DatabaseModule, WorkerModule, PythonModule, AIModule
+  - `core/analysis/` - CorrelationAnalyzer, Backtester, TimeSeriesData
+
+**Phase 2: Home Feature Module** (`feature/home/`)
+- Domain: HomeState, HomeSummary, HomeRepository interface, 5 UseCases
+- Data: HomeRepositoryImpl wrapping legacy repositories
+- Presentation: HomeScreen, HomeViewModel, HomeSummaryCard, HomeDialogs
+
+**Phase 3: ETF Feature Module** (`feature/etf/`)
+- Domain: Etf, Holding, ComparisonResult models, EtfRepository interface, 5 UseCases
+- Data: EtfLocalDataSource, EtfMapper, EtfRepositoryImpl
+- Presentation: EtfListScreen, EtfDetailScreen, ViewModels
+
+**Phase 4: Stock Feature Module** (`feature/stock/`)
+- Domain: Stock, StockAnalysis, StockTrend models, 4 repository interfaces, 9 UseCases
+- Data: 3 LocalDataSources, StockMapper, 4 repository implementations
+- Presentation: StockTrendScreen, StatisticsViewModel
+
+**Phase 5: Market Feature Module** (`feature/market/`)
+- Domain: MarketModels (FearGreed, Deposit, Oscillator, Index), 4 interfaces, 37 UseCases
+- Data: MarketMapper, 4 repository implementations (wrapping legacy)
+- Presentation: FearGreedScreen, MarketOscillatorScreen, MarketDepositScreen, MarketIndicatorHubScreen
+
+**Phase 6: Analysis Feature Module** (`feature/analysis/`)
+- Domain: AnalysisModels, ChatModels, DashboardModels, 6 interfaces, 30+ UseCases
+- Data: AnalysisMapper, 4 repository implementations
+- Presentation: State classes (ViewModels remain in ui/screens/)
+
+**Phase 7: Settings & Final Cleanup**
+- Settings feature module created with full domain/data/di layers
+- Navigation relocated to `navigation/` package
+- Analysis utilities moved to `core/analysis/`
+
+**Clean Architecture Summary**:
+- Core module: Complete (network/ai, network/python, common/util, ui/theme, analysis, worker, service, di)
+- Feature modules: 6 modules (home, etf, stock, market, analysis, settings)
+- Legacy code: `repository/`, `ui/screens/`, `oscillator/` (gradually being migrated)
