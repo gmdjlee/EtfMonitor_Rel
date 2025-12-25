@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.settings
+package com.etfmonitor.feature.settings.presentation
 
 import android.content.Context
 import androidx.lifecycle.ViewModel

@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.settings.components
+package com.etfmonitor.feature.settings.presentation.component
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween

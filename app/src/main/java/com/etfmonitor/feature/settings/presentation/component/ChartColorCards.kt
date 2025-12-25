@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.settings.components
+package com.etfmonitor.feature.settings.presentation.component
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons

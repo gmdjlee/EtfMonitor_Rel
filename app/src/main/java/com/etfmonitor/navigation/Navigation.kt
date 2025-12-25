@@ -16,7 +16,7 @@ import com.etfmonitor.core.ui.component.MainNavItem
 import com.etfmonitor.feature.etf.presentation.detail.EtfDetailScreen
 import com.etfmonitor.feature.home.presentation.screen.HomeScreen
 import com.etfmonitor.feature.etf.presentation.list.EtfListScreen
-import com.etfmonitor.ui.screens.settings.SettingsScreen
+import com.etfmonitor.feature.settings.presentation.SettingsScreen
 import com.etfmonitor.feature.stock.presentation.statistics.AggregatedStockTrendScreen
 import com.etfmonitor.feature.stock.presentation.trend.StockTrendScreen
 import com.etfmonitor.feature.stock.presentation.oscillator.OscillatorScreen

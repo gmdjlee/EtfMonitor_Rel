@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.settings
+package com.etfmonitor.feature.settings.presentation
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,7 +12,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
-import com.etfmonitor.ui.screens.settings.components.*
+import com.etfmonitor.feature.settings.presentation.component.*
 
 /**
  * Settings Screen - Main Entry Point

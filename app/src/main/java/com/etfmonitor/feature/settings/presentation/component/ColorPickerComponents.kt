@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.settings.components
+package com.etfmonitor.feature.settings.presentation.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
