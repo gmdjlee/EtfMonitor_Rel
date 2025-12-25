@@ -277,7 +277,7 @@ def get_elder_impulse_analysis(ticker: str, days: int = 365) -> str:
         if not cap_df.empty:
             cap_df = cap_df.resample("W").last().dropna()
             df = df.join(cap_df[["시가총액"]], how="left")
-            df["MarketCap"] = df["시가총액"].fillna(method="ffill")
+            df["MarketCap"] = df["시가총액"].ffill()
         else:
             df["MarketCap"] = 0
     except Exception as e:
@@ -351,7 +351,7 @@ def get_demark_td_analysis(ticker: str, days: int = 365, interval: str = "w") ->
             elif interval == "m":
                 cap_df = cap_df.resample("ME").last().dropna()
             df = df.join(cap_df[["시가총액"]], how="left")
-            df["MarketCap"] = df["시가총액"].fillna(method="ffill")
+            df["MarketCap"] = df["시가총액"].ffill()
         else:
             df["MarketCap"] = 0
     except Exception as e:

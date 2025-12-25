@@ -14,9 +14,9 @@
 | 🔴 Critical | 3 | 3 | 0 |
 | 🟠 High | 5 | 5 | 0 |
 | 🟡 Medium | 7 | 6 | 1 |
-| 🟢 Low | 5 | 0 | 5 |
+| 🟢 Low | 5 | 1 | 4 |
 
-**Last Updated**: 2025-12-25 (Critical, High, Medium #10-#15 완료)
+**Last Updated**: 2025-12-25 (Low #16 완료, #17-#20 검토 완료)
 
 ---
 
@@ -241,41 +241,45 @@
 
 ---
 
-## 🟢 Low Priority (Backlog) - PENDING
+## 🟢 Low Priority (Backlog) - REVIEWED
 
-### 16. Deprecated pandas fillna() 메서드
-- **파일**: `app/src/main/python/trend_signal.py` (line 280)
+### 16. Deprecated pandas fillna() 메서드 ✅
+- **파일**: `app/src/main/python/trend_signal.py` (line 280, 354)
 - **문제**: `fillna(method="ffill")` pandas 2.0+ deprecated
-- **수정**: `df["MarketCap"] = df["시가총액"].ffill()`
-- [ ] 수정 완료
+- **수정**: `df["MarketCap"] = df["시가총액"].ffill()` (2개소)
+- [x] 수정 완료
 
 ---
 
-### 17. Business Logic in Composable
-- **파일**: `ui/screens/trend/AggregatedStockTrendScreen.kt` (line 192-244)
+### 17. Business Logic in Composable - NO ACTION NEEDED
+- **파일**: `ui/screens/statistics/AggregatedStockTrendScreen.kt` (line 237-244)
 - **문제**: 차트 타이틀 계산 로직이 Composable 내에 있음
-- [ ] ViewModel로 이동
+- **결론**: 순수 프레젠테이션 로직(문자열 포맷팅)으로, ViewModel 이동 시 오히려 복잡도 증가
+- [x] 검토 완료 - 현재 상태 유지
 
 ---
 
-### 18. core.py HTTP timeout 15초
+### 18. core.py HTTP timeout 15초 - NO ACTION NEEDED
 - **파일**: `app/src/main/python/core.py` (line 30)
 - **문제**: KRX API 호출 시 15초 timeout 불충분할 수 있음
-- [ ] 검토 후 필요시 30초로 증가
+- **결론**: MAX_RETRIES=3 + 지수 백오프로 총 45초+ 대기 가능, 현재 설정 적절
+- [x] 검토 완료 - 현재 상태 유지
 
 ---
 
-### 19. ThemeManager explicit provider 없음
+### 19. ThemeManager explicit provider 없음 - NO ACTION NEEDED
 - **파일**: `core/ui/theme/ThemeManager.kt`
 - **문제**: @Inject constructor 의존, explicit provider 없음
-- [ ] CoreUIModule 생성 검토
+- **결론**: `@Singleton` + `@Inject constructor()`는 Hilt best practice, explicit provider 불필요
+- [x] 검토 완료 - 현재 상태 유지
 
 ---
 
-### 20. OscillatorPyClient coerceInputValues
+### 20. OscillatorPyClient coerceInputValues - NO ACTION NEEDED
 - **파일**: `core/network/python/OscillatorPyClient.kt` (line 79)
 - **문제**: `coerceInputValues = true`가 API 계약 위반 마스킹
-- [ ] Strict mode로 변경 검토
+- **결론**: Python 외부 데이터 소스 통합 시 resilience를 위해 권장되는 설정
+- [x] 검토 완료 - 현재 상태 유지
 
 ---
 
@@ -298,6 +302,13 @@
 - [x] FearGreedRepository 캐시 문서 수정 (CLAUDE.md)
 - [x] validateAndFixModelName() side effect 분리 (GeminiApiClient.kt)
 - [x] SharedPreferences API 키 저장 .commit() 변경
+
+### Low Priority Fixes (2025-12-25)
+- [x] Deprecated pandas fillna() 수정 (trend_signal.py)
+- [x] Business Logic in Composable 검토 - 현재 상태 유지 결정
+- [x] core.py HTTP timeout 검토 - 현재 상태 유지 결정
+- [x] ThemeManager provider 검토 - 현재 상태 유지 결정
+- [x] OscillatorPyClient coerceInputValues 검토 - 현재 상태 유지 결정
 
 ### CLAUDE.md Documentation Updates (2025-12-25)
 - [x] feature/home/, feature/market/ 모듈 추가
@@ -338,8 +349,10 @@
 | Critical | 3 tasks | 3 ✅ | 0 hours |
 | High | 5 tasks | 5 ✅ | 0 hours |
 | Medium | 7 tasks | 6 ✅ | 1-2 hours |
-| Low | 5 tasks | 0 | 3-4 hours |
-| **Total** | **20 tasks** | **14 ✅** | **4-6 hours** |
+| Low | 5 tasks | 5 ✅ | 0 hours |
+| **Total** | **20 tasks** | **19 ✅** | **1-2 hours** |
+
+**Note**: Low priority #17-#20은 검토 후 현재 상태 유지로 결정됨 (no action needed)
 
 ---
 
