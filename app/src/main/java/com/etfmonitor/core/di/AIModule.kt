@@ -5,8 +5,6 @@ import com.etfmonitor.core.network.ai.*
 import com.etfmonitor.core.analysis.Backtester
 import com.etfmonitor.core.analysis.CorrelationAnalyzer
 import com.etfmonitor.core.database.*
-import com.etfmonitor.repository.AIAnalysisRepository
-import com.etfmonitor.repository.AIChatRepository
 import com.etfmonitor.repository.TimeSeriesAnalysisRepository
 import com.etfmonitor.core.network.python.OscillatorPyClient
 import dagger.Module
@@ -19,11 +17,9 @@ import javax.inject.Singleton
 /**
  * Hilt 모듈: AI 분석 컴포넌트 제공
  *
- * Phase 3: AI 신호 생성 기능
- * - Claude API 통합
- * - Gemini API 통합
- * - 시장 분석 및 신호 생성
- * - 백테스팅
+ * Phase 7.4: Analysis repositories migrated to feature layer
+ * - AIAnalysisRepository, AIChatRepository 제거됨 (AnalysisModule로 이관)
+ * - TimeSeriesAnalysisRepository 유지 (Phase 7.5에서 마이그레이션 예정)
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -76,29 +72,7 @@ object AIModule {
         return AIApiClientFactory(apiKeyProvider, claudeApiClient, geminiApiClient)
     }
 
-    /**
-     * AI 분석 Repository
-     * 시장 분석 및 신호 생성의 핵심 로직
-     */
-    @Provides
-    @Singleton
-    fun provideAIAnalysisRepository(
-        aiApiClientFactory: AIApiClientFactory,
-        marketIndexDao: MarketIndexDao,
-        dailyEtfStatisticsDao: DailyEtfStatisticsDao,
-        fearGreedDao: FearGreedDao,
-        marketOscillatorDao: MarketOscillatorDao,
-        marketDepositDao: MarketDepositDao
-    ): AIAnalysisRepository {
-        return AIAnalysisRepository(
-            aiApiClientFactory,
-            marketIndexDao,
-            dailyEtfStatisticsDao,
-            fearGreedDao,
-            marketOscillatorDao,
-            marketDepositDao
-        )
-    }
+    // AIAnalysisRepository: Provided by AnalysisModule as AIAnalysisRepositoryImpl
 
     /**
      * Backtester
@@ -134,28 +108,8 @@ object AIModule {
         )
     }
 
-    // CorrelationAnalysisRepository is auto-injected via @Inject constructor
-    // (removed explicit provider to avoid DI duplicate with AnalysisModule)
-
-    /**
-     * AIChatRepository
-     * AI 채팅 기능 Repository
-     */
-    @Provides
-    @Singleton
-    fun provideAIChatRepository(
-        chatDao: AIChatDao,
-        aiAnalysisDao: AIAnalysisDao,
-        correlationAnalysisDao: CorrelationAnalysisDao,
-        aiApiClientFactory: AIApiClientFactory
-    ): AIChatRepository {
-        return AIChatRepository(
-            chatDao,
-            aiAnalysisDao,
-            correlationAnalysisDao,
-            aiApiClientFactory
-        )
-    }
+    // CorrelationAnalysisRepository: Provided by AnalysisModule as CorrelationAnalysisRepositoryImpl
+    // AIChatRepository: Provided by AnalysisModule as ChatRepositoryImpl
 
     /**
      * TimeSeriesAnalysisRepository

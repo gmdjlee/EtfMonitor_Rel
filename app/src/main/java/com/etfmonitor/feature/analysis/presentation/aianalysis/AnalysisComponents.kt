@@ -33,9 +33,10 @@ import com.etfmonitor.core.analysis.StockIndicatorCorrelationResult
 import com.etfmonitor.core.analysis.StockMetricType
 import com.etfmonitor.core.ui.component.StockSearchItem
 import com.etfmonitor.core.ui.component.UnifiedStockSearchField
-import com.etfmonitor.core.database.entities.AIChatMessage
-import com.etfmonitor.core.database.entities.AIChatSession
-import com.etfmonitor.core.database.entities.CorrelationAnalysisResult
+import com.etfmonitor.feature.analysis.domain.model.AIAnalysis
+import com.etfmonitor.feature.analysis.domain.model.ChatMessage
+import com.etfmonitor.feature.analysis.domain.model.ChatSession
+import com.etfmonitor.feature.analysis.domain.model.CorrelationAnalysis
 import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.core.database.entities.Stock
 import com.etfmonitor.core.database.entities.StockIndicatorAIResult
@@ -938,8 +939,8 @@ fun StockIndicatorAIInterpretationCard(
 
 @Composable
 fun CorrelationResultCard(
-    result: CorrelationAnalysisResult,
-    aiResult: com.etfmonitor.core.database.entities.AIAnalysisResult?
+    result: CorrelationAnalysis,
+    aiResult: AIAnalysis?
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -1086,7 +1087,7 @@ fun AIInterpretationCard(
 
 @Composable
 fun ChatScreen(
-    messages: List<AIChatMessage>,
+    messages: List<ChatMessage>,
     isSending: Boolean,
     onSendMessage: (String) -> Unit,
     state: NewAIAnalysisState
@@ -1197,7 +1198,7 @@ fun ChatScreen(
 }
 
 @Composable
-fun ChatMessageItem(message: AIChatMessage) {
+fun ChatMessageItem(message: ChatMessage) {
     val isUser = message.role == "user"
 
     Row(
@@ -1232,7 +1233,7 @@ fun ChatMessageItem(message: AIChatMessage) {
 
 @Composable
 fun SessionItem(
-    session: AIChatSession,
+    session: ChatSession,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {

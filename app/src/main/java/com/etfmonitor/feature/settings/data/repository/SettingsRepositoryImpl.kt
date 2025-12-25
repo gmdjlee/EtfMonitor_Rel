@@ -16,7 +16,7 @@ import com.etfmonitor.feature.settings.data.mapper.SettingsMapper.toDomainModels
 import com.etfmonitor.feature.settings.data.mapper.SettingsMapper.toDataModel
 import com.etfmonitor.feature.settings.domain.model.*
 import com.etfmonitor.feature.settings.domain.repository.*
-import com.etfmonitor.repository.AIAnalysisRepository
+import com.etfmonitor.feature.analysis.domain.repository.AIAnalysisRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

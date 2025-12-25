@@ -7,7 +7,7 @@ import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.feature.etf.domain.repository.EtfRepository
 import com.etfmonitor.feature.settings.data.repository.SettingsRepositoryImpl
 import com.etfmonitor.feature.settings.domain.repository.SettingsRepository
-import com.etfmonitor.repository.AIAnalysisRepository
+import com.etfmonitor.feature.analysis.domain.repository.AIAnalysisRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
