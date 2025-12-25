@@ -1,112 +1,44 @@
-package com.etfmonitor.ui.screens.hub
+package com.etfmonitor.feature.analysis.presentation.aianalysis
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import com.etfmonitor.core.database.entities.SearchHistory
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavHostController
-import com.etfmonitor.R
-import com.etfmonitor.core.database.entities.SearchHistory
+import com.etfmonitor.core.analysis.FullStockIndicatorCorrelationResult
 import com.etfmonitor.core.database.entities.Stock
 import com.etfmonitor.core.database.entities.CorrelationAnalysisResult
 import com.etfmonitor.repository.FullAnalysisResult
-import com.etfmonitor.core.analysis.FullStockIndicatorCorrelationResult
-import com.etfmonitor.core.ui.component.TabNavigationBar
-import com.etfmonitor.ui.screens.aianalysis.AnalysisTab
-import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisViewModel
-import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisState
-import com.etfmonitor.ui.screens.aianalysis.*
-import com.etfmonitor.ui.screens.advanced.AdvancedDashboardViewModel
-import com.etfmonitor.ui.screens.advanced.AdvancedDashboardState
-import com.etfmonitor.ui.screens.advanced.MarketCapFlowTab
-import com.etfmonitor.ui.screens.advanced.LiquidityTab
-import com.etfmonitor.ui.screens.advanced.SectorFearGreedTab
-import com.etfmonitor.ui.screens.advanced.EtfCorrelationTab
-import kotlinx.coroutines.launch
 
 /**
- * Analysis Hub Screen - 분석
- *
- * Consolidates:
- * - AI 시장 분석
- * - 고급 분석
+ * 분석 탭 종류
  */
-
-private val ANALYSIS_TABS = listOf("AI 분석", "고급 분석")
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AnalysisHubScreen(
-    navController: NavHostController,
-    isDarkTheme: Boolean,
-    onToggleTheme: () -> Unit,
-    onNavigateToSettings: () -> Unit,
-    onNavigateToStocks: (String) -> Unit,
-    aiAnalysisViewModel: NewAIAnalysisViewModel = hiltViewModel(),
-    advancedDashboardViewModel: AdvancedDashboardViewModel = hiltViewModel()
-) {
-    val pagerState = rememberPagerState(pageCount = { ANALYSIS_TABS.size })
-    val coroutineScope = rememberCoroutineScope()
-
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // Header
-        HubHeader(
-            title = "분석",
-            isDarkTheme = isDarkTheme,
-            onToggleTheme = onToggleTheme,
-            onSettingsClick = onNavigateToSettings
-        )
-
-        // Tab Navigation
-        TabNavigationBar(
-            tabs = ANALYSIS_TABS,
-            selectedIndex = pagerState.currentPage,
-            onTabSelected = { index ->
-                coroutineScope.launch {
-                    pagerState.animateScrollToPage(index)
-                }
-            }
-        )
-
-        // Pager Content
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize()
-        ) { page ->
-            when (page) {
-                0 -> AIAnalysisHubContent(
-                    viewModel = aiAnalysisViewModel,
-                    onNavigateToStocks = onNavigateToStocks
-                )
-                1 -> AdvancedDashboardHubContent(
-                    viewModel = advancedDashboardViewModel,
-                    navController = navController
-                )
-            }
-        }
-    }
+enum class AnalysisTab(val title: String) {
+    CORRELATION("상관관계"),
+    STOCK_INDICATOR("종목-지표")
 }
 
+/**
+ * 새로운 AI 분석 화면
+ * 상관관계 분석 + 종목-지표 상관관계 분석 + AI 해석 + 채팅 기능 통합
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AIAnalysisHubContent(
-    viewModel: NewAIAnalysisViewModel,
-    onNavigateToStocks: (String) -> Unit
+fun NewAIAnalysisScreen(
+    onNavigateBack: () -> Unit,
+    onNavigateToOscillator: ((String) -> Unit)? = null,
+    viewModel: NewAIAnalysisViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val selectedMarket by viewModel.selectedMarket.collectAsState()
@@ -132,41 +64,74 @@ private fun AIAnalysisHubContent(
     val selectedTabIndex by viewModel.selectedTabIndex.collectAsState()
     val selectedTab = AnalysisTab.entries[selectedTabIndex]
 
-    // 화면 진입 시 API 키 상태 새로고침
+    // 화면 진입 시 API 키 상태 새로고침 (설정에서 돌아왔을 때 반영)
     LaunchedEffect(Unit) {
         viewModel.refreshApiKeyState()
     }
 
-    // FAB 표시 조건
+    // FAB 표시 조건: 종목-지표 탭에서 종목이 선택되고 분석 결과가 있을 때
     val showFab = quickChartAnalysisEnabled &&
+            onNavigateToOscillator != null &&
             selectedTab == AnalysisTab.STOCK_INDICATOR &&
             selectedStock != null &&
             stockIndicatorCorrelationResult?.correlationResult != null &&
             currentSession == null
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        when {
-            currentSession != null -> {
-                // 채팅 화면
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // 채팅 헤더
-                    Surface(tonalElevation = 2.dp) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = { viewModel.closeChat() }) {
-                                Icon(Icons.Default.Close, "채팅 닫기")
-                            }
-                            Text(
-                                "AI 대화",
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.weight(1f)
-                            )
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("AI 분석") },
+                navigationIcon = {
+                    IconButton(onClick = {
+                        if (currentSession != null) {
+                            viewModel.closeChat()
+                        } else {
+                            onNavigateBack()
                         }
+                    }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로")
                     }
+                },
+                actions = {
+                    // 캐시 초기화 및 재분석 버튼
+                    IconButton(onClick = { viewModel.clearCacheAndRefresh() }) {
+                        Icon(Icons.Default.Refresh, "새로고침")
+                    }
+
+                    // AI 제공자 선택
+                    TextButton(onClick = { showProviderDialog = true }) {
+                        Text(
+                            selectedProvider.name,
+                            color = if (isApiKeyConfigured)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.error
+                        )
+                    }
+
+                    // 대화 이력
+                    IconButton(onClick = { showHistorySheet = true }) {
+                        Icon(Icons.Default.History, "대화 이력")
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            if (showFab && selectedStock != null) {
+                ExtendedFloatingActionButton(
+                    onClick = { onNavigateToOscillator?.invoke(selectedStock!!.first) },
+                    icon = { Icon(Icons.Default.ShowChart, contentDescription = null) },
+                    text = { Text("차트 분석") },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+    ) { paddingValues ->
+        Box(modifier = Modifier.padding(paddingValues)) {
+            when {
+                currentSession != null -> {
+                    // 채팅 화면
                     ChatScreen(
                         messages = chatMessages,
                         isSending = isSendingMessage,
@@ -174,109 +139,63 @@ private fun AIAnalysisHubContent(
                         state = state
                     )
                 }
-            }
-            else -> {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // 상단 액션 바
-                    Surface(tonalElevation = 1.dp) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.End
+                else -> {
+                    Column {
+                        // 탭 선택
+                        TabRow(
+                            selectedTabIndex = selectedTab.ordinal,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            // 캐시 초기화 및 재분석 버튼
-                            IconButton(onClick = { viewModel.clearCacheAndRefresh() }) {
-                                Icon(Icons.Default.Refresh, "새로고침")
-                            }
-
-                            // AI 제공자 선택
-                            TextButton(onClick = { showProviderDialog = true }) {
-                                Text(
-                                    selectedProvider.name,
-                                    color = if (isApiKeyConfigured)
-                                        MaterialTheme.colorScheme.primary
-                                    else
-                                        MaterialTheme.colorScheme.error
+                            AnalysisTab.entries.forEach { tab ->
+                                Tab(
+                                    selected = selectedTab == tab,
+                                    onClick = { viewModel.selectTab(tab.ordinal) },
+                                    text = { Text(tab.title) }
                                 )
                             }
+                        }
 
-                            // 대화 이력
-                            IconButton(onClick = { showHistorySheet = true }) {
-                                Icon(Icons.Default.History, "대화 이력")
+                        // 탭 내용
+                        when (selectedTab) {
+                            AnalysisTab.CORRELATION -> {
+                                CorrelationAnalysisContent(
+                                    state = state,
+                                    selectedMarket = selectedMarket,
+                                    isApiKeyConfigured = isApiKeyConfigured,
+                                    analysisResult = analysisResult,
+                                    onMarketSelect = { viewModel.selectMarket(it) },
+                                    onRunCorrelation = { viewModel.runCorrelationAnalysis() },
+                                    onRunFullAnalysis = { viewModel.runFullAnalysis() },
+                                    onInterpretWithAI = { viewModel.interpretWithAI(it) },
+                                    onStartChat = { viewModel.startNewChat() },
+                                    onClearError = { viewModel.clearError() }
+                                )
+                            }
+                            AnalysisTab.STOCK_INDICATOR -> {
+                                StockIndicatorCorrelationContent(
+                                    state = state,
+                                    analysisPeriod = analysisPeriod,
+                                    isApiKeyConfigured = isApiKeyConfigured,
+                                    selectedStock = selectedStock,
+                                    stockIndicatorCorrelationResult = stockIndicatorCorrelationResult,
+                                    stockSearchResults = stockSearchResults,
+                                    isSearching = isSearching,
+                                    historyCount = stockIndicatorAIHistory.size,
+                                    searchHistory = searchHistory,
+                                    onPeriodChange = { viewModel.setAnalysisPeriod(it) },
+                                    onSearchStock = { viewModel.searchStock(it) },
+                                    onSelectStock = { ticker, name -> viewModel.selectStock(ticker, name) },
+                                    onClearStock = { viewModel.clearSelectedStock() },
+                                    onRunAnalysis = { viewModel.analyzeStockIndicatorCorrelation() },
+                                    onRunFullAnalysis = { viewModel.runFullStockIndicatorCorrelationAnalysis() },
+                                    onInterpretWithAI = { viewModel.interpretStockIndicatorCorrelationWithAI() },
+                                    onStartChat = { viewModel.startNewChat() },
+                                    onClearError = { viewModel.clearError() },
+                                    onShowHistory = { showStockIndicatorHistorySheet = true }
+                                )
                             }
                         }
                     }
-
-                    // 탭 선택
-                    TabRow(
-                        selectedTabIndex = selectedTab.ordinal,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        AnalysisTab.entries.forEach { tab ->
-                            Tab(
-                                selected = selectedTab == tab,
-                                onClick = { viewModel.selectTab(tab.ordinal) },
-                                text = { Text(tab.title) }
-                            )
-                        }
-                    }
-
-                    // 탭 내용
-                    when (selectedTab) {
-                        AnalysisTab.CORRELATION -> {
-                            HubCorrelationAnalysisContent(
-                                state = state,
-                                selectedMarket = selectedMarket,
-                                isApiKeyConfigured = isApiKeyConfigured,
-                                analysisResult = analysisResult,
-                                onMarketSelect = { viewModel.selectMarket(it) },
-                                onRunCorrelation = { viewModel.runCorrelationAnalysis() },
-                                onRunFullAnalysis = { viewModel.runFullAnalysis() },
-                                onInterpretWithAI = { viewModel.interpretWithAI(it) },
-                                onStartChat = { viewModel.startNewChat() },
-                                onClearError = { viewModel.clearError() }
-                            )
-                        }
-                        AnalysisTab.STOCK_INDICATOR -> {
-                            HubStockIndicatorCorrelationContent(
-                                state = state,
-                                analysisPeriod = analysisPeriod,
-                                isApiKeyConfigured = isApiKeyConfigured,
-                                selectedStock = selectedStock,
-                                stockIndicatorCorrelationResult = stockIndicatorCorrelationResult,
-                                stockSearchResults = stockSearchResults,
-                                isSearching = isSearching,
-                                historyCount = stockIndicatorAIHistory.size,
-                                searchHistory = searchHistory,
-                                onPeriodChange = { viewModel.setAnalysisPeriod(it) },
-                                onSearchStock = { viewModel.searchStock(it) },
-                                onSelectStock = { ticker, name -> viewModel.selectStock(ticker, name) },
-                                onClearStock = { viewModel.clearSelectedStock() },
-                                onRunAnalysis = { viewModel.analyzeStockIndicatorCorrelation() },
-                                onRunFullAnalysis = { viewModel.runFullStockIndicatorCorrelationAnalysis() },
-                                onInterpretWithAI = { viewModel.interpretStockIndicatorCorrelationWithAI() },
-                                onStartChat = { viewModel.startNewChat() },
-                                onClearError = { viewModel.clearError() },
-                                onShowHistory = { showStockIndicatorHistorySheet = true }
-                            )
-                        }
-                    }
-                }
-
-                // FAB
-                if (showFab && selectedStock != null) {
-                    ExtendedFloatingActionButton(
-                        onClick = { onNavigateToStocks(selectedStock!!.first) },
-                        icon = { Icon(Icons.Default.ShowChart, contentDescription = null) },
-                        text = { Text(stringResource(R.string.fab_stock_analysis)) },
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(16.dp)
-                    )
                 }
             }
         }
@@ -397,10 +316,10 @@ private fun AIAnalysisHubContent(
 }
 
 /**
- * Hub 상관관계 분석 화면 콘텐츠
+ * 상관관계 분석 화면 콘텐츠
  */
 @Composable
-private fun HubCorrelationAnalysisContent(
+private fun CorrelationAnalysisContent(
     state: NewAIAnalysisState,
     selectedMarket: String,
     isApiKeyConfigured: Boolean,
@@ -520,10 +439,11 @@ private fun HubCorrelationAnalysisContent(
 }
 
 /**
- * Hub 종목-지표 상관관계 분석 화면 콘텐츠
+ * 종목-지표 상관관계 분석 화면 콘텐츠
+ * 시장은 종목 티커에 따라 자동 감지됨 (KOSPI: 0,1,2,3으로 시작, 나머지: KOSDAQ)
  */
 @Composable
-private fun HubStockIndicatorCorrelationContent(
+private fun StockIndicatorCorrelationContent(
     state: NewAIAnalysisState,
     analysisPeriod: Int,
     isApiKeyConfigured: Boolean,
@@ -766,103 +686,6 @@ private fun HubStockIndicatorCorrelationContent(
                     Icon(Icons.Default.Chat, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("상관관계 분석 결과로 대화하기")
-                }
-            }
-        }
-    }
-}
-
-/**
- * 고급 분석 대시보드 콘텐츠
- */
-@Composable
-private fun AdvancedDashboardHubContent(
-    viewModel: AdvancedDashboardViewModel,
-    navController: NavHostController
-) {
-    val state by viewModel.state.collectAsState()
-
-    when (val currentState = state) {
-        is AdvancedDashboardState.Loading -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator()
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "분석 데이터 로딩 중...",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-        is AdvancedDashboardState.Error -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(32.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Error,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        currentState.message,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = { viewModel.loadDashboard() }) {
-                        Text("다시 시도")
-                    }
-                }
-            }
-        }
-        is AdvancedDashboardState.Success -> {
-            val data = currentState.data
-
-            // 고급 분석 서브탭
-            var selectedSubTab by remember { mutableIntStateOf(0) }
-            val subTabs = listOf("시총가중", "유동성", "섹터심리", "ETF상관")
-
-            Column(modifier = Modifier.fillMaxSize()) {
-                // 서브탭 네비게이션
-                ScrollableTabRow(
-                    selectedTabIndex = selectedSubTab,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.primary,
-                    edgePadding = 16.dp
-                ) {
-                    subTabs.forEachIndexed { index, title ->
-                        Tab(
-                            selected = selectedSubTab == index,
-                            onClick = { selectedSubTab = index },
-                            text = { Text(title, style = MaterialTheme.typography.labelLarge) }
-                        )
-                    }
-                }
-
-                // 탭 내용
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f)
-                ) {
-                    when (selectedSubTab) {
-                        0 -> MarketCapFlowTab(data = data)
-                        1 -> LiquidityTab(data = data)
-                        2 -> SectorFearGreedTab(data = data)
-                        3 -> EtfCorrelationTab(data = data)
-                    }
                 }
             }
         }

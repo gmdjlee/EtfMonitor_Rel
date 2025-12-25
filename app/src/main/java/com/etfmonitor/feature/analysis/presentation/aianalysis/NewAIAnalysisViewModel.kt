@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.aianalysis
+package com.etfmonitor.feature.analysis.presentation.aianalysis
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

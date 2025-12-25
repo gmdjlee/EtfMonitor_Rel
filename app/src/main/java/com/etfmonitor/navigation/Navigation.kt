@@ -23,12 +23,12 @@ import com.etfmonitor.feature.stock.presentation.oscillator.OscillatorScreen
 import com.etfmonitor.feature.market.presentation.deposit.MarketDepositScreen
 import com.etfmonitor.feature.market.presentation.feargreed.FearGreedScreen
 import com.etfmonitor.feature.market.presentation.oscillator.MarketOscillatorScreen
-import com.etfmonitor.ui.screens.aianalysis.NewAIAnalysisScreen
-import com.etfmonitor.ui.screens.advanced.AdvancedDashboardScreen
+import com.etfmonitor.feature.analysis.presentation.aianalysis.NewAIAnalysisScreen
+import com.etfmonitor.feature.analysis.presentation.advanced.AdvancedDashboardScreen
 import com.etfmonitor.feature.market.presentation.hub.MarketIndicatorHubScreen
 import com.etfmonitor.ui.screens.hub.EtfHubScreen
 import com.etfmonitor.feature.stock.presentation.hub.StocksHubScreen
-import com.etfmonitor.ui.screens.hub.AnalysisHubScreen
+import com.etfmonitor.feature.analysis.presentation.hub.AnalysisHubScreen
 
 sealed class Screen(val route: String) {
     // Main navigation tabs

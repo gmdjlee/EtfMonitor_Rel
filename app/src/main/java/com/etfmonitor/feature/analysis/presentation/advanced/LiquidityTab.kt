@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.advanced
+package com.etfmonitor.feature.analysis.presentation.advanced
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn

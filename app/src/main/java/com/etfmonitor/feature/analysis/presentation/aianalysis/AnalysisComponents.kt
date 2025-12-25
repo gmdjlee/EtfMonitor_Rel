@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.screens.aianalysis
+package com.etfmonitor.feature.analysis.presentation.aianalysis
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
