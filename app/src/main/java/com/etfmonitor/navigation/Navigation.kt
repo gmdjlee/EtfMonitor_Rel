@@ -41,7 +41,13 @@ sealed class Screen(val route: String) {
             "etf_hub"
         }
     }
-    object Stocks : Screen("stocks")
+    object Stocks : Screen("stocks?ticker={ticker}") {
+        fun createRoute(ticker: String? = null) = if (ticker != null) {
+            "stocks?ticker=$ticker"
+        } else {
+            "stocks"
+        }
+    }
     object Analysis : Screen("analysis")
 
     // Detail screens
@@ -155,10 +161,34 @@ fun Navigation(
                     isDarkTheme = isDarkTheme,
                     onToggleTheme = onToggleTheme,
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                    onNavigateToMarketIndicator = { navController.navigate(Screen.MarketIndicator.route) },
-                    onNavigateToEtf = { navController.navigate(Screen.EtfHub.route) },
-                    onNavigateToStocks = { navController.navigate(Screen.Stocks.route) },
-                    onNavigateToAnalysis = { navController.navigate(Screen.Analysis.route) }
+                    onNavigateToMarketIndicator = {
+                        navController.navigate(Screen.MarketIndicator.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onNavigateToEtf = {
+                        navController.navigate(Screen.EtfHub.createRoute()) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onNavigateToStocks = {
+                        navController.navigate(Screen.Stocks.createRoute()) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onNavigateToAnalysis = {
+                        navController.navigate(Screen.Analysis.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
                 )
             }
 
@@ -191,21 +221,46 @@ fun Navigation(
                     onStockClick = { stockTicker ->
                         navController.navigate(Screen.AggregatedStockTrend.createRoute(stockTicker))
                     },
-                    onNavigateToOscillator = { ticker ->
-                        navController.navigate(Screen.Oscillator.createRoute(ticker))
+                    onNavigateToStocks = { ticker ->
+                        // Use same navigation pattern as bottom navigation for proper state management
+                        navController.navigate(Screen.Stocks.createRoute(ticker)) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     },
                     initialStockTicker = initialStockTicker
                 )
             }
 
-            composable(Screen.Stocks.route) {
+            composable(
+                route = Screen.Stocks.route,
+                arguments = listOf(
+                    navArgument("ticker") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                val initialTicker = backStackEntry.arguments?.getString("ticker")
                 StocksHubScreen(
                     isDarkTheme = isDarkTheme,
                     onToggleTheme = onToggleTheme,
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                     onNavigateToStatistics = { ticker ->
-                        navController.navigate(Screen.EtfHub.createRoute(ticker))
-                    }
+                        // Use same navigation pattern as bottom navigation for proper state management
+                        navController.navigate(Screen.EtfHub.createRoute(ticker)) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    initialTicker = initialTicker
                 )
             }
 
@@ -215,8 +270,15 @@ fun Navigation(
                     isDarkTheme = isDarkTheme,
                     onToggleTheme = onToggleTheme,
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                    onNavigateToOscillator = { ticker ->
-                        navController.navigate(Screen.Oscillator.createRoute(ticker))
+                    onNavigateToStocks = { ticker ->
+                        // Use same navigation pattern as bottom navigation for proper state management
+                        navController.navigate(Screen.Stocks.createRoute(ticker)) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 )
             }
@@ -306,7 +368,14 @@ fun Navigation(
                     onNavigateBack = { navController.popBackStack() },
                     initialTicker = ticker,
                     onNavigateToStatistics = { stockTicker ->
-                        navController.navigate(Screen.EtfHub.createRoute(stockTicker))
+                        // Use same navigation pattern as bottom navigation for proper state management
+                        navController.navigate(Screen.EtfHub.createRoute(stockTicker)) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 )
             }

@@ -60,10 +60,10 @@ fun StocksHubScreen(
 
     var showHistoryDialog by remember { mutableStateOf(false) }
 
-    // Set initial ticker if provided
+    // Set initial ticker if provided (skip history save when navigating via FAB)
     LaunchedEffect(initialTicker) {
         initialTicker?.let { ticker ->
-            viewModel.analyzeStock(ticker)
+            viewModel.analyzeStock(ticker, saveHistory = false)
         }
     }
 

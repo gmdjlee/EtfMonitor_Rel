@@ -145,7 +145,7 @@ class StatisticsViewModel @Inject constructor(
     }
 
     // 종목 분석
-    fun analyzeStock(stockTicker: String) {
+    fun analyzeStock(stockTicker: String, saveHistory: Boolean = true) {
         viewModelScope.launch {
             _isAnalyzing.value = true
             try {
@@ -154,20 +154,22 @@ class StatisticsViewModel @Inject constructor(
                 _searchQuery.value = ""
                 _searchResults.value = emptyList()
 
-                // 분석 성공 시 검색 히스토리에 저장
-                result?.let {
-                    try {
-                        val market = Stock.inferMarket(it.stockTicker)
-                        searchHistoryDao.insertSearch(
-                            SearchHistory(
-                                ticker = it.stockTicker,
-                                name = it.stockName,
-                                market = market
+                // 분석 성공 시 검색 히스토리에 저장 (FAB 네비게이션 시에는 저장하지 않음)
+                if (saveHistory) {
+                    result?.let {
+                        try {
+                            val market = Stock.inferMarket(it.stockTicker)
+                            searchHistoryDao.insertSearch(
+                                SearchHistory(
+                                    ticker = it.stockTicker,
+                                    name = it.stockName,
+                                    market = market
+                                )
                             )
-                        )
-                        searchHistoryDao.deleteOldSearches(20)
-                    } catch (e: Exception) {
-                        // 히스토리 저장 실패 무시
+                            searchHistoryDao.deleteOldSearches(20)
+                        } catch (e: Exception) {
+                            // 히스토리 저장 실패 무시
+                        }
                     }
                 }
             } finally {
