@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.feature.market.domain.model.MarketOscillator
 import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
+import com.etfmonitor.core.database.entities.MarketOscillatorData
 import com.etfmonitor.core.ui.theme.ThemeManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext

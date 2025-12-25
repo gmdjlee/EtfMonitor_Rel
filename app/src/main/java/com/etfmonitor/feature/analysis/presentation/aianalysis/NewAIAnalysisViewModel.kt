@@ -5,22 +5,24 @@ import androidx.lifecycle.viewModelScope
 import com.etfmonitor.core.network.ai.AIApiClientFactory
 import com.etfmonitor.core.network.ai.AIProvider
 import com.etfmonitor.core.network.ai.ApiKeyProvider
-import com.etfmonitor.core.analysis.FullStockIndicatorCorrelationResult
 import com.etfmonitor.core.analysis.SignalType
-import com.etfmonitor.core.analysis.StockIndicatorCorrelationResult
 import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.core.database.entities.SearchHistoryType
 import com.etfmonitor.core.database.entities.Stock
-import com.etfmonitor.core.database.entities.StockIndicatorAIResult
 import com.etfmonitor.core.database.SearchHistoryDao
 import com.etfmonitor.feature.analysis.domain.model.AIAnalysis
 import com.etfmonitor.feature.analysis.domain.model.ChatMessage
 import com.etfmonitor.feature.analysis.domain.model.ChatSession
 import com.etfmonitor.feature.analysis.domain.model.CorrelationAnalysis
 import com.etfmonitor.feature.analysis.domain.model.FullAnalysis
+import com.etfmonitor.feature.analysis.domain.model.FullStockIndicatorAnalysis
+import com.etfmonitor.feature.analysis.domain.model.StockIndicatorCorrelation
+import com.etfmonitor.feature.analysis.domain.model.StockIndicatorInterpretation
+import com.etfmonitor.feature.analysis.domain.model.StockIndicatorRequest
 import com.etfmonitor.feature.analysis.domain.repository.ChatRepository
 import com.etfmonitor.feature.analysis.domain.repository.CorrelationAnalysisRepository
 import com.etfmonitor.feature.analysis.domain.repository.StockIndicatorRepository
+import com.etfmonitor.feature.analysis.domain.repository.StockIndicatorAIHistoryItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -68,8 +70,8 @@ class NewAIAnalysisViewModel @Inject constructor(
     val analysisResult: StateFlow<FullAnalysis?> = _analysisResult.asStateFlow()
 
     // 종목-지표 상관관계 분석 결과
-    private val _stockIndicatorCorrelationResult = MutableStateFlow<FullStockIndicatorCorrelationResult?>(null)
-    val stockIndicatorCorrelationResult: StateFlow<FullStockIndicatorCorrelationResult?> = _stockIndicatorCorrelationResult.asStateFlow()
+    private val _stockIndicatorCorrelationResult = MutableStateFlow<FullStockIndicatorAnalysis?>(null)
+    val stockIndicatorCorrelationResult: StateFlow<FullStockIndicatorAnalysis?> = _stockIndicatorCorrelationResult.asStateFlow()
 
     // 분석 기간 (일)
     private val _analysisPeriod = MutableStateFlow(30)
@@ -113,7 +115,7 @@ class NewAIAnalysisViewModel @Inject constructor(
         }
 
     // 종목-지표 AI 분석 히스토리 (선택된 종목에 따라 자동 업데이트)
-    val stockIndicatorAIHistory: Flow<List<StockIndicatorAIResult>> =
+    val stockIndicatorAIHistory: Flow<List<StockIndicatorAIHistoryItem>> =
         _selectedStock.flatMapLatest { stock ->
             if (stock != null) {
                 stockIndicatorRepository.getStockIndicatorAIHistory(stock.first)
@@ -124,7 +126,7 @@ class NewAIAnalysisViewModel @Inject constructor(
         }
 
     // 전체 종목-지표 AI 분석 히스토리
-    val allStockIndicatorAIHistory: Flow<List<StockIndicatorAIResult>> =
+    val allStockIndicatorAIHistory: Flow<List<StockIndicatorAIHistoryItem>> =
         stockIndicatorRepository.getAllStockIndicatorAIHistory(50)
 
     // 검색 히스토리 (최근 20개) - AI_ANALYSIS 타입만
@@ -444,7 +446,7 @@ class NewAIAnalysisViewModel @Inject constructor(
             val detectedMarket = Stock.inferMarket(stock.first)
 
             val result = stockIndicatorRepository.analyzeStockIndicatorCorrelations(
-                com.etfmonitor.core.analysis.StockIndicatorCorrelationRequest(
+                StockIndicatorRequest(
                     ticker = stock.first,
                     name = stock.second,
                     market = detectedMarket,
@@ -454,7 +456,7 @@ class NewAIAnalysisViewModel @Inject constructor(
 
             if (result.isSuccess) {
                 val correlationResult = result.getOrThrow()
-                _stockIndicatorCorrelationResult.value = FullStockIndicatorCorrelationResult(
+                _stockIndicatorCorrelationResult.value = FullStockIndicatorAnalysis(
                     correlationResult = correlationResult,
                     aiInterpretation = null,
                     errorMessage = null
@@ -525,13 +527,13 @@ class NewAIAnalysisViewModel @Inject constructor(
 
             if (result.isSuccess) {
                 val aiInterpretation = result.getOrThrow()
-                _stockIndicatorCorrelationResult.value = FullStockIndicatorCorrelationResult(
+                _stockIndicatorCorrelationResult.value = FullStockIndicatorAnalysis(
                     correlationResult = currentResult,
                     aiInterpretation = aiInterpretation,
                     errorMessage = null
                 )
                 _state.value = NewAIAnalysisState.StockIndicatorCorrelationAIComplete(
-                    FullStockIndicatorCorrelationResult(currentResult, aiInterpretation, null)
+                    FullStockIndicatorAnalysis(currentResult, aiInterpretation, null)
                 )
             } else {
                 _state.value = NewAIAnalysisState.Error(
@@ -738,8 +740,8 @@ sealed class NewAIAnalysisState {
     object InterpretingStockIndicatorCorrelation : NewAIAnalysisState()
 
     // 종목-지표 상관관계 분석 완료
-    data class StockIndicatorCorrelationComplete(val result: StockIndicatorCorrelationResult) : NewAIAnalysisState()
-    data class StockIndicatorCorrelationAIComplete(val result: FullStockIndicatorCorrelationResult) : NewAIAnalysisState()
+    data class StockIndicatorCorrelationComplete(val result: StockIndicatorCorrelation) : NewAIAnalysisState()
+    data class StockIndicatorCorrelationAIComplete(val result: FullStockIndicatorAnalysis) : NewAIAnalysisState()
 
     // 채팅
     data class ChatActive(val session: ChatSession) : NewAIAnalysisState()

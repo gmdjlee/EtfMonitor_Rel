@@ -15,11 +15,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.etfmonitor.core.database.StockSearchResult
 import com.etfmonitor.core.database.entities.HoldingStatus
 import com.etfmonitor.core.database.entities.SearchHistory
-import com.etfmonitor.core.database.entities.StockAnalysisResult
-import com.etfmonitor.core.database.entities.StockEtfDetail
+import com.etfmonitor.feature.stock.domain.model.StockAnalysisResult
+import com.etfmonitor.feature.stock.domain.model.StockEtfDetail
+import com.etfmonitor.feature.stock.domain.repository.StockSearchResult
 import com.etfmonitor.core.ui.theme.*
 import com.etfmonitor.core.common.util.AmountFormatter
 import com.etfmonitor.core.ui.component.StockSearchItem

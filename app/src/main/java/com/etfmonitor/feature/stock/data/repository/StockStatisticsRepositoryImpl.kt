@@ -5,13 +5,14 @@ import com.etfmonitor.feature.stock.data.mapper.StockMapper.toRankingDomain
 import com.etfmonitor.feature.stock.data.mapper.StockMapper.toChangeInfoDomain
 import com.etfmonitor.feature.stock.data.mapper.StockMapper.toCashDepositDomain
 import com.etfmonitor.feature.stock.data.mapper.StockMapper.toSearchResultDomain
+import com.etfmonitor.core.database.entities.HoldingStatus
 import com.etfmonitor.feature.stock.domain.model.CashDepositTrend
-import com.etfmonitor.feature.stock.domain.model.EtfDetail
 import com.etfmonitor.feature.stock.domain.model.StockAggregatedTrend
 import com.etfmonitor.feature.stock.domain.model.StockAggregatedTimePoint
 import com.etfmonitor.feature.stock.domain.model.StockAmountRanking
 import com.etfmonitor.feature.stock.domain.model.StockAnalysisResult
 import com.etfmonitor.feature.stock.domain.model.StockChangeInfo
+import com.etfmonitor.feature.stock.domain.model.StockEtfDetail
 import com.etfmonitor.feature.stock.domain.repository.StockStatisticsRepository
 import com.etfmonitor.feature.stock.domain.repository.StockSearchResult
 import com.etfmonitor.core.common.util.AppLogger
@@ -99,32 +100,83 @@ class StockStatisticsRepositoryImpl @Inject constructor(
         if (dates.isEmpty()) return@withContext null
 
         val currentDate = dates[0]
+        val previousDate = dates.getOrNull(1)
 
         // 현재 보유 현황
         val currentHoldings = localDataSource.getStockHoldingsByDate(stockTicker, currentDate)
         if (currentHoldings.isEmpty()) return@withContext null
 
+        // 이전 보유 현황 (있는 경우)
+        val previousHoldings = previousDate?.let {
+            localDataSource.getStockHoldingsByDate(stockTicker, it)
+        } ?: emptyList()
+
+        val previousHoldingsMap = previousHoldings.associateBy { it.etfTicker }
+
         val stockName = localDataSource.getStockName(stockTicker) ?: stockTicker
 
-        // ETF별 상세 정보 생성
+        // 카운터
+        var newIncludedCount = 0
+        var increasedCount = 0
+        var decreasedCount = 0
+
+        // ETF별 상세 정보 생성 (with status)
         val etfDetails = currentHoldings.map { holding ->
-            EtfDetail(
+            val previous = previousHoldingsMap[holding.etfTicker]
+            val previousWeight = previous?.weight ?: 0f
+            val currentWeight = holding.weight
+            val change = currentWeight - previousWeight
+
+            val status = when {
+                previous == null -> {
+                    newIncludedCount++
+                    HoldingStatus.NEW
+                }
+                change > 0.01f -> {
+                    increasedCount++
+                    HoldingStatus.INCREASE
+                }
+                change < -0.01f -> {
+                    decreasedCount++
+                    HoldingStatus.DECREASE
+                }
+                else -> HoldingStatus.MAINTAINED
+            }
+
+            StockEtfDetail(
                 etfTicker = holding.etfTicker,
                 etfName = holding.etfName,
-                weight = holding.weight,
-                amount = holding.amount
+                previousWeight = previousWeight,
+                currentWeight = currentWeight,
+                change = change,
+                amount = holding.amount,
+                status = status
             )
         }.sortedByDescending { it.amount }
 
+        // 제외된 ETF 카운트 (이전에 있었지만 현재에 없는)
+        val currentEtfTickers = currentHoldings.map { it.etfTicker }.toSet()
+        val removedCount = previousHoldings.count { it.etfTicker !in currentEtfTickers }
+
         // 통계 계산
         val totalAmount = currentHoldings.sumOf { it.amount.toDouble() }.toFloat()
+        val weights = currentHoldings.map { it.weight }
+        val avgWeight = if (weights.isNotEmpty()) weights.average().toFloat() else 0f
+        val maxWeight = weights.maxOrNull() ?: 0f
 
         StockAnalysisResult(
             stockTicker = stockTicker,
             stockName = stockName,
             etfDetails = etfDetails,
             totalAmount = totalAmount,
-            etfCount = currentHoldings.size
+            currentEtfCount = currentHoldings.size,
+            previousEtfCount = previousHoldings.size,
+            increasedCount = increasedCount,
+            decreasedCount = decreasedCount,
+            newIncludedCount = newIncludedCount,
+            removedCount = removedCount,
+            avgWeight = avgWeight,
+            maxWeight = maxWeight
         )
     }
 

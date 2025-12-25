@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.etfmonitor.feature.analysis.domain.model.LiquidityAnalysisData
 import com.etfmonitor.feature.analysis.domain.model.LiquiditySignalType
 import com.etfmonitor.feature.analysis.domain.model.SectorAnalysisData
+import com.etfmonitor.core.database.entities.SectorMapping
 import kotlin.math.abs
 
 /**
