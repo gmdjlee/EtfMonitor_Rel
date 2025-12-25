@@ -34,7 +34,7 @@ import javax.inject.Inject
 @HiltViewModel
 class StatisticsViewModel @Inject constructor(
     private val repository: DataRepository,
-    private val etfDao: com.etfmonitor.database.EtfDao,
+    private val etfDao: com.etfmonitor.core.database.EtfDao,
     private val searchHistoryDao: SearchHistoryDao
 ) : ViewModel() {
 
@@ -83,8 +83,8 @@ class StatisticsViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    private val _searchResults = MutableStateFlow<List<com.etfmonitor.database.StockSearchResult>>(emptyList())
-    val searchResults: StateFlow<List<com.etfmonitor.database.StockSearchResult>> = _searchResults.asStateFlow()
+    private val _searchResults = MutableStateFlow<List<com.etfmonitor.core.database.StockSearchResult>>(emptyList())
+    val searchResults: StateFlow<List<com.etfmonitor.core.database.StockSearchResult>> = _searchResults.asStateFlow()
 
     private val _analysisResult = MutableStateFlow<StockAnalysisResult?>(null)
     val analysisResult: StateFlow<StockAnalysisResult?> = _analysisResult.asStateFlow()

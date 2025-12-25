@@ -588,7 +588,7 @@ private fun IntervalButton(
 
 @Composable
 private fun SearchHistoryDialog(
-    searchHistory: List<com.etfmonitor.database.entities.SearchHistory>,
+    searchHistory: List<com.etfmonitor.core.database.entities.SearchHistory>,
     onDismiss: () -> Unit,
     onSelectStock: (String) -> Unit
 ) {

@@ -73,7 +73,7 @@ class StockAnalysisRepository @Inject constructor(
             stockDao.upsertFromHolding(
                 ticker = ticker,
                 name = stockData.name,
-                market = com.etfmonitor.database.entities.Stock.inferMarket(ticker),
+                market = com.etfmonitor.core.database.entities.Stock.inferMarket(ticker),
                 lastUpdated = System.currentTimeMillis()
             )
 

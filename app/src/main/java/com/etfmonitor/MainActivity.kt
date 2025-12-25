@@ -256,10 +256,10 @@ class MainActivity : ComponentActivity() {
 
                 // 기본값 저장 (설정이 없는 경우)
                 if (hourStr == null) {
-                    etfDao.saveSetting(com.etfmonitor.database.entities.Setting("stock_update_hour", hour.toString()))
+                    etfDao.saveSetting(com.etfmonitor.core.database.entities.Setting("stock_update_hour", hour.toString()))
                 }
                 if (minuteStr == null) {
-                    etfDao.saveSetting(com.etfmonitor.database.entities.Setting("stock_update_minute", minute.toString()))
+                    etfDao.saveSetting(com.etfmonitor.core.database.entities.Setting("stock_update_minute", minute.toString()))
                 }
 
                 // WorkManager 스케줄 설정

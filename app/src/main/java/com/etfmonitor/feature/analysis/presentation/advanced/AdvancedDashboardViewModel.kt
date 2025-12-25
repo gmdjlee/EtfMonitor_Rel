@@ -290,7 +290,7 @@ class AdvancedDashboardViewModel @Inject constructor(
      * - 순유입(netFlow > 0) -> 다음날 시장 상승 예측
      * - 순유출(netFlow < 0) -> 다음날 시장 하락 예측
      */
-    private suspend fun calculateMarketCapFlowAccuracy(marketIndexes: List<com.etfmonitor.database.entities.MarketIndex>) {
+    private suspend fun calculateMarketCapFlowAccuracy(marketIndexes: List<com.etfmonitor.core.database.entities.MarketIndex>) {
         try {
             val flowHistory = _marketCapFlowHistory.value
             if (flowHistory.isEmpty()) return
@@ -357,7 +357,7 @@ class AdvancedDashboardViewModel @Inject constructor(
      * - BULLISH_LIQUIDITY -> 시장 상승 예측
      * - BEARISH_LEVERAGE -> 시장 하락 예측
      */
-    private suspend fun calculateLiquidityAccuracy(marketIndexes: List<com.etfmonitor.database.entities.MarketIndex>) {
+    private suspend fun calculateLiquidityAccuracy(marketIndexes: List<com.etfmonitor.core.database.entities.MarketIndex>) {
         try {
             val liquidityHistory = _liquidityHistory.value
             if (liquidityHistory.isEmpty()) return
@@ -422,8 +422,8 @@ class AdvancedDashboardViewModel @Inject constructor(
      */
     private fun findNextTradingDay(
         date: String,
-        marketIndexes: List<com.etfmonitor.database.entities.MarketIndex>
-    ): com.etfmonitor.database.entities.MarketIndex? {
+        marketIndexes: List<com.etfmonitor.core.database.entities.MarketIndex>
+    ): com.etfmonitor.core.database.entities.MarketIndex? {
         val sortedIndexes = marketIndexes.sortedBy { it.date }
         val currentIndex = sortedIndexes.indexOfFirst { it.date == date }
         return if (currentIndex >= 0 && currentIndex < sortedIndexes.size - 1) {

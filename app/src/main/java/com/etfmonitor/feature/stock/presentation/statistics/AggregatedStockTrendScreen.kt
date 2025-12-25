@@ -384,7 +384,7 @@ private fun AggregatedDataTable(timeSeries: List<StockAggregatedTimePoint>) {
 class AggregatedStockTrendViewModel @AssistedInject constructor(
     @Assisted val stockTicker: String,
     private val repository: DataRepository,
-    private val etfDao: com.etfmonitor.database.EtfDao,
+    private val etfDao: com.etfmonitor.core.database.EtfDao,
     val pyClient: com.etfmonitor.core.network.python.OscillatorPyClient
 ) : ViewModel() {
 

@@ -939,7 +939,7 @@ fun StockIndicatorAIInterpretationCard(
 @Composable
 fun CorrelationResultCard(
     result: CorrelationAnalysisResult,
-    aiResult: com.etfmonitor.database.entities.AIAnalysisResult?
+    aiResult: com.etfmonitor.core.database.entities.AIAnalysisResult?
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {

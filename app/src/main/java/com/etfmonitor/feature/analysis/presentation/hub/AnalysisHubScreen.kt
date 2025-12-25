@@ -25,6 +25,7 @@ import com.etfmonitor.core.database.entities.CorrelationAnalysisResult
 import com.etfmonitor.repository.FullAnalysisResult
 import com.etfmonitor.core.analysis.FullStockIndicatorCorrelationResult
 import com.etfmonitor.core.ui.component.TabNavigationBar
+import com.etfmonitor.core.ui.component.HubHeader
 import com.etfmonitor.feature.analysis.presentation.aianalysis.AnalysisTab
 import com.etfmonitor.feature.analysis.presentation.aianalysis.NewAIAnalysisViewModel
 import com.etfmonitor.feature.analysis.presentation.aianalysis.NewAIAnalysisState

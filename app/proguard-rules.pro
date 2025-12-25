@@ -24,7 +24,7 @@
 # --------------------------------------------
 # Room Entity Classes
 # --------------------------------------------
--keep class com.etfmonitor.database.entities.** { *; }
+-keep class com.etfmonitor.core.database.entities.** { *; }
 
 # --------------------------------------------
 # Python/Chaquopy Integration

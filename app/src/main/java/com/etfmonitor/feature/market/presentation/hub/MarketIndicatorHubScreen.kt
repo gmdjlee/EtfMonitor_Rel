@@ -23,7 +23,7 @@ import com.etfmonitor.R
 import com.etfmonitor.core.database.entities.MarketOscillatorData
 import com.etfmonitor.core.ui.component.TabNavigationBar
 import com.etfmonitor.core.ui.component.MarketDepositChart
-import com.etfmonitor.ui.screens.hub.HubHeader
+import com.etfmonitor.core.ui.component.HubHeader
 import com.etfmonitor.feature.market.presentation.feargreed.FearGreedContent
 import com.etfmonitor.feature.market.presentation.feargreed.FearGreedViewModel
 import com.etfmonitor.feature.market.presentation.oscillator.MarketOscillatorViewModel
