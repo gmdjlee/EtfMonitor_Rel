@@ -33,7 +33,7 @@ import com.etfmonitor.R
 import com.etfmonitor.feature.etf.domain.model.Etf
 import com.etfmonitor.database.entities.HoldingStatus
 import com.etfmonitor.database.entities.SearchHistory
-import com.etfmonitor.ui.components.TabNavigationBar
+import com.etfmonitor.core.ui.component.TabNavigationBar
 import com.etfmonitor.feature.etf.presentation.list.EtfListViewModel
 import com.etfmonitor.feature.etf.presentation.list.EtfListState
 import com.etfmonitor.ui.screens.statistics.StatisticsViewModel

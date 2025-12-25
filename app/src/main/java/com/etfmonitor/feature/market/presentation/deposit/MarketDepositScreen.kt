@@ -16,9 +16,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
-import com.etfmonitor.ui.components.MarketDepositChart
-import com.etfmonitor.ui.components.LoadingCard
-import com.etfmonitor.ui.components.ErrorCard
+import com.etfmonitor.core.ui.component.MarketDepositChart
+import com.etfmonitor.core.ui.component.LoadingCard
+import com.etfmonitor.core.ui.component.ErrorCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

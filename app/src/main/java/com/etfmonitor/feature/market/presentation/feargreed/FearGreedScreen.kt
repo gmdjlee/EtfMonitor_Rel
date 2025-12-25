@@ -23,7 +23,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.foundation.isSystemInDarkTheme
 import com.etfmonitor.R
-import com.etfmonitor.ui.components.*
+import com.etfmonitor.core.ui.component.*
 import com.etfmonitor.core.ui.theme.*
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData

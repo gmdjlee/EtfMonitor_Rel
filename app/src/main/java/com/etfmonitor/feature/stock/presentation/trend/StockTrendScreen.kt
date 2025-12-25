@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
-import com.etfmonitor.ui.components.ChartCard
+import com.etfmonitor.core.ui.component.ChartCard
 import com.etfmonitor.feature.stock.domain.model.StockTrend
 import com.etfmonitor.feature.stock.domain.model.HoldingTimeSeries
 import com.etfmonitor.core.common.util.AmountFormatter

@@ -1,4 +1,4 @@
-package com.etfmonitor.ui.components
+package com.etfmonitor.core.ui.component
 
 import android.content.Context
 import android.widget.TextView
