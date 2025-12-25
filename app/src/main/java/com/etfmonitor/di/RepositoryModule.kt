@@ -59,9 +59,10 @@ object RepositoryModule {
     @Singleton
     fun provideFearGreedRepository(
         fearGreedDao: FearGreedDao,
+        etfDao: EtfDao,
         python: Python
     ): FearGreedRepository {
-        return FearGreedRepository(fearGreedDao, python)
+        return FearGreedRepository(fearGreedDao, etfDao, python)
     }
 
     /**
@@ -72,9 +73,10 @@ object RepositoryModule {
     @Singleton
     fun provideMarketOscillatorRepository(
         marketOscillatorDao: MarketOscillatorDao,
+        etfDao: EtfDao,
         oscillatorPyClient: OscillatorPyClient
     ): MarketOscillatorRepository {
-        return MarketOscillatorRepository(marketOscillatorDao, oscillatorPyClient)
+        return MarketOscillatorRepository(marketOscillatorDao, etfDao, oscillatorPyClient)
     }
 
     /**
