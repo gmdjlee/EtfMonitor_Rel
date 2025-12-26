@@ -416,3 +416,92 @@ enum class AdviceType {
     SECTOR_CONCENTRATION,
     SUGGESTION
 }
+
+// ============================================================
+// 종목-지표 상관관계 분석 도메인 모델
+// ============================================================
+
+/**
+ * 종목-지표 상관관계 분석 요청
+ */
+data class StockIndicatorRequest(
+    val ticker: String,
+    val name: String,
+    val market: String,
+    val periodDays: Int
+)
+
+/**
+ * 종목-지표 상관관계 분석 결과
+ */
+data class StockIndicatorCorrelation(
+    val ticker: String,
+    val name: String,
+    val market: String,
+    val period: Int,
+    val indicatorCorrelations: List<IndicatorCorrelation>,
+    val compositeScore: Double,
+    val signal: String,
+    val confidence: Double
+)
+
+/**
+ * 개별 지표 상관관계
+ */
+data class IndicatorCorrelation(
+    val indicatorName: String,
+    val correlationValue: Double,
+    val strength: CorrelationStrength,
+    val description: String
+)
+
+/**
+ * 상관관계 강도
+ */
+enum class CorrelationStrength {
+    STRONG,     // |r| >= 0.7
+    MODERATE,   // |r| >= 0.4
+    WEAK,       // |r| >= 0.2
+    NONE;       // |r| < 0.2
+
+    companion object {
+        fun fromValue(value: Double): CorrelationStrength {
+            val absValue = kotlin.math.abs(value)
+            return when {
+                absValue >= 0.7 -> STRONG
+                absValue >= 0.4 -> MODERATE
+                absValue >= 0.2 -> WEAK
+                else -> NONE
+            }
+        }
+    }
+}
+
+/**
+ * 종목-지표 AI 해석 결과
+ */
+data class StockIndicatorInterpretation(
+    val ticker: String,
+    val name: String,
+    val period: Int,
+    val signal: String,
+    val confidence: Double,
+    val upProbability: Double,
+    val downProbability: Double,
+    val riskLevel: String,
+    val keyCorrelations: List<String>,
+    val marketSentimentImpact: String,
+    val fundFlowImpact: String,
+    val etfFlowImpact: String,
+    val recommendation: String,
+    val reasoning: String
+)
+
+/**
+ * 종목-지표 전체 분석 결과
+ */
+data class FullStockIndicatorAnalysis(
+    val correlationResult: StockIndicatorCorrelation?,
+    val aiInterpretation: StockIndicatorInterpretation?,
+    val errorMessage: String?
+)

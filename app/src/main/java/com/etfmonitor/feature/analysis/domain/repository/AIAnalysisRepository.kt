@@ -3,6 +3,7 @@ package com.etfmonitor.feature.analysis.domain.repository
 import com.etfmonitor.core.network.ai.AIModel
 import com.etfmonitor.core.network.ai.AIProvider
 import com.etfmonitor.core.network.ai.MarketSignal
+import com.etfmonitor.core.network.ai.SignalType
 
 /**
  * AI 분석 Repository 인터페이스
@@ -91,7 +92,7 @@ data class AIAnalysisResponse(
  */
 data class SignalRecord(
     val date: String,
-    val signal: com.etfmonitor.feature.analysis.domain.model.SignalType,
+    val signal: SignalType,
     val confidence: Double,
     val indexAtSignal: Double
 )
