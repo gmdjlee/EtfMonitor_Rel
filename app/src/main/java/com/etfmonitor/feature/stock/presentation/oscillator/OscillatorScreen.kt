@@ -9,6 +9,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -30,7 +31,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
-import com.etfmonitor.core.ui.component.DateRangeSelector
+import com.etfmonitor.core.ui.component.DateRangeOption
 import com.etfmonitor.core.ui.component.MarketCapOscillatorChart
 import com.etfmonitor.core.ui.component.MacdChart
 import com.etfmonitor.core.ui.component.TrendSignalChart
@@ -233,17 +234,13 @@ fun OscillatorScreen(
                 }
             }
 
-            // Date Range Selector
-            DateRangeSelector(
-                selectedRange = selectedRange,
-                onRangeSelected = { viewModel.updateDateRange(it) }
-            )
-
             // State Content
             when (val currentState = state) {
                 is OscillatorState.Loading -> {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
                         LoadingCard(message = stringResource(R.string.data_analyzing))
@@ -264,7 +261,9 @@ fun OscillatorScreen(
                     )
 
                     Column(
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
                     ) {
                         // Stock Info Card (고정)
                         Card(
@@ -316,7 +315,45 @@ fun OscillatorScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        // Date Range Selector - Using Button style like DeMark TD
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            DateRangeButton(
+                                text = "1주",
+                                selected = selectedRange == DateRangeOption.WEEK,
+                                onClick = { viewModel.updateDateRange(DateRangeOption.WEEK) }
+                            )
+                            DateRangeButton(
+                                text = "1개월",
+                                selected = selectedRange == DateRangeOption.MONTH,
+                                onClick = { viewModel.updateDateRange(DateRangeOption.MONTH) }
+                            )
+                            DateRangeButton(
+                                text = "3개월",
+                                selected = selectedRange == DateRangeOption.THREE_MONTHS,
+                                onClick = { viewModel.updateDateRange(DateRangeOption.THREE_MONTHS) }
+                            )
+                            DateRangeButton(
+                                text = "6개월",
+                                selected = selectedRange == DateRangeOption.SIX_MONTHS,
+                                onClick = { viewModel.updateDateRange(DateRangeOption.SIX_MONTHS) }
+                            )
+                            DateRangeButton(
+                                text = "1년",
+                                selected = selectedRange == DateRangeOption.YEAR,
+                                onClick = { viewModel.updateDateRange(DateRangeOption.YEAR) }
+                            )
+                            DateRangeButton(
+                                text = "전체",
+                                selected = selectedRange == DateRangeOption.ALL,
+                                onClick = { viewModel.updateDateRange(DateRangeOption.ALL) }
+                            )
+                        }
 
                         // Page Indicators + Chart Title
                         Row(
@@ -389,7 +426,9 @@ fun OscillatorScreen(
 
                 is OscillatorState.Error -> {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
                         ErrorCard(message = currentState.message)
@@ -398,7 +437,9 @@ fun OscillatorScreen(
 
                 is OscillatorState.Idle -> {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
                         IdleCard(message = stringResource(R.string.oscillator_idle_message))
@@ -588,6 +629,33 @@ private fun IntervalButton(
         OutlinedButton(
             onClick = onClick,
             modifier = modifier
+        ) {
+            Text(text)
+        }
+    }
+}
+
+/**
+ * 날짜 범위 선택 버튼 (DeMark TD 인터벌 버튼과 동일한 스타일)
+ */
+@Composable
+private fun DateRangeButton(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    if (selected) {
+        Button(
+            onClick = onClick,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
+            Text(text)
+        }
+    } else {
+        OutlinedButton(
+            onClick = onClick
         ) {
             Text(text)
         }
