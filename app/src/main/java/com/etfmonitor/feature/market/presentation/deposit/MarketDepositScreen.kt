@@ -62,6 +62,12 @@ fun MarketDepositScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Date Range Selector (항상 표시)
+            DateRangeSelector(
+                selectedRange = selectedRange,
+                onRangeSelected = { viewModel.updateDateRange(it) }
+            )
+
             // 상태별 UI
             when (val currentState = state) {
                 is MarketDepositState.Loading -> {
@@ -69,12 +75,6 @@ fun MarketDepositScreen(
                 }
 
                 is MarketDepositState.Success -> {
-                    // Date Range Selector
-                    DateRangeSelector(
-                        selectedRange = selectedRange,
-                        onRangeSelected = { viewModel.updateDateRange(it) }
-                    )
-
                     // 시장 분석 카드
                     Card(
                         modifier = Modifier.fillMaxWidth(),
