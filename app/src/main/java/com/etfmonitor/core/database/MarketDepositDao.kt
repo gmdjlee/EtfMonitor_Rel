@@ -18,6 +18,12 @@ interface MarketDepositDao {
     @Query("SELECT * FROM market_deposits ORDER BY date DESC LIMIT :limit")
     fun getRecentDeposits(limit: Int): Flow<List<MarketDeposit>>
 
+    @Query("SELECT * FROM market_deposits WHERE date >= :startDate AND date <= :endDate ORDER BY date ASC")
+    fun getByDateRange(startDate: String, endDate: String): Flow<List<MarketDeposit>>
+
+    @Query("SELECT * FROM market_deposits WHERE date >= :startDate AND date <= :endDate ORDER BY date ASC")
+    suspend fun getByDateRangeSuspend(startDate: String, endDate: String): List<MarketDeposit>
+
     @Query("SELECT * FROM market_deposits ORDER BY date DESC LIMIT 1")
     suspend fun getLatestDeposit(): MarketDeposit?
 
