@@ -47,6 +47,11 @@ class MarketDepositRepositoryImpl @Inject constructor(
             .map { it.toDepositDomainList() }
             .flowOn(Dispatchers.IO)
 
+    override fun getByDateRange(startDate: String, endDate: String): Flow<List<MarketDeposit>> =
+        marketDepositDao.getByDateRange(startDate, endDate)
+            .map { it.toDepositDomainList() }
+            .flowOn(Dispatchers.IO)
+
     override suspend fun getDepositByDate(date: String): MarketDeposit? =
         withContext(Dispatchers.IO) {
             marketDepositDao.getDepositByDate(date)?.toDomain()

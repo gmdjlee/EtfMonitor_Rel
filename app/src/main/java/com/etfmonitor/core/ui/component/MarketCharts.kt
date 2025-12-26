@@ -100,7 +100,7 @@ fun MarketCapOscillatorChart(
                             setTextColor(textColor)
                             granularity = 1f
                             labelRotationAngle = -45f
-                            setLabelCount(10, false)
+                            setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(result.dates.size), false)
                             valueFormatter = object : ValueFormatter() {
                                 override fun getFormattedValue(value: Float): String {
                                     val index = value.toInt()
@@ -261,7 +261,7 @@ fun MarketDepositChart(
                         setTextColor(textColor)
                         granularity = 1f
                         labelRotationAngle = -45f
-                        setLabelCount(8, false)
+                        setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(data.dates.size), false)
                         valueFormatter = object : ValueFormatter() {
                             override fun getFormattedValue(value: Float): String {
                                 val index = value.toInt()

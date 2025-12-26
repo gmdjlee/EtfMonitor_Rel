@@ -92,7 +92,7 @@ fun TimeSeriesOverviewChart(
                         setTextColor(textColor)
                         granularity = 1f
                         labelRotationAngle = -45f
-                        setLabelCount(8, false)
+                        setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(dates.size), false)
                         valueFormatter = object : ValueFormatter() {
                             override fun getFormattedValue(value: Float): String {
                                 val index = value.toInt()
@@ -251,7 +251,7 @@ fun TimeSeriesDepositChart(
                         setTextColor(textColor)
                         granularity = 1f
                         labelRotationAngle = -45f
-                        setLabelCount(8, false)
+                        setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(dates.size), false)
                         valueFormatter = object : ValueFormatter() {
                             override fun getFormattedValue(value: Float): String {
                                 val index = value.toInt()
@@ -394,7 +394,7 @@ fun TimeSeriesEtfChart(
                         setTextColor(textColor)
                         granularity = 1f
                         labelRotationAngle = -45f
-                        setLabelCount(8, false)
+                        setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(dates.size), false)
                         valueFormatter = object : ValueFormatter() {
                             override fun getFormattedValue(value: Float): String {
                                 val index = value.toInt()
@@ -663,7 +663,7 @@ fun StockPriceChart(
                         setTextColor(textColor)
                         granularity = 1f
                         labelRotationAngle = -45f
-                        setLabelCount(8, false)
+                        setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(dates.size), false)
                         valueFormatter = object : ValueFormatter() {
                             override fun getFormattedValue(value: Float): String {
                                 val index = value.toInt()

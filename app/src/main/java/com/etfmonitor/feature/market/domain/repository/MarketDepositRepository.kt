@@ -19,6 +19,15 @@ interface MarketDepositRepository {
     fun getRecentDeposits(limit: Int = 100): Flow<List<MarketDeposit>>
 
     /**
+     * 날짜 범위로 예탁금 데이터 조회
+     *
+     * @param startDate 시작 날짜 (yyyy-MM-dd 형식)
+     * @param endDate 종료 날짜 (yyyy-MM-dd 형식)
+     * @return 해당 기간의 예탁금 데이터 Flow
+     */
+    fun getByDateRange(startDate: String, endDate: String): Flow<List<MarketDeposit>>
+
+    /**
      * 특정 날짜의 예탁금 데이터 조회
      */
     suspend fun getDepositByDate(date: String): MarketDeposit?

@@ -99,7 +99,7 @@ fun MacdChart(
                         setTextColor(textColor)
                         granularity = 1f
                         labelRotationAngle = -45f
-                        setLabelCount(10, false)
+                        setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(result.dates.size), false)
                         valueFormatter = object : ValueFormatter() {
                             override fun getFormattedValue(value: Float): String {
                                 val index = value.toInt()
@@ -276,7 +276,7 @@ fun TrendSignalChart(
                         setTextColor(textColor)
                         granularity = 1f
                         labelRotationAngle = -45f
-                        setLabelCount(8, false)
+                        setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(data.dates.size), false)
                         valueFormatter = object : ValueFormatter() {
                             override fun getFormattedValue(value: Float): String {
                                 val index = value.toInt()
@@ -545,6 +545,7 @@ fun ElderImpulseChart(
                         setTextColor(textColor)
                         granularity = 1f
                         labelRotationAngle = -45f
+                        setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(data.dates.size), false)
                         valueFormatter = object : ValueFormatter() {
                             override fun getFormattedValue(value: Float): String {
                                 val idx = value.toInt()
@@ -748,6 +749,7 @@ fun DemarkTDChart(
                         setTextColor(textColor)
                         granularity = 1f
                         labelRotationAngle = -45f
+                        setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(data.dates.size), false)
                         valueFormatter = object : ValueFormatter() {
                             override fun getFormattedValue(value: Float): String {
                                 val idx = value.toInt()
