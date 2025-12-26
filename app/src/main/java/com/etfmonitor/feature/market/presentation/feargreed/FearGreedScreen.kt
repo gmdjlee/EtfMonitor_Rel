@@ -78,6 +78,7 @@ fun FearGreedContent(
 ) {
     val state by viewModel.state.collectAsState()
     val selectedMarket by viewModel.selectedMarket.collectAsState()
+    val selectedRange by viewModel.selectedRange.collectAsState()
     val fearGreedData by viewModel.fearGreedData.collectAsState()
     val showFirstRunDialog by viewModel.showFirstRunDialog.collectAsState()
     var showManualPeriodDialog by remember { mutableStateOf(false) }
@@ -192,6 +193,12 @@ fun FearGreedContent(
 
                     // Stats Row
                     StatsRow(data = fearGreedData)
+
+                    // Date Range Selector
+                    DateRangeSelector(
+                        selectedRange = selectedRange,
+                        onRangeSelected = { viewModel.updateDateRange(it) }
+                    )
 
                     // Chart
                     ChartSection(
