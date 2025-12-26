@@ -12,6 +12,7 @@ import com.etfmonitor.core.analysis.model.*
 import com.etfmonitor.core.analysis.model.ElderImpulseData
 import com.etfmonitor.core.analysis.model.DemarkTDData
 import com.etfmonitor.core.network.python.OscillatorPyClient
+import com.etfmonitor.core.ui.component.DateRangeOption
 import com.etfmonitor.feature.stock.domain.model.Stock
 import com.etfmonitor.feature.stock.domain.repository.StockAnalysisRepository
 import com.etfmonitor.feature.stock.domain.repository.StockRepository
@@ -84,6 +85,13 @@ class OscillatorViewModel @Inject constructor(
     // DeMark TD 인터벌 선택
     private val _demarkTDInterval = MutableStateFlow("w")
     val demarkTDInterval: StateFlow<String> = _demarkTDInterval.asStateFlow()
+
+    // 날짜 범위 선택 상태
+    private val _selectedRange = MutableStateFlow(DateRangeOption.SIX_MONTHS)
+    val selectedRange: StateFlow<DateRangeOption> = _selectedRange.asStateFlow()
+
+    // 현재 분석 중인 종목 ticker (기간 변경 시 재분석용)
+    private var currentTicker: String? = null
 
     // 빠른 차트 분석 설정 (FAB 표시용)
     private val _quickChartAnalysisEnabled = MutableStateFlow(false)
@@ -196,7 +204,10 @@ class OscillatorViewModel @Inject constructor(
         _suggestions.value = emptyList()
     }
 
-    fun searchAndAnalyze(query: String, days: Int = 180) {
+    fun searchAndAnalyze(query: String, days: Int? = null) {
+        // days가 null이면 선택된 범위 사용
+        val actualDays = days ?: _selectedRange.value.days.let { if (it == -1) 730 else it }
+
         viewModelScope.launch {
             try {
                 _state.value = OscillatorState.Loading
@@ -209,9 +220,10 @@ class OscillatorViewModel @Inject constructor(
                 }
 
                 val (ticker, _) = searchResult
+                currentTicker = ticker
 
                 // 2. 종목 데이터 수집 (DB 캐시 활용)
-                val stockData = stockAnalysisRepository.getStockAnalysis(ticker, days)
+                val stockData = stockAnalysisRepository.getStockAnalysis(ticker, actualDays)
                 if (stockData == null) {
                     _state.value = OscillatorState.Error("데이터를 가져올 수 없습니다")
                     return@launch
@@ -277,13 +289,19 @@ class OscillatorViewModel @Inject constructor(
         }
     }
 
-    fun analyzeStock(ticker: String, days: Int = 180, saveHistory: Boolean = true) {
+    fun analyzeStock(ticker: String, days: Int? = null, saveHistory: Boolean = true) {
+        // 현재 종목 저장
+        currentTicker = ticker
+
+        // days가 null이면 선택된 범위 사용
+        val actualDays = days ?: _selectedRange.value.days.let { if (it == -1) 730 else it }
+
         viewModelScope.launch {
             try {
                 _state.value = OscillatorState.Loading
 
                 // 종목 데이터 수집 (DB 캐시 활용)
-                val stockData = stockAnalysisRepository.getStockAnalysis(ticker, days)
+                val stockData = stockAnalysisRepository.getStockAnalysis(ticker, actualDays)
                 if (stockData == null) {
                     _state.value = OscillatorState.Error("데이터를 가져올 수 없습니다")
                     return@launch
@@ -375,6 +393,19 @@ class OscillatorViewModel @Inject constructor(
                 val updatedState = currentState.copy(demarkTDData = demarkTDData)
                 _state.value = updatedState
             }
+        }
+    }
+
+    /**
+     * 날짜 범위 변경 - 현재 종목 재분석
+     */
+    fun updateDateRange(option: DateRangeOption) {
+        if (option == _selectedRange.value) return
+        _selectedRange.value = option
+
+        // 현재 종목이 있으면 재분석
+        currentTicker?.let { ticker ->
+            analyzeStock(ticker, saveHistory = false)
         }
     }
 }

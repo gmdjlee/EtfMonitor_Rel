@@ -30,6 +30,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
+import com.etfmonitor.core.ui.component.DateRangeSelector
 import com.etfmonitor.core.ui.component.MarketCapOscillatorChart
 import com.etfmonitor.core.ui.component.MacdChart
 import com.etfmonitor.core.ui.component.TrendSignalChart
@@ -59,6 +60,7 @@ fun OscillatorScreen(
     val searchHistory by viewModel.searchHistory.collectAsState()
     val demarkTDInterval by viewModel.demarkTDInterval.collectAsState()
     val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
+    val selectedRange by viewModel.selectedRange.collectAsState()
 
     // FAB 표시 조건: 설정이 활성화되어 있고, Success 상태일 때
     val showFab = quickChartAnalysisEnabled &&
@@ -230,6 +232,12 @@ fun OscillatorScreen(
                     }
                 }
             }
+
+            // Date Range Selector
+            DateRangeSelector(
+                selectedRange = selectedRange,
+                onRangeSelected = { viewModel.updateDateRange(it) }
+            )
 
             // State Content
             when (val currentState = state) {
