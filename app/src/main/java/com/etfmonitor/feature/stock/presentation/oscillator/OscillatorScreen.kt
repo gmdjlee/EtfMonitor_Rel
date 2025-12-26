@@ -112,12 +112,15 @@ fun OscillatorScreen(
         var showHistoryDialog by remember { mutableStateOf(false) }
         val keyboardController = LocalSoftwareKeyboardController.current
 
+        // Success 상태에서 데이터 추출 (FearGreedScreen 패턴)
+        val successState = state as? OscillatorState.Success
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Search field with Autocomplete - Wrapped in Box for overlay
+            // Search field with Autocomplete - Wrapped in Box for overlay (고정 영역)
             Box(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier
@@ -234,23 +237,97 @@ fun OscillatorScreen(
                 }
             }
 
-            // State Content
-            when (val currentState = state) {
-                is OscillatorState.Loading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        LoadingCard(message = stringResource(R.string.data_analyzing))
+            // 스크롤 가능한 컨텐츠 영역 (FearGreedScreen 패턴)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 상태별 메시지 표시 (Loading, Error, Idle)
+                when (state) {
+                    is OscillatorState.Loading -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            LoadingCard(message = stringResource(R.string.data_analyzing))
+                        }
+                    }
+                    is OscillatorState.Error -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            ErrorCard(message = (state as OscillatorState.Error).message)
+                        }
+                    }
+                    is OscillatorState.Idle -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            IdleCard(message = stringResource(R.string.oscillator_idle_message))
+                        }
+                    }
+                    is OscillatorState.Success -> {
+                        // Success 상태일 때는 아래에서 별도 처리
                     }
                 }
 
-                is OscillatorState.Success -> {
+                // Date Range Selector (when 블록 외부 - 데이터가 있을 때만 표시)
+                if (successState != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        DateRangeButton(
+                            text = "1주",
+                            selected = selectedRange == DateRangeOption.WEEK,
+                            onClick = { viewModel.updateDateRange(DateRangeOption.WEEK) }
+                        )
+                        DateRangeButton(
+                            text = "1개월",
+                            selected = selectedRange == DateRangeOption.MONTH,
+                            onClick = { viewModel.updateDateRange(DateRangeOption.MONTH) }
+                        )
+                        DateRangeButton(
+                            text = "3개월",
+                            selected = selectedRange == DateRangeOption.THREE_MONTHS,
+                            onClick = { viewModel.updateDateRange(DateRangeOption.THREE_MONTHS) }
+                        )
+                        DateRangeButton(
+                            text = "6개월",
+                            selected = selectedRange == DateRangeOption.SIX_MONTHS,
+                            onClick = { viewModel.updateDateRange(DateRangeOption.SIX_MONTHS) }
+                        )
+                        DateRangeButton(
+                            text = "1년",
+                            selected = selectedRange == DateRangeOption.YEAR,
+                            onClick = { viewModel.updateDateRange(DateRangeOption.YEAR) }
+                        )
+                        DateRangeButton(
+                            text = "전체",
+                            selected = selectedRange == DateRangeOption.ALL,
+                            onClick = { viewModel.updateDateRange(DateRangeOption.ALL) }
+                        )
+                    }
+                }
+
+                // Success 상태일 때 메인 컨텐츠
+                if (successState != null) {
                     // 차트 페이지 목록 구성
                     val chartPages = buildChartPages(
-                        currentState = currentState,
+                        currentState = successState,
                         demarkTDInterval = demarkTDInterval,
                         onDemarkIntervalChange = { viewModel.changeDemarkTDInterval(it) }
                     )
@@ -260,190 +337,120 @@ fun OscillatorScreen(
                         pageCount = { chartPages.size }
                     )
 
-                    Column(
+                    // Stock Info Card
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f)
+                            .padding(horizontal = 16.dp)
                     ) {
-                        // Stock Info Card (고정)
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // 종목명 & 종목코드 (왼쪽)
-                                Column(
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(
-                                        currentState.stockData.name,
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        currentState.stockData.ticker,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-
-                                // 최근 데이터 날짜 & 데이터 포인트 (오른쪽)
-                                Column(
-                                    horizontalAlignment = Alignment.End,
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    if (currentState.oscillatorResult.dates.isNotEmpty()) {
-                                        Text(
-                                            currentState.oscillatorResult.dates.last(),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                        Text(
-                                            "${currentState.oscillatorResult.dates.size}개 데이터",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Date Range Selector - Using Button style like DeMark TD
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState())
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            DateRangeButton(
-                                text = "1주",
-                                selected = selectedRange == DateRangeOption.WEEK,
-                                onClick = { viewModel.updateDateRange(DateRangeOption.WEEK) }
-                            )
-                            DateRangeButton(
-                                text = "1개월",
-                                selected = selectedRange == DateRangeOption.MONTH,
-                                onClick = { viewModel.updateDateRange(DateRangeOption.MONTH) }
-                            )
-                            DateRangeButton(
-                                text = "3개월",
-                                selected = selectedRange == DateRangeOption.THREE_MONTHS,
-                                onClick = { viewModel.updateDateRange(DateRangeOption.THREE_MONTHS) }
-                            )
-                            DateRangeButton(
-                                text = "6개월",
-                                selected = selectedRange == DateRangeOption.SIX_MONTHS,
-                                onClick = { viewModel.updateDateRange(DateRangeOption.SIX_MONTHS) }
-                            )
-                            DateRangeButton(
-                                text = "1년",
-                                selected = selectedRange == DateRangeOption.YEAR,
-                                onClick = { viewModel.updateDateRange(DateRangeOption.YEAR) }
-                            )
-                            DateRangeButton(
-                                text = "전체",
-                                selected = selectedRange == DateRangeOption.ALL,
-                                onClick = { viewModel.updateDateRange(DateRangeOption.ALL) }
-                            )
-                        }
-
-                        // Page Indicators + Chart Title
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
+                                .padding(16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = chartPages.getOrNull(pagerState.currentPage)?.title ?: "",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-
-                            // Page Indicators
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            // 종목명 & 종목코드 (왼쪽)
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                chartPages.forEachIndexed { index, _ ->
-                                    Box(
-                                        modifier = Modifier
-                                            .size(if (index == pagerState.currentPage) 10.dp else 8.dp)
-                                            .background(
-                                                color = if (index == pagerState.currentPage)
-                                                    MaterialTheme.colorScheme.primary
-                                                else
-                                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                                                shape = CircleShape
-                                            )
+                                Text(
+                                    successState.stockData.name,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    successState.stockData.ticker,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            // 최근 데이터 날짜 & 데이터 포인트 (오른쪽)
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                if (successState.oscillatorResult.dates.isNotEmpty()) {
+                                    Text(
+                                        successState.oscillatorResult.dates.last(),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        "${successState.oscillatorResult.dates.size}개 데이터",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
                         }
+                    }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                    // Page Indicators + Chart Title
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = chartPages.getOrNull(pagerState.currentPage)?.title ?: "",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
 
-                        // Horizontal Pager for Charts
-                        HorizontalPager(
-                            state = pagerState,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            pageSpacing = 16.dp
-                        ) { page ->
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState())
-                            ) {
-                                chartPages[page].content()
+                        // Page Indicators
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            chartPages.forEachIndexed { index, _ ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(if (index == pagerState.currentPage) 10.dp else 8.dp)
+                                        .background(
+                                            color = if (index == pagerState.currentPage)
+                                                MaterialTheme.colorScheme.primary
+                                            else
+                                                MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                            shape = CircleShape
+                                        )
+                                )
                             }
                         }
-
-                        // Swipe hint
-                        Text(
-                            text = stringResource(R.string.oscillator_swipe_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
                     }
-                }
 
-                is OscillatorState.Error -> {
-                    Box(
+                    // Horizontal Pager for Charts (고정 높이)
+                    HorizontalPager(
+                        state = pagerState,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        ErrorCard(message = currentState.message)
+                            .height(450.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        pageSpacing = 16.dp
+                    ) { page ->
+                        Column(
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            chartPages[page].content()
+                        }
                     }
-                }
 
-                is OscillatorState.Idle -> {
-                    Box(
+                    // Swipe hint
+                    Text(
+                        text = stringResource(R.string.oscillator_swipe_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        IdleCard(message = stringResource(R.string.oscillator_idle_message))
-                    }
+                            .padding(vertical = 8.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
