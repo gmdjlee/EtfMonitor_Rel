@@ -243,7 +243,9 @@ fun OscillatorScreen(
             when (val currentState = state) {
                 is OscillatorState.Loading -> {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
                         LoadingCard(message = stringResource(R.string.data_analyzing))
@@ -264,7 +266,9 @@ fun OscillatorScreen(
                     )
 
                     Column(
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
                     ) {
                         // Stock Info Card (고정)
                         Card(
@@ -389,7 +393,9 @@ fun OscillatorScreen(
 
                 is OscillatorState.Error -> {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
                         ErrorCard(message = currentState.message)
@@ -398,7 +404,9 @@ fun OscillatorScreen(
 
                 is OscillatorState.Idle -> {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
                         IdleCard(message = stringResource(R.string.oscillator_idle_message))
