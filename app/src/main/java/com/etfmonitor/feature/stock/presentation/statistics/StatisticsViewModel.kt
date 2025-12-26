@@ -2,10 +2,12 @@ package com.etfmonitor.feature.stock.presentation.statistics
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.core.database.entities.SearchHistoryType
 import com.etfmonitor.core.database.entities.Stock
 import com.etfmonitor.core.database.SearchHistoryDao
+import com.etfmonitor.core.service.CollectionState
 import com.etfmonitor.feature.stock.domain.model.CashDepositTrend
 import com.etfmonitor.feature.stock.domain.model.StockAmountRanking
 import com.etfmonitor.feature.stock.domain.model.StockAnalysisResult
@@ -41,6 +43,7 @@ class StatisticsViewModel @Inject constructor(
 
     companion object {
         private const val QUICK_CHART_ANALYSIS_KEY = "quick_chart_analysis_enabled"
+        private val logger = AppLogger.getLogger("StatisticsViewModel")
     }
 
     private val _dates = MutableStateFlow<Pair<String, String>?>(null)
@@ -101,6 +104,22 @@ class StatisticsViewModel @Inject constructor(
     init {
         loadStatistics()
         loadQuickChartAnalysisSetting()
+        observeCollectionState()
+    }
+
+    /**
+     * 데이터 수집 완료 상태를 관찰하여 자동 새로고침
+     */
+    private fun observeCollectionState() {
+        viewModelScope.launch {
+            CollectionState.isCollecting.collect { isCollecting ->
+                // 수집이 완료되면 (false로 변경되면) 데이터 새로고침
+                if (!isCollecting) {
+                    logger.d("Data collection completed, triggering refresh")
+                    loadStatistics()
+                }
+            }
+        }
     }
 
     /**
