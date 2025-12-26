@@ -32,6 +32,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
 import com.etfmonitor.core.ui.component.DateRangeOption
+import com.etfmonitor.core.ui.component.DateRangeSelector
 import com.etfmonitor.core.ui.component.MarketCapOscillatorChart
 import com.etfmonitor.core.ui.component.MacdChart
 import com.etfmonitor.core.ui.component.TrendSignalChart
@@ -236,44 +237,10 @@ fun OscillatorScreen(
 
             // Date Range Selector (when 블록 외부 - Success 상태일 때만 표시)
             if (state is OscillatorState.Success) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    DateRangeButton(
-                        text = "1주",
-                        selected = selectedRange == DateRangeOption.WEEK,
-                        onClick = { viewModel.updateDateRange(DateRangeOption.WEEK) }
-                    )
-                    DateRangeButton(
-                        text = "1개월",
-                        selected = selectedRange == DateRangeOption.MONTH,
-                        onClick = { viewModel.updateDateRange(DateRangeOption.MONTH) }
-                    )
-                    DateRangeButton(
-                        text = "3개월",
-                        selected = selectedRange == DateRangeOption.THREE_MONTHS,
-                        onClick = { viewModel.updateDateRange(DateRangeOption.THREE_MONTHS) }
-                    )
-                    DateRangeButton(
-                        text = "6개월",
-                        selected = selectedRange == DateRangeOption.SIX_MONTHS,
-                        onClick = { viewModel.updateDateRange(DateRangeOption.SIX_MONTHS) }
-                    )
-                    DateRangeButton(
-                        text = "1년",
-                        selected = selectedRange == DateRangeOption.YEAR,
-                        onClick = { viewModel.updateDateRange(DateRangeOption.YEAR) }
-                    )
-                    DateRangeButton(
-                        text = "전체",
-                        selected = selectedRange == DateRangeOption.ALL,
-                        onClick = { viewModel.updateDateRange(DateRangeOption.ALL) }
-                    )
-                }
+                DateRangeSelector(
+                    selectedRange = selectedRange,
+                    onRangeSelected = { viewModel.updateDateRange(it) }
+                )
             }
 
             // State Content
