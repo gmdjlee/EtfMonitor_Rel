@@ -25,12 +25,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.etfmonitor.core.analysis.AIStockIndicatorInterpretation
-import com.etfmonitor.core.analysis.IndicatorStockCorrelation
 import com.etfmonitor.core.analysis.MarketIndicatorType
-import com.etfmonitor.core.network.ai.SignalType
-import com.etfmonitor.core.analysis.StockIndicatorCorrelationResult
 import com.etfmonitor.core.analysis.StockMetricType
+import com.etfmonitor.core.network.ai.SignalType
+import com.etfmonitor.feature.analysis.domain.model.DetailedIndicatorCorrelation
+import com.etfmonitor.feature.analysis.domain.model.StockIndicatorCorrelation
+import com.etfmonitor.feature.analysis.domain.model.StockIndicatorInterpretation
 import com.etfmonitor.core.ui.component.StockSearchItem
 import com.etfmonitor.core.ui.component.UnifiedStockSearchField
 import com.etfmonitor.feature.analysis.domain.model.AIAnalysis
@@ -547,7 +547,7 @@ fun StockSearchSection(
 
 @Composable
 fun StockIndicatorSummaryCard(
-    result: StockIndicatorCorrelationResult
+    result: StockIndicatorCorrelation
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -596,7 +596,7 @@ fun CorrelationCategoryCard(
     title: String,
     subtitle: String,
     icon: ImageVector,
-    correlations: List<IndicatorStockCorrelation>,
+    correlations: List<DetailedIndicatorCorrelation>,
     color: Color
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -731,8 +731,8 @@ fun CorrelationBarItem(
 
 @Composable
 fun TopCorrelationsCard(
-    topPositive: List<IndicatorStockCorrelation>,
-    topNegative: List<IndicatorStockCorrelation>
+    topPositive: List<DetailedIndicatorCorrelation>,
+    topNegative: List<DetailedIndicatorCorrelation>
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -789,7 +789,7 @@ fun TopCorrelationsCard(
 
 @Composable
 fun StockIndicatorAIInterpretationCard(
-    interpretation: AIStockIndicatorInterpretation
+    interpretation: StockIndicatorInterpretation
 ) {
     val signalType = interpretation.signal.toSignalType()
     val signalColor = when (signalType) {

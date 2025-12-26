@@ -88,96 +88,61 @@ class StockIndicatorRepositoryImpl @Inject constructor(
 
     // Domain -> Legacy 변환 헬퍼
     private fun StockIndicatorCorrelation.toLegacy(): LegacyCorrelationResult {
-        // 카테고리별로 상관관계 분류
-        val fearGreedCorrelations = mutableListOf<LegacyIndicatorCorrelation>()
-        val oscillatorCorrelations = mutableListOf<LegacyIndicatorCorrelation>()
-        val depositCorrelations = mutableListOf<LegacyIndicatorCorrelation>()
-        val etfCorrelations = mutableListOf<LegacyIndicatorCorrelation>()
-
-        indicatorCorrelations.forEach { corr ->
-            val legacyCorr = LegacyIndicatorCorrelation(
-                indicatorType = corr.indicatorName,
-                stockMetricType = "CLOSE_PRICE",
-                correlation = corr.correlationValue,
-                significance = 0.05,
-                dataPoints = period,
-                leadLagDays = 0,
-                description = corr.description
-            )
-            when {
-                corr.indicatorName.contains("FEAR_GREED", ignoreCase = true) ||
-                corr.indicatorName.contains("RSI", ignoreCase = true) ||
-                corr.indicatorName.contains("MOMENTUM", ignoreCase = true) ->
-                    fearGreedCorrelations.add(legacyCorr)
-                corr.indicatorName.contains("OSCILLATOR", ignoreCase = true) ->
-                    oscillatorCorrelations.add(legacyCorr)
-                corr.indicatorName.contains("DEPOSIT", ignoreCase = true) ||
-                corr.indicatorName.contains("CREDIT", ignoreCase = true) ->
-                    depositCorrelations.add(legacyCorr)
-                else -> etfCorrelations.add(legacyCorr)
-            }
-        }
-
-        val allCorrelations = indicatorCorrelations.map {
-            LegacyIndicatorCorrelation(
-                indicatorType = it.indicatorName,
-                stockMetricType = "CLOSE_PRICE",
-                correlation = it.correlationValue,
-                significance = 0.05,
-                dataPoints = period,
-                leadLagDays = 0,
-                description = it.description
-            )
-        }
-        val topPositive = allCorrelations.filter { it.correlation > 0 }.sortedByDescending { it.correlation }.take(5)
-        val topNegative = allCorrelations.filter { it.correlation < 0 }.sortedBy { it.correlation }.take(5)
-
         return LegacyCorrelationResult(
             ticker = ticker,
-            stockName = name,
+            stockName = stockName,
             market = market,
-            startDate = "",
-            endDate = "",
-            totalDataPoints = period,
-            fearGreedCorrelations = fearGreedCorrelations,
-            oscillatorCorrelations = oscillatorCorrelations,
-            depositCorrelations = depositCorrelations,
-            etfCorrelations = etfCorrelations,
-            topPositiveCorrelations = topPositive,
-            topNegativeCorrelations = topNegative,
-            summary = "Signal: $signal, Confidence: $confidence, Score: $compositeScore"
+            startDate = startDate,
+            endDate = endDate,
+            totalDataPoints = totalDataPoints,
+            fearGreedCorrelations = fearGreedCorrelations.map { it.toLegacy() },
+            oscillatorCorrelations = oscillatorCorrelations.map { it.toLegacy() },
+            depositCorrelations = depositCorrelations.map { it.toLegacy() },
+            etfCorrelations = etfCorrelations.map { it.toLegacy() },
+            topPositiveCorrelations = topPositiveCorrelations.map { it.toLegacy() },
+            topNegativeCorrelations = topNegativeCorrelations.map { it.toLegacy() },
+            summary = summary
         )
     }
+
+    private fun DetailedIndicatorCorrelation.toLegacy(): LegacyIndicatorCorrelation = LegacyIndicatorCorrelation(
+        indicatorType = indicatorType,
+        stockMetricType = stockMetricType,
+        correlation = correlation,
+        significance = significance,
+        dataPoints = dataPoints,
+        leadLagDays = leadLagDays,
+        description = description
+    )
 
     // Legacy -> Domain 변환 헬퍼
     private fun LegacyCorrelationResult.toDomain(): StockIndicatorCorrelation {
-        val allCorrelations = mutableListOf<IndicatorCorrelation>()
-
-        fearGreedCorrelations.forEach { allCorrelations.add(it.toDomain()) }
-        oscillatorCorrelations.forEach { allCorrelations.add(it.toDomain()) }
-        depositCorrelations.forEach { allCorrelations.add(it.toDomain()) }
-        etfCorrelations.forEach { allCorrelations.add(it.toDomain()) }
-
-        // compositeScore, signal, confidence를 summary에서 추출하거나 계산
-        val avgCorrelation = allCorrelations.map { kotlin.math.abs(it.correlationValue) }.average()
-        val score = avgCorrelation.takeIf { !it.isNaN() } ?: 0.0
-        val signal = when {
-            topPositiveCorrelations.size > topNegativeCorrelations.size * 2 -> "BUY"
-            topNegativeCorrelations.size > topPositiveCorrelations.size * 2 -> "SELL"
-            else -> "NEUTRAL"
-        }
-
         return StockIndicatorCorrelation(
             ticker = ticker,
-            name = stockName,
+            stockName = stockName,
             market = market,
-            period = totalDataPoints,
-            indicatorCorrelations = allCorrelations,
-            compositeScore = score,
-            signal = signal,
-            confidence = score * 100
+            startDate = startDate,
+            endDate = endDate,
+            totalDataPoints = totalDataPoints,
+            fearGreedCorrelations = fearGreedCorrelations.map { it.toDetailedDomain() },
+            oscillatorCorrelations = oscillatorCorrelations.map { it.toDetailedDomain() },
+            depositCorrelations = depositCorrelations.map { it.toDetailedDomain() },
+            etfCorrelations = etfCorrelations.map { it.toDetailedDomain() },
+            topPositiveCorrelations = topPositiveCorrelations.map { it.toDetailedDomain() },
+            topNegativeCorrelations = topNegativeCorrelations.map { it.toDetailedDomain() },
+            summary = summary
         )
     }
+
+    private fun LegacyIndicatorCorrelation.toDetailedDomain(): DetailedIndicatorCorrelation = DetailedIndicatorCorrelation(
+        indicatorType = indicatorType,
+        stockMetricType = stockMetricType,
+        correlation = correlation,
+        significance = significance,
+        dataPoints = dataPoints,
+        leadLagDays = leadLagDays,
+        description = description
+    )
 
     private fun LegacyIndicatorCorrelation.toDomain(): IndicatorCorrelation = IndicatorCorrelation(
         indicatorName = indicatorType,
