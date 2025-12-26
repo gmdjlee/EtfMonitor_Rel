@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.etfmonitor.core.analysis.AIStockIndicatorInterpretation
 import com.etfmonitor.core.analysis.IndicatorStockCorrelation
 import com.etfmonitor.core.analysis.MarketIndicatorType
-import com.etfmonitor.core.analysis.SignalType
+import com.etfmonitor.core.network.ai.SignalType
 import com.etfmonitor.core.analysis.StockIndicatorCorrelationResult
 import com.etfmonitor.core.analysis.StockMetricType
 import com.etfmonitor.core.ui.component.StockSearchItem

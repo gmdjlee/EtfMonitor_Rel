@@ -2,7 +2,7 @@ package com.etfmonitor.feature.analysis.data.repository
 
 import com.etfmonitor.core.analysis.AnalysisContext
 import com.etfmonitor.core.analysis.CorrelationAnalyzer
-import com.etfmonitor.core.analysis.SignalType as CoreSignalType
+import com.etfmonitor.core.network.ai.SignalType
 import com.etfmonitor.core.database.AIAnalysisDao
 import com.etfmonitor.core.database.CorrelationAnalysisDao
 import com.etfmonitor.core.database.DailyEtfStatisticsDao
@@ -330,7 +330,7 @@ class CorrelationAnalysisRepositoryImpl @Inject constructor(
 
             appendLine("## 로컬 분석 결과 (참고)")
             appendLine("- 종합 점수: ${String.format("%.3f", result.compositeScore)}")
-            appendLine("- 예비 신호: ${CoreSignalType.valueOf(result.signal).toKorean()}")
+            appendLine("- 예비 신호: ${SignalType.valueOf(result.signal).toKorean()}")
             appendLine("- 상승 확률: ${String.format("%.1f", result.upProbability)}%")
             appendLine("- 하락 확률: ${String.format("%.1f", result.downProbability)}%")
             appendLine()
