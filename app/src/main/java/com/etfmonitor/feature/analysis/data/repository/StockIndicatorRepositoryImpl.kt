@@ -54,10 +54,9 @@ class StockIndicatorRepositoryImpl @Inject constructor(
     ): Result<FullStockIndicatorAnalysis> = withContext(Dispatchers.IO) {
         timeSeriesHelper.runFullStockIndicatorCorrelationAnalysis(ticker, name, market, periodDays)
             .map { legacyResult ->
-                // Pass through core types directly for UI compatibility
                 FullStockIndicatorAnalysis(
-                    correlationResult = legacyResult.correlationResult,
-                    aiInterpretation = legacyResult.aiInterpretation,
+                    correlationResult = legacyResult.correlationResult?.toDomain(),
+                    aiInterpretation = legacyResult.aiInterpretation?.toDomain(),
                     errorMessage = legacyResult.errorMessage
                 )
             }
