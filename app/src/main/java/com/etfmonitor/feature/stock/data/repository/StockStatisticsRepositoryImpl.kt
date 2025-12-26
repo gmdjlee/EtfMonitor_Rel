@@ -47,16 +47,14 @@ class StockStatisticsRepositoryImpl @Inject constructor(
     // ========== 통계 날짜 ==========
 
     override suspend fun getStatisticsDates(): Pair<String, String>? = withContext(Dispatchers.IO) {
-        // 임의의 ETF에서 날짜 2개 가져오기 (모든 ETF 동일한 날짜 가정)
-        val latestDate = localDataSource.getLatestDate() ?: return@withContext null
+        // holdings 테이블에서 직접 최근 2개 날짜 가져오기
+        val dates = localDataSource.getLatestTwoDates()
+        if (dates.size < 2) {
+            logger.d("getStatisticsDates: Not enough dates (${dates.size})")
+            return@withContext null
+        }
 
-        // 전일 날짜를 찾기 위해 첫 번째 ETF 사용
-        val etf = localDataSource.getEtf("069500") // KODEX 200
-        if (etf == null) return@withContext null
-
-        val dates = localDataSource.getDates(etf.ticker)
-        if (dates.size < 2) return@withContext null
-
+        logger.d("getStatisticsDates: currentDate=${dates[0]}, previousDate=${dates[1]}")
         Pair(dates[0], dates[1])
     }
 

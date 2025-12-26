@@ -3,6 +3,8 @@ package com.etfmonitor.feature.market.presentation.deposit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.core.analysis.OscillatorCalculator
+import com.etfmonitor.core.common.util.AppLogger
+import com.etfmonitor.core.service.CollectionState
 import com.etfmonitor.feature.market.domain.model.MarketDepositData
 import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -41,12 +43,32 @@ class MarketDepositViewModel @Inject constructor(
     private val repository: MarketDepositRepository
 ) : ViewModel() {
 
+    companion object {
+        private val logger = AppLogger.getLogger("MarketDepositViewModel")
+    }
+
     private val _state = MutableStateFlow<MarketDepositState>(MarketDepositState.Loading)
     val state: StateFlow<MarketDepositState> = _state.asStateFlow()
 
     init {
         // 초기화 시 자동으로 DB에서 데이터 로드
         loadMarketDataFromDB()
+        observeCollectionState()
+    }
+
+    /**
+     * 데이터 수집 완료 상태를 관찰하여 자동 새로고침
+     */
+    private fun observeCollectionState() {
+        viewModelScope.launch {
+            CollectionState.isCollecting.collect { isCollecting ->
+                // 수집이 완료되면 (false로 변경되면) 데이터 새로고침
+                if (!isCollecting) {
+                    logger.d("Data collection completed, triggering refresh")
+                    loadMarketDataFromDB()
+                }
+            }
+        }
     }
 
     private fun loadMarketDataFromDB() {

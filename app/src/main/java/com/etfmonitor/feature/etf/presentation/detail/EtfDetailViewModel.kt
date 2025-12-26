@@ -3,6 +3,7 @@ package com.etfmonitor.feature.etf.presentation.detail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etfmonitor.core.service.CollectionState
 import com.etfmonitor.feature.etf.domain.usecase.GetEtfComparisonUseCase
 import com.etfmonitor.feature.etf.domain.usecase.GetEtfDetailUseCase
 import com.etfmonitor.core.common.util.AppLogger
@@ -46,6 +47,22 @@ class EtfDetailViewModel @Inject constructor(
 
     init {
         loadComparison()
+        observeCollectionState()
+    }
+
+    /**
+     * 데이터 수집 완료 상태를 관찰하여 자동 새로고침
+     */
+    private fun observeCollectionState() {
+        viewModelScope.launch {
+            CollectionState.isCollecting.collect { isCollecting ->
+                // 수집이 완료되면 (false로 변경되면) 데이터 새로고침
+                if (!isCollecting) {
+                    logger.d("Data collection completed, triggering refresh")
+                    loadComparison()
+                }
+            }
+        }
     }
 
     private fun loadComparison() {

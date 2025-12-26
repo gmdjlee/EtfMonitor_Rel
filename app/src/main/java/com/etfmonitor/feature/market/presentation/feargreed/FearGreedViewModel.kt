@@ -3,6 +3,8 @@ package com.etfmonitor.feature.market.presentation.feargreed
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etfmonitor.core.common.util.AppLogger
+import com.etfmonitor.core.service.CollectionState
 import com.etfmonitor.feature.market.domain.model.FearGreedIndex
 import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -42,6 +44,10 @@ class FearGreedViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
+    companion object {
+        private val logger = AppLogger.getLogger("FearGreedViewModel")
+    }
+
     private val _state = MutableStateFlow<FearGreedState>(FearGreedState.Loading)
     val state: StateFlow<FearGreedState> = _state.asStateFlow()
 
@@ -58,6 +64,23 @@ class FearGreedViewModel @Inject constructor(
         checkData()
         loadData()
         checkFirstRun()
+        observeCollectionState()
+    }
+
+    /**
+     * 데이터 수집 완료 상태를 관찰하여 자동 새로고침
+     */
+    private fun observeCollectionState() {
+        viewModelScope.launch {
+            CollectionState.isCollecting.collect { isCollecting ->
+                // 수집이 완료되면 (false로 변경되면) 데이터 새로고침
+                if (!isCollecting) {
+                    logger.d("Data collection completed, triggering refresh")
+                    loadData()
+                    checkData()
+                }
+            }
+        }
     }
 
     private fun checkFirstRun() {
