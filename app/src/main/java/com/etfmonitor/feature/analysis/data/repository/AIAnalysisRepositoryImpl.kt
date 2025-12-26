@@ -7,7 +7,6 @@ import com.etfmonitor.core.database.FearGreedDao
 import com.etfmonitor.core.database.MarketDepositDao
 import com.etfmonitor.core.database.MarketIndexDao
 import com.etfmonitor.core.database.MarketOscillatorDao
-import com.etfmonitor.feature.analysis.domain.model.SignalType
 import com.etfmonitor.feature.analysis.domain.repository.AIAnalysisRepository
 import com.etfmonitor.feature.analysis.domain.repository.AIAnalysisResponse
 import com.etfmonitor.feature.analysis.domain.repository.AnalysisTypeRequest
@@ -165,7 +164,7 @@ class AIAnalysisRepositoryImpl @Inject constructor(
                         records.add(
                             SignalRecord(
                                 date = date,
-                                signal = mapToSignalType(signal.signal),
+                                signal = signal.signal,
                                 confidence = signal.confidence,
                                 indexAtSignal = marketIndex?.closePrice ?: 0.0
                             )
@@ -285,16 +284,6 @@ class AIAnalysisRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             logger.e("Error collecting analysis data", e)
             null
-        }
-    }
-
-    private fun mapToSignalType(signalType: com.etfmonitor.core.network.ai.SignalType): SignalType {
-        return when (signalType) {
-            com.etfmonitor.core.network.ai.SignalType.STRONG_BUY -> SignalType.STRONG_BUY
-            com.etfmonitor.core.network.ai.SignalType.BUY -> SignalType.BUY
-            com.etfmonitor.core.network.ai.SignalType.NEUTRAL -> SignalType.NEUTRAL
-            com.etfmonitor.core.network.ai.SignalType.SELL -> SignalType.SELL
-            com.etfmonitor.core.network.ai.SignalType.STRONG_SELL -> SignalType.STRONG_SELL
         }
     }
 }
