@@ -2,7 +2,7 @@ package com.etfmonitor.feature.stock.data.repository
 
 import com.etfmonitor.feature.stock.data.datasource.StockLocalDataSource
 import com.etfmonitor.feature.stock.data.mapper.StockMapper.toDomain
-import com.etfmonitor.feature.stock.domain.model.NetworkException
+import com.etfmonitor.core.common.util.NetworkException
 import com.etfmonitor.feature.stock.domain.model.Stock
 import com.etfmonitor.feature.stock.domain.repository.StockRepository
 import com.etfmonitor.core.network.python.OscillatorPyClient

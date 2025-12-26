@@ -18,6 +18,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import com.etfmonitor.core.network.ai.SignalType
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.sqrt
@@ -572,24 +573,7 @@ data class CompositeSignalResult(
     val downProbability: Double
 )
 
-/**
- * 신호 타입
- */
-enum class SignalType {
-    STRONG_BUY,
-    BUY,
-    NEUTRAL,
-    SELL,
-    STRONG_SELL;
-
-    fun toKorean(): String = when (this) {
-        STRONG_BUY -> "강력 매수"
-        BUY -> "매수"
-        NEUTRAL -> "중립"
-        SELL -> "매도"
-        STRONG_SELL -> "강력 매도"
-    }
-}
+// SignalType is imported from com.etfmonitor.core.network.ai.SignalType
 
 // ========== 분석 컨텍스트 (JSON 직렬화용) ==========
 

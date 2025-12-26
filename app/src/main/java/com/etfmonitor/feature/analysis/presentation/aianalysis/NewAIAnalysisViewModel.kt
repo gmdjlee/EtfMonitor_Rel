@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.etfmonitor.core.network.ai.AIApiClientFactory
 import com.etfmonitor.core.network.ai.AIProvider
 import com.etfmonitor.core.network.ai.ApiKeyProvider
-import com.etfmonitor.core.analysis.SignalType
+import com.etfmonitor.core.network.ai.SignalType
 import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.core.database.entities.SearchHistoryType
 import com.etfmonitor.core.database.entities.Stock

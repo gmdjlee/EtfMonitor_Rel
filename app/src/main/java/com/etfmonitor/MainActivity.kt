@@ -22,7 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.etfmonitor.core.database.EtfDao
-import com.etfmonitor.feature.stock.domain.model.NetworkException
+import com.etfmonitor.core.common.util.NetworkException
 import com.etfmonitor.feature.stock.domain.repository.StockRepository
 import com.etfmonitor.navigation.Navigation
 import com.etfmonitor.core.ui.theme.ChartColorSettings
