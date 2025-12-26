@@ -436,17 +436,41 @@ data class StockIndicatorRequest(
  */
 data class StockIndicatorCorrelation(
     val ticker: String,
-    val name: String,
+    val stockName: String,
     val market: String,
-    val period: Int,
-    val indicatorCorrelations: List<IndicatorCorrelation>,
-    val compositeScore: Double,
-    val signal: String,
-    val confidence: Double
+    val startDate: String,
+    val endDate: String,
+    val totalDataPoints: Int,
+
+    // 카테고리별 상관관계
+    val fearGreedCorrelations: List<DetailedIndicatorCorrelation>,
+    val oscillatorCorrelations: List<DetailedIndicatorCorrelation>,
+    val depositCorrelations: List<DetailedIndicatorCorrelation>,
+    val etfCorrelations: List<DetailedIndicatorCorrelation>,
+
+    // 가장 강한 상관관계 Top N
+    val topPositiveCorrelations: List<DetailedIndicatorCorrelation>,
+    val topNegativeCorrelations: List<DetailedIndicatorCorrelation>,
+
+    // 분석 요약
+    val summary: String
 )
 
 /**
- * 개별 지표 상관관계
+ * 상세 지표-종목 상관관계 (UI 표시용)
+ */
+data class DetailedIndicatorCorrelation(
+    val indicatorType: String,
+    val stockMetricType: String,
+    val correlation: Double,
+    val significance: Double,
+    val dataPoints: Int,
+    val leadLagDays: Int = 0,
+    val description: String
+)
+
+/**
+ * 개별 지표 상관관계 (간략 버전)
  */
 data class IndicatorCorrelation(
     val indicatorName: String,
