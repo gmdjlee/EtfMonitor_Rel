@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.service.CollectionState
+import com.etfmonitor.core.ui.component.ChartLabelCalculator
+import com.etfmonitor.core.ui.component.DateRangeOption
 import com.etfmonitor.feature.market.domain.model.FearGreedIndex
 import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -54,6 +56,10 @@ class FearGreedViewModel @Inject constructor(
     private val _selectedMarket = MutableStateFlow("KOSPI")
     val selectedMarket: StateFlow<String> = _selectedMarket.asStateFlow()
 
+    // 날짜 범위 선택 상태
+    private val _selectedRange = MutableStateFlow(DateRangeOption.DEFAULT)
+    val selectedRange: StateFlow<DateRangeOption> = _selectedRange.asStateFlow()
+
     private val _fearGreedData = MutableStateFlow<List<FearGreedIndex>>(emptyList())
     val fearGreedData: StateFlow<List<FearGreedIndex>> = _fearGreedData.asStateFlow()
 
@@ -62,9 +68,33 @@ class FearGreedViewModel @Inject constructor(
 
     init {
         checkData()
-        loadData()
+        observeDateRangeChanges()
         checkFirstRun()
         observeCollectionState()
+    }
+
+    /**
+     * 시장 및 날짜 범위 변경을 관찰하여 데이터 로딩
+     */
+    private fun observeDateRangeChanges() {
+        viewModelScope.launch {
+            combine(_selectedMarket, _selectedRange) { market, range ->
+                Pair(market, range)
+            }.collectLatest { (market, range) ->
+                loadDataByRange(market, range)
+            }
+        }
+    }
+
+    /**
+     * 날짜 범위에 따른 데이터 로딩
+     */
+    private suspend fun loadDataByRange(market: String, range: DateRangeOption) {
+        val (startDate, endDate) = ChartLabelCalculator.calculateDateRange(range)
+        repository.getByMarketAndDateRange(market, startDate, endDate)
+            .collect { data ->
+                _fearGreedData.value = data
+            }
     }
 
     /**
@@ -76,7 +106,9 @@ class FearGreedViewModel @Inject constructor(
                 // 수집이 완료되면 (false로 변경되면) 데이터 새로고침
                 if (!isCollecting) {
                     logger.d("Data collection completed, triggering refresh")
-                    loadData()
+                    // observeDateRangeChanges가 자동으로 데이터를 다시 로드하도록 트리거
+                    val currentRange = _selectedRange.value
+                    _selectedRange.value = currentRange
                     checkData()
                 }
             }
@@ -120,19 +152,18 @@ class FearGreedViewModel @Inject constructor(
         }
     }
 
-    private fun loadData() {
-        viewModelScope.launch {
-            repository.getRecentByMarket(_selectedMarket.value, 365)
-                .collect { data ->
-                    _fearGreedData.value = data
-                }
-        }
-    }
-
     fun onSelectedMarketChanged(market: String) {
         _selectedMarket.value = market
-        loadData()
+        // observeDateRangeChanges가 자동으로 데이터 로드 트리거
         checkData()
+    }
+
+    /**
+     * 날짜 범위 변경
+     */
+    fun updateDateRange(option: DateRangeOption) {
+        _selectedRange.value = option
+        // observeDateRangeChanges가 자동으로 데이터 로드 트리거
     }
 
     fun initialize(days: Int = 365) {
@@ -144,7 +175,9 @@ class FearGreedViewModel @Inject constructor(
             if (result.isSuccess) {
                 val count = result.getOrNull() ?: 0
                 _state.value = FearGreedState.Success("$count 개의 데이터를 수집했습니다")
-                loadData()
+                // 데이터 수집 후 현재 범위로 리로드 트리거
+                val currentRange = _selectedRange.value
+                _selectedRange.value = currentRange
                 checkData()
             } else {
                 val error = result.exceptionOrNull()
@@ -162,7 +195,9 @@ class FearGreedViewModel @Inject constructor(
             if (result.isSuccess) {
                 val count = result.getOrNull() ?: 0
                 _state.value = FearGreedState.Success("$count 개의 데이터를 업데이트했습니다")
-                loadData()
+                // 데이터 업데이트 후 현재 범위로 리로드 트리거
+                val currentRange = _selectedRange.value
+                _selectedRange.value = currentRange
                 checkData()
             } else {
                 val error = result.exceptionOrNull()
