@@ -233,12 +233,6 @@ fun OscillatorScreen(
                 }
             }
 
-            // Date Range Selector
-            DateRangeSelector(
-                selectedRange = selectedRange,
-                onRangeSelected = { viewModel.updateDateRange(it) }
-            )
-
             // State Content
             when (val currentState = state) {
                 is OscillatorState.Loading -> {
@@ -320,7 +314,11 @@ fun OscillatorScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        // Date Range Selector
+                        DateRangeSelector(
+                            selectedRange = selectedRange,
+                            onRangeSelected = { viewModel.updateDateRange(it) }
+                        )
 
                         // Page Indicators + Chart Title
                         Row(
