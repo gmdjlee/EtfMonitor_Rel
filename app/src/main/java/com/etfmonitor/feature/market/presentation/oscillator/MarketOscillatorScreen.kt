@@ -26,6 +26,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
+import com.etfmonitor.core.ui.component.DateRangeSelector
 import com.etfmonitor.feature.market.domain.model.MarketOscillator
 import com.etfmonitor.core.ui.component.LoadingCard
 import com.etfmonitor.core.ui.component.ErrorCard
@@ -41,8 +42,8 @@ fun MarketOscillatorScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val selectedMarket by viewModel.selectedMarket.collectAsState()
+    val selectedRange by viewModel.selectedRange.collectAsState()
     val marketData by viewModel.marketData.collectAsState()
-    val displayDays by viewModel.displayDays.collectAsState()
     val overboughtThreshold by viewModel.overboughtThreshold.collectAsState()
     val oversoldThreshold by viewModel.oversoldThreshold.collectAsState()
     val showFirstRunDialog by viewModel.showFirstRunDialog.collectAsState()
@@ -75,13 +76,11 @@ fun MarketOscillatorScreen(
 
     // 설정 다이얼로그
     if (showSettingsDialog) {
-        SettingsDialog(
-            displayDays = displayDays,
+        ThresholdSettingsDialog(
             overboughtThreshold = overboughtThreshold,
             oversoldThreshold = oversoldThreshold,
             onDismiss = { showSettingsDialog = false },
-            onConfirm = { days, overbought, oversold ->
-                viewModel.onDisplayDaysChanged(days)
+            onConfirm = { overbought, oversold ->
                 viewModel.onOverboughtThresholdChanged(overbought)
                 viewModel.onOversoldThresholdChanged(oversold)
                 showSettingsDialog = false
@@ -155,6 +154,12 @@ fun MarketOscillatorScreen(
                     }
                 }
             }
+
+            // Date Range Selector
+            DateRangeSelector(
+                selectedRange = selectedRange,
+                onRangeSelected = { viewModel.updateDateRange(it) }
+            )
 
             // State Display
             when (val currentState = state) {
@@ -558,45 +563,24 @@ private fun MarketOscillatorInitializeDialog(
 }
 
 @Composable
-private fun SettingsDialog(
-    displayDays: Int,
+private fun ThresholdSettingsDialog(
     overboughtThreshold: Double,
     oversoldThreshold: Double,
     onDismiss: () -> Unit,
-    onConfirm: (Int, Double, Double) -> Unit
+    onConfirm: (Double, Double) -> Unit
 ) {
-    var days by remember { mutableStateOf(displayDays) }
     var overbought by remember { mutableStateOf(overboughtThreshold.toString()) }
     var oversold by remember { mutableStateOf(oversoldThreshold.toString()) }
     val keyboardController = LocalSoftwareKeyboardController.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("표시 설정") },
+        title = { Text("임계값 설정") },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Display Days
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("표시 기간", style = MaterialTheme.typography.labelMedium)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf(15, 30, 60, 90).forEach { option ->
-                            FilterChip(
-                                selected = days == option,
-                                onClick = { days = option },
-                                label = { Text("${option}일") }
-                            )
-                        }
-                    }
-                }
-
-                HorizontalDivider()
-
                 // Overbought Threshold
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("과매수 기준 (%)", style = MaterialTheme.typography.labelMedium)
@@ -665,7 +649,7 @@ private fun SettingsDialog(
             Button(onClick = {
                 val overboughtVal = overbought.toDoubleOrNull() ?: overboughtThreshold
                 val oversoldVal = oversold.toDoubleOrNull() ?: oversoldThreshold
-                onConfirm(days, overboughtVal, oversoldVal)
+                onConfirm(overboughtVal, oversoldVal)
             }) {
                 Text("적용")
             }

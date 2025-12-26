@@ -16,6 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
+import com.etfmonitor.core.ui.component.DateRangeSelector
 import com.etfmonitor.core.ui.component.MarketDepositChart
 import com.etfmonitor.core.ui.component.LoadingCard
 import com.etfmonitor.core.ui.component.ErrorCard
@@ -27,6 +28,7 @@ fun MarketDepositScreen(
     viewModel: MarketDepositViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val selectedRange by viewModel.selectedRange.collectAsState()
 
     Scaffold(
         topBar = {
@@ -60,6 +62,12 @@ fun MarketDepositScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Date Range Selector (항상 표시)
+            DateRangeSelector(
+                selectedRange = selectedRange,
+                onRangeSelected = { viewModel.updateDateRange(it) }
+            )
+
             // 상태별 UI
             when (val currentState = state) {
                 is MarketDepositState.Loading -> {

@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.service.CollectionState
+import com.etfmonitor.core.ui.component.ChartLabelCalculator
+import com.etfmonitor.core.ui.component.DateRangeOption
 import com.etfmonitor.feature.market.domain.model.MarketOscillator
 import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
 import com.etfmonitor.core.ui.theme.ThemeManager
@@ -62,13 +64,13 @@ class MarketOscillatorViewModel @Inject constructor(
     private val _selectedMarket = MutableStateFlow("KOSPI")
     val selectedMarket: StateFlow<String> = _selectedMarket.asStateFlow()
 
+    // 날짜 범위 선택 상태
+    private val _selectedRange = MutableStateFlow(DateRangeOption.DEFAULT)
+    val selectedRange: StateFlow<DateRangeOption> = _selectedRange.asStateFlow()
+
     // 시장 데이터
     private val _marketData = MutableStateFlow<List<MarketOscillator>>(emptyList())
     val marketData: StateFlow<List<MarketOscillator>> = _marketData.asStateFlow()
-
-    // 표시할 데이터 개수 (기본 15일)
-    private val _displayDays = MutableStateFlow(15)
-    val displayDays: StateFlow<Int> = _displayDays.asStateFlow()
 
     // 과매수 기준 (기본 80%)
     private val _overboughtThreshold = MutableStateFlow(80.0)
@@ -84,9 +86,33 @@ class MarketOscillatorViewModel @Inject constructor(
 
     init {
         checkData()
-        loadData()
+        observeDateRangeChanges()
         checkFirstRun()
         observeCollectionState()
+    }
+
+    /**
+     * 시장 및 날짜 범위 변경을 관찰하여 데이터 로딩
+     */
+    private fun observeDateRangeChanges() {
+        viewModelScope.launch {
+            combine(_selectedMarket, _selectedRange) { market, range ->
+                Pair(market, range)
+            }.collectLatest { (market, range) ->
+                loadDataByRange(market, range)
+            }
+        }
+    }
+
+    /**
+     * 날짜 범위에 따른 데이터 로딩
+     */
+    private suspend fun loadDataByRange(market: String, range: DateRangeOption) {
+        val (startDate, endDate) = ChartLabelCalculator.calculateDateRange(range)
+        repository.getDataByDateRange(market, startDate, endDate)
+            .collect { data ->
+                _marketData.value = data
+            }
     }
 
     /**
@@ -98,7 +124,9 @@ class MarketOscillatorViewModel @Inject constructor(
                 // 수집이 완료되면 (false로 변경되면) 데이터 새로고침
                 if (!isCollecting) {
                     logger.d("Data collection completed, triggering refresh")
-                    loadData()
+                    // observeDateRangeChanges가 자동으로 데이터를 다시 로드하도록 트리거
+                    val currentRange = _selectedRange.value
+                    _selectedRange.value = currentRange
                     checkData()
                 }
             }
@@ -142,24 +170,18 @@ class MarketOscillatorViewModel @Inject constructor(
         }
     }
 
-    private fun loadData() {
-        viewModelScope.launch {
-            repository.getRecentData(_selectedMarket.value, _displayDays.value)
-                .collect { data ->
-                    _marketData.value = data
-                }
-        }
-    }
-
     fun onSelectedMarketChanged(market: String) {
         _selectedMarket.value = market
-        loadData()
+        // observeDateRangeChanges가 자동으로 데이터 로드 트리거
         checkData()
     }
 
-    fun onDisplayDaysChanged(days: Int) {
-        _displayDays.value = days
-        loadData()
+    /**
+     * 날짜 범위 변경
+     */
+    fun updateDateRange(option: DateRangeOption) {
+        _selectedRange.value = option
+        // observeDateRangeChanges가 자동으로 데이터 로드 트리거
     }
 
     fun onOverboughtThresholdChanged(threshold: Double) {
@@ -191,7 +213,9 @@ class MarketOscillatorViewModel @Inject constructor(
                 _state.value = MarketOscillatorState.Success(
                     "KOSPI: $kospiCount, KOSDAQ: $kosdaqCount 개의 데이터를 수집했습니다"
                 )
-                loadData()
+                // 데이터 수집 후 현재 범위로 리로드 트리거
+                val currentRange = _selectedRange.value
+                _selectedRange.value = currentRange
                 checkData()
             } else {
                 val error = kospiResult.exceptionOrNull() ?: kosdaqResult.exceptionOrNull()
@@ -216,7 +240,9 @@ class MarketOscillatorViewModel @Inject constructor(
                 _state.value = MarketOscillatorState.Success(
                     "KOSPI: $kospiCount, KOSDAQ: $kosdaqCount 개의 데이터를 업데이트했습니다"
                 )
-                loadData()
+                // 데이터 업데이트 후 현재 범위로 리로드 트리거
+                val currentRange = _selectedRange.value
+                _selectedRange.value = currentRange
                 checkData()
             } else {
                 val error = kospiResult.exceptionOrNull() ?: kosdaqResult.exceptionOrNull()
