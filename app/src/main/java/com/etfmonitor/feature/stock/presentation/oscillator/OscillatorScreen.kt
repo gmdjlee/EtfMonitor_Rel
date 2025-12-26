@@ -63,6 +63,7 @@ fun OscillatorScreen(
     val demarkTDInterval by viewModel.demarkTDInterval.collectAsState()
     val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
     val selectedRange by viewModel.selectedRange.collectAsState()
+    val currentTicker by viewModel.currentTicker.collectAsState()
 
     // FAB 표시 조건: 설정이 활성화되어 있고, Success 상태일 때
     val showFab = quickChartAnalysisEnabled &&
@@ -235,8 +236,8 @@ fun OscillatorScreen(
                 }
             }
 
-            // Date Range Selector (when 블록 외부 - Success 상태일 때만 표시)
-            if (state is OscillatorState.Success) {
+            // Date Range Selector (분석된 종목이 있을 때 표시 - Loading 상태에서도 유지)
+            if (currentTicker != null) {
                 DateRangeSelector(
                     selectedRange = selectedRange,
                     onRangeSelected = { viewModel.updateDateRange(it) }
@@ -598,33 +599,6 @@ private fun IntervalButton(
         OutlinedButton(
             onClick = onClick,
             modifier = modifier
-        ) {
-            Text(text)
-        }
-    }
-}
-
-/**
- * 날짜 범위 선택 버튼 (DeMark TD 인터벌 버튼과 동일한 스타일)
- */
-@Composable
-private fun DateRangeButton(
-    text: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    if (selected) {
-        Button(
-            onClick = onClick,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
-        ) {
-            Text(text)
-        }
-    } else {
-        OutlinedButton(
-            onClick = onClick
         ) {
             Text(text)
         }

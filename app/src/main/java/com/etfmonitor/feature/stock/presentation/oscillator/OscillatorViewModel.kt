@@ -90,8 +90,9 @@ class OscillatorViewModel @Inject constructor(
     private val _selectedRange = MutableStateFlow(DateRangeOption.SIX_MONTHS)
     val selectedRange: StateFlow<DateRangeOption> = _selectedRange.asStateFlow()
 
-    // 현재 분석 중인 종목 ticker (기간 변경 시 재분석용)
-    private var currentTicker: String? = null
+    // 현재 분석 중인 종목 ticker (기간 변경 시 재분석용) - StateFlow로 노출하여 UI에서 사용 가능
+    private val _currentTicker = MutableStateFlow<String?>(null)
+    val currentTicker: StateFlow<String?> = _currentTicker.asStateFlow()
 
     // 빠른 차트 분석 설정 (FAB 표시용)
     private val _quickChartAnalysisEnabled = MutableStateFlow(false)
@@ -220,7 +221,7 @@ class OscillatorViewModel @Inject constructor(
                 }
 
                 val (ticker, _) = searchResult
-                currentTicker = ticker
+                _currentTicker.value = ticker
 
                 // 2. 종목 데이터 수집 (DB 캐시 활용)
                 val stockData = stockAnalysisRepository.getStockAnalysis(ticker, actualDays)
@@ -291,7 +292,7 @@ class OscillatorViewModel @Inject constructor(
 
     fun analyzeStock(ticker: String, days: Int? = null, saveHistory: Boolean = true) {
         // 현재 종목 저장
-        currentTicker = ticker
+        _currentTicker.value = ticker
 
         // days가 null이면 선택된 범위 사용
         val actualDays = days ?: _selectedRange.value.days.let { if (it == -1) 730 else it }
@@ -404,7 +405,7 @@ class OscillatorViewModel @Inject constructor(
         _selectedRange.value = option
 
         // 현재 종목이 있으면 재분석
-        currentTicker?.let { ticker ->
+        _currentTicker.value?.let { ticker ->
             analyzeStock(ticker, saveHistory = false)
         }
     }
