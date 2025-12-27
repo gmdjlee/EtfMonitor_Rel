@@ -39,7 +39,7 @@ class GeminiApiClient @Inject constructor(
         private val logger = AppLogger.getLogger("GeminiApiClient")
         private const val API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val MODELS_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-        private const val MODEL = "gemini-2.0-flash" // Default model
+        private const val MODEL = "gemini-2.5-flash" // Default model
         private const val MAX_OUTPUT_TOKENS = 200000
         private const val TIMEOUT_SECONDS = 60L
     }
@@ -387,8 +387,13 @@ class GeminiApiClient @Inject constructor(
             if (apiKey.isNullOrBlank()) {
                 return@withContext Result.failure(ApiAuthenticationException("Gemini"))
             }
+
+            // Use selected model from settings (like analyzeMarket and chat)
+            var model = apiKeyProvider.getSelectedModel(AIProvider.GEMINI) ?: MODEL
+            model = validateAndPersistModelName(model)
+
             val testPrompt = "Hello, please respond with 'OK'"
-            val response = callGeminiApi(apiKey, testPrompt, 0.0)
+            val response = callGeminiApi(apiKey, testPrompt, 0.0, model)
             Result.success(response.isNotBlank())
         } catch (e: Exception) {
             logger.e("API key test failed", e)
