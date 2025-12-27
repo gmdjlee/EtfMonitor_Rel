@@ -78,18 +78,19 @@ chaquopy {
 //            options("--no-cache-dir")
 //            options("--timeout", "300")
 
-            install("pandas")
-            install("pykrx")
-            install("setuptools")
-            install("wheel")
-            install("requests")
-            install("beautifulsoup4")
-            install("scikit-learn")
+            // Core packages - versions pinned for reproducible builds
+            install("pandas==2.1.4")
+            install("pykrx==1.0.47")
+            install("setuptools==69.0.3")
+            install("wheel==0.42.0")
+            install("requests==2.31.0")
+            install("beautifulsoup4==4.12.2")
+            install("scikit-learn==1.3.2")
 
             // Enhanced ML prediction packages (v2)
             // Note: imbalanced-learn removed due to scipy version conflict with Chaquopy
             // SMOTE functionality is optional and handled via try-except in Python
-            install("joblib")            // Model serialization
+            install("joblib==1.3.2")     // Model serialization
         }
     }
 }

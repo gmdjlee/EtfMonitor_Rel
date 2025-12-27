@@ -26,7 +26,7 @@ import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Statistics Screen - Cash Deposit Tab Components
@@ -122,11 +122,10 @@ internal fun CashDepositChartCard(trend: List<CashDepositTrend>) {
         modifier = Modifier.fillMaxWidth()
     ) {
         val modelProducer = remember { CartesianChartModelProducer() }
-        val scope = rememberCoroutineScope()
         val dateLabelsKey = remember { ExtraStore.Key<List<String>>() }
 
         LaunchedEffect(trend) {
-            scope.launch(Dispatchers.Default) {
+            withContext(Dispatchers.Default) {
                 modelProducer.runTransaction {
                     lineSeries {
                         series(trend.map { (it.totalAmount / 100_000_000).toDouble() })

@@ -13,9 +13,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.etfmonitor.feature.stock.domain.model.StockAmountRanking
-import com.etfmonitor.core.ui.theme.*
 import com.etfmonitor.core.common.util.AmountFormatter
+import com.etfmonitor.core.ui.component.statistics.SortColumn
+import com.etfmonitor.core.ui.component.statistics.SortController
+import com.etfmonitor.core.ui.component.statistics.SortOrder
+import com.etfmonitor.core.ui.theme.*
+import com.etfmonitor.feature.stock.domain.model.StockAmountRanking
 
 /**
  * Statistics Screen - Ranking Tab Components
@@ -25,10 +28,10 @@ import com.etfmonitor.core.common.util.AmountFormatter
 @Composable
 internal fun AmountRankingTab(
     rankings: List<StockAmountRanking>,
-    viewModel: StatisticsViewModel,
+    sortController: SortController,
     onStockClick: (String) -> Unit
 ) {
-    val sortCriteria by viewModel.sortCriteria.collectAsState()
+    val sortCriteria by sortController.sortCriteria.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -50,7 +53,7 @@ internal fun AmountRankingTab(
                 if (sortCriteria.isNotEmpty()) {
                     // 정렬 초기화 버튼
                     TextButton(
-                        onClick = { viewModel.clearAllSorting() },
+                        onClick = { sortController.clearAllSorting() },
                         contentPadding = PaddingValues(horizontal = MaterialTheme.spacing.small)
                     ) {
                         Icon(
@@ -92,70 +95,70 @@ internal fun AmountRankingTab(
                 SortableHeaderText(
                     text = "종목명",
                     column = SortColumn.STOCK_NAME,
-                    sortOrder = viewModel.getSortOrder(SortColumn.STOCK_NAME),
-                    priority = viewModel.getSortPriority(SortColumn.STOCK_NAME),
+                    sortOrder = sortController.getSortOrder(SortColumn.STOCK_NAME),
+                    priority = sortController.getSortPriority(SortColumn.STOCK_NAME),
                     modifier = Modifier.weight(2f),
-                    onClick = { viewModel.sortAmountRankingBy(SortColumn.STOCK_NAME) }
+                    onClick = { sortController.sortAmountRankingBy(SortColumn.STOCK_NAME) }
                 )
 
                 SortableHeaderText(
                     text = "금액",
                     column = SortColumn.TOTAL_AMOUNT,
-                    sortOrder = viewModel.getSortOrder(SortColumn.TOTAL_AMOUNT),
-                    priority = viewModel.getSortPriority(SortColumn.TOTAL_AMOUNT),
+                    sortOrder = sortController.getSortOrder(SortColumn.TOTAL_AMOUNT),
+                    priority = sortController.getSortPriority(SortColumn.TOTAL_AMOUNT),
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.End,
-                    onClick = { viewModel.sortAmountRankingBy(SortColumn.TOTAL_AMOUNT) }
+                    onClick = { sortController.sortAmountRankingBy(SortColumn.TOTAL_AMOUNT) }
                 )
 
                 SortableHeaderText(
                     text = "ETF수",
                     column = SortColumn.ETF_COUNT,
-                    sortOrder = viewModel.getSortOrder(SortColumn.ETF_COUNT),
-                    priority = viewModel.getSortPriority(SortColumn.ETF_COUNT),
+                    sortOrder = sortController.getSortOrder(SortColumn.ETF_COUNT),
+                    priority = sortController.getSortPriority(SortColumn.ETF_COUNT),
                     modifier = Modifier.weight(0.6f),
                     textAlign = TextAlign.Center,
-                    onClick = { viewModel.sortAmountRankingBy(SortColumn.ETF_COUNT) }
+                    onClick = { sortController.sortAmountRankingBy(SortColumn.ETF_COUNT) }
                 )
 
                 SortableHeaderText(
                     text = "신규",
                     column = SortColumn.NEW_ETF_COUNT,
-                    sortOrder = viewModel.getSortOrder(SortColumn.NEW_ETF_COUNT),
-                    priority = viewModel.getSortPriority(SortColumn.NEW_ETF_COUNT),
+                    sortOrder = sortController.getSortOrder(SortColumn.NEW_ETF_COUNT),
+                    priority = sortController.getSortPriority(SortColumn.NEW_ETF_COUNT),
                     modifier = Modifier.weight(0.5f),
                     textAlign = TextAlign.Center,
-                    onClick = { viewModel.sortAmountRankingBy(SortColumn.NEW_ETF_COUNT) }
+                    onClick = { sortController.sortAmountRankingBy(SortColumn.NEW_ETF_COUNT) }
                 )
 
                 SortableHeaderText(
                     text = "증가",
                     column = SortColumn.INCREASED_ETF_COUNT,
-                    sortOrder = viewModel.getSortOrder(SortColumn.INCREASED_ETF_COUNT),
-                    priority = viewModel.getSortPriority(SortColumn.INCREASED_ETF_COUNT),
+                    sortOrder = sortController.getSortOrder(SortColumn.INCREASED_ETF_COUNT),
+                    priority = sortController.getSortPriority(SortColumn.INCREASED_ETF_COUNT),
                     modifier = Modifier.weight(0.5f),
                     textAlign = TextAlign.Center,
-                    onClick = { viewModel.sortAmountRankingBy(SortColumn.INCREASED_ETF_COUNT) }
+                    onClick = { sortController.sortAmountRankingBy(SortColumn.INCREASED_ETF_COUNT) }
                 )
 
                 SortableHeaderText(
                     text = "감소",
                     column = SortColumn.DECREASED_ETF_COUNT,
-                    sortOrder = viewModel.getSortOrder(SortColumn.DECREASED_ETF_COUNT),
-                    priority = viewModel.getSortPriority(SortColumn.DECREASED_ETF_COUNT),
+                    sortOrder = sortController.getSortOrder(SortColumn.DECREASED_ETF_COUNT),
+                    priority = sortController.getSortPriority(SortColumn.DECREASED_ETF_COUNT),
                     modifier = Modifier.weight(0.5f),
                     textAlign = TextAlign.Center,
-                    onClick = { viewModel.sortAmountRankingBy(SortColumn.DECREASED_ETF_COUNT) }
+                    onClick = { sortController.sortAmountRankingBy(SortColumn.DECREASED_ETF_COUNT) }
                 )
 
                 SortableHeaderText(
                     text = "제외",
                     column = SortColumn.REMOVED_ETF_COUNT,
-                    sortOrder = viewModel.getSortOrder(SortColumn.REMOVED_ETF_COUNT),
-                    priority = viewModel.getSortPriority(SortColumn.REMOVED_ETF_COUNT),
+                    sortOrder = sortController.getSortOrder(SortColumn.REMOVED_ETF_COUNT),
+                    priority = sortController.getSortPriority(SortColumn.REMOVED_ETF_COUNT),
                     modifier = Modifier.weight(0.5f),
                     textAlign = TextAlign.Center,
-                    onClick = { viewModel.sortAmountRankingBy(SortColumn.REMOVED_ETF_COUNT) }
+                    onClick = { sortController.sortAmountRankingBy(SortColumn.REMOVED_ETF_COUNT) }
                 )
             }
         }

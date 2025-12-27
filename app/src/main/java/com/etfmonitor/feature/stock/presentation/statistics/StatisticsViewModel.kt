@@ -10,6 +10,10 @@ import com.etfmonitor.core.database.SearchHistoryDao
 import com.etfmonitor.core.service.CollectionState
 import com.etfmonitor.core.ui.component.ChartLabelCalculator
 import com.etfmonitor.core.ui.component.DateRangeOption
+import com.etfmonitor.core.ui.component.statistics.SortColumn
+import com.etfmonitor.core.ui.component.statistics.SortController
+import com.etfmonitor.core.ui.component.statistics.SortCriterion
+import com.etfmonitor.core.ui.component.statistics.SortOrder
 import com.etfmonitor.feature.stock.domain.model.CashDepositTrend
 import com.etfmonitor.feature.stock.domain.model.StockAmountRanking
 import com.etfmonitor.feature.stock.domain.model.StockAnalysisResult
@@ -42,7 +46,7 @@ class StatisticsViewModel @Inject constructor(
     private val repository: StockStatisticsRepository,
     private val etfDao: com.etfmonitor.core.database.EtfDao,
     private val searchHistoryDao: SearchHistoryDao
-) : ViewModel() {
+) : ViewModel(), SortController {
 
     companion object {
         private const val QUICK_CHART_ANALYSIS_KEY = "quick_chart_analysis_enabled"
@@ -66,9 +70,9 @@ class StatisticsViewModel @Inject constructor(
     // 원본 데이터 보관 (기본 정렬 복원용)
     private var originalAmountRanking: List<StockAmountRanking> = emptyList()
 
-    // 다중 컬럼 정렬 지원
-    private val _sortCriteria = MutableStateFlow<List<SortCriteria>>(emptyList())
-    val sortCriteria: StateFlow<List<SortCriteria>> = _sortCriteria.asStateFlow()
+    // 다중 컬럼 정렬 지원 (SortController 인터페이스 구현)
+    private val _sortCriteria = MutableStateFlow<List<SortCriterion>>(emptyList())
+    override val sortCriteria: StateFlow<List<SortCriterion>> = _sortCriteria.asStateFlow()
 
     private val _newStocks = MutableStateFlow<List<StockChangeInfo>>(emptyList())
     val newStocks: StateFlow<List<StockChangeInfo>> = _newStocks.asStateFlow()
@@ -280,7 +284,7 @@ class StatisticsViewModel @Inject constructor(
      * 다중 컬럼 정렬 - 3가지 상태 (기본 → 내림차순 → 오름차순 → 기본)
      * 여러 컬럼에 대해 순차적으로 정렬 적용 가능
      */
-    fun sortAmountRankingBy(column: SortColumn) {
+    override fun sortAmountRankingBy(column: SortColumn) {
         val currentCriteria = _sortCriteria.value.toMutableList()
         val existingIndex = currentCriteria.indexOfFirst { it.column == column }
 
@@ -303,7 +307,7 @@ class StatisticsViewModel @Inject constructor(
             }
         } else {
             // 새 컬럼 추가 - 내림차순으로 시작
-            currentCriteria.add(SortCriteria(column, SortOrder.DESCENDING))
+            currentCriteria.add(SortCriterion(column, SortOrder.DESCENDING))
         }
 
         _sortCriteria.value = currentCriteria
@@ -313,7 +317,7 @@ class StatisticsViewModel @Inject constructor(
     /**
      * 모든 정렬 초기화
      */
-    fun clearAllSorting() {
+    override fun clearAllSorting() {
         _sortCriteria.value = emptyList()
         _amountRanking.value = originalAmountRanking
     }
@@ -331,8 +335,8 @@ class StatisticsViewModel @Inject constructor(
         }
 
         // 다중 컬럼 정렬을 위한 Comparator 체인 생성
-        val comparator = criteria.fold<SortCriteria, Comparator<StockAmountRanking>?>(null) { acc, sortCriteria ->
-            val columnComparator = createComparator(sortCriteria.column, sortCriteria.order)
+        val comparator = criteria.fold<SortCriterion, Comparator<StockAmountRanking>?>(null) { acc, sortCriterion ->
+            val columnComparator = createComparator(sortCriterion.column, sortCriterion.order)
             if (acc == null) {
                 columnComparator
             } else {
@@ -369,47 +373,18 @@ class StatisticsViewModel @Inject constructor(
     }
 
     /**
-     * 특정 컬럼의 현재 정렬 순서 가져오기
+     * 특정 컬럼의 현재 정렬 순서 가져오기 (SortController 인터페이스 구현)
      */
-    fun getSortOrder(column: SortColumn): SortOrder {
+    override fun getSortOrder(column: SortColumn): SortOrder {
         return _sortCriteria.value.find { it.column == column }?.order ?: SortOrder.NONE
     }
 
     /**
-     * 특정 컬럼의 정렬 우선순위 가져오기 (1부터 시작, 0이면 정렬 안 됨)
+     * 특정 컬럼의 정렬 우선순위 가져오기 (SortController 인터페이스 구현)
+     * @return 1부터 시작하는 우선순위, 0이면 정렬 안 됨
      */
-    fun getSortPriority(column: SortColumn): Int {
+    override fun getSortPriority(column: SortColumn): Int {
         val index = _sortCriteria.value.indexOfFirst { it.column == column }
         return if (index >= 0) index + 1 else 0
     }
-}
-
-/**
- * 정렬 순서
- */
-enum class SortOrder {
-    NONE,       // 기본 정렬 (정렬 없음)
-    ASCENDING,  // 오름차순
-    DESCENDING  // 내림차순
-}
-
-/**
- * 정렬 기준 (컬럼 + 순서)
- */
-data class SortCriteria(
-    val column: SortColumn,
-    val order: SortOrder
-)
-
-/**
- * 금액순위 정렬 기준 열
- */
-enum class SortColumn {
-    STOCK_NAME,           // 종목명
-    TOTAL_AMOUNT,         // 금액
-    ETF_COUNT,            // ETF수
-    NEW_ETF_COUNT,        // 신규
-    INCREASED_ETF_COUNT,  // 증가
-    DECREASED_ETF_COUNT,  // 감소
-    REMOVED_ETF_COUNT     // 제외
 }

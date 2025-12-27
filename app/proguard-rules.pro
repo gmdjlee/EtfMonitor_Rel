@@ -171,6 +171,16 @@
 -keep public class * extends android.content.BroadcastReceiver
 
 # --------------------------------------------
+# Remove Debug Logging in Release Builds
+# --------------------------------------------
+# Strip verbose and debug logs from release builds
+# This is a safety net in addition to BuildConfig.DEBUG checks in AppLogger
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+}
+
+# --------------------------------------------
 # R8 Full Mode Compatibility
 # --------------------------------------------
 -dontwarn java.lang.invoke.StringConcatFactory

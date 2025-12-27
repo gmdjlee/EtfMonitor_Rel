@@ -738,4 +738,27 @@
     <string name="cd_analytics_button">분석 결과 버튼</string>
     <string name="cd_chart_indicator">차트 지표</string>
     <string name="cd_loading_indicator">로딩 중</string>
+    <string name="cd_clear_button">지우기 버튼</string>
+    <string name="cd_add_button">추가 버튼</string>
+    <string name="cd_delete_button">삭제 버튼</string>
+    <string name="cd_expand_button">펼치기</string>
+    <string name="cd_collapse_button">접기</string>
+    <string name="cd_dropdown_button">드롭다운 메뉴</string>
+    <string name="cd_select_etf">ETF 선택</string>
+    <string name="cd_chat_button">채팅 버튼</string>
+    <string name="cd_send_button">전송 버튼</string>
+    <string name="cd_ai_analysis">AI 분석</string>
+    <string name="cd_settings_tab">설정 탭</string>
+    <string name="cd_keyword_tab">키워드 탭</string>
+    <string name="cd_download_tab">다운로드 탭</string>
+    <string name="cd_period_tab">기간 탭</string>
+    <string name="cd_palette_tab">색상 탭</string>
+    <string name="cd_info_button">정보</string>
+    <string name="cd_warning_icon">경고</string>
+    <string name="cd_error_icon">오류</string>
+    <string name="cd_success_icon">성공</string>
+    <string name="cd_sort_ascending">오름차순 정렬</string>
+    <string name="cd_sort_descending">내림차순 정렬</string>
+    <string name="cd_navigate_to_chart">차트 분석으로 이동</string>
+    <string name="cd_navigate_to_stock">종목 분석으로 이동</string>
 </resources>

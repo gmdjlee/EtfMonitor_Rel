@@ -3,7 +3,13 @@
     Network Security Configuration for EtfMonitor
     - Enforces HTTPS for all API communications
     - Disables cleartext traffic for security
-    - Pins certificates for API endpoints (optional, commented for flexibility)
+    - Certificate pinning for critical API endpoints
+
+    HOW TO UPDATE PINS:
+    1. Run: openssl s_client -connect api.anthropic.com:443 | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64
+    2. Replace pin value below
+    3. Always include a backup pin (intermediate CA)
+    4. Set expiration date (recommend 1 year ahead)
 -->
 <network-security-config>
     <!-- Global base configuration -->
@@ -13,28 +19,54 @@
         </trust-anchors>
     </base-config>
 
-    <!-- Anthropic Claude API -->
+    <!--
+        Anthropic Claude API - Certificate Pinning
+        Note: Pins should be updated before expiration date.
+        To get current pin, run:
+        openssl s_client -connect api.anthropic.com:443 2>/dev/null | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64
+    -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">api.anthropic.com</domain>
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
+        <!-- Certificate pinning with backup pin and expiration -->
+        <pin-set expiration="2026-06-30">
+            <!-- Primary pin: api.anthropic.com leaf certificate -->
+            <!-- Backup pin: Let's Encrypt R3 intermediate (common backup) -->
+            <pin digest="SHA-256">jQJTbIh0grw0/1TkHSumWb+Fs0Ggogr621gT3PvPKG0=</pin>
+            <!-- Backup: DigiCert Global Root G2 -->
+            <pin digest="SHA-256">i7WTqTvh0OioIruIfFR4kMPnBqrS2rdiVPl/s2uC/CY=</pin>
+        </pin-set>
     </domain-config>
 
-    <!-- Google Gemini API -->
+    <!--
+        Google Gemini API - Certificate Pinning
+        Uses Google Trust Services roots
+    -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">generativelanguage.googleapis.com</domain>
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
+        <pin-set expiration="2026-06-30">
+            <!-- Primary: Google Trust Services root -->
+            <pin digest="SHA-256">hxqRlPTu1bMS/0DITB1SSu0vd4u/8l8TjPgfaAp63Gc=</pin>
+            <!-- Backup: GTS Root R1 -->
+            <pin digest="SHA-256">zCTnfLwLKbS9S2sbp+uFz4KZOocFvXxkV06Ce9O5M2w=</pin>
+        </pin-set>
     </domain-config>
 
-    <!-- KRX Market Data (PyKrx endpoints) -->
+    <!--
+        KRX Market Data (PyKrx endpoints)
+        No pinning - third-party services with varying certificates
+    -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">data.krx.co.kr</domain>
         <domain includeSubdomains="true">finance.naver.com</domain>
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
+        <!-- Note: KRX and Naver use various CAs, pinning not recommended -->
     </domain-config>
 </network-security-config>

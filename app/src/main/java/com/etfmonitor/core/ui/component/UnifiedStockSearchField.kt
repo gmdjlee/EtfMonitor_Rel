@@ -91,7 +91,7 @@ fun UnifiedStockSearchField(
                 } else {
                     Icon(
                         Icons.Default.Search,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_search_button),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
