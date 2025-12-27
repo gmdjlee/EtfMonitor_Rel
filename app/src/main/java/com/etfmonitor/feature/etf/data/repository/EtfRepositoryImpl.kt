@@ -9,6 +9,7 @@ import com.etfmonitor.feature.etf.domain.model.Etf
 import com.etfmonitor.feature.etf.domain.model.HoldingStatus
 import com.etfmonitor.feature.etf.domain.model.HoldingWithComparison
 import com.etfmonitor.feature.etf.domain.repository.EtfRepository
+import com.etfmonitor.core.common.util.AmountFormatter
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.database.DailyEtfStatisticsDao
 import com.etfmonitor.core.database.EtfDao
@@ -864,14 +865,7 @@ class EtfRepositoryImpl @Inject constructor(
                 lowerName.contains("krw")
     }
 
-    private fun formatAmount(amount: Long): String {
-        return when {
-            amount >= 1_000_000_000_000 -> String.format("%.1f조", amount / 1_000_000_000_000.0)
-            amount >= 100_000_000 -> String.format("%.0f억", amount / 100_000_000.0)
-            amount >= 10_000 -> String.format("%.0f만", amount / 10_000.0)
-            else -> String.format("%,d", amount)
-        }
-    }
+    private fun formatAmount(amount: Long): String = AmountFormatter.formatLong(amount)
 
     private suspend fun getPreviousBusinessDay(date: String): String? = withContext(Dispatchers.IO) {
         try {

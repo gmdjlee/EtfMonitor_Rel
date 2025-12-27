@@ -1,5 +1,7 @@
 package com.etfmonitor.core.network.ai
 
+import com.etfmonitor.core.common.util.AmountFormatter
+
 /**
  * AI 시장 분석 프롬프트 템플릿
  * Claude API를 통한 시장 분석용 프롬프트 생성
@@ -154,14 +156,7 @@ ${createComprehensiveAnalysisPrompt(data)}
         return String.format("%+.2f", value)
     }
 
-    private fun formatAmount(value: Long): String {
-        return when {
-            value >= 1_000_000_000_000 -> String.format("%.1f조", value / 1_000_000_000_000.0)
-            value >= 100_000_000 -> String.format("%.0f억", value / 100_000_000.0)
-            value >= 10_000 -> String.format("%.0f만", value / 10_000.0)
-            else -> String.format("%,d", value)
-        }
-    }
+    private fun formatAmount(value: Long): String = AmountFormatter.formatLong(value)
 
     private fun interpretFearGreed(value: Double): String {
         return when {

@@ -84,39 +84,6 @@ interface EtfDao {
         stockTicker: String
     ): List<HoldingTimeSeries>
 
-    // ========== Stats ==========
-
-    @Query("""
-        SELECT
-            stockTicker,
-            stockName,
-            COUNT(DISTINCT etfTicker) as etfCount,
-            SUM(CAST(amountMillion AS REAL) * 1000000.0) as totalAmount,
-            GROUP_CONCAT(DISTINCT etfTicker) as etfList
-        FROM holdings
-        WHERE date = :date
-        GROUP BY stockTicker
-        HAVING etfCount > 1
-        ORDER BY etfCount DESC, totalAmount DESC
-        LIMIT :limit
-    """)
-    suspend fun getOverlapStocks(date: String, limit: Int): List<OverlapStock>
-
-    @Query("""
-        SELECT
-            h.stockTicker,
-            h.stockName,
-            e.name as etfName,
-            CAST(h.weightBps AS REAL) / 10000.0 as weight,
-            CAST(h.amountMillion AS REAL) * 1000000.0 as amount
-        FROM holdings h
-        INNER JOIN etfs e ON h.etfTicker = e.ticker
-        WHERE h.date = :date
-        ORDER BY h.amountMillion DESC
-        LIMIT :limit
-    """)
-    suspend fun getAmountRanking(date: String, limit: Int): List<AmountRank>
-
     // ========== 전체 통계 쿼리 ==========
 
     /**

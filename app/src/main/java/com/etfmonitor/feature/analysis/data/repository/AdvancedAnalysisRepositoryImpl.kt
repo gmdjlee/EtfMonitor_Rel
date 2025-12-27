@@ -29,33 +29,17 @@ import com.etfmonitor.feature.analysis.domain.model.DivergenceType
 import com.etfmonitor.feature.analysis.domain.model.SupplyDemandItem
 import com.etfmonitor.feature.analysis.domain.model.MarketSentiment
 import com.etfmonitor.feature.analysis.domain.model.LiquidityAnalysisData
-import com.etfmonitor.feature.analysis.domain.model.LiquidityTrendData
 import com.etfmonitor.feature.analysis.domain.model.LeverageRisk
 import com.etfmonitor.feature.analysis.domain.model.LiquiditySignalType
-import com.etfmonitor.feature.analysis.domain.model.TrendDirection
 import com.etfmonitor.feature.analysis.domain.model.SectorAnalysisData
-import com.etfmonitor.feature.analysis.domain.model.SectorSentimentType
 import com.etfmonitor.feature.analysis.domain.model.SectorRotation
 import com.etfmonitor.feature.analysis.domain.model.EtfCorrelation
-import com.etfmonitor.feature.analysis.domain.model.CommonStock
-import com.etfmonitor.feature.analysis.domain.model.EtfPairCorrelation
-import com.etfmonitor.feature.analysis.domain.model.PortfolioDiversificationResult
-import com.etfmonitor.feature.analysis.domain.model.DiversificationAdvice
-import com.etfmonitor.feature.analysis.domain.model.AdviceType
-import com.etfmonitor.feature.analysis.domain.model.DataAvailability
-import com.etfmonitor.feature.analysis.domain.model.DataSourceStatus
-import com.etfmonitor.feature.analysis.domain.model.AdvancedDashboard
-import com.etfmonitor.feature.analysis.domain.model.OverallSignal
-import com.etfmonitor.feature.analysis.domain.model.SignalDirection
-import com.etfmonitor.feature.analysis.domain.model.MarketCapFlowHistory
-import com.etfmonitor.feature.analysis.domain.model.PredictionAccuracy
 
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.feature.analysis.data.mapper.toDomain
 import com.etfmonitor.feature.analysis.domain.repository.AdvancedAnalysisRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -181,20 +165,6 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun observeMarketCapWeightedFlowHistory(
-        days: Int,
-        market: String
-    ): Flow<List<MarketCapFlow>> = flow {
-        val dates = etfDao.getAllDistinctDates(days + 1)
-        val results = mutableListOf<MarketCapFlow>()
-
-        for (i in 0 until minOf(days, dates.size - 1)) {
-            val flow = calculateMarketCapWeightedFlow(dates[i], dates[i + 1], market)
-            results.add(flow)
-        }
-
-        emit(results)
-    }.flowOn(Dispatchers.IO)
 
     // ==================== 2. 외국인/기관 수급 Divergence 분석 ====================
 
@@ -329,42 +299,6 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
             liquidityAnalysisDao.getLatest()?.toDomain()
         }
 
-    override fun observeLiquidityHistory(days: Int): Flow<List<LiquidityAnalysisData>> {
-        return liquidityAnalysisDao.observeRecentHistory(days)
-            .map { list -> list.map { it.toDomain() } }
-            .flowOn(Dispatchers.IO)
-    }
-
-    override suspend fun analyzeLiquidityTrend(days: Int): LiquidityTrendData? =
-        withContext(Dispatchers.IO) {
-            try {
-                val history = liquidityAnalysisDao.getRecentHistory(days)
-                if (history.size < 2) return@withContext null
-
-                val avgDepositRatio = history.map { it.depositToMarketCapRatio }.average()
-                val avgCreditRatio = history.map { it.creditToDepositRatio }.average()
-
-                val latest = history.first()
-                val depositChanges = history.zipWithNext { a, b -> a.depositAmount - b.depositAmount }
-                val creditChanges = history.zipWithNext { a, b -> a.creditAmount - b.creditAmount }
-
-                val avgDepositChange = if (depositChanges.isNotEmpty()) depositChanges.average() else 0.0
-                val avgCreditChange = if (creditChanges.isNotEmpty()) creditChanges.average() else 0.0
-
-                LiquidityTrendData(
-                    history = history.map { it.toDomain() },
-                    avgDepositRatio = avgDepositRatio,
-                    avgCreditRatio = avgCreditRatio,
-                    currentVsAvgDeposit = latest.depositToMarketCapRatio / avgDepositRatio,
-                    depositTrend = TrendDirection.fromChangeRate(avgDepositChange / latest.depositAmount * 100),
-                    creditTrend = TrendDirection.fromChangeRate(avgCreditChange / latest.creditAmount * 100),
-                    trendStrength = calculateTrendStrength(depositChanges)
-                )
-            } catch (e: Exception) {
-                logger.e("Error analyzing liquidity trend", e)
-                null
-            }
-        }
 
     // ==================== 4. 섹터별 Fear & Greed 분석 ====================
 
@@ -579,72 +513,6 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
         etfCorrelationDao.getHighOverlapPairs(date, threshold).map { it.toDomain() }
     }
 
-    override suspend fun analyzePortfolioDiversification(
-        etfTickers: List<String>,
-        date: String
-    ): PortfolioDiversificationResult = withContext(Dispatchers.IO) {
-        try {
-            val correlations = mutableListOf<EtfPairCorrelation>()
-
-            for (i in etfTickers.indices) {
-                for (j in i + 1 until etfTickers.size) {
-                    val correlation = calculateAndSaveEtfCorrelation(
-                        etfTickers[i],
-                        etfTickers[j],
-                        date
-                    )
-                    correlation?.let {
-                        correlations.add(
-                            EtfPairCorrelation(
-                                etf1Ticker = it.etf1Ticker,
-                                etf1Name = it.etf1Name,
-                                etf2Ticker = it.etf2Ticker,
-                                etf2Name = it.etf2Name,
-                                overlapRatio = it.overlapRatio,
-                                weightCorrelation = it.weightCorrelation,
-                                commonStockCount = it.commonStockCount,
-                                topCommonStocks = it.topCommonStocks
-                            )
-                        )
-                    }
-                }
-            }
-
-            val avgCorrelation = if (correlations.isNotEmpty())
-                correlations.map { it.overlapRatio }.average() else 0.0
-
-            val score = ((1 - avgCorrelation) * 100).coerceIn(0.0, 100.0)
-
-            val suggestions = mutableListOf<DiversificationAdvice>()
-            correlations.filter { it.overlapRatio > 0.3 }.forEach { pair ->
-                suggestions.add(
-                    DiversificationAdvice(
-                        type = AdviceType.HIGH_OVERLAP_WARNING,
-                        message = "${pair.etf1Name}와 ${pair.etf2Name}은 ${String.format("%.1f", pair.overlapRatio * 100)}% 중복됩니다",
-                        affectedEtfs = listOf(pair.etf1Ticker, pair.etf2Ticker),
-                        impact = pair.overlapRatio
-                    )
-                )
-            }
-
-            PortfolioDiversificationResult(
-                selectedEtfs = etfTickers,
-                overallDiversificationScore = score,
-                pairwiseCorrelations = correlations,
-                avgCorrelation = avgCorrelation,
-                suggestions = suggestions
-            )
-        } catch (e: Exception) {
-            logger.e("Error analyzing portfolio diversification", e)
-            PortfolioDiversificationResult(
-                selectedEtfs = etfTickers,
-                overallDiversificationScore = 0.0,
-                pairwiseCorrelations = emptyList(),
-                avgCorrelation = 0.0,
-                suggestions = emptyList()
-            )
-        }
-    }
 
     // ==================== Private Helpers ====================
 
@@ -802,13 +670,6 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
             "ENERGY" -> "에너지"
             else -> "기타"
         }
-    }
-
-    private fun calculateTrendStrength(changes: List<Double>): Double {
-        if (changes.isEmpty()) return 0.0
-        val positive = changes.count { it > 0 }
-        val negative = changes.count { it < 0 }
-        return abs(positive - negative).toDouble() / changes.size
     }
 
     private fun calculateWeightCorrelation(

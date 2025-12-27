@@ -20,19 +20,6 @@ class GetMarketCapFlowUseCase @Inject constructor(
     }
 }
 
-/**
- * 시총 가중 흐름 히스토리 조회 UseCase
- */
-class ObserveMarketCapFlowHistoryUseCase @Inject constructor(
-    private val repository: AdvancedAnalysisRepository
-) {
-    operator fun invoke(
-        days: Int = 30,
-        market: String = "ALL"
-    ): Flow<List<MarketCapFlow>> {
-        return repository.observeMarketCapWeightedFlowHistory(days, market)
-    }
-}
 
 /**
  * 수급 Divergence 분석 UseCase
@@ -71,27 +58,6 @@ class CalculateLiquidityAnalysisUseCase @Inject constructor(
     }
 }
 
-/**
- * 유동성 히스토리 조회 UseCase
- */
-class ObserveLiquidityHistoryUseCase @Inject constructor(
-    private val repository: AdvancedAnalysisRepository
-) {
-    operator fun invoke(days: Int = 30): Flow<List<LiquidityAnalysisData>> {
-        return repository.observeLiquidityHistory(days)
-    }
-}
-
-/**
- * 유동성 추이 분석 UseCase
- */
-class AnalyzeLiquidityTrendUseCase @Inject constructor(
-    private val repository: AdvancedAnalysisRepository
-) {
-    suspend operator fun invoke(days: Int = 30): LiquidityTrendData? {
-        return repository.analyzeLiquidityTrend(days)
-    }
-}
 
 /**
  * 섹터 분석 UseCase
@@ -166,41 +132,3 @@ class CalculateEtfCorrelationUseCase @Inject constructor(
     }
 }
 
-/**
- * 모든 ETF 상관관계 계산 UseCase
- */
-class CalculateAllEtfCorrelationsUseCase @Inject constructor(
-    private val repository: AdvancedAnalysisRepository
-) {
-    suspend operator fun invoke(date: String): List<EtfCorrelation> {
-        return repository.calculateAllEtfCorrelations(date)
-    }
-}
-
-/**
- * 높은 중복률 ETF 쌍 조회 UseCase
- */
-class GetHighOverlapEtfPairsUseCase @Inject constructor(
-    private val repository: AdvancedAnalysisRepository
-) {
-    suspend operator fun invoke(
-        date: String,
-        threshold: Double = 0.1
-    ): List<EtfCorrelation> {
-        return repository.getHighOverlapEtfPairs(date, threshold)
-    }
-}
-
-/**
- * 포트폴리오 분산 분석 UseCase
- */
-class AnalyzePortfolioDiversificationUseCase @Inject constructor(
-    private val repository: AdvancedAnalysisRepository
-) {
-    suspend operator fun invoke(
-        etfTickers: List<String>,
-        date: String
-    ): PortfolioDiversificationResult {
-        return repository.analyzePortfolioDiversification(etfTickers, date)
-    }
-}

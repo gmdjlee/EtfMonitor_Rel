@@ -27,6 +27,7 @@ import com.etfmonitor.core.ui.theme.ChartGridLight
 import com.etfmonitor.feature.stock.domain.model.StockTrend
 import com.etfmonitor.feature.stock.domain.model.HoldingTimeSeries
 import com.etfmonitor.core.common.util.AmountFormatter
+import com.etfmonitor.core.common.util.DateFormatter
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.Entry
@@ -375,18 +376,7 @@ private fun StockTrendLineChart(
     )
 }
 
-private fun formatDateForChart(date: String): String {
-    return try {
-        val parts = date.split("-")
-        if (parts.size == 3) {
-            "${parts[1]}/${parts[2]}"
-        } else {
-            date
-        }
-    } catch (e: Exception) {
-        date
-    }
-}
+private fun formatDateForChart(date: String): String = DateFormatter.formatForChart(date)
 
 @Composable
 private fun DataTable(timeSeries: List<HoldingTimeSeries>) {
