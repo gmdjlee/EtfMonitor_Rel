@@ -90,7 +90,7 @@ fun ErrorBoundary(
         val error = state.error!!
         logger.e("Error boundary triggered", error)
 
-        val retryAction = {
+        val retryAction: () -> Unit = {
             state.clearError()
             onRetry?.invoke()
         }
