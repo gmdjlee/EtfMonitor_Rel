@@ -28,11 +28,6 @@ android {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
 
-        // Room schema export for migration testing
-        ksp {
-            arg("room.schemaLocation", "$projectDir/schemas")
-        }
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
