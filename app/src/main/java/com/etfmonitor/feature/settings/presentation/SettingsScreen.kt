@@ -119,11 +119,11 @@ fun SettingsScreen(
                         text = { Text(title) },
                         icon = {
                             when (index) {
-                                0 -> Icon(Icons.Default.Settings, contentDescription = null)
-                                1 -> Icon(Icons.Default.Label, contentDescription = null)
-                                2 -> Icon(Icons.Default.CloudDownload, contentDescription = null)
-                                3 -> Icon(Icons.Default.DateRange, contentDescription = null)
-                                4 -> Icon(Icons.Default.Palette, contentDescription = null)
+                                0 -> Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.cd_settings_tab))
+                                1 -> Icon(Icons.Default.Label, contentDescription = stringResource(R.string.cd_keyword_tab))
+                                2 -> Icon(Icons.Default.CloudDownload, contentDescription = stringResource(R.string.cd_download_tab))
+                                3 -> Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.cd_period_tab))
+                                4 -> Icon(Icons.Default.Palette, contentDescription = stringResource(R.string.cd_palette_tab))
                             }
                         }
                     )
