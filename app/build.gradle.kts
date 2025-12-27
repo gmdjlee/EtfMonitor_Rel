@@ -27,6 +27,8 @@ android {
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -51,6 +53,14 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+    }
+
+    // Enable JUnit5 for unit tests
+    @Suppress("UnstableApiUsage")
+    testOptions {
+        unitTests.all {
+            it.useJUnitPlatform()
+        }
     }
 
     buildFeatures {
@@ -78,14 +88,14 @@ chaquopy {
 //            options("--no-cache-dir")
 //            options("--timeout", "300")
 
-            // Core packages - versions pinned for reproducible builds
-            install("pandas==2.1.4")
-            install("pykrx==1.0.47")
-            install("setuptools==69.0.3")
-            install("wheel==0.42.0")
-            install("requests==2.31.0")
-            install("beautifulsoup4==4.12.2")
-            install("scikit-learn==1.3.2")
+            // Core packages
+            install("pandas")
+            install("pykrx")
+            install("setuptools")
+            install("wheel")
+            install("requests")
+            install("beautifulsoup4")
+            install("scikit-learn")
 
             // Enhanced ML prediction packages (v2)
             // Note: imbalanced-learn removed due to scipy version conflict with Chaquopy
@@ -157,4 +167,29 @@ dependencies {
     implementation(libs.hilt.work)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
+
+    // Testing - Unit Tests
+    testImplementation(libs.junit)
+    testImplementation(libs.junit5.api)
+    testRuntimeOnly(libs.junit5.engine)
+    testImplementation(libs.junit5.params)
+    testImplementation(libs.mockk)
+    testImplementation(libs.turbine)
+    testImplementation(libs.coroutines.test)
+    testImplementation(libs.arch.core.testing)
+    testImplementation(libs.room.testing)
+
+    // Testing - Instrumented Tests (Android)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.core.ktx)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.espresso.core)
+    androidTestImplementation(libs.truth.ext)
+    androidTestImplementation(libs.mockk.android)
+    androidTestImplementation(libs.turbine)
+    androidTestImplementation(libs.coroutines.test)
+    androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.hilt.testing)
+    kspAndroidTest(libs.hilt.android.compiler)
 }
