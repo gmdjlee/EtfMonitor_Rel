@@ -19,18 +19,18 @@ import com.etfmonitor.core.common.util.AppLogger
  * Provides a way to capture and manage error states in Compose.
  */
 class ErrorBoundaryState {
-    var error: Throwable? by mutableStateOf(null)
-        private set
+    private var _error: Throwable? by mutableStateOf(null)
+    val error: Throwable? get() = _error
 
     fun setError(throwable: Throwable) {
-        error = throwable
+        _error = throwable
     }
 
     fun clearError() {
-        error = null
+        _error = null
     }
 
-    fun hasError(): Boolean = error != null
+    fun hasError(): Boolean = _error != null
 }
 
 /**
