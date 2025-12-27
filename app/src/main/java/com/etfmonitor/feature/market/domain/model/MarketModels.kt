@@ -61,7 +61,17 @@ data class MarketDepositData(
     val depositChanges: List<Double>,
     val creditAmounts: List<Double>,
     val creditChanges: List<Double>
-)
+) {
+    companion object {
+        fun empty() = MarketDepositData(
+            dates = emptyList(),
+            depositAmounts = emptyList(),
+            depositChanges = emptyList(),
+            creditAmounts = emptyList(),
+            creditChanges = emptyList()
+        )
+    }
+}
 
 /**
  * Market Oscillator Domain Model

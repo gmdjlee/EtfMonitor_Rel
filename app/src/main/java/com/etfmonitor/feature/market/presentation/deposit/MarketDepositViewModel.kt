@@ -21,25 +21,16 @@ import com.etfmonitor.core.analysis.model.MarketDepositData as CoreMarketDeposit
 sealed class MarketDepositState {
     data object Idle : MarketDepositState()
     data object Loading : MarketDepositState()
-    data class Success(
-        val data: MarketDepositData,
-        val analysis: String
-    ) : MarketDepositState()
+    data class Success(val message: String) : MarketDepositState()
     data class Error(val message: String) : MarketDepositState()
 }
 
 /**
  * Production Level MarketDepositViewModel with Hilt
  *
- * 최적화 포인트:
- * 1. @HiltViewModel: Hilt가 ViewModel 생명주기 자동 관리
- * 2. @Inject: 생성자 주입으로 의존성 명확화
- * 3. Factory 패턴 제거: Hilt가 자동으로 ViewModel 생성
- * 4. AndroidViewModel → ViewModel: Application 직접 주입 제거
- *
- * 기존 문제점 해결:
- * - EtfMonitorApp.instance 제거: 메모리 누수 위험 제거
- * - 수동 Factory 제거: Hilt가 자동으로 관리하여 코드 간결화
+ * FearGreedViewModel 패턴을 따름:
+ * - 데이터를 별도 StateFlow로 관리 (depositData)
+ * - 상태 변화에도 데이터 유지
  */
 @HiltViewModel
 class MarketDepositViewModel @Inject constructor(
@@ -56,6 +47,14 @@ class MarketDepositViewModel @Inject constructor(
     // 날짜 범위 선택 상태
     private val _selectedRange = MutableStateFlow(DateRangeOption.DEFAULT)
     val selectedRange: StateFlow<DateRangeOption> = _selectedRange.asStateFlow()
+
+    // 데이터를 별도 StateFlow로 관리 (FearGreedViewModel 패턴)
+    private val _depositData = MutableStateFlow(MarketDepositData.empty())
+    val depositData: StateFlow<MarketDepositData> = _depositData.asStateFlow()
+
+    // 시장 분석 결과
+    private val _analysis = MutableStateFlow("")
+    val analysis: StateFlow<String> = _analysis.asStateFlow()
 
     init {
         // 날짜 범위 변경 관찰
@@ -120,6 +119,9 @@ class MarketDepositViewModel @Inject constructor(
                         creditChanges = deposits.map { it.creditChange.toDouble() }
                     )
 
+                    // 별도 StateFlow에 데이터 저장 (상태 변화에도 유지)
+                    _depositData.value = marketData
+
                     // 시장 분석 - Convert domain model to core model for OscillatorCalculator
                     val coreMarketData = CoreMarketDepositData(
                         dates = marketData.dates,
@@ -128,12 +130,9 @@ class MarketDepositViewModel @Inject constructor(
                         creditAmounts = marketData.creditAmounts,
                         creditChanges = marketData.creditChanges
                     )
-                    val analysis = OscillatorCalculator.analyzeMarketDeposit(coreMarketData)
+                    _analysis.value = OscillatorCalculator.analyzeMarketDeposit(coreMarketData)
 
-                    _state.value = MarketDepositState.Success(
-                        data = marketData,
-                        analysis = analysis
-                    )
+                    _state.value = MarketDepositState.Success("데이터 로드 완료")
                 }
         } catch (e: Exception) {
             _state.value = MarketDepositState.Error("데이터 로드 실패: ${e.message}")
@@ -152,5 +151,14 @@ class MarketDepositViewModel @Inject constructor(
         // 현재 범위로 리로드 트리거
         val currentRange = _selectedRange.value
         _selectedRange.value = currentRange
+    }
+
+    /**
+     * Success 메시지 클리어 (자동 숨김용)
+     */
+    fun clearMessage() {
+        if (_state.value is MarketDepositState.Success) {
+            _state.value = MarketDepositState.Idle
+        }
     }
 }
