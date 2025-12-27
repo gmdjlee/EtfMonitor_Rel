@@ -127,6 +127,7 @@
     <string name="market_deposit_date_range">날짜 범위: %s ~ %s</string>
     <string name="market_deposit_recent_5_days">최근 5일 추이</string>
     <string name="market_deposit_no_data">증시 자금 동향 데이터가 없습니다.</string>
+    <string name="market_deposit_chart_title">고객예탁금 vs 신용잔고</string>
 
     <!-- MarketOscillatorScreen -->
     <string name="market_oscillator_title">시장 과매수/과매도 분석</string>
