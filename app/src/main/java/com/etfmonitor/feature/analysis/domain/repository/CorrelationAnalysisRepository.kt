@@ -49,19 +49,9 @@ interface CorrelationAnalysisRepository {
     fun getCorrelationResults(market: String): Flow<List<CorrelationAnalysis>>
 
     /**
-     * 특정 날짜의 상관관계 분석 결과 조회
-     */
-    suspend fun getCorrelationResult(market: String, date: String): CorrelationAnalysis?
-
-    /**
      * 최신 상관관계 분석 결과 조회
      */
     suspend fun getLatestCorrelationResult(market: String): CorrelationAnalysis?
-
-    /**
-     * AI 분석 결과 조회 (Flow)
-     */
-    fun getAIAnalysisResults(market: String): Flow<List<AIAnalysis>>
 
     /**
      * 최신 AI 분석 결과 조회

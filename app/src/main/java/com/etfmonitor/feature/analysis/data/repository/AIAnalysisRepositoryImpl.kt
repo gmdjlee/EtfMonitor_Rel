@@ -10,7 +10,6 @@ import com.etfmonitor.core.database.MarketOscillatorDao
 import com.etfmonitor.feature.analysis.domain.repository.AIAnalysisRepository
 import com.etfmonitor.feature.analysis.domain.repository.AIAnalysisResponse
 import com.etfmonitor.feature.analysis.domain.repository.AnalysisTypeRequest
-import com.etfmonitor.feature.analysis.domain.repository.SignalRecord
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -95,94 +94,6 @@ class AIAnalysisRepositoryImpl @Inject constructor(
             )
         } catch (e: Exception) {
             logger.e("Market analysis error", e)
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun analyzeLatestMarket(market: String): Result<AIAnalysisResponse> = withContext(Dispatchers.IO) {
-        try {
-            logger.d("Analyzing latest market data for: $market")
-
-            val latestDate = dailyEtfStatisticsDao.getLatestDate()
-
-            if (latestDate == null) {
-                logger.e("No ETF statistics data found in database")
-                return@withContext Result.failure(
-                    Exception("데이터가 없습니다.\n\n홈 화면에서 'ETF 데이터 수집'을 먼저 실행해주세요.")
-                )
-            }
-
-            logger.d("Latest date found: $latestDate")
-            analyzeMarket(market, latestDate)
-        } catch (e: Exception) {
-            logger.e("Latest market analysis error", e)
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun generateQuickSignal(
-        market: String,
-        date: String
-    ): Result<MarketSignal> = withContext(Dispatchers.IO) {
-        try {
-            val analysisData = collectAnalysisData(market, date)
-                ?: return@withContext Result.failure(Exception("데이터 없음"))
-
-            val prompt = MarketAnalysisPrompts.createQuickSignalPrompt(analysisData)
-            getClient().analyzeMarket(prompt, temperature = 0.3)
-        } catch (e: Exception) {
-            logger.e("Quick signal generation error", e)
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun generateBatchSignals(
-        market: String,
-        startDate: String,
-        endDate: String
-    ): Result<List<SignalRecord>> = withContext(Dispatchers.IO) {
-        try {
-            val dates = dailyEtfStatisticsDao.getAllDates()
-                .filter { it >= startDate && it <= endDate }
-                .sorted()
-
-            if (dates.isEmpty()) {
-                return@withContext Result.failure(Exception("지정된 기간에 데이터가 없습니다"))
-            }
-
-            logger.d("Generating batch signals for ${dates.size} dates")
-
-            val records = mutableListOf<SignalRecord>()
-
-            for (date in dates) {
-                try {
-                    val result = generateQuickSignal(market, date)
-                    if (result.isSuccess) {
-                        val signal = result.getOrThrow()
-                        val marketIndex = marketIndexDao.getByMarketAndDate(market, date)
-
-                        records.add(
-                            SignalRecord(
-                                date = date,
-                                signal = signal.signal,
-                                confidence = signal.confidence,
-                                indexAtSignal = marketIndex?.closePrice ?: 0.0
-                            )
-                        )
-                    }
-
-                    // Rate limiting
-                    kotlinx.coroutines.delay(1000)
-                } catch (e: Exception) {
-                    logger.w("Failed to generate signal for $date", e)
-                    continue
-                }
-            }
-
-            logger.d("Batch signal generation completed: ${records.size} signals")
-            Result.success(records)
-        } catch (e: Exception) {
-            logger.e("Batch signal generation error", e)
             Result.failure(e)
         }
     }

@@ -2,7 +2,6 @@ package com.etfmonitor.core.di
 
 import android.content.Context
 import com.etfmonitor.core.network.ai.*
-import com.etfmonitor.core.analysis.Backtester
 import com.etfmonitor.core.analysis.CorrelationAnalyzer
 import com.etfmonitor.core.database.*
 import dagger.Module
@@ -71,18 +70,6 @@ object AIModule {
     }
 
     // AIAnalysisRepository: Provided by AnalysisModule as AIAnalysisRepositoryImpl
-
-    /**
-     * Backtester
-     * AI 신호의 과거 정확도 검증
-     */
-    @Provides
-    @Singleton
-    fun provideBacktester(
-        marketIndexDao: MarketIndexDao
-    ): Backtester {
-        return Backtester(marketIndexDao)
-    }
 
     /**
      * CorrelationAnalyzer

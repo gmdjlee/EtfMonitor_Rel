@@ -160,19 +160,3 @@ data class BacktestResult(
     val slippageRate: Double = 0.05 // 슬리피지율 (%)
 )
 
-/**
- * 신호 기록 (백테스팅용)
- */
-data class SignalRecord(
-    val date: String,
-    val signal: SignalType,
-    val confidence: Double,
-    val indexAtSignal: Double,
-    val indexAfter1Day: Double? = null,
-    val indexAfter5Days: Double? = null,
-    val indexAfter10Days: Double? = null,
-    val actualReturn1Day: Double? = null,
-    val actualReturn5Days: Double? = null,
-    val actualReturn10Days: Double? = null,
-    val wasCorrect: Boolean? = null
-)
