@@ -485,21 +485,23 @@ private fun StatisticsHubContent(
         }
 
         // Floating Action Button for navigating to stock analysis
-        if (showFab && analysisResult != null) {
-            ExtendedFloatingActionButton(
-                onClick = { onNavigateToStocks(analysisResult!!.stockTicker) },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp),
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                icon = {
-                    Icon(Icons.Default.ShowChart, contentDescription = null)
-                },
-                text = {
-                    Text(stringResource(R.string.fab_stock_analysis))
-                }
-            )
+        analysisResult?.let { result ->
+            if (showFab) {
+                ExtendedFloatingActionButton(
+                    onClick = { onNavigateToStocks(result.stockTicker) },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp),
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    icon = {
+                        Icon(Icons.Default.ShowChart, contentDescription = null)
+                    },
+                    text = {
+                        Text(stringResource(R.string.fab_stock_analysis))
+                    }
+                )
+            }
         }
     }
 }

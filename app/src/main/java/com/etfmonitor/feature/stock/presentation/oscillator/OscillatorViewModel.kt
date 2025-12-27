@@ -261,8 +261,9 @@ class OscillatorViewModel @Inject constructor(
                 val signalAnalysis = OscillatorCalculator.analyzeSignal(oscillatorResult)
 
                 // 전체 데이터 기반 결과도 캐시
-                fullOscillatorResult = OscillatorCalculator.calculate(stockData)
-                fullSignalAnalysis = OscillatorCalculator.analyzeSignal(fullOscillatorResult!!)
+                val fullResult = OscillatorCalculator.calculate(stockData)
+                fullOscillatorResult = fullResult
+                fullSignalAnalysis = OscillatorCalculator.analyzeSignal(fullResult)
 
                 // 6. 추세 시그널 데이터 수집 (주간 데이터, 1년)
                 val trendSignalData = try {
@@ -351,8 +352,9 @@ class OscillatorViewModel @Inject constructor(
                 val signalAnalysis = OscillatorCalculator.analyzeSignal(oscillatorResult)
 
                 // 전체 데이터 기반 결과도 캐시
-                fullOscillatorResult = OscillatorCalculator.calculate(stockData)
-                fullSignalAnalysis = OscillatorCalculator.analyzeSignal(fullOscillatorResult!!)
+                val fullResult = OscillatorCalculator.calculate(stockData)
+                fullOscillatorResult = fullResult
+                fullSignalAnalysis = OscillatorCalculator.analyzeSignal(fullResult)
 
                 // 추세 시그널 데이터 수집 (주간 데이터, 1년)
                 val trendSignalData = try {

@@ -267,17 +267,19 @@ private fun AIAnalysisHubContent(
                 }
 
                 // FAB
-                if (showFab && selectedStock != null) {
-                    ExtendedFloatingActionButton(
-                        onClick = { onNavigateToStocks(selectedStock!!.first) },
+                selectedStock?.let { stock ->
+                    if (showFab) {
+                        ExtendedFloatingActionButton(
+                            onClick = { onNavigateToStocks(stock.first) },
                         icon = { Icon(Icons.Default.ShowChart, contentDescription = null) },
                         text = { Text(stringResource(R.string.fab_stock_analysis)) },
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(16.dp)
-                    )
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(16.dp)
+                        )
+                    }
                 }
             }
         }

@@ -117,14 +117,16 @@ fun NewAIAnalysisScreen(
             )
         },
         floatingActionButton = {
-            if (showFab && selectedStock != null) {
-                ExtendedFloatingActionButton(
-                    onClick = { onNavigateToOscillator?.invoke(selectedStock!!.first) },
-                    icon = { Icon(Icons.Default.ShowChart, contentDescription = null) },
-                    text = { Text("차트 분석") },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            selectedStock?.let { stock ->
+                if (showFab) {
+                    ExtendedFloatingActionButton(
+                        onClick = { onNavigateToOscillator?.invoke(stock.first) },
+                        icon = { Icon(Icons.Default.ShowChart, contentDescription = null) },
+                        text = { Text("차트 분석") },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
             }
         }
     ) { paddingValues ->

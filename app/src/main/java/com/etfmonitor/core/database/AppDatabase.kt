@@ -40,6 +40,8 @@ import com.etfmonitor.core.database.entities.Setting
 import com.etfmonitor.core.database.entities.Stock
 import com.etfmonitor.core.database.entities.StockAnalysisData
 import com.etfmonitor.core.database.entities.StockIndicatorAIResult
+import com.etfmonitor.core.database.entities.PriceCache
+import com.etfmonitor.core.database.entities.EnhancedPrediction
 
 @Database(
     entities = [
@@ -61,7 +63,9 @@ import com.etfmonitor.core.database.entities.StockIndicatorAIResult
         SectorAnalysis::class,
         EtfCorrelationCache::class,
         LiquidityAnalysis::class,
-        StockIndicatorAIResult::class
+        StockIndicatorAIResult::class,
+        PriceCache::class,
+        EnhancedPrediction::class
     ],
     version = 17,
     exportSchema = false
@@ -84,6 +88,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun etfCorrelationDao(): EtfCorrelationDao
     abstract fun liquidityAnalysisDao(): LiquidityAnalysisDao
     abstract fun stockIndicatorAIResultDao(): StockIndicatorAIResultDao
+    abstract fun priceCacheDao(): PriceCacheDao
+    abstract fun enhancedPredictionDao(): EnhancedPredictionDao
 }
 
 /**

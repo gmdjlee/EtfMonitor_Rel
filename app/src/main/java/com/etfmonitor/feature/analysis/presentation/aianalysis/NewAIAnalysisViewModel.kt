@@ -579,15 +579,14 @@ class NewAIAnalysisViewModel @Inject constructor(
             reasoning = historyItem.reasoning
         )
 
-        _stockIndicatorCorrelationResult.value = FullStockIndicatorAnalysis(
+        val fullAnalysis = FullStockIndicatorAnalysis(
             correlationResult = null,  // 히스토리에서 로드시 상관관계 데이터 없음
             aiInterpretation = aiInterpretation,
             errorMessage = null
         )
+        _stockIndicatorCorrelationResult.value = fullAnalysis
 
-        _state.value = NewAIAnalysisState.StockIndicatorCorrelationAIComplete(
-            _stockIndicatorCorrelationResult.value!!
-        )
+        _state.value = NewAIAnalysisState.StockIndicatorCorrelationAIComplete(fullAnalysis)
     }
 
     /**

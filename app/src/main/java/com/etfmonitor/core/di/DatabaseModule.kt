@@ -35,6 +35,8 @@ import com.etfmonitor.core.database.SectorAnalysisDao
 import com.etfmonitor.core.database.StockAnalysisDao
 import com.etfmonitor.core.database.StockDao
 import com.etfmonitor.core.database.StockIndicatorAIResultDao
+import com.etfmonitor.core.database.PriceCacheDao
+import com.etfmonitor.core.database.EnhancedPredictionDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -250,5 +252,25 @@ object DatabaseModule {
     @Singleton
     fun provideStockIndicatorAIResultDao(database: AppDatabase): StockIndicatorAIResultDao {
         return database.stockIndicatorAIResultDao()
+    }
+
+    /**
+     * Price Cache DAO 제공
+     * ML 예측용 가격 캐시 데이터를 관리하는 DAO
+     */
+    @Provides
+    @Singleton
+    fun providePriceCacheDao(database: AppDatabase): PriceCacheDao {
+        return database.priceCacheDao()
+    }
+
+    /**
+     * Enhanced Prediction DAO 제공
+     * 28개 Feature 기반 향상된 ML 예측 결과를 관리하는 DAO
+     */
+    @Provides
+    @Singleton
+    fun provideEnhancedPredictionDao(database: AppDatabase): EnhancedPredictionDao {
+        return database.enhancedPredictionDao()
     }
 }
