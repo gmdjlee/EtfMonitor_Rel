@@ -13,6 +13,7 @@ import com.etfmonitor.feature.stock.domain.model.CashDepositTrend
 import com.etfmonitor.core.ui.component.ChartCard
 import com.etfmonitor.core.ui.theme.*
 import com.etfmonitor.core.common.util.AmountFormatter
+import com.etfmonitor.core.common.util.DateFormatter
 import androidx.compose.ui.graphics.Color as ComposeColor
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
@@ -254,15 +255,4 @@ internal fun SummaryItem(label: String, value: String) {
     }
 }
 
-internal fun formatDateForChart(date: String): String {
-    return try {
-        val parts = date.split("-")
-        if (parts.size == 3) {
-            "${parts[1]}/${parts[2]}"
-        } else {
-            date
-        }
-    } catch (e: Exception) {
-        date
-    }
-}
+internal fun formatDateForChart(date: String): String = DateFormatter.formatForChart(date)

@@ -3,7 +3,6 @@ package com.etfmonitor.feature.analysis.domain.repository
 import com.etfmonitor.core.network.ai.AIModel
 import com.etfmonitor.core.network.ai.AIProvider
 import com.etfmonitor.core.network.ai.MarketSignal
-import com.etfmonitor.core.network.ai.SignalType
 
 /**
  * AI 분석 Repository 인터페이스
@@ -18,28 +17,6 @@ interface AIAnalysisRepository {
         date: String,
         analysisType: AnalysisTypeRequest = AnalysisTypeRequest.COMPREHENSIVE
     ): Result<AIAnalysisResponse>
-
-    /**
-     * 최신 데이터로 시장 분석
-     */
-    suspend fun analyzeLatestMarket(market: String): Result<AIAnalysisResponse>
-
-    /**
-     * 빠른 신호 생성 (간소화 분석)
-     */
-    suspend fun generateQuickSignal(
-        market: String,
-        date: String
-    ): Result<MarketSignal>
-
-    /**
-     * 여러 날짜의 신호 배치 생성 (백테스팅용)
-     */
-    suspend fun generateBatchSignals(
-        market: String,
-        startDate: String,
-        endDate: String
-    ): Result<List<SignalRecord>>
 
     /**
      * API 사용 가능 여부 확인
@@ -87,12 +64,3 @@ data class AIAnalysisResponse(
     val processingTime: Long
 )
 
-/**
- * 신호 기록
- */
-data class SignalRecord(
-    val date: String,
-    val signal: SignalType,
-    val confidence: Double,
-    val indexAtSignal: Double
-)

@@ -21,21 +21,3 @@ class CheckFirstRunUseCase @Inject constructor(
         return repository.shouldShowUnifiedInitDialog()
     }
 }
-
-/**
- * 첫 실행 다이얼로그 닫힘 처리 UseCase
- */
-class DismissFirstRunDialogUseCase @Inject constructor(
-    private val repository: HomeRepository
-) {
-    companion object {
-        private const val KEY_IS_FIRST_RUN = "is_first_run"
-    }
-
-    /**
-     * 첫 실행 상태를 false로 저장
-     */
-    suspend operator fun invoke() {
-        repository.saveSetting(KEY_IS_FIRST_RUN, "false")
-    }
-}

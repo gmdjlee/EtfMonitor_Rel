@@ -148,4 +148,19 @@ object AmountFormatter {
             else -> "금액(원)"
         }
     }
+
+    /**
+     * Long 금액을 한글 단위로 포맷 (조, 억, 만)
+     *
+     * @param amount 원화 금액 (Long)
+     * @return 포맷된 문자열 (예: "1.5조", "150억", "1,234")
+     */
+    fun formatLong(amount: Long): String {
+        return when {
+            amount >= 1_000_000_000_000 -> String.format("%.1f조", amount / 1_000_000_000_000.0)
+            amount >= 100_000_000 -> String.format("%.0f억", amount / 100_000_000.0)
+            amount >= 10_000 -> String.format("%.0f만", amount / 10_000.0)
+            else -> String.format("%,d", amount)
+        }
+    }
 }

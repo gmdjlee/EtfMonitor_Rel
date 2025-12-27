@@ -107,23 +107,7 @@ data class HoldingTimeSeries(
     val amount: Float
 )
 
-data class OverlapStock(
-    val stockTicker: String,
-    val stockName: String,
-    val etfCount: Int,
-    val totalAmount: Float,
-    val etfList: String
-)
-
-data class AmountRank(
-    val stockTicker: String,
-    val stockName: String,
-    val etfName: String,
-    val weight: Float,
-    val amount: Float
-)
-
-// ✅ 전체 통계용 데이터 클래스 추가
+// 전체 통계용 데이터 클래스
 data class StockAmountRanking(
     val stockTicker: String,
     val stockName: String,

@@ -222,21 +222,10 @@ class CorrelationAnalysisRepositoryImpl @Inject constructor(
             .flowOn(Dispatchers.IO)
     }
 
-    override suspend fun getCorrelationResult(market: String, date: String): CorrelationAnalysis? =
-        withContext(Dispatchers.IO) {
-            correlationAnalysisDao.getByMarketAndDate(market, date)?.toDomain()
-        }
-
     override suspend fun getLatestCorrelationResult(market: String): CorrelationAnalysis? =
         withContext(Dispatchers.IO) {
             correlationAnalysisDao.getLatestByMarket(market)?.toDomain()
         }
-
-    override fun getAIAnalysisResults(market: String): Flow<List<AIAnalysis>> {
-        return aiAnalysisDao.getAllByMarket(market)
-            .map { list -> list.map { it.toDomain() } }
-            .flowOn(Dispatchers.IO)
-    }
 
     override suspend fun getLatestAIResult(market: String): AIAnalysis? =
         withContext(Dispatchers.IO) {

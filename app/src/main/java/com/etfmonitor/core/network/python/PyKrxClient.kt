@@ -2,6 +2,7 @@ package com.etfmonitor.core.network.python
 
 import com.chaquo.python.Python
 import com.etfmonitor.core.common.util.AppLogger
+import com.etfmonitor.core.common.util.DateFormatter
 import com.etfmonitor.core.database.entities.Etf
 import com.etfmonitor.core.database.entities.Holding
 import com.etfmonitor.core.database.entities.SnapshotType
@@ -93,18 +94,9 @@ class PyKrxClient @Inject constructor(
         val amount: Double
     )
 
-    private val etfModule by lazy {
-        //logger.d( "Loading etfcollector module")
-        python.getModule("etfcollector")
-    }
-    private val stockModule by lazy {
-        //logger.d( "Loading stocks module")
-        python.getModule("stocks")
-    }
-    private val coreModule by lazy {
-        //logger.d( "Loading core module")
-        python.getModule("core")
-    }
+    private val etfModule by lazy { python.getModule("etfcollector") }
+    private val stockModule by lazy { python.getModule("stocks") }
+    private val coreModule by lazy { python.getModule("core") }
 
     /**
      * ETF 목록을 필터링과 함께 조회 (최적화된 버전)
@@ -115,56 +107,17 @@ class PyKrxClient @Inject constructor(
         excludeKeywords: List<String>
     ): List<Etf> = withContext(Dispatchers.IO) {
         try {
-            /*
-            logger.d( "\n" + "=".repeat(80))
-            logger.d( "PyKrxClient.getFilteredEtfList() called")
-            logger.d( "=".repeat(80))
-
-            // STEP 1: 입력 확인
-            logger.d( "STEP 1: Input parameters")
-            logger.d( "  date: $date")
-            logger.d( "  includeKeywords type: ${includeKeywords::class.simpleName}")
-            logger.d( "  includeKeywords size: ${includeKeywords.size}")
-            logger.d( "  includeKeywords: $includeKeywords")
-            logger.d( "  excludeKeywords type: ${excludeKeywords::class.simpleName}")
-            logger.d( "  excludeKeywords size: ${excludeKeywords.size}")
-            logger.d( "  excludeKeywords: $excludeKeywords")
-             */
-
-            // ✅ 검증: 빈 리스트 확인
             if (includeKeywords.isEmpty()) {
-                logger.e( "ERROR: includeKeywords is empty in PyKrxClient")
+                logger.e("ERROR: includeKeywords is empty in PyKrxClient")
                 return@withContext emptyList()
             }
 
-            // STEP 2: JSON 변환
-            //logger.d( "\nSTEP 2: Convert to JSON")
             val includeJson = Json.encodeToString(includeKeywords)
             val excludeJson = Json.encodeToString(excludeKeywords)
 
-            /*
-            logger.d( "  includeJson length: ${includeJson.length}")
-            logger.d( "  includeJson: $includeJson")
-            logger.d( "  excludeJson length: ${excludeJson.length}")
-            logger.d( "  excludeJson: $excludeJson")
-
-             */
-
-            // ✅ 검증: JSON 형식 확인
             if (!includeJson.startsWith("[") || !includeJson.endsWith("]")) {
-                logger.e( "ERROR: Invalid JSON format for includeKeywords")
+                logger.e("ERROR: Invalid JSON format for includeKeywords")
             }
-
-            // STEP 3: Python 호출
-            /*
-            logger.d( "\nSTEP 3: Call Python module")
-            logger.d( "  Calling: etfModule.get_etf_list_with_names")
-            logger.d( "  Parameters:")
-            logger.d( "    1. date_str: $date")
-            logger.d( "    2. include_keywords_json: $includeJson")
-            logger.d( "    3. exclude_keywords_json: $excludeJson")
-
-             */
 
             val jsonStr = withTimeout(TIMEOUT_MS) {
                 etfModule.callAttr(
@@ -371,11 +324,5 @@ class PyKrxClient @Inject constructor(
         }
     }
 
-    private fun formatDate(date: String): String {
-        return if (date.length == 8) {
-            "${date.substring(0, 4)}-${date.substring(4, 6)}-${date.substring(6, 8)}"
-        } else {
-            date
-        }
-    }
+    private fun formatDate(date: String): String = DateFormatter.formatFromYYYYMMDD(date)
 }

@@ -430,25 +430,5 @@ class FearGreedRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * 날짜 형식 변환 (다양한 형식을 YYYY-MM-DD로 변환)
-     */
-    private fun formatDate(dateStr: String): String {
-        return try {
-            // Timestamp 형식 처리 (예: "2024-01-01 00:00:00")
-            if (dateStr.contains(" ")) {
-                dateStr.substring(0, 10)
-            } else if (dateStr.contains("-")) {
-                dateStr // 이미 YYYY-MM-DD 형식
-            } else if (dateStr.length == 8) {
-                // YYYYMMDD 형식
-                "${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}"
-            } else {
-                dateStr
-            }
-        } catch (e: Exception) {
-            logger.w("Failed to format date: $dateStr", e)
-            dateStr
-        }
-    }
+    private fun formatDate(dateStr: String): String = DateFormatter.formatFromYYYYMMDD(dateStr)
 }

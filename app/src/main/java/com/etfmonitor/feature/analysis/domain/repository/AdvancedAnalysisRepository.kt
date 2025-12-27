@@ -26,13 +26,6 @@ interface AdvancedAnalysisRepository {
         market: String = "ALL"
     ): MarketCapFlow
 
-    /**
-     * 시총 가중 흐름 이력 조회 (Flow)
-     */
-    fun observeMarketCapWeightedFlowHistory(
-        days: Int = 30,
-        market: String = "ALL"
-    ): Flow<List<MarketCapFlow>>
 
     // ==================== 2. 외국인/기관 수급 Divergence 분석 ====================
 
@@ -56,15 +49,6 @@ interface AdvancedAnalysisRepository {
      */
     suspend fun getLatestLiquidityAnalysis(): LiquidityAnalysisData?
 
-    /**
-     * 유동성 분석 이력 (Flow)
-     */
-    fun observeLiquidityHistory(days: Int = 30): Flow<List<LiquidityAnalysisData>>
-
-    /**
-     * 유동성 추이 분석
-     */
-    suspend fun analyzeLiquidityTrend(days: Int = 30): LiquidityTrendData?
 
     // ==================== 4. 섹터별 Fear & Greed 분석 ====================
 
@@ -118,11 +102,4 @@ interface AdvancedAnalysisRepository {
         threshold: Double = 0.1
     ): List<EtfCorrelation>
 
-    /**
-     * 포트폴리오 분산 분석
-     */
-    suspend fun analyzePortfolioDiversification(
-        etfTickers: List<String>,
-        date: String
-    ): PortfolioDiversificationResult
 }
