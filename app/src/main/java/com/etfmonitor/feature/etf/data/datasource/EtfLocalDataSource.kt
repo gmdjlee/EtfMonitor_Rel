@@ -70,4 +70,18 @@ class EtfLocalDataSource @Inject constructor(
     suspend fun getHoldings(etfTicker: String, date: String): List<Holding> = withContext(Dispatchers.IO) {
         etfDao.getHoldings(etfTicker, date)
     }
+
+    /**
+     * 전체 데이터의 날짜 목록 조회 (내림차순)
+     */
+    suspend fun getAllAvailableDates(limit: Int = 100): List<String> = withContext(Dispatchers.IO) {
+        etfDao.getAllDistinctDates(limit)
+    }
+
+    /**
+     * 특정 날짜 범위 내에서 ETF의 데이터 날짜 목록 조회 (내림차순)
+     */
+    suspend fun getDatesInRange(etfTicker: String, startDate: String, endDate: String): List<String> = withContext(Dispatchers.IO) {
+        etfDao.getDates(etfTicker).filter { it in startDate..endDate }
+    }
 }

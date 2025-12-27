@@ -15,6 +15,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.etfmonitor.core.ui.component.DateRangeOption
+import com.etfmonitor.core.ui.component.DateRangeSelector
 import com.etfmonitor.feature.etf.domain.model.HoldingStatus
 import com.etfmonitor.feature.etf.domain.model.HoldingWithComparison
 import com.etfmonitor.core.ui.theme.*
@@ -35,6 +37,7 @@ fun EtfDetailScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val etfName by viewModel.etfName.collectAsState()
+    val selectedRange by viewModel.selectedRange.collectAsState()
 
     Scaffold(
         topBar = {
@@ -48,7 +51,7 @@ fun EtfDetailScreen(
                         if (state is EtfDetailState.Success) {
                             val comparison = (state as EtfDetailState.Success).comparison
                             Text(
-                                "$etfTicker | 수집기간: ${comparison.collectionStartDate} ~ ${comparison.collectionEndDate}",
+                                "$etfTicker | 비교기간: ${comparison.previousDate} ~ ${comparison.currentDate}",
                                 style = MaterialTheme.typography.labelSmall
                             )
                         } else {
@@ -75,60 +78,77 @@ fun EtfDetailScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        when (val s = state) {
-            is EtfDetailState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.primary,
-                        strokeWidth = 4.dp
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            // 기간 선택 UI
+            DateRangeSelector(
+                selectedRange = selectedRange,
+                onRangeSelected = { viewModel.updateDateRange(it) },
+                availableOptions = listOf(
+                    DateRangeOption.WEEK,
+                    DateRangeOption.MONTH,
+                    DateRangeOption.THREE_MONTHS,
+                    DateRangeOption.SIX_MONTHS,
+                    DateRangeOption.YEAR,
+                    DateRangeOption.ALL
+                )
+            )
+
+            when (val s = state) {
+                is EtfDetailState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 4.dp
+                        )
+                    }
+                }
+                is EtfDetailState.Success -> {
+                    ComparisonList(
+                        items = s.comparison.items,
+                        onStockClick = onStockClick,
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
-            }
-            is EtfDetailState.Success -> {
-                ComparisonList(
-                    items = s.comparison.items,
-                    onStockClick = onStockClick,
-                    modifier = Modifier.padding(padding)
-                )
-            }
-            is EtfDetailState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .padding(MaterialTheme.spacing.large),
-                    contentAlignment = Alignment.Center
-                ) {
-                    OutlinedCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.extendedShapes.cardLarge,
-                        colors = CardDefaults.outlinedCardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        )
+                is EtfDetailState.Error -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(MaterialTheme.spacing.large),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(MaterialTheme.spacing.large),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
+                        OutlinedCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.extendedShapes.cardLarge,
+                            colors = CardDefaults.outlinedCardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            )
                         ) {
-                            Icon(
-                                Icons.Default.ErrorOutline,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                            Text(
-                                s.message,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(MaterialTheme.spacing.large),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
+                            ) {
+                                Icon(
+                                    Icons.Default.ErrorOutline,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                                Text(
+                                    s.message,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
                         }
                     }
                 }
