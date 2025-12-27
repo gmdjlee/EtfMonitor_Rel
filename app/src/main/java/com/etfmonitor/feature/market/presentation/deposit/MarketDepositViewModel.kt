@@ -100,7 +100,11 @@ class MarketDepositViewModel @Inject constructor(
             val (startDate, endDate) = ChartLabelCalculator.calculateDateRange(range)
 
             // 먼저 DB에서 데이터 확인 (필요시 자동 업데이트)
-            repository.getOrUpdateMarketData(limit = 500)
+            val updateResult = repository.getOrUpdateMarketData(limit = 500)
+            if (updateResult == null) {
+                // 네트워크 오류 등으로 업데이트 실패, 캐시된 데이터로 진행
+                AppLogger.getLogger("MarketDepositVM").w("Failed to update market data, using cached data")
+            }
 
             // 날짜 범위로 데이터 조회
             repository.getByDateRange(startDate, endDate)
