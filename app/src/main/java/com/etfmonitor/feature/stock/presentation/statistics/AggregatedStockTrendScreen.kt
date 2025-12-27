@@ -403,18 +403,7 @@ private fun AggregatedLineChart(
     )
 }
 
-private fun formatDateForChart(date: String): String {
-    return try {
-        val parts = date.split("-")
-        if (parts.size == 3) {
-            "${parts[1]}/${parts[2]}"
-        } else {
-            date
-        }
-    } catch (e: Exception) {
-        date
-    }
-}
+// formatDateForChart is defined in CashDepositTab.kt (internal visibility)
 
 // ✅ 3. AggregatedDataTable 개선
 @Composable
