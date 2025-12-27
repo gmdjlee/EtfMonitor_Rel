@@ -32,6 +32,25 @@ interface StockStatisticsRepository {
      */
     suspend fun getStatisticsDates(): Pair<String, String>?
 
+    /**
+     * 사용 가능한 날짜 목록 조회
+     *
+     * @param limit 최대 조회 개수
+     * @return 날짜 목록 (내림차순)
+     */
+    suspend fun getAvailableDates(limit: Int = 100): List<String>
+
+    /**
+     * 날짜 범위 내 통계 날짜 조회
+     *
+     * 지정된 범위 내에서 가장 최근과 가장 오래된 날짜를 반환합니다.
+     *
+     * @param startDate 시작일 (yyyy-MM-dd)
+     * @param endDate 종료일 (yyyy-MM-dd)
+     * @return (최신일, 가장오래된날짜) 쌍 또는 null
+     */
+    suspend fun getStatisticsDatesInRange(startDate: String, endDate: String): Pair<String, String>?
+
     // ========== 금액순위 ==========
 
     /**
@@ -40,6 +59,15 @@ interface StockStatisticsRepository {
      * @return 금액순위 목록
      */
     suspend fun getStockAmountRanking(): List<StockAmountRanking>
+
+    /**
+     * 종목 금액순위 조회 (날짜 범위 지정)
+     *
+     * @param currentDate 현재일 (yyyy-MM-dd)
+     * @param previousDate 이전일 (yyyy-MM-dd)
+     * @return 금액순위 목록
+     */
+    suspend fun getStockAmountRankingInRange(currentDate: String, previousDate: String): List<StockAmountRanking>
 
     // ========== 종목 변화 ==========
 
@@ -51,11 +79,29 @@ interface StockStatisticsRepository {
     suspend fun getAllNewStocks(): List<StockChangeInfo>
 
     /**
+     * 신규 편입 종목 조회 (날짜 범위 지정)
+     *
+     * @param currentDate 현재일 (yyyy-MM-dd)
+     * @param previousDate 이전일 (yyyy-MM-dd)
+     * @return 신규 편입 종목 목록
+     */
+    suspend fun getAllNewStocksInRange(currentDate: String, previousDate: String): List<StockChangeInfo>
+
+    /**
      * 제외된 종목 조회
      *
      * @return 제외된 종목 목록
      */
     suspend fun getAllRemovedStocks(): List<StockChangeInfo>
+
+    /**
+     * 제외된 종목 조회 (날짜 범위 지정)
+     *
+     * @param currentDate 현재일 (yyyy-MM-dd)
+     * @param previousDate 이전일 (yyyy-MM-dd)
+     * @return 제외된 종목 목록
+     */
+    suspend fun getAllRemovedStocksInRange(currentDate: String, previousDate: String): List<StockChangeInfo>
 
     /**
      * 비중 증가 종목 조회
@@ -65,11 +111,29 @@ interface StockStatisticsRepository {
     suspend fun getAllIncreasedStocks(): List<StockChangeInfo>
 
     /**
+     * 비중 증가 종목 조회 (날짜 범위 지정)
+     *
+     * @param currentDate 현재일 (yyyy-MM-dd)
+     * @param previousDate 이전일 (yyyy-MM-dd)
+     * @return 비중 증가 종목 목록
+     */
+    suspend fun getAllIncreasedStocksInRange(currentDate: String, previousDate: String): List<StockChangeInfo>
+
+    /**
      * 비중 감소 종목 조회
      *
      * @return 비중 감소 종목 목록
      */
     suspend fun getAllDecreasedStocks(): List<StockChangeInfo>
+
+    /**
+     * 비중 감소 종목 조회 (날짜 범위 지정)
+     *
+     * @param currentDate 현재일 (yyyy-MM-dd)
+     * @param previousDate 이전일 (yyyy-MM-dd)
+     * @return 비중 감소 종목 목록
+     */
+    suspend fun getAllDecreasedStocksInRange(currentDate: String, previousDate: String): List<StockChangeInfo>
 
     // ========== 종목 분석 ==========
 

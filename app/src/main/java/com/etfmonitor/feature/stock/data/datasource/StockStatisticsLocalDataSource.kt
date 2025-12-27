@@ -90,4 +90,8 @@ class StockStatisticsLocalDataSource @Inject constructor(
     // ========== ETF 정보 ==========
 
     suspend fun getEtf(ticker: String) = etfDao.getEtf(ticker)
+
+    // ========== 날짜 목록 ==========
+
+    suspend fun getAllDistinctDates(limit: Int = 100): List<String> = etfDao.getAllDistinctDates(limit)
 }

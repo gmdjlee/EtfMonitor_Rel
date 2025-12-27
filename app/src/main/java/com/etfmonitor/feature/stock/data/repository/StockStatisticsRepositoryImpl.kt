@@ -58,11 +58,43 @@ class StockStatisticsRepositoryImpl @Inject constructor(
         Pair(dates[0], dates[1])
     }
 
+    override suspend fun getAvailableDates(limit: Int): List<String> = withContext(Dispatchers.IO) {
+        localDataSource.getAllDistinctDates(limit)
+    }
+
+    override suspend fun getStatisticsDatesInRange(
+        startDate: String,
+        endDate: String
+    ): Pair<String, String>? = withContext(Dispatchers.IO) {
+        val allDates = localDataSource.getAllDistinctDates(500)
+        val datesInRange = allDates.filter { it in startDate..endDate }
+
+        if (datesInRange.size < 2) {
+            logger.d("getStatisticsDatesInRange: Not enough dates in range (${datesInRange.size})")
+            // 범위 내 날짜가 1개만 있으면 그 날짜를 양쪽에 사용
+            if (datesInRange.size == 1) {
+                return@withContext Pair(datesInRange[0], datesInRange[0])
+            }
+            return@withContext null
+        }
+
+        // 내림차순 정렬되어 있으므로 first가 최신, last가 가장 오래된 날짜
+        logger.d("getStatisticsDatesInRange: currentDate=${datesInRange.first()}, previousDate=${datesInRange.last()}")
+        Pair(datesInRange.first(), datesInRange.last())
+    }
+
     // ========== 금액순위 ==========
 
     override suspend fun getStockAmountRanking(): List<StockAmountRanking> = withContext(Dispatchers.IO) {
         val dates = getStatisticsDates() ?: return@withContext emptyList()
         localDataSource.getStockAmountRanking(dates.first, dates.second).toRankingDomain()
+    }
+
+    override suspend fun getStockAmountRankingInRange(
+        currentDate: String,
+        previousDate: String
+    ): List<StockAmountRanking> = withContext(Dispatchers.IO) {
+        localDataSource.getStockAmountRanking(currentDate, previousDate).toRankingDomain()
     }
 
     // ========== 종목 변화 ==========
@@ -72,9 +104,23 @@ class StockStatisticsRepositoryImpl @Inject constructor(
         localDataSource.getAllNewStocks(dates.first, dates.second).toChangeInfoDomain()
     }
 
+    override suspend fun getAllNewStocksInRange(
+        currentDate: String,
+        previousDate: String
+    ): List<StockChangeInfo> = withContext(Dispatchers.IO) {
+        localDataSource.getAllNewStocks(currentDate, previousDate).toChangeInfoDomain()
+    }
+
     override suspend fun getAllRemovedStocks(): List<StockChangeInfo> = withContext(Dispatchers.IO) {
         val dates = getStatisticsDates() ?: return@withContext emptyList()
         localDataSource.getAllRemovedStocks(dates.first, dates.second).toChangeInfoDomain()
+    }
+
+    override suspend fun getAllRemovedStocksInRange(
+        currentDate: String,
+        previousDate: String
+    ): List<StockChangeInfo> = withContext(Dispatchers.IO) {
+        localDataSource.getAllRemovedStocks(currentDate, previousDate).toChangeInfoDomain()
     }
 
     override suspend fun getAllIncreasedStocks(): List<StockChangeInfo> = withContext(Dispatchers.IO) {
@@ -82,9 +128,23 @@ class StockStatisticsRepositoryImpl @Inject constructor(
         localDataSource.getAllIncreasedStocks(dates.first, dates.second).toChangeInfoDomain()
     }
 
+    override suspend fun getAllIncreasedStocksInRange(
+        currentDate: String,
+        previousDate: String
+    ): List<StockChangeInfo> = withContext(Dispatchers.IO) {
+        localDataSource.getAllIncreasedStocks(currentDate, previousDate).toChangeInfoDomain()
+    }
+
     override suspend fun getAllDecreasedStocks(): List<StockChangeInfo> = withContext(Dispatchers.IO) {
         val dates = getStatisticsDates() ?: return@withContext emptyList()
         localDataSource.getAllDecreasedStocks(dates.first, dates.second).toChangeInfoDomain()
+    }
+
+    override suspend fun getAllDecreasedStocksInRange(
+        currentDate: String,
+        previousDate: String
+    ): List<StockChangeInfo> = withContext(Dispatchers.IO) {
+        localDataSource.getAllDecreasedStocks(currentDate, previousDate).toChangeInfoDomain()
     }
 
     // ========== 종목 분석 ==========

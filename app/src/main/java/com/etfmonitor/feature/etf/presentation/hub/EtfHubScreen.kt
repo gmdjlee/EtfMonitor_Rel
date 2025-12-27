@@ -33,6 +33,8 @@ import com.etfmonitor.R
 import com.etfmonitor.feature.etf.domain.model.Etf
 import com.etfmonitor.core.database.entities.HoldingStatus
 import com.etfmonitor.core.database.entities.SearchHistory
+import com.etfmonitor.core.ui.component.DateRangeOption
+import com.etfmonitor.core.ui.component.DateRangeSelector
 import com.etfmonitor.core.ui.component.TabNavigationBar
 import com.etfmonitor.core.ui.component.HubHeader
 import com.etfmonitor.feature.etf.presentation.list.EtfListViewModel
@@ -373,6 +375,10 @@ private fun StatisticsHubContent(
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
     val searchHistory by viewModel.searchHistory.collectAsState(initial = emptyList())
 
+    // Date range states
+    val selectedRange by viewModel.selectedRange.collectAsState()
+    val dates by viewModel.dates.collectAsState()
+
     // Start on Analysis tab (6) if initialStockTicker is provided
     var selectedTab by remember { mutableIntStateOf(if (initialStockTicker != null) 6 else 0) }
 
@@ -415,6 +421,34 @@ private fun StatisticsHubContent(
                                 style = MaterialTheme.typography.labelLarge
                             )
                         }
+                    )
+                }
+            }
+
+            // Date Range Selector (except for Analysis tab which has its own search)
+            if (selectedTab != 6) {
+                DateRangeSelector(
+                    selectedRange = selectedRange,
+                    onRangeSelected = { viewModel.updateDateRange(it) },
+                    availableOptions = listOf(
+                        DateRangeOption.WEEK,
+                        DateRangeOption.MONTH,
+                        DateRangeOption.THREE_MONTHS,
+                        DateRangeOption.SIX_MONTHS,
+                        DateRangeOption.YEAR,
+                        DateRangeOption.ALL
+                    )
+                )
+
+                // Show comparison dates
+                dates?.let { (currentDate, previousDate) ->
+                    Text(
+                        text = "$previousDate ~ $currentDate",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
                     )
                 }
             }

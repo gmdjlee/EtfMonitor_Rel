@@ -78,6 +78,30 @@ interface EtfRepository {
      */
     suspend fun getComparison(etfTicker: String): ComparisonResult?
 
+    /**
+     * ETF 보유 종목 비교 분석 (날짜 범위 지정)
+     *
+     * 지정된 날짜 범위 내에서 가장 최근과 가장 오래된 데이터를 비교합니다.
+     *
+     * @param etfTicker ETF 종목코드
+     * @param startDate 시작일 (yyyy-MM-dd)
+     * @param endDate 종료일 (yyyy-MM-dd)
+     * @return 비교 결과 또는 null (데이터가 없는 경우)
+     */
+    suspend fun getComparisonInRange(
+        etfTicker: String,
+        startDate: String,
+        endDate: String
+    ): ComparisonResult?
+
+    /**
+     * 전체 데이터의 날짜 목록 조회
+     *
+     * @param limit 최대 조회 개수
+     * @return 날짜 목록 (내림차순)
+     */
+    suspend fun getAvailableDates(limit: Int = 100): List<String>
+
     // ========== Data Collection ==========
 
     /**

@@ -241,6 +241,143 @@ class EtfRepositoryImpl @Inject constructor(
         )
     }
 
+    override suspend fun getComparisonInRange(
+        etfTicker: String,
+        startDate: String,
+        endDate: String
+    ): ComparisonResult? = withContext(Dispatchers.IO) {
+        val allDates = localDataSource.getDates(etfTicker)
+        val datesInRange = allDates.filter { it in startDate..endDate }
+
+        logger.d("getComparisonInRange for $etfTicker: ${datesInRange.size} dates in range ($startDate ~ $endDate)")
+
+        if (datesInRange.isEmpty()) {
+            logger.d("No dates found in range for $etfTicker")
+            return@withContext null
+        }
+
+        if (datesInRange.size == 1) {
+            logger.d("Only one date in range: ${datesInRange[0]}")
+            val current = localDataSource.getHoldings(etfTicker, datesInRange[0])
+            return@withContext ComparisonResult(
+                etfTicker = etfTicker,
+                currentDate = datesInRange[0],
+                previousDate = "N/A",
+                items = current.map { holding ->
+                    HoldingWithComparison(
+                        stockTicker = holding.stockTicker,
+                        stockName = holding.stockName,
+                        previousWeight = 0f,
+                        currentWeight = holding.weight,
+                        change = holding.weight,
+                        currentAmount = holding.amount,
+                        status = HoldingStatus.NEW
+                    )
+                },
+                collectionStartDate = datesInRange[0],
+                collectionEndDate = datesInRange[0]
+            )
+        }
+
+        // 범위 내에서 가장 최신과 가장 오래된 날짜 비교
+        val currentDate = datesInRange.first()  // 최신 날짜 (내림차순이므로 첫 번째)
+        val previousDate = datesInRange.last()  // 가장 오래된 날짜
+
+        logger.d("Comparing in range: $previousDate vs $currentDate")
+
+        val current = localDataSource.getHoldings(etfTicker, currentDate)
+        val previous = localDataSource.getHoldings(etfTicker, previousDate)
+
+        logger.d("Current holdings: ${current.size}, Previous holdings: ${previous.size}")
+
+        val currentMap = current.associateBy { it.stockTicker }
+        val previousMap = previous.associateBy { it.stockTicker }
+
+        val allTickers = (currentMap.keys + previousMap.keys).toSet()
+
+        val items = allTickers.map { ticker ->
+            val curr = currentMap[ticker]
+            val prev = previousMap[ticker]
+
+            when {
+                curr != null && prev == null -> {
+                    HoldingWithComparison(
+                        stockTicker = ticker,
+                        stockName = curr.stockName,
+                        previousWeight = 0f,
+                        currentWeight = curr.weight,
+                        change = curr.weight,
+                        currentAmount = curr.amount,
+                        status = HoldingStatus.NEW
+                    )
+                }
+                curr == null && prev != null -> {
+                    HoldingWithComparison(
+                        stockTicker = ticker,
+                        stockName = prev.stockName,
+                        previousWeight = prev.weight,
+                        currentWeight = 0f,
+                        change = -prev.weight,
+                        currentAmount = 0f,
+                        status = HoldingStatus.REMOVED
+                    )
+                }
+                curr != null && prev != null -> {
+                    val prevWeight = prev.weight
+                    val currWeight = curr.weight
+                    val change = currWeight - prevWeight
+
+                    val status = when {
+                        change > WEIGHT_CHANGE_THRESHOLD -> HoldingStatus.INCREASE
+                        change < -WEIGHT_CHANGE_THRESHOLD -> HoldingStatus.DECREASE
+                        else -> HoldingStatus.MAINTAIN
+                    }
+
+                    HoldingWithComparison(
+                        stockTicker = ticker,
+                        stockName = curr.stockName,
+                        previousWeight = prevWeight,
+                        currentWeight = currWeight,
+                        change = change,
+                        currentAmount = curr.amount,
+                        status = status
+                    )
+                }
+                else -> {
+                    HoldingWithComparison(
+                        stockTicker = ticker,
+                        stockName = curr?.stockName ?: prev?.stockName ?: ticker,
+                        previousWeight = 0f,
+                        currentWeight = 0f,
+                        change = 0f,
+                        currentAmount = 0f,
+                        status = HoldingStatus.MAINTAIN
+                    )
+                }
+            }
+        }
+            .sortedWith(
+                compareByDescending<HoldingWithComparison> { it.status == HoldingStatus.NEW }
+                    .thenByDescending { it.status == HoldingStatus.REMOVED }
+                    .thenByDescending { it.currentWeight }
+            )
+
+        logger.d("Comparison result in range: ${items.size} items")
+
+        ComparisonResult(
+            etfTicker = etfTicker,
+            currentDate = currentDate,
+            previousDate = previousDate,
+            items = items,
+            collectionStartDate = datesInRange.last(),
+            collectionEndDate = datesInRange.first()
+        )
+    }
+
+    override suspend fun getAvailableDates(limit: Int): List<String> = withContext(Dispatchers.IO) {
+        localDataSource.getAllAvailableDates(limit)
+    }
+
     // ========== Data Collection ==========
 
     override fun initializeData(days: Int) = flow {
