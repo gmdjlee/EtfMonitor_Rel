@@ -87,6 +87,14 @@ class OscillatorViewModel @Inject constructor(
     private val _demarkTDInterval = MutableStateFlow("w")
     val demarkTDInterval: StateFlow<String> = _demarkTDInterval.asStateFlow()
 
+    // 추세 시그널 인터벌 선택 (d: 일봉, w: 주봉)
+    private val _trendSignalInterval = MutableStateFlow("w")
+    val trendSignalInterval: StateFlow<String> = _trendSignalInterval.asStateFlow()
+
+    // Elder Impulse 인터벌 선택 (d: 일봉, w: 주봉)
+    private val _elderImpulseInterval = MutableStateFlow("w")
+    val elderImpulseInterval: StateFlow<String> = _elderImpulseInterval.asStateFlow()
+
     // 날짜 범위 선택 상태
     private val _selectedRange = MutableStateFlow(DateRangeOption.SIX_MONTHS)
     val selectedRange: StateFlow<DateRangeOption> = _selectedRange.asStateFlow()
@@ -265,9 +273,9 @@ class OscillatorViewModel @Inject constructor(
                 fullOscillatorResult = fullResult
                 fullSignalAnalysis = OscillatorCalculator.analyzeSignal(fullResult)
 
-                // 6. 추세 시그널 데이터 수집 (주간 데이터, 1년)
+                // 6. 추세 시그널 데이터 수집 (선택된 인터벌)
                 val trendSignalData = try {
-                    pyClient.getTrendSignalData(ticker, days = 365, interval = "w")
+                    pyClient.getTrendSignalData(ticker, days = 365, interval = _trendSignalInterval.value)
                 } catch (e: Exception) {
                     android.util.Log.e("OscillatorViewModel", "Trend signal error", e)
                     null
@@ -278,9 +286,9 @@ class OscillatorViewModel @Inject constructor(
                     TrendSignalCalculator.analyze(it)
                 }
 
-                // 8. Elder Impulse 데이터 수집 (주봉)
+                // 8. Elder Impulse 데이터 수집 (선택된 인터벌)
                 val elderImpulseData = try {
-                    pyClient.getElderImpulseData(ticker)
+                    pyClient.getElderImpulseData(ticker, interval = _elderImpulseInterval.value)
                 } catch (e: Exception) {
                     android.util.Log.e("OscillatorViewModel", "Elder Impulse error", e)
                     null
@@ -356,9 +364,9 @@ class OscillatorViewModel @Inject constructor(
                 fullOscillatorResult = fullResult
                 fullSignalAnalysis = OscillatorCalculator.analyzeSignal(fullResult)
 
-                // 추세 시그널 데이터 수집 (주간 데이터, 1년)
+                // 추세 시그널 데이터 수집 (선택된 인터벌)
                 val trendSignalData = try {
-                    pyClient.getTrendSignalData(ticker, days = 365, interval = "w")
+                    pyClient.getTrendSignalData(ticker, days = 365, interval = _trendSignalInterval.value)
                 } catch (e: Exception) {
                     android.util.Log.e("OscillatorViewModel", "Trend signal error", e)
                     null
@@ -369,9 +377,9 @@ class OscillatorViewModel @Inject constructor(
                     TrendSignalCalculator.analyze(it)
                 }
 
-                // Elder Impulse 데이터 수집 (주봉)
+                // Elder Impulse 데이터 수집 (선택된 인터벌)
                 val elderImpulseData = try {
-                    pyClient.getElderImpulseData(ticker)
+                    pyClient.getElderImpulseData(ticker, interval = _elderImpulseInterval.value)
                 } catch (e: Exception) {
                     android.util.Log.e("OscillatorViewModel", "Elder Impulse error", e)
                     null
@@ -397,6 +405,67 @@ class OscillatorViewModel @Inject constructor(
 
             } catch (e: Exception) {
                 _state.value = OscillatorState.Error("오류 발생: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * 추세 시그널 인터벌 변경
+     */
+    fun changeTrendSignalInterval(interval: String) {
+        val currentState = _state.value
+        if (currentState !is OscillatorState.Success) return
+        if (interval == _trendSignalInterval.value) return
+
+        val ticker = currentState.stockData.ticker
+        _trendSignalInterval.value = interval
+
+        viewModelScope.launch {
+            val trendSignalData = try {
+                pyClient.getTrendSignalData(ticker, days = 365, interval = interval)
+            } catch (e: Exception) {
+                android.util.Log.e("OscillatorViewModel", "Trend signal error", e)
+                null
+            }
+
+            val trendSignalAnalysis = trendSignalData?.let {
+                TrendSignalCalculator.analyze(it)
+            }
+
+            // 데이터 가져오기 성공한 경우에만 업데이트
+            if (trendSignalData != null) {
+                val updatedState = currentState.copy(
+                    trendSignalData = trendSignalData,
+                    trendSignalAnalysis = trendSignalAnalysis
+                )
+                _state.value = updatedState
+            }
+        }
+    }
+
+    /**
+     * Elder Impulse 인터벌 변경
+     */
+    fun changeElderImpulseInterval(interval: String) {
+        val currentState = _state.value
+        if (currentState !is OscillatorState.Success) return
+        if (interval == _elderImpulseInterval.value) return
+
+        val ticker = currentState.stockData.ticker
+        _elderImpulseInterval.value = interval
+
+        viewModelScope.launch {
+            val elderImpulseData = try {
+                pyClient.getElderImpulseData(ticker, interval = interval)
+            } catch (e: Exception) {
+                android.util.Log.e("OscillatorViewModel", "Elder Impulse error", e)
+                null
+            }
+
+            // 데이터 가져오기 성공한 경우에만 업데이트
+            if (elderImpulseData != null) {
+                val updatedState = currentState.copy(elderImpulseData = elderImpulseData)
+                _state.value = updatedState
             }
         }
     }
