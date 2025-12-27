@@ -8,6 +8,8 @@ import com.etfmonitor.core.database.entities.SearchHistoryType
 import com.etfmonitor.core.database.entities.Stock
 import com.etfmonitor.core.database.SearchHistoryDao
 import com.etfmonitor.core.service.CollectionState
+import com.etfmonitor.core.ui.component.ChartLabelCalculator
+import com.etfmonitor.core.ui.component.DateRangeOption
 import com.etfmonitor.feature.stock.domain.model.CashDepositTrend
 import com.etfmonitor.feature.stock.domain.model.StockAmountRanking
 import com.etfmonitor.feature.stock.domain.model.StockAnalysisResult
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 
 /**
@@ -48,6 +51,10 @@ class StatisticsViewModel @Inject constructor(
 
     private val _dates = MutableStateFlow<Pair<String, String>?>(null)
     val dates: StateFlow<Pair<String, String>?> = _dates.asStateFlow()
+
+    // 기간 선택 상태
+    private val _selectedRange = MutableStateFlow(DateRangeOption.MONTH)
+    val selectedRange: StateFlow<DateRangeOption> = _selectedRange.asStateFlow()
 
     // 빠른 차트 분석 설정
     private val _quickChartAnalysisEnabled = MutableStateFlow(false)
@@ -136,18 +143,54 @@ class StatisticsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 날짜 범위 선택 변경
+     */
+    fun updateDateRange(option: DateRangeOption) {
+        if (option == _selectedRange.value) return
+        _selectedRange.value = option
+        logger.d("Date range changed to: ${option.label}")
+        loadStatistics()
+    }
+
     private fun loadStatistics() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                _dates.value = repository.getStatisticsDates()
-                val ranking = repository.getStockAmountRanking()
-                originalAmountRanking = ranking
-                _amountRanking.value = ranking
-                _newStocks.value = repository.getAllNewStocks()
-                _removedStocks.value = repository.getAllRemovedStocks()
-                _increasedStocks.value = repository.getAllIncreasedStocks()
-                _decreasedStocks.value = repository.getAllDecreasedStocks()
+                // 선택된 기간에 따른 날짜 범위 계산
+                val (startDate, endDate) = ChartLabelCalculator.calculateDateRange(
+                    option = _selectedRange.value,
+                    endDate = LocalDate.now()
+                )
+
+                logger.d("Loading statistics for range: $startDate ~ $endDate")
+
+                // 날짜 범위 내 통계 날짜 조회
+                val datesInRange = repository.getStatisticsDatesInRange(startDate, endDate)
+                _dates.value = datesInRange
+
+                if (datesInRange != null) {
+                    val currentDate = datesInRange.first
+                    val previousDate = datesInRange.second
+
+                    val ranking = repository.getStockAmountRankingInRange(currentDate, previousDate)
+                    originalAmountRanking = ranking
+                    _amountRanking.value = ranking
+                    _newStocks.value = repository.getAllNewStocksInRange(currentDate, previousDate)
+                    _removedStocks.value = repository.getAllRemovedStocksInRange(currentDate, previousDate)
+                    _increasedStocks.value = repository.getAllIncreasedStocksInRange(currentDate, previousDate)
+                    _decreasedStocks.value = repository.getAllDecreasedStocksInRange(currentDate, previousDate)
+                } else {
+                    // 범위 내 데이터가 없으면 빈 목록
+                    originalAmountRanking = emptyList()
+                    _amountRanking.value = emptyList()
+                    _newStocks.value = emptyList()
+                    _removedStocks.value = emptyList()
+                    _increasedStocks.value = emptyList()
+                    _decreasedStocks.value = emptyList()
+                }
+
+                // 원화예금 추이는 전체 기간 표시
                 _cashDepositTrend.value = repository.getCashDepositTrend()
             } finally {
                 _isLoading.value = false
