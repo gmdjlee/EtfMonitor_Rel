@@ -22,14 +22,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
 import com.etfmonitor.feature.market.domain.model.MarketOscillator
 import com.etfmonitor.core.ui.component.TabNavigationBar
-import com.etfmonitor.core.ui.component.MarketDepositChart
 import com.etfmonitor.core.ui.component.HubHeader
 import com.etfmonitor.feature.market.presentation.feargreed.FearGreedContent
 import com.etfmonitor.feature.market.presentation.feargreed.FearGreedViewModel
 import com.etfmonitor.feature.market.presentation.oscillator.MarketOscillatorViewModel
 import com.etfmonitor.feature.market.presentation.oscillator.MarketOscillatorState
 import com.etfmonitor.feature.market.presentation.deposit.MarketDepositViewModel
-import com.etfmonitor.feature.market.presentation.deposit.MarketDepositState
+import com.etfmonitor.feature.market.presentation.deposit.MarketDepositContent
 import kotlinx.coroutines.launch
 
 /**
@@ -86,7 +85,7 @@ fun MarketIndicatorHubScreen(
             when (page) {
                 0 -> FearGreedContent(viewModel = fearGreedViewModel)
                 1 -> MarketOscillatorHubContent(viewModel = marketOscillatorViewModel)
-                2 -> MarketDepositHubContent(viewModel = marketDepositViewModel)
+                2 -> MarketDepositContent(viewModel = marketDepositViewModel)
             }
         }
     }
@@ -232,194 +231,6 @@ private fun MarketOscillatorHubContent(
                 oversoldThreshold = oversoldThreshold,
                 bodyScale = bodyScale
             )
-        }
-    }
-}
-
-@Composable
-private fun MarketDepositHubContent(
-    viewModel: MarketDepositViewModel
-) {
-    val state by viewModel.state.collectAsState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        when (val currentState = state) {
-            is MarketDepositState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxWidth().height(200.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(stringResource(R.string.data_collecting))
-                    }
-                }
-            }
-            is MarketDepositState.Idle -> {
-                NoDataCard(message = stringResource(R.string.market_deposit_no_data))
-            }
-            is MarketDepositState.Success -> {
-                val depositData = currentState.data
-
-                // 분석 카드
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            stringResource(R.string.market_deposit_analysis),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
-                        Text(
-                            currentState.analysis,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
-                    }
-                }
-
-                // 증시 자금 동향 차트
-                MarketDepositChart(
-                    data = depositData,
-                    latestDate = depositData.dates.lastOrNull()
-                )
-
-                // 최신 데이터 요약
-                if (depositData.dates.isNotEmpty()) {
-                    val lastIdx = depositData.dates.size - 1
-
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.market_deposit_latest_data, depositData.dates[lastIdx]),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            HorizontalDivider()
-
-                            // 고객예탁금
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        stringResource(R.string.market_deposit_customer),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        String.format("%.0f억원", depositData.depositAmounts[lastIdx]),
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-
-                                val depositChange = depositData.depositChanges[lastIdx]
-                                Text(
-                                    String.format("%+.0f억", depositChange),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = if (depositChange > 0) Color(0xFF388E3C) else Color(0xFFD32F2F),
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-
-                            HorizontalDivider()
-
-                            // 신용잔고
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        stringResource(R.string.market_deposit_credit),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        String.format("%.0f억원", depositData.creditAmounts[lastIdx]),
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-
-                                val creditChange = depositData.creditChanges[lastIdx]
-                                Text(
-                                    String.format("%+.0f억", creditChange),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = if (creditChange > 0) Color(0xFF388E3C) else Color(0xFFD32F2F),
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-
-                    // 최근 5일 데이터
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.market_deposit_recent_5_days),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Medium
-                            )
-
-                            val recentCount = minOf(5, depositData.dates.size)
-                            val startIdx = maxOf(0, depositData.dates.size - recentCount)
-
-                            for (i in (depositData.dates.size - 1) downTo startIdx) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        depositData.dates[i],
-                                        style = MaterialTheme.typography.bodySmall,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    Text(
-                                        String.format("%.0f억", depositData.depositAmounts[i]),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    Text(
-                                        String.format("%.0f억", depositData.creditAmounts[i]),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            is MarketDepositState.Error -> {
-                NoDataCard(message = currentState.message)
-            }
         }
     }
 }
