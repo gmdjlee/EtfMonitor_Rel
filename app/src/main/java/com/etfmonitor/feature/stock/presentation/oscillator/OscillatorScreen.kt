@@ -42,6 +42,7 @@ import com.etfmonitor.core.ui.component.IdleCard
 import com.etfmonitor.core.ui.component.ElderImpulseChart
 import com.etfmonitor.core.ui.component.DemarkTDChart
 import com.etfmonitor.core.analysis.model.TrendSignalAnalysis
+import com.etfmonitor.core.analysis.model.TrendSignalData
 import com.etfmonitor.core.analysis.model.TrendTradeSignal
 import com.etfmonitor.core.analysis.model.FearGreedState
 import com.etfmonitor.core.analysis.model.ElderImpulseData
@@ -586,7 +587,7 @@ private fun DemarkTDChartWithSelector(
  */
 @Composable
 private fun TrendSignalChartWithSelector(
-    data: com.etfmonitor.core.analysis.model.TrendSignalData,
+    data: TrendSignalData,
     analysis: TrendSignalAnalysis?,
     currentInterval: String,
     onIntervalChange: (String) -> Unit
