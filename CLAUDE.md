@@ -10,7 +10,7 @@
 - **Min SDK**: 26 (Android 8.0) | **Target SDK**: 35 (Android 15)
 - **Architecture**: MVVM + Clean Architecture
 - **Dependency Injection**: Hilt 2.54
-- **Database**: Room 2.8.3 (19 entities, 16 DAOs, schema v14)
+- **Database**: Room 2.8.3 (21 entities, 18 DAOs, schema v17)
 - **AI Integration**: Claude & Gemini API for market analysis
 - **Unique Feature**: Embedded Python runtime (Chaquopy) for data collection & ML predictions
 
@@ -141,11 +141,11 @@ EtfMonitor_Rel/
 │   │   │   │   ├── OscillatorCalculator.kt
 │   │   │   │   ├── TrendSignalCalculator.kt
 │   │   │   │   └── model/StockData.kt
-│   │   │   ├── database/                # Room (36 files: 18 entities, 17 DAOs, AppDatabase, Converters)
+│   │   │   ├── database/                # Room (40 files: 20 entities, 18 DAOs, AppDatabase, Converters)
 │   │   │   │   ├── AppDatabase.kt
 │   │   │   │   ├── Converters.kt
-│   │   │   │   ├── entities/            # 18 entity files (19 entities)
-│   │   │   │   └── *Dao.kt              # 17 DAO interfaces
+│   │   │   │   ├── entities/            # 20 entity files (21 entities)
+│   │   │   │   └── *Dao.kt              # 18 DAO interfaces
 │   │   │   ├── network/
 │   │   │   │   ├── ai/                  # AI API clients (14 files)
 │   │   │   │   │   ├── AIApiClient.kt
@@ -1112,12 +1112,12 @@ _searchQuery
 ```
 
 ### Database
-- **`database/AppDatabase.kt`**: Room database (19 entities, 16 DAOs, 13 migrations v1→v14), migrations defined inline
-- **`database/entities/`**: 18 entity files (19 entities - AIChatSession defined in AIChatMessage.kt)
-- **`database/*Dao.kt`**: 16 DAO interfaces in database/ folder
+- **`database/AppDatabase.kt`**: Room database (21 entities, 18 DAOs, 16 migrations v1→v17), migrations defined inline
+- **`database/entities/`**: 20 entity files (21 entities - AIChatSession defined in AIChatMessage.kt)
+- **`database/*Dao.kt`**: 18 DAO interfaces in database/ folder
 - **`database/Converters.kt`**: TypeConverters for `List<String>` and `List<Long>` (uses org.json.JSONArray)
 
-#### Database Entities (19 total)
+#### Database Entities (21 total)
 | Entity | Table | Primary Key | Critical Notes |
 |--------|-------|-------------|----------------|
 | Etf | etfs | ticker (String) | Minimal: ticker + name |
@@ -1125,7 +1125,7 @@ _searchQuery
 | Stock | stocks | ticker (String) | Added in v13, has inferMarket() helper |
 | StockAnalysisData | stock_analysis_data | ticker (String) | **name removed in v13** - requires JOIN |
 | Setting | settings | key (String) | Simple KV store |
-| SearchHistory | search_history | id (Int, auto) | User search tracking |
+| SearchHistory | search_history | id (Int, auto) | User search tracking, historyType added in v17 |
 | MarketDeposit | market_deposits | date (String) | Daily deposit/credit |
 | FearGreedIndex | fear_greed_index | id (String: "KOSPI-2024-01-01") | 12 indicator columns |
 | MarketOscillatorData | market_oscillator | id (String: "KOSPI-2025-01-01") | Overbought/oversold |
@@ -1135,10 +1135,13 @@ _searchQuery
 | AIAnalysisResult | ai_analysis_result | id (UUID String) | AI interpretation |
 | AIChatSession | ai_chat_session | id (UUID String) | Chat session |
 | AIChatMessage | ai_chat_message | id (UUID String) | Chat messages |
-| StockPrediction | stock_predictions | id ("{ticker}-{date}") | ML predictions |
+| StockPrediction | stock_predictions | id ("{ticker}-{date}") | ML predictions (legacy v1) |
 | SectorAnalysis | sector_analysis | id ("{sector}-{date}") | Sector Fear/Greed |
 | EtfCorrelationCache | etf_correlation_cache | id ("{etf1}-{etf2}-{date}") | ETF pair correlation |
 | LiquidityAnalysis | liquidity_analysis | date (String) | Market liquidity |
+| **PriceCache** | price_cache | (ticker, date) | ML prediction price cache, added in v15 |
+| **EnhancedPrediction** | enhanced_predictions | id (UUID String) | 28-feature ensemble ML predictions, added in v15 |
+| **StockIndicatorAIResult** | stock_indicator_ai_result | id (UUID String) | Stock-indicator AI analysis, added in v16 |
 
 #### Critical Migrations
 | Migration | Impact | Action Required |
@@ -1146,6 +1149,9 @@ _searchQuery
 | **7→8** | Holding restructure | Float → Short/Int, added snapshotType, 7 indices |
 | **12→13** | Stock expansion | name removed from StockAnalysisData → use JOIN |
 | **13→14** | Advanced analysis | Added SectorAnalysis, EtfCorrelationCache, LiquidityAnalysis |
+| **14→15** | Enhanced ML predictions | Added PriceCache (price history), EnhancedPrediction (28 features, ensemble) |
+| **15→16** | Stock-indicator AI | Added StockIndicatorAIResult for stock-specific AI analysis |
+| **16→17** | Search history types | Added historyType to SearchHistory for menu-specific history |
 
 ### Repositories (13 total)
 
@@ -1233,7 +1239,7 @@ _searchQuery
 #### Module Summary
 | Module | Manual Providers | Provides |
 |--------|-----------------|----------|
-| **DatabaseModule** | 17 | AppDatabase + 16 DAOs |
+| **DatabaseModule** | 19 | AppDatabase + 18 DAOs |
 | **RepositoryModule** | 6 | 6 Repositories (7 more auto-injected via @Inject) |
 | **PythonModule** | 3 | Python instance + 2 clients (2 more auto-injected) |
 | **AIModule** | 9 | ApiKeyProvider, 2 API clients, Factory, 2 Analyzers, 3 Repositories |
@@ -1286,9 +1292,13 @@ withTimeout(60_000L) {  // 60 seconds for initial load
 ```
 
 ### 3. Room Migration Testing
-**Issue**: Migrations are not automatically tested.
+**Status**: ✅ Migration tests implemented in Phase 4.
 
-**Recommendation**: Test migrations manually or add migration tests:
+**Location**: `app/src/androidTest/java/com/etfmonitor/core/database/MigrationTest.kt`
+
+**Coverage**: All 16 migrations (v1→v17) with individual and full migration tests.
+
+**Example**:
 ```kotlin
 @Test
 fun migrate7To8() {
@@ -1341,8 +1351,74 @@ val shadowColor = if (isSystemInDarkTheme()) Color.White else Color.Black
 # Install and run on device
 ./gradlew installDebug
 
-# Run tests
+# Run unit tests
 ./gradlew test
+
+# Run Android instrumented tests (requires device/emulator)
+./gradlew connectedAndroidTest
+```
+
+### Test Structure
+
+```
+app/src/test/java/com/etfmonitor/              # Unit Tests
+├── TestUtils.kt                               # Shared test utilities
+├── core/
+│   ├── analysis/
+│   │   └── CorrelationAnalyzerTest.kt        # Pearson correlation, signal generation
+│   └── network/python/
+│       └── PyKrxClientTest.kt                # Python integration, retry logic, JSON parsing
+├── feature/
+│   ├── home/presentation/
+│   │   └── HomeViewModelTest.kt              # State transitions, first-run dialog
+│   ├── etf/data/repository/
+│   │   └── EtfRepositoryImplTest.kt          # Holding comparison, settings management
+│   └── market/data/repository/
+│       └── FearGreedRepositoryImplTest.kt    # Data retrieval, cache logic
+
+app/src/androidTest/java/com/etfmonitor/       # Instrumented Tests
+└── core/database/
+    └── MigrationTest.kt                       # All 16 migrations (v1→v17)
+```
+
+### Testing Dependencies
+
+| Dependency | Version | Purpose |
+|------------|---------|---------|
+| JUnit5 | 5.10.2 | Test framework |
+| MockK | 1.13.10 | Kotlin mocking |
+| Turbine | 1.1.0 | Flow testing |
+| Coroutines Test | 1.10.2 | Coroutine testing |
+| Room Testing | 2.8.3 | Migration testing |
+| AndroidX Test | 1.5.x | Instrumented tests |
+
+### Writing Tests
+
+**ViewModel Test Pattern**:
+```kotlin
+@ExtendWith(MainDispatcherExtension::class)
+class MyViewModelTest {
+    @Test
+    fun `state transitions correctly on data load`() = runTest {
+        val viewModel = MyViewModel(mockRepository)
+        viewModel.state.test {
+            assertEquals(State.Loading, awaitItem())
+            assertEquals(State.Success(data), awaitItem())
+        }
+    }
+}
+```
+
+**Repository Test Pattern**:
+```kotlin
+class MyRepositoryTest : RepositoryTest() {
+    @Test
+    fun `returns cached data when fresh`() = runRepoTest {
+        coEvery { dao.getData() } returns flowOf(testData)
+        val result = repository.getData().first()
+        assertEquals(testData, result)
+    }
+}
 ```
 
 ### Build Variants
@@ -1590,8 +1666,8 @@ Before submitting changes, verify:
 
 ---
 
-**Last Updated**: 2025-12-25
-**Codebase Version**: Schema v14, ~255 Kotlin files
+**Last Updated**: 2025-12-27
+**Codebase Version**: Schema v17, ~255 Kotlin files
 **Maintainer**: gmdjlee
 
 ---
@@ -1685,3 +1761,27 @@ com/etfmonitor/
 **DI Modules** (10 total, all in feature/*/di/ or core/di/):
 - Core: DatabaseModule, WorkerModule, PythonModule, AIModule
 - Features: HomeModule, EtfModule, StockModule, MarketModule, AnalysisModule, SettingsModule
+
+### 2025-12-27 - Quality Plan Phase 5 (Documentation)
+
+**Database Schema v14 → v17**
+- Added 3 new entities: `PriceCache`, `EnhancedPrediction`, `StockIndicatorAIResult`
+- Added 3 new DAOs: `PriceCacheDao`, `EnhancedPredictionDao`, `StockIndicatorAIResultDao`
+- Added migrations 14→15, 15→16, 16→17
+
+**Migration Details**:
+- **v14→15**: ML prediction infrastructure (PriceCache for price history, EnhancedPrediction for 28-feature ensemble)
+- **v15→16**: Stock-indicator AI analysis (StockIndicatorAIResult)
+- **v16→17**: Search history separation (historyType field for menu-specific history)
+
+**Testing Infrastructure** (Phase 4):
+- Unit tests: 6 test files covering ViewModel, Repository, Analysis components
+- Android tests: MigrationTest covering all 16 migrations (v1→v17)
+- Testing dependencies: JUnit5, MockK, Turbine, Coroutines Test, Room Testing
+
+**Documentation Updates**:
+- Updated entity count: 19 → 21
+- Updated DAO count: 16 → 18
+- Updated migration count: 13 → 16
+- Added Testing Guide section with test structure and patterns
+- Created CHANGELOG.md for version tracking
