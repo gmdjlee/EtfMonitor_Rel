@@ -68,7 +68,7 @@ import com.etfmonitor.core.database.entities.EnhancedPrediction
         EnhancedPrediction::class
     ],
     version = 17,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
