@@ -31,6 +31,7 @@ import com.etfmonitor.core.ui.component.MacdChart
 import com.etfmonitor.core.ui.component.TrendSignalChart
 import com.etfmonitor.core.ui.component.ElderImpulseChart
 import com.etfmonitor.core.ui.component.DemarkTDChart
+import com.etfmonitor.core.ui.component.DateRangeSelector
 import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.feature.stock.presentation.oscillator.OscillatorViewModel
 import com.etfmonitor.feature.stock.presentation.oscillator.OscillatorState
@@ -60,6 +61,8 @@ fun StocksHubScreen(
     val suggestions by viewModel.suggestions.collectAsState()
     val demarkTDInterval by viewModel.demarkTDInterval.collectAsState()
     val searchHistory by viewModel.searchHistory.collectAsState()
+    val selectedRange by viewModel.selectedRange.collectAsState()
+    val currentTicker by viewModel.currentTicker.collectAsState()
 
     // Set initial ticker if provided (skip history save when navigating via FAB)
     LaunchedEffect(initialTicker) {
@@ -108,6 +111,14 @@ fun StocksHubScreen(
         }
 
         Spacer(modifier = Modifier.height(8.dp))
+
+        // 기간 선택 (분석된 종목이 있을 때 표시)
+        if (currentTicker != null) {
+            DateRangeSelector(
+                selectedRange = selectedRange,
+                onRangeSelected = { viewModel.updateDateRange(it) }
+            )
+        }
 
         // Content
         when (val currentState = state) {
