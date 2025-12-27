@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 
 sealed class OscillatorState {
@@ -99,6 +100,14 @@ class OscillatorViewModel @Inject constructor(
     val quickChartAnalysisEnabled: StateFlow<Boolean> = _quickChartAnalysisEnabled.asStateFlow()
 
     private var searchJob: Job? = null
+
+    // 전체 데이터 캐시 (클라이언트 사이드 필터링용)
+    private var fullStockData: StockData? = null
+    private var fullOscillatorResult: OscillatorResult? = null
+    private var fullSignalAnalysis: SignalAnalysis? = null
+
+    // 최대 조회 일수 (전체 기간)
+    private val maxDays = 730
 
     init {
         loadSearchHistory()
@@ -206,8 +215,8 @@ class OscillatorViewModel @Inject constructor(
     }
 
     fun searchAndAnalyze(query: String, days: Int? = null) {
-        // days가 null이면 선택된 범위 사용
-        val actualDays = days ?: _selectedRange.value.days.let { if (it == -1) 730 else it }
+        // 항상 최대 일수로 조회하여 캐시 (클라이언트 사이드 필터링용)
+        val fetchDays = days ?: maxDays
 
         viewModelScope.launch {
             try {
@@ -223,12 +232,15 @@ class OscillatorViewModel @Inject constructor(
                 val (ticker, _) = searchResult
                 _currentTicker.value = ticker
 
-                // 2. 종목 데이터 수집 (DB 캐시 활용)
-                val stockData = stockAnalysisRepository.getStockAnalysis(ticker, actualDays)
+                // 2. 종목 데이터 수집 (DB 캐시 활용) - 항상 최대 일수로 조회
+                val stockData = stockAnalysisRepository.getStockAnalysis(ticker, fetchDays)
                 if (stockData == null) {
                     _state.value = OscillatorState.Error("데이터를 가져올 수 없습니다")
                     return@launch
                 }
+
+                // 전체 데이터 캐시
+                fullStockData = stockData
 
                 // 3. 검색 히스토리에 저장
                 val stock = stockRepository.searchStocks(ticker)
@@ -239,11 +251,18 @@ class OscillatorViewModel @Inject constructor(
                     saveToHistory(stock.ticker, stock.name, stock.market)
                 }
 
-                // 4. 오실레이터 계산
-                val oscillatorResult = OscillatorCalculator.calculate(stockData)
+                // 선택된 기간으로 필터링
+                val filteredData = filterStockDataByRange(stockData, _selectedRange.value)
+
+                // 4. 오실레이터 계산 (필터링된 데이터 사용)
+                val oscillatorResult = OscillatorCalculator.calculate(filteredData)
 
                 // 5. 신호 분석
                 val signalAnalysis = OscillatorCalculator.analyzeSignal(oscillatorResult)
+
+                // 전체 데이터 기반 결과도 캐시
+                fullOscillatorResult = OscillatorCalculator.calculate(stockData)
+                fullSignalAnalysis = OscillatorCalculator.analyzeSignal(fullOscillatorResult!!)
 
                 // 6. 추세 시그널 데이터 수집 (주간 데이터, 1년)
                 val trendSignalData = try {
@@ -275,7 +294,7 @@ class OscillatorViewModel @Inject constructor(
                 }
 
                 _state.value = OscillatorState.Success(
-                    stockData = stockData,
+                    stockData = filteredData,
                     oscillatorResult = oscillatorResult,
                     signalAnalysis = signalAnalysis,
                     trendSignalData = trendSignalData,
@@ -294,19 +313,22 @@ class OscillatorViewModel @Inject constructor(
         // 현재 종목 저장
         _currentTicker.value = ticker
 
-        // days가 null이면 선택된 범위 사용
-        val actualDays = days ?: _selectedRange.value.days.let { if (it == -1) 730 else it }
+        // 항상 최대 일수로 조회하여 캐시 (클라이언트 사이드 필터링용)
+        val fetchDays = days ?: maxDays
 
         viewModelScope.launch {
             try {
                 _state.value = OscillatorState.Loading
 
-                // 종목 데이터 수집 (DB 캐시 활용)
-                val stockData = stockAnalysisRepository.getStockAnalysis(ticker, actualDays)
+                // 종목 데이터 수집 (DB 캐시 활용) - 항상 최대 일수로 조회
+                val stockData = stockAnalysisRepository.getStockAnalysis(ticker, fetchDays)
                 if (stockData == null) {
                     _state.value = OscillatorState.Error("데이터를 가져올 수 없습니다")
                     return@launch
                 }
+
+                // 전체 데이터 캐시
+                fullStockData = stockData
 
                 // 검색 히스토리에 저장 (FAB 네비게이션 시에는 저장하지 않음)
                 if (saveHistory) {
@@ -319,11 +341,18 @@ class OscillatorViewModel @Inject constructor(
                     }
                 }
 
-                // 오실레이터 계산
-                val oscillatorResult = OscillatorCalculator.calculate(stockData)
+                // 선택된 기간으로 필터링
+                val filteredData = filterStockDataByRange(stockData, _selectedRange.value)
+
+                // 오실레이터 계산 (필터링된 데이터 사용)
+                val oscillatorResult = OscillatorCalculator.calculate(filteredData)
 
                 // 신호 분석
                 val signalAnalysis = OscillatorCalculator.analyzeSignal(oscillatorResult)
+
+                // 전체 데이터 기반 결과도 캐시
+                fullOscillatorResult = OscillatorCalculator.calculate(stockData)
+                fullSignalAnalysis = OscillatorCalculator.analyzeSignal(fullOscillatorResult!!)
 
                 // 추세 시그널 데이터 수집 (주간 데이터, 1년)
                 val trendSignalData = try {
@@ -355,7 +384,7 @@ class OscillatorViewModel @Inject constructor(
                 }
 
                 _state.value = OscillatorState.Success(
-                    stockData = stockData,
+                    stockData = filteredData,
                     oscillatorResult = oscillatorResult,
                     signalAnalysis = signalAnalysis,
                     trendSignalData = trendSignalData,
@@ -398,15 +427,66 @@ class OscillatorViewModel @Inject constructor(
     }
 
     /**
-     * 날짜 범위 변경 - 현재 종목 재분석
+     * StockData를 날짜 범위로 필터링
+     */
+    private fun filterStockDataByRange(data: StockData, option: DateRangeOption): StockData {
+        // 전체 기간이면 필터링 없이 반환
+        if (option.days == -1 || data.dates.isEmpty()) return data
+
+        val cutoffDate = LocalDate.now().minusDays(option.days.toLong())
+        val cutoffStr = cutoffDate.toString()
+
+        val startIndex = data.dates.indexOfFirst { it >= cutoffStr }
+        if (startIndex < 0) return data
+
+        return StockData(
+            ticker = data.ticker,
+            name = data.name,
+            dates = data.dates.drop(startIndex),
+            marketCap = data.marketCap.drop(startIndex),
+            foreign5d = data.foreign5d.drop(startIndex),
+            institution5d = data.institution5d.drop(startIndex)
+        )
+    }
+
+    /**
+     * 캐시된 데이터에 날짜 범위 필터 적용
+     * 로딩 상태 전환 없이 클라이언트 사이드 필터링
+     */
+    private fun applyDateRangeFilter() {
+        val currentState = _state.value
+        val cachedData = fullStockData
+
+        if (currentState is OscillatorState.Success && cachedData != null) {
+            // 클라이언트 사이드 필터링 - 데이터 리로드 없음
+            val filteredData = filterStockDataByRange(cachedData, _selectedRange.value)
+            val oscillatorResult = OscillatorCalculator.calculate(filteredData)
+            val signalAnalysis = OscillatorCalculator.analyzeSignal(oscillatorResult)
+
+            _state.value = currentState.copy(
+                stockData = filteredData,
+                oscillatorResult = oscillatorResult,
+                signalAnalysis = signalAnalysis
+                // trendSignalData, elderImpulseData, demarkTDData는 유지
+            )
+        }
+    }
+
+    /**
+     * 날짜 범위 변경 - 클라이언트 사이드 필터링 사용
      */
     fun updateDateRange(option: DateRangeOption) {
         if (option == _selectedRange.value) return
         _selectedRange.value = option
 
-        // 현재 종목이 있으면 재분석
-        _currentTicker.value?.let { ticker ->
-            analyzeStock(ticker, saveHistory = false)
+        // 캐시된 데이터가 있으면 클라이언트 사이드 필터링
+        if (fullStockData != null && _state.value is OscillatorState.Success) {
+            applyDateRangeFilter()
+        } else {
+            // 캐시가 없으면 전체 데이터 로드 필요
+            _currentTicker.value?.let { ticker ->
+                analyzeStock(ticker, saveHistory = false)
+            }
         }
     }
 }

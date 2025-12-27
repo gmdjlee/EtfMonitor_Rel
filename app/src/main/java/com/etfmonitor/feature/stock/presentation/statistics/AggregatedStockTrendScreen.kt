@@ -1,7 +1,10 @@
 package com.etfmonitor.feature.stock.presentation.statistics
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -10,11 +13,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -24,7 +28,16 @@ import com.etfmonitor.feature.stock.domain.model.StockAggregatedTimePoint
 import com.etfmonitor.feature.stock.domain.model.StockAggregatedTrend
 import com.etfmonitor.feature.stock.domain.repository.StockStatisticsRepository
 import com.etfmonitor.core.common.util.AmountFormatter
-import com.etfmonitor.core.ui.component.ChartCard
+import com.etfmonitor.core.ui.component.DateRangeOption
+import com.etfmonitor.core.ui.component.DateRangeSelector
+import com.etfmonitor.core.ui.theme.ChartGridDark
+import com.etfmonitor.core.ui.theme.ChartGridLight
+import com.github.mikephil.charting.charts.LineChart
+import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.data.Entry
+import com.github.mikephil.charting.data.LineData
+import com.github.mikephil.charting.data.LineDataSet
+import com.github.mikephil.charting.formatter.ValueFormatter
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -32,21 +45,11 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
-import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
-import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
-import com.patrykandpatrick.vico.core.common.data.ExtraStore
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +72,7 @@ fun AggregatedStockTrendScreen(
     )
     val state by viewModel.state.collectAsState()
     val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
+    val selectedRange by viewModel.selectedRange.collectAsState()
 
     Scaffold(
         topBar = {
@@ -122,6 +126,8 @@ fun AggregatedStockTrendScreen(
             is AggregatedTrendState.Success -> {
                 AggregatedTrendContent(
                     trend = s.trend,
+                    selectedRange = selectedRange,
+                    onRangeSelected = { viewModel.updateDateRange(it) },
                     modifier = Modifier.padding(padding)
                 )
             }
@@ -140,33 +146,48 @@ fun AggregatedStockTrendScreen(
 @Composable
 private fun AggregatedTrendContent(
     trend: StockAggregatedTrend,
+    selectedRange: DateRangeOption,
+    onRangeSelected: (DateRangeOption) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // 기간 선택
+        DateRangeSelector(
+            selectedRange = selectedRange,
+            onRangeSelected = onRangeSelected
+        )
+
         AggregatedSummaryCard(trend.timeSeries)
 
-        AggregatedChartCard(
-            title = "총 평가금액 추이 (억원)",
+        AggregatedChartSection(
+            title = "총 평가금액 추이",
             data = trend.timeSeries,
-            valueExtractor = { it.totalAmount / 100_000_000 }
+            valueExtractor = { it.totalAmount / 100_000_000 },
+            chartColor = 0
         )
-        AggregatedChartCard(
+        AggregatedChartSection(
             title = "최대 비중 추이 (%)",
             data = trend.timeSeries,
-            valueExtractor = { it.maxWeight }
+            valueExtractor = { it.maxWeight },
+            chartColor = 1
         )
-        AggregatedChartCard(
+        AggregatedChartSection(
             title = "평균 비중 추이 (%)",
             data = trend.timeSeries,
-            valueExtractor = { it.avgWeight }
+            valueExtractor = { it.avgWeight },
+            chartColor = 2
         )
         AggregatedDataTable(trend.timeSeries)
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -225,15 +246,17 @@ private fun AggregatedSummaryCard(timeSeries: List<StockAggregatedTimePoint>) {
 
 // SummaryItem is defined in CashDepositTab.kt (internal visibility)
 
-// ✅ 2. AggregatedChartCard 개선
-// Uses shared ChartCard with dark mode support
+/**
+ * Fear & Greed 스타일 차트 섹션
+ * Surface with RoundedCornerShape, BorderStroke, chart title styling
+ */
 @Composable
-private fun AggregatedChartCard(
+private fun AggregatedChartSection(
     title: String,
     data: List<StockAggregatedTimePoint>,
-    valueExtractor: (StockAggregatedTimePoint) -> Float
+    valueExtractor: (StockAggregatedTimePoint) -> Float,
+    chartColor: Int // 0: primary, 1: secondary, 2: tertiary
 ) {
-    // ✅ 개선: 차트 제목에 동적 단위 추가
     val maxValue = data.maxOfOrNull { valueExtractor(it) } ?: 0f
     val isAmountChart = title.contains("금액")
     val chartTitle = if (isAmountChart) {
@@ -243,73 +266,141 @@ private fun AggregatedChartCard(
         title
     }
 
-    ChartCard(
-        title = chartTitle,
-        modifier = Modifier.fillMaxWidth()
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+        )
     ) {
-        if (data.isEmpty()) {
-            Text("데이터 없음", style = MaterialTheme.typography.bodySmall)
-        } else {
-            val modelProducer = remember { CartesianChartModelProducer() }
-            val scope = rememberCoroutineScope()
-            val dateLabelsKey = remember { ExtraStore.Key<List<String>>() }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = chartTitle,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = MaterialTheme.colorScheme.onSurface
+            )
 
-            LaunchedEffect(data) {
-                scope.launch(Dispatchers.Default) {
-                    modelProducer.runTransaction {
-                        lineSeries {
-                            // ✅ 개선: 차트 값 변환
-                            if (isAmountChart) {
-                                series(data.map { AmountFormatter.toChartValue(valueExtractor(it)) })
-                            } else {
-                                series(data.map { valueExtractor(it).toDouble() })
-                            }
-                        }
-                        extras { extraStore ->
-                            extraStore[dateLabelsKey] = data.map { formatDateForChart(it.date) }
-                        }
+            if (data.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(250.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "데이터 없음",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                AggregatedLineChart(
+                    data = data,
+                    valueExtractor = valueExtractor,
+                    colorIndex = chartColor,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(250.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * MPAndroidChart 기반 라인 차트 (Fear & Greed 스타일)
+ */
+@Composable
+private fun AggregatedLineChart(
+    data: List<StockAggregatedTimePoint>,
+    valueExtractor: (StockAggregatedTimePoint) -> Float,
+    colorIndex: Int,
+    modifier: Modifier = Modifier
+) {
+    val isDark = isSystemInDarkTheme()
+    val lineColor = when (colorIndex) {
+        0 -> MaterialTheme.colorScheme.primary.toArgb()
+        1 -> MaterialTheme.colorScheme.secondary.toArgb()
+        else -> MaterialTheme.colorScheme.tertiary.toArgb()
+    }
+    val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
+    val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
+
+    AndroidView(
+        factory = { context ->
+            LineChart(context).apply {
+                description.isEnabled = false
+                setTouchEnabled(true)
+                isDragEnabled = true
+                setScaleEnabled(true)
+                setPinchZoom(true)
+                setDrawGridBackground(false)
+                legend.isEnabled = false
+
+                xAxis.apply {
+                    position = XAxis.XAxisPosition.BOTTOM
+                    setDrawGridLines(true)
+                    gridLineWidth = 1f
+                    setGridColor(gridColor)
+                    enableGridDashedLine(10f, 5f, 0f)
+                    setTextColor(textColor)
+                    granularity = 1f
+                    labelRotationAngle = -45f
+                    setLabelCount(6, false)
+                }
+
+                axisLeft.apply {
+                    setDrawGridLines(true)
+                    gridLineWidth = 1f
+                    setGridColor(gridColor)
+                    enableGridDashedLine(10f, 5f, 0f)
+                    setTextColor(textColor)
+                }
+
+                axisRight.isEnabled = false
+            }
+        },
+        update = { chart ->
+            val entries = data.mapIndexed { index, item ->
+                Entry(index.toFloat(), valueExtractor(item))
+            }
+
+            val dataSet = LineDataSet(entries, "").apply {
+                color = lineColor
+                lineWidth = 2.5f
+                setCircleColor(lineColor)
+                circleRadius = 2f
+                setDrawCircleHole(false)
+                setDrawValues(false)
+                mode = LineDataSet.Mode.CUBIC_BEZIER
+                highLightColor = lineColor
+            }
+
+            chart.xAxis.valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    val index = value.toInt()
+                    return if (index >= 0 && index < data.size) {
+                        formatDateForChart(data[index].date)
+                    } else {
+                        ""
                     }
                 }
             }
 
-            CartesianChartHost(
-                chart = rememberCartesianChart(
-                    rememberLineCartesianLayer(),
-                    startAxis = rememberStartAxis(
-                        label = rememberTextComponent(
-                            color = ComposeColor.Black,
-                            textSize = 10.sp
-                        )
-                    ),
-                    bottomAxis = rememberBottomAxis(
-                        label = rememberTextComponent(
-                            color = ComposeColor.Black,
-                            textSize = 10.sp
-                        ),
-                        valueFormatter = { x, chartValues, _ ->
-                            val dateLabels = chartValues.model.extraStore.getOrNull(dateLabelsKey)
-                            val index = x.toInt()
-                            if (dateLabels != null && index >= 0 && index < dateLabels.size) {
-                                dateLabels[index]
-                            } else {
-                                ""
-                            }
-                        },
-                        itemPlacer = remember {
-                            HorizontalAxis.ItemPlacer.default(
-                                spacing = 2,
-                                addExtremeLabelPadding = true
-                            )
-                        }
-                    )
-                ),
-                modelProducer = modelProducer,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-            )
-        }
-    }
+            chart.data = LineData(dataSet)
+            chart.invalidate()
+        },
+        modifier = modifier
+    )
 }
 
 // formatDateForChart is defined in CashDepositTab.kt (internal visibility)
@@ -413,24 +504,61 @@ class AggregatedStockTrendViewModel @AssistedInject constructor(
     private val _quickChartAnalysisEnabled = MutableStateFlow(false)
     val quickChartAnalysisEnabled: StateFlow<Boolean> = _quickChartAnalysisEnabled.asStateFlow()
 
+    // 날짜 범위 선택 상태
+    private val _selectedRange = MutableStateFlow(DateRangeOption.YEAR)
+    val selectedRange: StateFlow<DateRangeOption> = _selectedRange.asStateFlow()
+
+    // 전체 데이터 캐시
+    private var fullTrend: StockAggregatedTrend? = null
+
     init {
         loadTrend()
         loadQuickChartAnalysisSetting()
+    }
+
+    /**
+     * 날짜 범위 업데이트
+     */
+    fun updateDateRange(option: DateRangeOption) {
+        if (option == _selectedRange.value) return
+        _selectedRange.value = option
+        applyDateRangeFilter()
     }
 
     private fun loadTrend() {
         viewModelScope.launch {
             try {
                 val trend = stockStatisticsRepository.getStockAggregatedTrend(stockTicker)
-                _state.value = if (trend != null) {
-                    AggregatedTrendState.Success(trend)
+                fullTrend = trend
+                if (trend != null) {
+                    applyDateRangeFilter()
                 } else {
-                    AggregatedTrendState.Error("데이터를 찾을 수 없습니다")
+                    _state.value = AggregatedTrendState.Error("데이터를 찾을 수 없습니다")
                 }
             } catch (e: Exception) {
                 _state.value = AggregatedTrendState.Error(e.message ?: "오류 발생")
             }
         }
+    }
+
+    private fun applyDateRangeFilter() {
+        val trend = fullTrend ?: return
+
+        val filteredTimeSeries = if (_selectedRange.value == DateRangeOption.ALL) {
+            trend.timeSeries
+        } else {
+            val cutoffDate = LocalDate.now().minusDays(_selectedRange.value.days.toLong())
+            trend.timeSeries.filter { point ->
+                try {
+                    LocalDate.parse(point.date) >= cutoffDate
+                } catch (e: Exception) {
+                    true // 파싱 실패 시 포함
+                }
+            }
+        }
+
+        val filteredTrend = trend.copy(timeSeries = filteredTimeSeries)
+        _state.value = AggregatedTrendState.Success(filteredTrend)
     }
 
     private fun loadQuickChartAnalysisSetting() {

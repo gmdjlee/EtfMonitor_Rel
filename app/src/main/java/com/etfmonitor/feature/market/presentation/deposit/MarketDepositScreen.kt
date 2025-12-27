@@ -21,7 +21,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
 import com.etfmonitor.core.ui.component.DateRangeSelector
-import com.etfmonitor.core.ui.component.SingleChartColorSettings
 import com.etfmonitor.core.ui.theme.*
 import com.etfmonitor.feature.market.domain.model.MarketDepositData
 import com.etfmonitor.feature.settings.presentation.SettingsViewModel

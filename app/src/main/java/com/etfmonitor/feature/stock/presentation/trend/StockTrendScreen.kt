@@ -1,7 +1,10 @@
 package com.etfmonitor.feature.stock.presentation.trend
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -10,29 +13,26 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
-import com.etfmonitor.core.ui.component.ChartCard
+import com.etfmonitor.core.ui.component.DateRangeOption
+import com.etfmonitor.core.ui.component.DateRangeSelector
+import com.etfmonitor.core.ui.theme.ChartGridDark
+import com.etfmonitor.core.ui.theme.ChartGridLight
 import com.etfmonitor.feature.stock.domain.model.StockTrend
 import com.etfmonitor.feature.stock.domain.model.HoldingTimeSeries
 import com.etfmonitor.core.common.util.AmountFormatter
-import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
-import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
-import com.patrykandpatrick.vico.core.common.data.ExtraStore
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import com.github.mikephil.charting.charts.LineChart
+import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.data.Entry
+import com.github.mikephil.charting.data.LineData
+import com.github.mikephil.charting.data.LineDataSet
+import com.github.mikephil.charting.formatter.ValueFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +45,7 @@ fun StockTrendScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
+    val selectedRange by viewModel.selectedRange.collectAsState()
 
     Scaffold(
         topBar = {
@@ -98,6 +99,8 @@ fun StockTrendScreen(
             is StockTrendState.Success -> {
                 TrendContent(
                     trend = s.trend,
+                    selectedRange = selectedRange,
+                    onRangeSelected = { viewModel.updateDateRange(it) },
                     modifier = Modifier.padding(padding)
                 )
             }
@@ -116,30 +119,44 @@ fun StockTrendScreen(
 @Composable
 private fun TrendContent(
     trend: StockTrend,
+    selectedRange: DateRangeOption,
+    onRangeSelected: (DateRangeOption) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // 기간 선택
+        DateRangeSelector(
+            selectedRange = selectedRange,
+            onRangeSelected = onRangeSelected
+        )
+
         SummaryCard(trend.timeSeries)
 
-        StockTrendChartCard(
+        StockTrendChartSection(
             title = stringResource(R.string.stock_trend_weight_chart),
             data = trend.timeSeries,
             valueExtractor = { it.weight },
-            color = MaterialTheme.colorScheme.primary
+            valueFormatter = { String.format("%.2f%%", it) },
+            isPrimary = true
         )
-        StockTrendChartCard(
+        StockTrendChartSection(
             title = stringResource(R.string.stock_trend_amount_chart),
             data = trend.timeSeries,
             valueExtractor = { it.amount / 100_000_000 },
-            color = MaterialTheme.colorScheme.secondary
+            valueFormatter = { AmountFormatter.format(it * 100_000_000) },
+            isPrimary = false
         )
         DataTable(trend.timeSeries)
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -200,12 +217,17 @@ private fun SummaryItem(label: String, value: String) {
     }
 }
 
+/**
+ * Fear & Greed 스타일 차트 섹션
+ * Surface with RoundedCornerShape, BorderStroke, chart title styling
+ */
 @Composable
-private fun StockTrendChartCard(
+private fun StockTrendChartSection(
     title: String,
     data: List<HoldingTimeSeries>,
     valueExtractor: (HoldingTimeSeries) -> Float,
-    color: Color
+    valueFormatter: (Float) -> String,
+    isPrimary: Boolean
 ) {
     val maxValue = data.maxOfOrNull { valueExtractor(it) } ?: 0f
     val isAmountChart = title.contains("금액")
@@ -216,72 +238,141 @@ private fun StockTrendChartCard(
         title
     }
 
-    ChartCard(
-        title = chartTitle,
-        modifier = Modifier.fillMaxWidth()
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+        )
     ) {
-        if (data.isEmpty()) {
-            Text("데이터 없음", style = MaterialTheme.typography.bodySmall)
-        } else {
-            val modelProducer = remember { CartesianChartModelProducer() }
-            val scope = rememberCoroutineScope()
-            val dateLabelsKey = remember { ExtraStore.Key<List<String>>() }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = chartTitle,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = MaterialTheme.colorScheme.onSurface
+            )
 
-            LaunchedEffect(data) {
-                scope.launch(Dispatchers.Default) {
-                    modelProducer.runTransaction {
-                        lineSeries {
-                            if (isAmountChart) {
-                                series(data.map { AmountFormatter.toChartValue(valueExtractor(it)) })
-                            } else {
-                                series(data.map { valueExtractor(it).toDouble() })
-                            }
-                        }
-                        extras { extraStore ->
-                            extraStore[dateLabelsKey] = data.map { formatDateForChart(it.date) }
-                        }
+            if (data.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(250.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "데이터 없음",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                StockTrendLineChart(
+                    data = data,
+                    valueExtractor = valueExtractor,
+                    isPrimary = isPrimary,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(250.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * MPAndroidChart 기반 라인 차트 (Fear & Greed 스타일)
+ */
+@Composable
+private fun StockTrendLineChart(
+    data: List<HoldingTimeSeries>,
+    valueExtractor: (HoldingTimeSeries) -> Float,
+    isPrimary: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val isDark = isSystemInDarkTheme()
+    val lineColor = if (isPrimary) {
+        MaterialTheme.colorScheme.primary.toArgb()
+    } else {
+        MaterialTheme.colorScheme.secondary.toArgb()
+    }
+    val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
+    val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
+
+    AndroidView(
+        factory = { context ->
+            LineChart(context).apply {
+                description.isEnabled = false
+                setTouchEnabled(true)
+                isDragEnabled = true
+                setScaleEnabled(true)
+                setPinchZoom(true)
+                setDrawGridBackground(false)
+                legend.isEnabled = false
+
+                xAxis.apply {
+                    position = XAxis.XAxisPosition.BOTTOM
+                    setDrawGridLines(true)
+                    gridLineWidth = 1f
+                    setGridColor(gridColor)
+                    enableGridDashedLine(10f, 5f, 0f)
+                    setTextColor(textColor)
+                    granularity = 1f
+                    labelRotationAngle = -45f
+                    setLabelCount(6, false)
+                }
+
+                axisLeft.apply {
+                    setDrawGridLines(true)
+                    gridLineWidth = 1f
+                    setGridColor(gridColor)
+                    enableGridDashedLine(10f, 5f, 0f)
+                    setTextColor(textColor)
+                }
+
+                axisRight.isEnabled = false
+            }
+        },
+        update = { chart ->
+            val entries = data.mapIndexed { index, item ->
+                Entry(index.toFloat(), valueExtractor(item))
+            }
+
+            val dataSet = LineDataSet(entries, "").apply {
+                color = lineColor
+                lineWidth = 2.5f
+                setCircleColor(lineColor)
+                circleRadius = 2f
+                setDrawCircleHole(false)
+                setDrawValues(false)
+                mode = LineDataSet.Mode.CUBIC_BEZIER
+                highLightColor = lineColor
+            }
+
+            chart.xAxis.valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    val index = value.toInt()
+                    return if (index >= 0 && index < data.size) {
+                        formatDateForChart(data[index].date)
+                    } else {
+                        ""
                     }
                 }
             }
 
-            CartesianChartHost(
-                chart = rememberCartesianChart(
-                    rememberLineCartesianLayer(),
-                    startAxis = rememberStartAxis(
-                        label = rememberTextComponent(
-                            color = ComposeColor.Black,
-                            textSize = 10.sp
-                        )
-                    ),
-                    bottomAxis = rememberBottomAxis(
-                        label = rememberTextComponent(
-                            color = ComposeColor.Black,
-                            textSize = 10.sp
-                        ),
-                        valueFormatter = { x, chartValues, _ ->
-                            val dateLabels = chartValues.model.extraStore.getOrNull(dateLabelsKey)
-                            val index = x.toInt()
-                            if (dateLabels != null && index >= 0 && index < dateLabels.size) {
-                                dateLabels[index]
-                            } else {
-                                ""
-                            }
-                        },
-                        itemPlacer = remember {
-                            HorizontalAxis.ItemPlacer.default(
-                                spacing = 1,
-                                addExtremeLabelPadding = true
-                            )
-                        }
-                    )
-                ),
-                modelProducer = modelProducer,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-            )
-        }
-    }
+            chart.data = LineData(dataSet)
+            chart.invalidate()
+        },
+        modifier = modifier
+    )
 }
 
 private fun formatDateForChart(date: String): String {

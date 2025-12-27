@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.network.python.OscillatorPyClient
+import com.etfmonitor.core.ui.component.DateRangeOption
+import com.etfmonitor.feature.stock.domain.model.StockTrend
 import com.etfmonitor.feature.stock.domain.usecase.GetStockTrendUseCase
 import com.etfmonitor.core.common.util.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 
 /**
@@ -49,25 +52,62 @@ class StockTrendViewModel @Inject constructor(
     private val _quickChartAnalysisEnabled = MutableStateFlow(false)
     val quickChartAnalysisEnabled: StateFlow<Boolean> = _quickChartAnalysisEnabled.asStateFlow()
 
+    // 날짜 범위 선택 상태
+    private val _selectedRange = MutableStateFlow(DateRangeOption.YEAR)
+    val selectedRange: StateFlow<DateRangeOption> = _selectedRange.asStateFlow()
+
+    // 전체 데이터 캐시
+    private var fullTrend: StockTrend? = null
+
     init {
         loadTrend()
         loadQuickChartAnalysisSetting()
+    }
+
+    /**
+     * 날짜 범위 업데이트
+     */
+    fun updateDateRange(option: DateRangeOption) {
+        if (option == _selectedRange.value) return
+        _selectedRange.value = option
+        applyDateRangeFilter()
     }
 
     private fun loadTrend() {
         viewModelScope.launch {
             try {
                 val trend = getStockTrendUseCase(etfTicker, stockTicker)
-                _state.value = if (trend != null) {
-                    StockTrendState.Success(trend)
+                fullTrend = trend
+                if (trend != null) {
+                    applyDateRangeFilter()
                 } else {
-                    StockTrendState.Error("추이 데이터를 찾을 수 없습니다")
+                    _state.value = StockTrendState.Error("추이 데이터를 찾을 수 없습니다")
                 }
             } catch (e: Exception) {
                 logger.e("Error loading trend for ETF: $etfTicker, Stock: $stockTicker", e)
                 _state.value = StockTrendState.Error(e.message ?: "오류 발생")
             }
         }
+    }
+
+    private fun applyDateRangeFilter() {
+        val trend = fullTrend ?: return
+
+        val filteredTimeSeries = if (_selectedRange.value == DateRangeOption.ALL) {
+            trend.timeSeries
+        } else {
+            val cutoffDate = LocalDate.now().minusDays(_selectedRange.value.days.toLong())
+            trend.timeSeries.filter { point ->
+                try {
+                    LocalDate.parse(point.date) >= cutoffDate
+                } catch (e: Exception) {
+                    true // 파싱 실패 시 포함
+                }
+            }
+        }
+
+        val filteredTrend = trend.copy(timeSeries = filteredTimeSeries)
+        _state.value = StockTrendState.Success(filteredTrend)
     }
 
     private fun loadQuickChartAnalysisSetting() {
