@@ -13,6 +13,7 @@ import com.etfmonitor.feature.market.data.mapper.MarketMapper.toFearGreedDomainL
 import com.etfmonitor.feature.market.domain.model.FearGreedIndex
 import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -124,6 +125,7 @@ class FearGreedRepositoryImpl @Inject constructor(
 
             // Python에서 Fear & Greed 데이터 가져오기
             onProgress?.invoke("시장 데이터 수집 중...", 20)
+            coroutineContext.ensureActive()  // 취소 상태 확인
             val fearGreedData = try {
                 calculateFearGreed(startStr, endStr, onProgress)
             } catch (e: Exception) {
@@ -171,6 +173,7 @@ class FearGreedRepositoryImpl @Inject constructor(
             val endStr = endDate.format(formatter)
 
             // Python에서 Fear & Greed 데이터 가져오기
+            coroutineContext.ensureActive()  // 취소 상태 확인
             val fearGreedData = try {
                 calculateFearGreed(startStr, endStr)
             } catch (e: Exception) {
