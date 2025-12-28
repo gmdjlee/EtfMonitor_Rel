@@ -42,6 +42,7 @@ import com.etfmonitor.core.ui.component.IdleCard
 import com.etfmonitor.core.ui.component.ElderImpulseChart
 import com.etfmonitor.core.ui.component.DemarkTDChart
 import com.etfmonitor.core.analysis.model.TrendSignalAnalysis
+import com.etfmonitor.core.analysis.model.TrendSignalData
 import com.etfmonitor.core.analysis.model.TrendTradeSignal
 import com.etfmonitor.core.analysis.model.FearGreedState
 import com.etfmonitor.core.analysis.model.ElderImpulseData
@@ -61,6 +62,8 @@ fun OscillatorScreen(
     val suggestions by viewModel.suggestions.collectAsState()
     val searchHistory by viewModel.searchHistory.collectAsState()
     val demarkTDInterval by viewModel.demarkTDInterval.collectAsState()
+    val trendSignalInterval by viewModel.trendSignalInterval.collectAsState()
+    val elderImpulseInterval by viewModel.elderImpulseInterval.collectAsState()
     val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
     val selectedRange by viewModel.selectedRange.collectAsState()
     val currentTicker by viewModel.currentTicker.collectAsState()
@@ -262,7 +265,11 @@ fun OscillatorScreen(
                     val chartPages = buildChartPages(
                         currentState = currentState,
                         demarkTDInterval = demarkTDInterval,
-                        onDemarkIntervalChange = { viewModel.changeDemarkTDInterval(it) }
+                        onDemarkIntervalChange = { viewModel.changeDemarkTDInterval(it) },
+                        trendSignalInterval = trendSignalInterval,
+                        onTrendSignalIntervalChange = { viewModel.changeTrendSignalInterval(it) },
+                        elderImpulseInterval = elderImpulseInterval,
+                        onElderImpulseIntervalChange = { viewModel.changeElderImpulseInterval(it) }
                     )
 
                     val pagerState = rememberPagerState(
@@ -447,7 +454,11 @@ private data class ChartPage(
 private fun buildChartPages(
     currentState: OscillatorState.Success,
     demarkTDInterval: String,
-    onDemarkIntervalChange: (String) -> Unit
+    onDemarkIntervalChange: (String) -> Unit,
+    trendSignalInterval: String,
+    onTrendSignalIntervalChange: (String) -> Unit,
+    elderImpulseInterval: String,
+    onElderImpulseIntervalChange: (String) -> Unit
 ): List<ChartPage> {
     val pages = mutableListOf<ChartPage>()
 
@@ -485,17 +496,12 @@ private fun buildChartPages(
             ChartPage(
                 title = stringResource(R.string.oscillator_chart_trend)
             ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    TrendSignalChart(
-                        data = trendData,
-                        latestDate = trendData.dates.lastOrNull()
-                    )
-                    currentState.trendSignalAnalysis?.let { analysis ->
-                        TrendSignalAnalysisCard(analysis)
-                    }
-                }
+                TrendSignalChartWithSelector(
+                    data = trendData,
+                    analysis = currentState.trendSignalAnalysis,
+                    currentInterval = trendSignalInterval,
+                    onIntervalChange = onTrendSignalIntervalChange
+                )
             }
         )
     }
@@ -506,9 +512,10 @@ private fun buildChartPages(
             ChartPage(
                 title = stringResource(R.string.oscillator_chart_elder)
             ) {
-                ElderImpulseChart(
+                ElderImpulseChartWithSelector(
                     data = elderData,
-                    modifier = Modifier.fillMaxWidth()
+                    currentInterval = elderImpulseInterval,
+                    onIntervalChange = onElderImpulseIntervalChange
                 )
             }
         )
@@ -569,6 +576,90 @@ private fun DemarkTDChartWithSelector(
 
         // DeMark TD 차트
         DemarkTDChart(
+            data = data,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+/**
+ * 추세 시그널 차트 + 인터벌 선택 버튼
+ */
+@Composable
+private fun TrendSignalChartWithSelector(
+    data: TrendSignalData,
+    analysis: TrendSignalAnalysis?,
+    currentInterval: String,
+    onIntervalChange: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // 인터벌 선택 버튼 (일봉/주봉만 지원)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            IntervalButton(
+                text = stringResource(R.string.interval_daily),
+                selected = currentInterval == "d",
+                onClick = { onIntervalChange("d") },
+                modifier = Modifier.weight(1f)
+            )
+            IntervalButton(
+                text = stringResource(R.string.interval_weekly),
+                selected = currentInterval == "w",
+                onClick = { onIntervalChange("w") },
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        // 추세 시그널 차트
+        TrendSignalChart(
+            data = data,
+            latestDate = data.dates.lastOrNull()
+        )
+
+        // 분석 카드
+        analysis?.let { TrendSignalAnalysisCard(it) }
+    }
+}
+
+/**
+ * Elder Impulse 차트 + 인터벌 선택 버튼
+ */
+@Composable
+private fun ElderImpulseChartWithSelector(
+    data: ElderImpulseData,
+    currentInterval: String,
+    onIntervalChange: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // 인터벌 선택 버튼 (일봉/주봉만 지원)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            IntervalButton(
+                text = stringResource(R.string.interval_daily),
+                selected = currentInterval == "d",
+                onClick = { onIntervalChange("d") },
+                modifier = Modifier.weight(1f)
+            )
+            IntervalButton(
+                text = stringResource(R.string.interval_weekly),
+                selected = currentInterval == "w",
+                onClick = { onIntervalChange("w") },
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        // Elder Impulse 차트
+        ElderImpulseChart(
             data = data,
             modifier = Modifier.fillMaxWidth()
         )

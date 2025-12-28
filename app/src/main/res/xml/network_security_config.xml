@@ -41,20 +41,16 @@
     </domain-config>
 
     <!--
-        Google Gemini API - Certificate Pinning
-        Uses Google Trust Services roots
+        Google Gemini API
+        Note: Certificate pinning removed - Google rotates certificates frequently
+        and uses their own CA infrastructure (Google Trust Services).
+        System trust anchors provide sufficient security.
     -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">generativelanguage.googleapis.com</domain>
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
-        <pin-set expiration="2026-06-30">
-            <!-- Primary: Google Trust Services root -->
-            <pin digest="SHA-256">hxqRlPTu1bMS/0DITB1SSu0vd4u/8l8TjPgfaAp63Gc=</pin>
-            <!-- Backup: GTS Root R1 -->
-            <pin digest="SHA-256">zCTnfLwLKbS9S2sbp+uFz4KZOocFvXxkV06Ce9O5M2w=</pin>
-        </pin-set>
     </domain-config>
 
     <!--

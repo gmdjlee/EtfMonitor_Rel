@@ -496,19 +496,22 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
      *
      * @param ticker 종목 코드
      * @param days 분석 기간 (일)
+     * @param interval 주기 ("d"=일별, "w"=주별)
      * @return ElderImpulseData 또는 null
      */
     suspend fun getElderImpulseData(
         ticker: String,
-        days: Int = 365
+        days: Int = 365,
+        interval: String = "w"
     ): ElderImpulseData? = withContext(Dispatchers.IO) {
         try {
             withTimeout(TIMEOUT_MS) {
-                logger.d( "getElderImpulseData: $ticker, $days days")
+                logger.d( "getElderImpulseData: $ticker, $days days, $interval")
                 val jsonStr = trendSignalModule.callAttr(
                     "get_elder_impulse_analysis",
                     ticker,
-                    days
+                    days,
+                    interval
                 ).toString()
 
                 val response = json.decodeFromString<ElderImpulseResponse>(jsonStr)

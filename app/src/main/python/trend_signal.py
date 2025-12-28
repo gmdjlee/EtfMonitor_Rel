@@ -249,23 +249,28 @@ def get_trend_signal_analysis(ticker: str, days: int = 180, interval: str = "w",
 # Elder Impulse API
 # ============================================================
 
-def get_elder_impulse_analysis(ticker: str, days: int = 365) -> str:
+def get_elder_impulse_analysis(ticker: str, days: int = 365, interval: str = "w") -> str:
     """
-    Elder Impulse System 분석 (주봉 기준).
+    Elder Impulse System 분석.
 
     Args:
         ticker: Stock code
         days: Analysis period (default 1 year)
+        interval: "d" (daily) or "w" (weekly, default)
 
     Returns: JSON with market cap, EMA13, MACD, impulse signals
     """
     if not ticker or not ticker.strip():
         return err_json("종목 코드가 필요합니다")
 
-    log.info("Elder Impulse analysis: %s, %d days", ticker, days)
+    # 인터벌 검증
+    if interval not in ("d", "w"):
+        interval = "w"
 
-    # 주봉 데이터 가져오기
-    df = _get_ohlcv(ticker, days, "w")
+    log.info("Elder Impulse analysis: %s, %d days, %s", ticker, days, interval)
+
+    # 데이터 가져오기 (선택된 인터벌)
+    df = _get_ohlcv(ticker, days, interval)
     if df is None:
         return err_json("데이터를 가져올 수 없습니다")
 
@@ -275,7 +280,9 @@ def get_elder_impulse_analysis(ticker: str, days: int = 365) -> str:
     try:
         cap_df = stock.get_market_cap(start.strftime("%Y%m%d"), end.strftime("%Y%m%d"), ticker)
         if not cap_df.empty:
-            cap_df = cap_df.resample("W").last().dropna()
+            # 인터벌에 맞게 리샘플링
+            resample_rule = "W" if interval == "w" else "D"
+            cap_df = cap_df.resample(resample_rule).last().dropna()
             df = df.join(cap_df[["시가총액"]], how="left")
             df["MarketCap"] = df["시가총액"].ffill()
         else:
@@ -296,7 +303,7 @@ def get_elder_impulse_analysis(ticker: str, days: int = 365) -> str:
     data = {
         "ticker": ticker,
         "name": name,
-        "interval": "w",
+        "interval": interval,
         "dates": r.index.strftime("%Y-%m-%d").tolist(),
         "close": r["C"].tolist(),
         "market_cap": [int(v) for v in r["MarketCap"]],
