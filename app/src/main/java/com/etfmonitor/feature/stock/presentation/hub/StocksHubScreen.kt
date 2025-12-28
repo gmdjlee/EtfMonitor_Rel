@@ -60,6 +60,8 @@ fun StocksHubScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val suggestions by viewModel.suggestions.collectAsState()
     val demarkTDInterval by viewModel.demarkTDInterval.collectAsState()
+    val trendSignalInterval by viewModel.trendSignalInterval.collectAsState()
+    val elderImpulseInterval by viewModel.elderImpulseInterval.collectAsState()
     val searchHistory by viewModel.searchHistory.collectAsState()
     val selectedRange by viewModel.selectedRange.collectAsState()
     val currentTicker by viewModel.currentTicker.collectAsState()
@@ -144,7 +146,11 @@ fun StocksHubScreen(
                 val chartPages = buildStockChartPages(
                     currentState = currentState,
                     demarkTDInterval = demarkTDInterval,
-                    onDemarkIntervalChange = { viewModel.changeDemarkTDInterval(it) }
+                    onDemarkIntervalChange = { viewModel.changeDemarkTDInterval(it) },
+                    trendSignalInterval = trendSignalInterval,
+                    onTrendSignalIntervalChange = { viewModel.changeTrendSignalInterval(it) },
+                    elderImpulseInterval = elderImpulseInterval,
+                    onElderImpulseIntervalChange = { viewModel.changeElderImpulseInterval(it) }
                 )
 
                 val pagerState = rememberPagerState(
@@ -420,7 +426,11 @@ private data class StockChartPage(
 private fun buildStockChartPages(
     currentState: OscillatorState.Success,
     demarkTDInterval: String,
-    onDemarkIntervalChange: (String) -> Unit
+    onDemarkIntervalChange: (String) -> Unit,
+    trendSignalInterval: String,
+    onTrendSignalIntervalChange: (String) -> Unit,
+    elderImpulseInterval: String,
+    onElderImpulseIntervalChange: (String) -> Unit
 ): List<StockChartPage> {
     val pages = mutableListOf<StockChartPage>()
 
@@ -458,15 +468,12 @@ private fun buildStockChartPages(
             StockChartPage(
                 title = stringResource(R.string.oscillator_chart_trend)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    TrendSignalChart(
-                        data = trendData,
-                        latestDate = trendData.dates.lastOrNull()
-                    )
-                    currentState.trendSignalAnalysis?.let { analysis ->
-                        StockTrendSignalAnalysisCard(analysis)
-                    }
-                }
+                StockTrendSignalChartWithSelector(
+                    data = trendData,
+                    analysis = currentState.trendSignalAnalysis,
+                    currentInterval = trendSignalInterval,
+                    onIntervalChange = onTrendSignalIntervalChange
+                )
             }
         )
     }
@@ -477,9 +484,10 @@ private fun buildStockChartPages(
             StockChartPage(
                 title = stringResource(R.string.oscillator_chart_elder)
             ) {
-                ElderImpulseChart(
+                StockElderImpulseChartWithSelector(
                     data = elderData,
-                    modifier = Modifier.fillMaxWidth()
+                    currentInterval = elderImpulseInterval,
+                    onIntervalChange = onElderImpulseIntervalChange
                 )
             }
         )
@@ -563,6 +571,83 @@ private fun StockIntervalButton(
         OutlinedButton(onClick = onClick, modifier = modifier) {
             Text(text)
         }
+    }
+}
+
+/**
+ * Trend Signal Chart with interval selector
+ */
+@Composable
+private fun StockTrendSignalChartWithSelector(
+    data: com.etfmonitor.core.analysis.model.TrendSignalData,
+    analysis: TrendSignalAnalysis?,
+    currentInterval: String,
+    onIntervalChange: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Interval selection buttons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            StockIntervalButton(
+                text = stringResource(R.string.interval_daily),
+                selected = currentInterval == "d",
+                onClick = { onIntervalChange("d") },
+                modifier = Modifier.weight(1f)
+            )
+            StockIntervalButton(
+                text = stringResource(R.string.interval_weekly),
+                selected = currentInterval == "w",
+                onClick = { onIntervalChange("w") },
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        TrendSignalChart(data = data, latestDate = data.dates.lastOrNull())
+
+        analysis?.let {
+            StockTrendSignalAnalysisCard(it)
+        }
+    }
+}
+
+/**
+ * Elder Impulse Chart with interval selector
+ */
+@Composable
+private fun StockElderImpulseChartWithSelector(
+    data: com.etfmonitor.core.analysis.model.ElderImpulseData,
+    currentInterval: String,
+    onIntervalChange: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Interval selection buttons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            StockIntervalButton(
+                text = stringResource(R.string.interval_daily),
+                selected = currentInterval == "d",
+                onClick = { onIntervalChange("d") },
+                modifier = Modifier.weight(1f)
+            )
+            StockIntervalButton(
+                text = stringResource(R.string.interval_weekly),
+                selected = currentInterval == "w",
+                onClick = { onIntervalChange("w") },
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        ElderImpulseChart(data = data, modifier = Modifier.fillMaxWidth())
     }
 }
 
