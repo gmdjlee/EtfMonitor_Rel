@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.core.database.entities.Stock
+import com.etfmonitor.core.ui.component.ErrorCard
 import com.etfmonitor.feature.analysis.domain.model.CorrelationAnalysis
 import com.etfmonitor.feature.analysis.domain.model.FullAnalysis
 import com.etfmonitor.feature.analysis.domain.model.FullStockIndicatorAnalysis
@@ -392,7 +393,7 @@ private fun CorrelationAnalysisContent(
         when (state) {
             is NewAIAnalysisState.Error -> {
                 item {
-                    AnalysisErrorCard(message = state.message, onDismiss = onClearError)
+                    ErrorCard(message = state.message, onDismiss = onClearError)
                 }
             }
             else -> {}
@@ -596,7 +597,7 @@ private fun StockIndicatorCorrelationContent(
         when (state) {
             is NewAIAnalysisState.Error -> {
                 item {
-                    AnalysisErrorCard(message = state.message, onDismiss = onClearError)
+                    ErrorCard(message = state.message, onDismiss = onClearError)
                 }
             }
             else -> {}

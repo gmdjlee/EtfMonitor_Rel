@@ -4,6 +4,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -11,7 +12,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.etfmonitor.core.ui.theme.elevation
 import com.etfmonitor.core.ui.theme.extendedShapes
@@ -90,11 +90,16 @@ fun LoadingCard(
 /**
  * Error state card with prominent, accessible styling
  * Clear visual hierarchy with icon and message
+ *
+ * @param message Error message to display
+ * @param modifier Modifier for the card
+ * @param onDismiss Optional callback for dismiss action. When provided, shows a close button.
  */
 @Composable
 fun ErrorCard(
     message: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onDismiss: (() -> Unit)? = null
 ) {
     ElevatedCard(
         modifier = modifier.fillMaxWidth(),
@@ -110,7 +115,7 @@ fun ErrorCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(MaterialTheme.spacing.large),
-            verticalAlignment = Alignment.Top,
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
         ) {
             Icon(
@@ -122,8 +127,18 @@ fun ErrorCard(
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onErrorContainer
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.weight(1f)
             )
+            if (onDismiss != null) {
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "닫기",
+                        tint = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
         }
     }
 }
