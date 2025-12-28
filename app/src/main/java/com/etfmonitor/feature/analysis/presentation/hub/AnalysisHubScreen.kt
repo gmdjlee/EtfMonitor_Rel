@@ -24,6 +24,7 @@ import com.etfmonitor.core.database.entities.Stock
 import com.etfmonitor.feature.analysis.domain.model.CorrelationAnalysis
 import com.etfmonitor.feature.analysis.domain.model.FullAnalysis
 import com.etfmonitor.feature.analysis.domain.model.FullStockIndicatorAnalysis
+import com.etfmonitor.core.ui.component.ErrorCard
 import com.etfmonitor.core.ui.component.TabNavigationBar
 import com.etfmonitor.core.ui.component.HubHeader
 import com.etfmonitor.feature.analysis.presentation.aianalysis.AnalysisTab
@@ -474,7 +475,7 @@ private fun HubCorrelationAnalysisContent(
         when (state) {
             is NewAIAnalysisState.Error -> {
                 item {
-                    AnalysisErrorCard(message = state.message, onDismiss = onClearError)
+                    ErrorCard(message = state.message, onDismiss = onClearError)
                 }
             }
             else -> {}
@@ -677,7 +678,7 @@ private fun HubStockIndicatorCorrelationContent(
         when (state) {
             is NewAIAnalysisState.Error -> {
                 item {
-                    AnalysisErrorCard(message = state.message, onDismiss = onClearError)
+                    ErrorCard(message = state.message, onDismiss = onClearError)
                 }
             }
             else -> {}
