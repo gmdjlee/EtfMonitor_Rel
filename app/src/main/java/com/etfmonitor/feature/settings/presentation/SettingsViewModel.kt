@@ -7,6 +7,7 @@ import com.etfmonitor.core.network.ai.AIProvider
 import com.etfmonitor.core.network.ai.ApiKeyProvider
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.entities.Setting
+import com.etfmonitor.feature.market.domain.repository.BloodIndicatorRepository
 import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
 import com.etfmonitor.feature.market.domain.repository.MarketIndexRepository
@@ -91,6 +92,14 @@ data class EtfUpdateSettings(
     val isUpdating: Boolean = false
 )
 
+data class BloodIndicatorUpdateSettings(
+    val updateHour: Int = 7,  // 한국 시간 오전 7시 (미국 시장 마감 후)
+    val updateMinute: Int = 0,
+    val lastUpdateTime: Long? = null,
+    val dataCount: Int = 0,
+    val isUpdating: Boolean = false
+)
+
 sealed class ApiKeyTestState {
     object Idle : ApiKeyTestState()
     object Testing : ApiKeyTestState()
@@ -118,6 +127,7 @@ class SettingsViewModel @Inject constructor(
     private val fearGreedRepository: FearGreedRepository,
     private val marketOscillatorRepository: MarketOscillatorRepository,
     private val marketIndexRepository: MarketIndexRepository,
+    private val bloodIndicatorRepository: BloodIndicatorRepository,
     private val aiAnalysisRepository: AIAnalysisRepository,
     private val apiKeyProvider: ApiKeyProvider,
     private val etfDao: EtfDao,
@@ -137,6 +147,7 @@ class SettingsViewModel @Inject constructor(
             const val FEAR_GREED_PERIOD = "fear_greed_period_days"
             const val OSCILLATOR_PERIOD = "market_oscillator_period_days"
             const val MARKET_INDEX_PERIOD = "market_index_period_days"
+            const val BLOOD_INDICATOR_PERIOD = "blood_indicator_period_days"
             const val DARK_THEME = "dark_theme"
             const val QUICK_CHART_ANALYSIS = "quick_chart_analysis_enabled"
 
@@ -179,6 +190,9 @@ class SettingsViewModel @Inject constructor(
     private val _etfUpdateSettings = MutableStateFlow(EtfUpdateSettings())
     val etfUpdateSettings: StateFlow<EtfUpdateSettings> = _etfUpdateSettings.asStateFlow()
 
+    private val _bloodIndicatorUpdateSettings = MutableStateFlow(BloodIndicatorUpdateSettings())
+    val bloodIndicatorUpdateSettings: StateFlow<BloodIndicatorUpdateSettings> = _bloodIndicatorUpdateSettings.asStateFlow()
+
     private val _searchHistoryLimit = MutableStateFlow(15)
     val searchHistoryLimit: StateFlow<Int> = _searchHistoryLimit.asStateFlow()
 
@@ -190,6 +204,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _marketIndexPeriodDays = MutableStateFlow(30)
     val marketIndexPeriodDays: StateFlow<Int> = _marketIndexPeriodDays.asStateFlow()
+
+    private val _bloodIndicatorPeriodDays = MutableStateFlow(365)
+    val bloodIndicatorPeriodDays: StateFlow<Int> = _bloodIndicatorPeriodDays.asStateFlow()
 
     private val _isDarkTheme = MutableStateFlow<Boolean?>(null)
     val isDarkTheme: StateFlow<Boolean?> = _isDarkTheme.asStateFlow()
@@ -279,6 +296,7 @@ class SettingsViewModel @Inject constructor(
         _fearGreedPeriodDays.value = etfDao.getSetting(Keys.FEAR_GREED_PERIOD)?.toIntOrNull() ?: 365
         _marketOscillatorPeriodDays.value = etfDao.getSetting(Keys.OSCILLATOR_PERIOD)?.toIntOrNull() ?: 365
         _marketIndexPeriodDays.value = etfDao.getSetting(Keys.MARKET_INDEX_PERIOD)?.toIntOrNull() ?: 30
+        _bloodIndicatorPeriodDays.value = etfDao.getSetting(Keys.BLOOD_INDICATOR_PERIOD)?.toIntOrNull() ?: 365
     }
 
     private suspend fun loadUpdateScheduleSettings() {
@@ -337,6 +355,14 @@ class SettingsViewModel @Inject constructor(
             updateHour = etfHour, updateMinute = etfMinute
         )
         WorkManagerHelper.scheduleEtfUpdate(context, etfHour, etfMinute)
+
+        // Blood Indicator update (default 07:00 - after US market close)
+        val bloodHour = etfDao.getSetting(Keys.updateHour("blood_indicator"))?.toIntOrNull() ?: 7
+        val bloodMinute = etfDao.getSetting(Keys.updateMinute("blood_indicator"))?.toIntOrNull() ?: 0
+        _bloodIndicatorUpdateSettings.value = _bloodIndicatorUpdateSettings.value.copy(
+            updateHour = bloodHour, updateMinute = bloodMinute
+        )
+        WorkManagerHelper.scheduleBloodIndicatorUpdate(context, bloodHour, bloodMinute)
     }
 
     private suspend fun loadThemeSettings() {
@@ -452,6 +478,14 @@ class SettingsViewModel @Inject constructor(
                     kospiCount = kospiIndexCount,
                     kosdaqCount = kosdaqIndexCount,
                     lastUpdateTime = maxOf(kospiIndexUpdate ?: 0L, kosdaqIndexUpdate ?: 0L).takeIf { it > 0L }
+                )
+
+                // Blood indicator info
+                val bloodCount = bloodIndicatorRepository.getCount()
+                val bloodLastUpdate = bloodIndicatorRepository.getLastUpdateTime()
+                _bloodIndicatorUpdateSettings.value = _bloodIndicatorUpdateSettings.value.copy(
+                    dataCount = bloodCount,
+                    lastUpdateTime = bloodLastUpdate
                 )
             } catch (e: Exception) {
                 logger.e("Error loading data info", e)
@@ -637,6 +671,38 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setBloodIndicatorPeriodDays(days: Int, reinitialize: Boolean = false) {
+        viewModelScope.launch {
+            try {
+                etfDao.saveSetting(Setting(Keys.BLOOD_INDICATOR_PERIOD, days.toString()))
+                _bloodIndicatorPeriodDays.value = days
+
+                if (reinitialize) {
+                    _bloodIndicatorUpdateSettings.value = _bloodIndicatorUpdateSettings.value.copy(isUpdating = true)
+                    _message.value = "Blood Indicator 데이터 재수집 중..."
+                    val result = withTimeoutOrNull(120_000L) {
+                        bloodIndicatorRepository.initializeBloodIndicator(days)
+                    }
+                    when {
+                        result == null -> _message.value = "재수집 시간 초과 (2분)"
+                        result.isSuccess -> {
+                            loadDataInfo()
+                            _message.value = formatPeriodMessage("Blood Indicator", days) +
+                                " (${result.getOrNull() ?: 0}개 데이터 수집)"
+                        }
+                        else -> _message.value = "재수집 실패: ${result.exceptionOrNull()?.message}"
+                    }
+                    _bloodIndicatorUpdateSettings.value = _bloodIndicatorUpdateSettings.value.copy(isUpdating = false)
+                } else {
+                    _message.value = formatPeriodMessage("Blood Indicator", days) + " (다음 초기화 시 적용)"
+                }
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+                _bloodIndicatorUpdateSettings.value = _bloodIndicatorUpdateSettings.value.copy(isUpdating = false)
+            }
+        }
+    }
+
     private fun formatPeriodMessage(name: String, days: Int): String {
         val period = when (days) {
             180 -> "6개월"; 365 -> "12개월"; 540 -> "18개월"; 730 -> "24개월"; else -> "${days}일"
@@ -688,6 +754,11 @@ class SettingsViewModel @Inject constructor(
     fun setEtfUpdateTime(hour: Int, minute: Int) = setSchedule("etf", hour, minute, "ETF 데이터 업데이트") {
         _etfUpdateSettings.value = _etfUpdateSettings.value.copy(updateHour = hour, updateMinute = minute)
         WorkManagerHelper.scheduleEtfUpdate(context, hour, minute)
+    }
+
+    fun setBloodIndicatorUpdateTime(hour: Int, minute: Int) = setSchedule("blood_indicator", hour, minute, "Blood Indicator 업데이트") {
+        _bloodIndicatorUpdateSettings.value = _bloodIndicatorUpdateSettings.value.copy(updateHour = hour, updateMinute = minute)
+        WorkManagerHelper.scheduleBloodIndicatorUpdate(context, hour, minute)
     }
 
     private inline fun setSchedule(type: String, hour: Int, minute: Int, name: String, crossinline onSchedule: () -> Unit) {
@@ -817,6 +888,32 @@ class SettingsViewModel @Inject constructor(
                 _message.value = "오류 발생: ${e.message}"
             } finally {
                 _marketIndexUpdateSettings.value = _marketIndexUpdateSettings.value.copy(isUpdating = false)
+            }
+        }
+    }
+
+    /**
+     * Blood Indicator 수동 업데이트
+     * - US Treasury 기반 시장 건강도 지표 수집
+     */
+    fun updateBloodIndicatorNow() {
+        viewModelScope.launch {
+            _bloodIndicatorUpdateSettings.value = _bloodIndicatorUpdateSettings.value.copy(isUpdating = true)
+            _message.value = "Blood Indicator 데이터 업데이트 중..."
+            try {
+                val result = withTimeoutOrNull(120_000L) { bloodIndicatorRepository.updateBloodIndicator() }
+                when {
+                    result == null -> _message.value = "업데이트 시간 초과 (2분)"
+                    result.isSuccess -> {
+                        loadDataInfo()
+                        _message.value = "업데이트 완료: ${result.getOrNull() ?: 0}개 데이터"
+                    }
+                    else -> _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
+                }
+            } catch (e: Exception) {
+                _message.value = "오류 발생: ${e.message}"
+            } finally {
+                _bloodIndicatorUpdateSettings.value = _bloodIndicatorUpdateSettings.value.copy(isUpdating = false)
             }
         }
     }

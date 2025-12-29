@@ -360,16 +360,51 @@ private fun BloodChartSection(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "BLOOD vs S&P 500",
+                text = "BLOOD vs S&P 500 (with MAs)",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
 
             BloodDualAxisChart(
                 data = data,
                 chartColors = chartColors,
-                modifier = Modifier.fillMaxWidth().height(250.dp)
+                modifier = Modifier.fillMaxWidth().height(300.dp)
             )
+
+            // Moving Average Legend
+            BloodChartLegend()
         }
+    }
+}
+
+@Composable
+private fun BloodChartLegend() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        LegendItem(color = Color(0xFFE53935), label = "BLOOD")
+        LegendItem(color = Color(0xFF2196F3), label = "20MA")
+        LegendItem(color = Color(0xFFFFA726), label = "60MA")
+        LegendItem(color = Color(0xFF4CAF50), label = "120MA")
+    }
+}
+
+@Composable
+private fun LegendItem(color: Color, label: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .background(color, RoundedCornerShape(2.dp))
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+        )
     }
 }
 
@@ -384,6 +419,11 @@ private fun BloodDualAxisChart(
     val spyColor = chartColors.lineColor2
     val textColor = chartColors.textColor
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
+
+    // Moving average colors
+    val ma20Color = Color(0xFF2196F3).toArgb()  // Blue
+    val ma60Color = Color(0xFFFFA726).toArgb()  // Orange
+    val ma120Color = Color(0xFF4CAF50).toArgb() // Green
 
     AndroidView(
         factory = { context ->
@@ -432,14 +472,18 @@ private fun BloodDualAxisChart(
                 }
 
                 legend.apply {
-                    isEnabled = true
-                    textSize = 12f
-                    setTextColor(chartColors.legendColor)
+                    isEnabled = false  // Using custom legend
                 }
             }
         },
         update = { chart ->
             val reversed = data.reversed()
+            val bloodValues = reversed.map { it.bloodValue.toFloat() }
+
+            // Calculate moving averages
+            val ma20 = calculateMovingAverage(bloodValues, 20)
+            val ma60 = calculateMovingAverage(bloodValues, 60)
+            val ma120 = calculateMovingAverage(bloodValues, 120)
 
             // Blood line
             val bloodEntries = reversed.mapIndexed { index, item ->
@@ -449,12 +493,56 @@ private fun BloodDualAxisChart(
                 axisDependency = YAxis.AxisDependency.LEFT
                 color = bloodColor
                 lineWidth = 2.5f
-                setCircleColor(bloodColor)
-                circleRadius = 2f
-                setDrawCircleHole(false)
+                setDrawCircles(false)
                 setDrawValues(false)
                 mode = LineDataSet.Mode.CUBIC_BEZIER
             }
+
+            // 20MA line
+            val ma20Entries = ma20.mapIndexedNotNull { index, value ->
+                value?.let { Entry(index.toFloat(), it) }
+            }
+            val ma20DataSet = if (ma20Entries.isNotEmpty()) {
+                LineDataSet(ma20Entries, "20MA").apply {
+                    axisDependency = YAxis.AxisDependency.LEFT
+                    color = ma20Color
+                    lineWidth = 1.5f
+                    setDrawCircles(false)
+                    setDrawValues(false)
+                    mode = LineDataSet.Mode.CUBIC_BEZIER
+                    enableDashedLine(0f, 0f, 0f)
+                }
+            } else null
+
+            // 60MA line
+            val ma60Entries = ma60.mapIndexedNotNull { index, value ->
+                value?.let { Entry(index.toFloat(), it) }
+            }
+            val ma60DataSet = if (ma60Entries.isNotEmpty()) {
+                LineDataSet(ma60Entries, "60MA").apply {
+                    axisDependency = YAxis.AxisDependency.LEFT
+                    color = ma60Color
+                    lineWidth = 1.5f
+                    setDrawCircles(false)
+                    setDrawValues(false)
+                    mode = LineDataSet.Mode.CUBIC_BEZIER
+                }
+            } else null
+
+            // 120MA line
+            val ma120Entries = ma120.mapIndexedNotNull { index, value ->
+                value?.let { Entry(index.toFloat(), it) }
+            }
+            val ma120DataSet = if (ma120Entries.isNotEmpty()) {
+                LineDataSet(ma120Entries, "120MA").apply {
+                    axisDependency = YAxis.AxisDependency.LEFT
+                    color = ma120Color
+                    lineWidth = 1.5f
+                    setDrawCircles(false)
+                    setDrawValues(false)
+                    mode = LineDataSet.Mode.CUBIC_BEZIER
+                }
+            } else null
 
             // SPY line (if available)
             val spyEntries = reversed.mapIndexedNotNull { index, item ->
@@ -464,17 +552,21 @@ private fun BloodDualAxisChart(
                 LineDataSet(spyEntries, "S&P 500").apply {
                     axisDependency = YAxis.AxisDependency.RIGHT
                     color = spyColor
-                    lineWidth = 2.5f
-                    setCircleColor(spyColor)
-                    circleRadius = 2f
-                    setDrawCircleHole(false)
+                    lineWidth = 1.5f
+                    setDrawCircles(false)
                     setDrawValues(false)
                     mode = LineDataSet.Mode.CUBIC_BEZIER
+                    enableDashedLine(10f, 5f, 0f)
                 }
             } else null
 
-            val dataSets = mutableListOf<LineDataSet>(bloodDataSet)
+            val dataSets = mutableListOf<LineDataSet>()
+            dataSets.add(bloodDataSet)
+            ma20DataSet?.let { dataSets.add(it) }
+            ma60DataSet?.let { dataSets.add(it) }
+            ma120DataSet?.let { dataSets.add(it) }
             spyDataSet?.let { dataSets.add(it) }
+
             val lineData = LineData(dataSets as List<LineDataSet>)
             val combinedData = CombinedData().apply { setData(lineData) }
 
@@ -492,6 +584,23 @@ private fun BloodDualAxisChart(
         },
         modifier = modifier
     )
+}
+
+/**
+ * Calculate Simple Moving Average for a list of values
+ * Returns null for indices where MA cannot be calculated (not enough data)
+ */
+private fun calculateMovingAverage(values: List<Float>, period: Int): List<Float?> {
+    if (values.isEmpty()) return emptyList()
+
+    return values.mapIndexed { index, _ ->
+        if (index < period - 1) {
+            null
+        } else {
+            val sum = (0 until period).sumOf { values[index - it].toDouble() }
+            (sum / period).toFloat()
+        }
+    }
 }
 
 @Composable

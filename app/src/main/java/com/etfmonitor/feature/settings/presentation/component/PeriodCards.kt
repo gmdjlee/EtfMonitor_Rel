@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -203,6 +204,29 @@ fun MarketIndexPeriodCard(
         description = stringResource(R.string.settings_market_index_period_desc),
         dialogTitle = stringResource(R.string.settings_market_index_period_title),
         recommendationText = stringResource(R.string.settings_market_index_period_recommend)
+    )
+
+    PeriodCard(
+        config = config,
+        currentDays = currentDays,
+        onDaysChange = onDaysChange
+    )
+}
+
+/**
+ * Blood Indicator 수집 기간 카드
+ */
+@Composable
+fun BloodIndicatorPeriodCard(
+    currentDays: Int,
+    onDaysChange: (Int, Boolean) -> Unit
+) {
+    val config = PeriodCardConfig(
+        title = "Blood Indicator 수집 기간",
+        icon = Icons.Default.Bloodtype,
+        description = "US Treasury 기반 시장 건강도 지표 (IRX, HYG, TNX, SPY)의 수집 기간을 설정합니다.",
+        dialogTitle = "Blood Indicator 수집 기간",
+        recommendationText = "장기 추세 분석을 위해 12개월 이상을 권장합니다."
     )
 
     PeriodCard(

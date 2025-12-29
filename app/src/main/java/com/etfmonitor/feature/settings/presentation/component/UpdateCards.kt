@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.etfmonitor.R
+import com.etfmonitor.feature.settings.presentation.BloodIndicatorUpdateSettings
 import com.etfmonitor.feature.settings.presentation.EtfUpdateSettings
 import com.etfmonitor.feature.settings.presentation.FearGreedUpdateSettings
 import com.etfmonitor.feature.settings.presentation.MarketDepositUpdateSettings
@@ -355,6 +356,36 @@ fun EtfDataManagementCard(
         stats = listOf(
             StatItem(stringResource(R.string.settings_etf_count), stringResource(R.string.label_etf_count_unit, settings.etfCount)),
             StatItem(stringResource(R.string.settings_holding_count), stringResource(R.string.label_etf_count_unit, settings.holdingCount))
+        )
+    )
+
+    DataUpdateCard(
+        config = config,
+        onTimeChange = onTimeChange,
+        onUpdateNow = onUpdateNow
+    )
+}
+
+/**
+ * Blood Indicator 자동 업데이트 카드
+ * US Treasury 기반 시장 건강도 지표
+ */
+@Composable
+fun BloodIndicatorUpdateCard(
+    settings: BloodIndicatorUpdateSettings,
+    onTimeChange: (Int, Int) -> Unit,
+    onUpdateNow: () -> Unit
+) {
+    val config = DataUpdateCardConfig(
+        title = "Blood Indicator",
+        icon = Icons.Default.Bloodtype,
+        description = "US Treasury 기반 시장 건강도 지표 (미국 시장 마감 후 업데이트 권장)",
+        updateHour = settings.updateHour,
+        updateMinute = settings.updateMinute,
+        lastUpdateTime = settings.lastUpdateTime,
+        isUpdating = settings.isUpdating,
+        stats = listOf(
+            StatItem("데이터 수", "${settings.dataCount}개")
         )
     )
 

@@ -347,7 +347,7 @@ internal fun MarketIndexPeriodSelectionDialog(
 @Composable
 internal fun UnifiedInitializationDialog(
     onDismiss: () -> Unit,
-    onConfirm: (etfDays: Int, depositPages: Int?, fearGreedDays: Int?, oscillatorDays: Int?, marketIndexDays: Int?) -> Unit
+    onConfirm: (etfDays: Int, depositPages: Int?, fearGreedDays: Int?, oscillatorDays: Int?, marketIndexDays: Int?, bloodIndicatorDays: Int?) -> Unit
 ) {
     // ETF 수집 기간
     val etfOptions = listOf(
@@ -374,6 +374,10 @@ internal fun UnifiedInitializationDialog(
     // 시장 지수 수집 여부
     var collectMarketIndex by remember { mutableStateOf(true) }
     var selectedMarketIndexDays by remember { mutableStateOf(30) }
+
+    // Blood Indicator 수집 여부
+    var collectBloodIndicator by remember { mutableStateOf(true) }
+    var selectedBloodIndicatorDays by remember { mutableStateOf(365) }
 
     val scrollState = rememberScrollState()
 
@@ -493,6 +497,20 @@ internal fun UnifiedInitializationDialog(
                     onValueChange = { selectedMarketIndexDays = it }
                 )
 
+                // 6. Blood Indicator (선택)
+                UnifiedOptionSection(
+                    title = "Blood Indicator (US)",
+                    enabled = collectBloodIndicator,
+                    onEnabledChange = { collectBloodIndicator = it },
+                    options = listOf(
+                        "6개월" to 180,
+                        "1년" to 365,
+                        "18개월" to 540
+                    ),
+                    selectedValue = selectedBloodIndicatorDays,
+                    onValueChange = { selectedBloodIndicatorDays = it }
+                )
+
                 // 안내 문구
                 Surface(
                     color = MaterialTheme.colorScheme.secondaryContainer,
@@ -515,7 +533,8 @@ internal fun UnifiedInitializationDialog(
                         if (collectDeposit) selectedDepositPages else null,
                         if (collectFearGreed) selectedFearGreedDays else null,
                         if (collectOscillator) selectedOscillatorDays else null,
-                        if (collectMarketIndex) selectedMarketIndexDays else null
+                        if (collectMarketIndex) selectedMarketIndexDays else null,
+                        if (collectBloodIndicator) selectedBloodIndicatorDays else null
                     )
                 },
                 shape = MaterialTheme.extendedShapes.button

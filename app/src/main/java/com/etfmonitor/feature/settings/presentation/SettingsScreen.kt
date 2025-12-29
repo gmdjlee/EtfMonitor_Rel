@@ -51,7 +51,9 @@ fun SettingsScreen(
     val marketOscillatorUpdateSettings by viewModel.marketOscillatorUpdateSettings.collectAsState()
     val marketIndexUpdateSettings by viewModel.marketIndexUpdateSettings.collectAsState()
     val etfUpdateSettings by viewModel.etfUpdateSettings.collectAsState()
+    val bloodIndicatorUpdateSettings by viewModel.bloodIndicatorUpdateSettings.collectAsState()
     val marketIndexPeriodDays by viewModel.marketIndexPeriodDays.collectAsState()
+    val bloodIndicatorPeriodDays by viewModel.bloodIndicatorPeriodDays.collectAsState()
     val message by viewModel.message.collectAsState()
 
     // General settings
@@ -150,6 +152,7 @@ fun SettingsScreen(
                     marketOscillatorUpdateSettings = marketOscillatorUpdateSettings,
                     marketIndexUpdateSettings = marketIndexUpdateSettings,
                     etfUpdateSettings = etfUpdateSettings,
+                    bloodIndicatorUpdateSettings = bloodIndicatorUpdateSettings,
                     viewModel = viewModel
                 )
                 3 -> DataPeriodTab(
@@ -158,6 +161,7 @@ fun SettingsScreen(
                     fearGreedPeriodDays = fearGreedPeriodDays,
                     marketOscillatorPeriodDays = marketOscillatorPeriodDays,
                     marketIndexPeriodDays = marketIndexPeriodDays,
+                    bloodIndicatorPeriodDays = bloodIndicatorPeriodDays,
                     viewModel = viewModel
                 )
                 4 -> ChartTab(
@@ -292,6 +296,7 @@ private fun DataUpdateTab(
     marketOscillatorUpdateSettings: MarketOscillatorUpdateSettings,
     marketIndexUpdateSettings: MarketIndexUpdateSettings,
     etfUpdateSettings: EtfUpdateSettings,
+    bloodIndicatorUpdateSettings: BloodIndicatorUpdateSettings,
     viewModel: SettingsViewModel
 ) {
     LazyColumn(
@@ -354,6 +359,15 @@ private fun DataUpdateTab(
             )
         }
 
+        // Blood Indicator DB 자동 업데이트 설정
+        item {
+            BloodIndicatorUpdateCard(
+                settings = bloodIndicatorUpdateSettings,
+                onTimeChange = { hour, minute -> viewModel.setBloodIndicatorUpdateTime(hour, minute) },
+                onUpdateNow = { viewModel.updateBloodIndicatorNow() }
+            )
+        }
+
         // 데이터베이스 초기화
         item {
             DatabaseCard(
@@ -371,6 +385,7 @@ private fun DataPeriodTab(
     fearGreedPeriodDays: Int,
     marketOscillatorPeriodDays: Int,
     marketIndexPeriodDays: Int,
+    bloodIndicatorPeriodDays: Int,
     viewModel: SettingsViewModel
 ) {
     LazyColumn(
@@ -407,6 +422,14 @@ private fun DataPeriodTab(
             MarketIndexPeriodCard(
                 currentDays = marketIndexPeriodDays,
                 onDaysChange = { days, reinitialize -> viewModel.setMarketIndexPeriodDays(days, reinitialize) }
+            )
+        }
+
+        // Blood Indicator 데이터 수집 기간 설정
+        item {
+            BloodIndicatorPeriodCard(
+                currentDays = bloodIndicatorPeriodDays,
+                onDaysChange = { days, reinitialize -> viewModel.setBloodIndicatorPeriodDays(days, reinitialize) }
             )
         }
 
