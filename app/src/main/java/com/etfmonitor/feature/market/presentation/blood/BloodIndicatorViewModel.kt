@@ -49,8 +49,8 @@ class BloodIndicatorViewModel @Inject constructor(
     private val _state = MutableStateFlow<BloodIndicatorState>(BloodIndicatorState.Loading)
     val state: StateFlow<BloodIndicatorState> = _state.asStateFlow()
 
-    // 날짜 범위 선택 상태
-    private val _selectedRange = MutableStateFlow(DateRangeOption.DEFAULT)
+    // 날짜 범위 선택 상태 (Blood Indicator 기본값: 5년)
+    private val _selectedRange = MutableStateFlow(DateRangeOption.FIVE_YEARS)
     val selectedRange: StateFlow<DateRangeOption> = _selectedRange.asStateFlow()
 
     private val _bloodData = MutableStateFlow<List<BloodIndicator>>(emptyList())
@@ -145,7 +145,7 @@ class BloodIndicatorViewModel @Inject constructor(
         _selectedRange.value = option
     }
 
-    fun initialize(days: Int = 365) {
+    fun initialize(days: Int = 1825) {
         viewModelScope.launch {
             _state.value = BloodIndicatorState.Initializing("Blood Indicator 데이터 수집 중...", 0)
 
