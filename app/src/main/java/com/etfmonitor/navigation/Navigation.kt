@@ -222,13 +222,14 @@ fun Navigation(
                         navController.navigate(Screen.AggregatedStockTrend.createRoute(stockTicker))
                     },
                     onNavigateToStocks = { ticker ->
-                        // Use same navigation pattern as bottom navigation for proper state management
+                        // Navigate without restoring state to ensure fresh analysis with new ticker
                         navController.navigate(Screen.Stocks.createRoute(ticker)) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
                             launchSingleTop = true
-                            restoreState = true
+                            // Don't restore state - we want fresh analysis for the specified ticker
+                            restoreState = false
                         }
                     },
                     initialStockTicker = initialStockTicker
@@ -251,13 +252,14 @@ fun Navigation(
                     onToggleTheme = onToggleTheme,
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                     onNavigateToStatistics = { ticker ->
-                        // Use same navigation pattern as bottom navigation for proper state management
+                        // Navigate without restoring state to ensure fresh analysis with new ticker
                         navController.navigate(Screen.EtfHub.createRoute(ticker)) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
                             launchSingleTop = true
-                            restoreState = true
+                            // Don't restore state - we want fresh analysis for the specified ticker
+                            restoreState = false
                         }
                     },
                     initialTicker = initialTicker
@@ -271,13 +273,14 @@ fun Navigation(
                     onToggleTheme = onToggleTheme,
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                     onNavigateToStocks = { ticker ->
-                        // Use same navigation pattern as bottom navigation for proper state management
+                        // Navigate without restoring state to ensure fresh analysis with new ticker
                         navController.navigate(Screen.Stocks.createRoute(ticker)) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
                             launchSingleTop = true
-                            restoreState = true
+                            // Don't restore state - we want fresh analysis for the specified ticker
+                            restoreState = false
                         }
                     }
                 )
@@ -368,13 +371,14 @@ fun Navigation(
                     onNavigateBack = { navController.popBackStack() },
                     initialTicker = ticker,
                     onNavigateToStatistics = { stockTicker ->
-                        // Use same navigation pattern as bottom navigation for proper state management
+                        // Navigate without restoring state to ensure fresh analysis with new ticker
                         navController.navigate(Screen.EtfHub.createRoute(stockTicker)) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
                             launchSingleTop = true
-                            restoreState = true
+                            // Don't restore state - we want fresh analysis for the specified ticker
+                            restoreState = false
                         }
                     }
                 )
