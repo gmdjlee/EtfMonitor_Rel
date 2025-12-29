@@ -160,7 +160,8 @@ fun BloodIndicatorContent(
 
             // Main Content
             if (bloodData.isNotEmpty()) {
-                val latest = bloodData.firstOrNull()
+                // Data is sorted ASC (oldest first), so last is the most recent
+                val latest = bloodData.lastOrNull()
                 if (latest != null) {
                     // Current Value Display
                     BloodValueSection(latest = latest)
@@ -609,7 +610,7 @@ private fun BloodDualAxisChart(
             val combinedData = CombinedData().apply { setData(lineData) }
 
             chart.xAxis.valueFormatter = object : ValueFormatter() {
-                private var lastYear = ""
+                private var lastDisplayedYear = ""
 
                 override fun getFormattedValue(value: Float): String {
                     val index = value.toInt()
@@ -617,25 +618,25 @@ private fun BloodDualAxisChart(
 
                     val dateStr = chartData[index].date // "YYYY-MM-DD"
                     val year = dateStr.substring(0, 4)
-                    val monthDay = dateStr.substring(5) // "MM-DD"
+                    val month = dateStr.substring(5, 7) // "MM"
 
                     return if (isLongPeriod) {
-                        // 5년 이상: 연도만 표시 (연도가 바뀔 때)
-                        if (year != lastYear) {
-                            lastYear = year
+                        // 5년 이상: 1월에만 연도 표시
+                        if (month == "01" && year != lastDisplayedYear) {
+                            lastDisplayedYear = year
                             year
                         } else {
                             ""
                         }
                     } else {
-                        // 5년 미만: YY-MM 또는 연도 변경시 연도 표시
+                        // 5년 미만: 1월에 연도 표시, 그 외는 월.일 표시
                         val shortYear = dateStr.substring(2, 4) // "YY"
-                        val month = dateStr.substring(5, 7) // "MM"
-                        if (year != lastYear) {
-                            lastYear = year
-                            "'$shortYear.$month"
+                        val day = dateStr.substring(8, 10) // "DD"
+                        if (month == "01" && year != lastDisplayedYear) {
+                            lastDisplayedYear = year
+                            "'$shortYear"
                         } else {
-                            monthDay.replace("-", ".")
+                            "$month.$day"
                         }
                     }
                 }
