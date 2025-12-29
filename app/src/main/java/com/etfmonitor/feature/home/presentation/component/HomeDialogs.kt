@@ -377,7 +377,7 @@ internal fun UnifiedInitializationDialog(
 
     // Blood Indicator 수집 여부
     var collectBloodIndicator by remember { mutableStateOf(true) }
-    var selectedBloodIndicatorDays by remember { mutableStateOf(365) }
+    var selectedBloodIndicatorDays by remember { mutableStateOf(1825) }
 
     val scrollState = rememberScrollState()
 
@@ -503,9 +503,9 @@ internal fun UnifiedInitializationDialog(
                     enabled = collectBloodIndicator,
                     onEnabledChange = { collectBloodIndicator = it },
                     options = listOf(
-                        "6개월" to 180,
                         "1년" to 365,
-                        "18개월" to 540
+                        "5년" to 1825,
+                        "10년" to 3650
                     ),
                     selectedValue = selectedBloodIndicatorDays,
                     onValueChange = { selectedBloodIndicatorDays = it }

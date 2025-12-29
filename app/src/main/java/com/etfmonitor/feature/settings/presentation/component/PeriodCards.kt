@@ -221,18 +221,200 @@ fun BloodIndicatorPeriodCard(
     currentDays: Int,
     onDaysChange: (Int, Boolean) -> Unit
 ) {
-    val config = PeriodCardConfig(
-        title = "Blood Indicator 수집 기간",
-        icon = Icons.Default.Bloodtype,
-        description = "US Treasury 기반 시장 건강도 지표 (IRX, HYG, TNX, SPY)의 수집 기간을 설정합니다.",
-        dialogTitle = "Blood Indicator 수집 기간",
-        recommendationText = "장기 추세 분석을 위해 12개월 이상을 권장합니다."
+    var showDialog by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(animationSpec = tween(200)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = MaterialTheme.shapes.medium
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // 헤더
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Bloodtype,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("Blood Indicator 수집 기간", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            // 설명
+            Text(
+                "US Treasury 기반 시장 건강도 지표 (IRX, HYG, TNX, SPY)의 수집 기간을 설정합니다.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            // 현재 설정 표시 및 변경 버튼
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        stringResource(R.string.settings_current_setting),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        bloodIndicatorDaysToDisplayText(currentDays),
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Button(onClick = { showDialog = true }) {
+                    Text(stringResource(R.string.settings_action_change))
+                }
+            }
+
+            // 권장 사항 표시
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Text(
+                    "장기 추세 분석을 위해 5년 이상을 권장합니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+        }
+    }
+
+    if (showDialog) {
+        BloodIndicatorPeriodSelectionDialog(
+            currentDays = currentDays,
+            onDismiss = { showDialog = false },
+            onConfirm = { days, reinitialize ->
+                onDaysChange(days, reinitialize)
+                showDialog = false
+            }
+        )
+    }
+}
+
+/**
+ * Blood Indicator 일 수를 표시 텍스트로 변환
+ */
+@Composable
+private fun bloodIndicatorDaysToDisplayText(days: Int): String = when (days) {
+    365 -> "1년"
+    1095 -> "3년"
+    1825 -> "5년"
+    2555 -> "7년"
+    3650 -> "10년"
+    else -> "${days}일"
+}
+
+/**
+ * Blood Indicator 기간 선택 다이얼로그
+ */
+@Composable
+fun BloodIndicatorPeriodSelectionDialog(
+    currentDays: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Int, Boolean) -> Unit
+) {
+    val periodOptions = listOf(
+        PeriodOption(365, "1년", "약 365일"),
+        PeriodOption(1095, "3년", "약 1,095일"),
+        PeriodOption(1825, "5년 (권장)", "약 1,825일"),
+        PeriodOption(2555, "7년", "약 2,555일"),
+        PeriodOption(3650, "10년", "약 3,650일")
     )
 
-    PeriodCard(
-        config = config,
-        currentDays = currentDays,
-        onDaysChange = onDaysChange
+    var selectedDays by remember { mutableIntStateOf(currentDays) }
+    var reinitialize by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Blood Indicator 수집 기간") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    stringResource(R.string.settings_period_select),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                periodOptions.forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (selectedDays == option.days),
+                            onClick = { selectedDays = option.days }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                option.label,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                option.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                // 즉시 적용 옵션
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = reinitialize,
+                        onCheckedChange = { reinitialize = it }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            "지금 데이터 재수집",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            "선택한 기간으로 데이터를 즉시 재수집합니다 (시간 소요)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(selectedDays, reinitialize) }) {
+                Text(stringResource(R.string.action_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
     )
 }
 
