@@ -97,6 +97,8 @@ def _fetch_yahoo_chart(symbol: str, start_ts: int, end_ts: int) -> Optional[pd.D
 
         df.set_index("Date", inplace=True)
         df = df.dropna(subset=["Close"])
+        # Ensure data is sorted by date (ascending)
+        df = df.sort_index(ascending=True)
 
         return df
 
@@ -320,6 +322,9 @@ def fetch_blood_data(start_date: str, end_date: str) -> Optional[pd.DataFrame]:
         if df.empty:
             log.error("No valid BLOOD data calculated")
             return None
+
+        # Ensure final data is sorted by date (ascending) for correct chart display
+        df = df.sort_index(ascending=True)
 
         log.info("Calculated %d BLOOD indicator records (weekly)", len(df))
         return df
