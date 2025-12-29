@@ -42,6 +42,7 @@ import com.etfmonitor.core.database.entities.StockAnalysisData
 import com.etfmonitor.core.database.entities.StockIndicatorAIResult
 import com.etfmonitor.core.database.entities.PriceCache
 import com.etfmonitor.core.database.entities.EnhancedPrediction
+import com.etfmonitor.core.database.entities.BloodIndicator
 
 @Database(
     entities = [
@@ -65,9 +66,10 @@ import com.etfmonitor.core.database.entities.EnhancedPrediction
         LiquidityAnalysis::class,
         StockIndicatorAIResult::class,
         PriceCache::class,
-        EnhancedPrediction::class
+        EnhancedPrediction::class,
+        BloodIndicator::class
     ],
-    version = 17,
+    version = 18,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -90,6 +92,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun stockIndicatorAIResultDao(): StockIndicatorAIResultDao
     abstract fun priceCacheDao(): PriceCacheDao
     abstract fun enhancedPredictionDao(): EnhancedPredictionDao
+    abstract fun bloodIndicatorDao(): BloodIndicatorDao
 }
 
 /**
@@ -748,5 +751,35 @@ val MIGRATION_16_17 = object : Migration(16, 17) {
         // 2. 인덱스 생성
         database.execSQL("CREATE INDEX IF NOT EXISTS index_search_history_historyType ON search_history(historyType)")
         database.execSQL("CREATE INDEX IF NOT EXISTS index_search_history_historyType_searchedAt ON search_history(historyType, searchedAt)")
+    }
+}
+
+/**
+ * Migration from version 17 to 18: Add BloodIndicator table
+ * US Treasury 기반 시장 건강도 지표 (BLOOD = IRX / (HYG Yield - 10Y Treasury))
+ */
+val MIGRATION_17_18 = object : Migration(17, 18) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // 1. blood_indicator 테이블 생성
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS blood_indicator (
+                id TEXT PRIMARY KEY NOT NULL,
+                date TEXT NOT NULL,
+                bloodValue REAL NOT NULL,
+                irx REAL NOT NULL,
+                hygYield REAL NOT NULL,
+                tenYearYield REAL NOT NULL,
+                spreadValue REAL NOT NULL,
+                spyClose REAL,
+                signalType TEXT NOT NULL,
+                lastUpdated INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // 2. 인덱스 생성
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_blood_indicator_date ON blood_indicator(date)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_blood_indicator_signalType ON blood_indicator(signalType)")
     }
 }

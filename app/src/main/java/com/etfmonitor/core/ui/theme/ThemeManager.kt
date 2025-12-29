@@ -64,6 +64,12 @@ data class ChartColorSettings(
         lineColor2 = ChartDefaultBlack.toArgb(),  // KOSPI/KOSDAQ Index = Black
         textColor = ChartDefaultBlack.toArgb(),   // 축 라벨/틱 = Black
         legendColor = ChartDefaultBlack.toArgb()  // 범례 = Black
+    ),
+    val bloodIndicator: SingleChartColorSettings = SingleChartColorSettings(
+        lineColor1 = ChartRed.toArgb(),           // BLOOD 라인 (Red for blood theme)
+        lineColor2 = ChartSecondary.toArgb(),     // S&P 500 Index
+        textColor = ChartDefaultBlack.toArgb(),   // 축 라벨/틱 = Black
+        legendColor = ChartDefaultBlack.toArgb()  // 범례 = Black
     )
 )
 

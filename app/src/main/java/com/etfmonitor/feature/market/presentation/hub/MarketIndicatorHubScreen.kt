@@ -29,6 +29,8 @@ import com.etfmonitor.feature.market.presentation.oscillator.MarketOscillatorVie
 import com.etfmonitor.feature.market.presentation.oscillator.MarketOscillatorState
 import com.etfmonitor.feature.market.presentation.deposit.MarketDepositViewModel
 import com.etfmonitor.feature.market.presentation.deposit.MarketDepositContent
+import com.etfmonitor.feature.market.presentation.blood.BloodIndicatorViewModel
+import com.etfmonitor.feature.market.presentation.blood.BloodIndicatorContent
 import kotlinx.coroutines.launch
 
 /**
@@ -38,9 +40,10 @@ import kotlinx.coroutines.launch
  * - Fear & Greed Index
  * - 시장 과매수/과매도
  * - 증시 자금 동향
+ * - Blood Indicator (US Treasury-based market health)
  */
 
-private val MARKET_INDICATOR_TABS = listOf("Fear & Greed", "과매수/과매도", "자금 동향")
+private val MARKET_INDICATOR_TABS = listOf("Fear & Greed", "과매수/과매도", "자금 동향", "Blood")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,7 +53,8 @@ fun MarketIndicatorHubScreen(
     onNavigateToSettings: () -> Unit,
     fearGreedViewModel: FearGreedViewModel = hiltViewModel(),
     marketOscillatorViewModel: MarketOscillatorViewModel = hiltViewModel(),
-    marketDepositViewModel: MarketDepositViewModel = hiltViewModel()
+    marketDepositViewModel: MarketDepositViewModel = hiltViewModel(),
+    bloodIndicatorViewModel: BloodIndicatorViewModel = hiltViewModel()
 ) {
     val pagerState = rememberPagerState(pageCount = { MARKET_INDICATOR_TABS.size })
     val coroutineScope = rememberCoroutineScope()
@@ -86,6 +90,7 @@ fun MarketIndicatorHubScreen(
                 0 -> FearGreedContent(viewModel = fearGreedViewModel)
                 1 -> MarketOscillatorHubContent(viewModel = marketOscillatorViewModel)
                 2 -> MarketDepositContent(viewModel = marketDepositViewModel)
+                3 -> BloodIndicatorContent(viewModel = bloodIndicatorViewModel)
             }
         }
     }

@@ -19,6 +19,7 @@ import com.etfmonitor.core.database.MIGRATION_13_14
 import com.etfmonitor.core.database.MIGRATION_14_15
 import com.etfmonitor.core.database.MIGRATION_15_16
 import com.etfmonitor.core.database.MIGRATION_16_17
+import com.etfmonitor.core.database.MIGRATION_17_18
 import com.etfmonitor.core.database.AIChatDao
 import com.etfmonitor.core.database.AIAnalysisDao
 import com.etfmonitor.core.database.CorrelationAnalysisDao
@@ -37,6 +38,7 @@ import com.etfmonitor.core.database.StockDao
 import com.etfmonitor.core.database.StockIndicatorAIResultDao
 import com.etfmonitor.core.database.PriceCacheDao
 import com.etfmonitor.core.database.EnhancedPredictionDao
+import com.etfmonitor.core.database.BloodIndicatorDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -89,7 +91,8 @@ object DatabaseModule {
                 MIGRATION_13_14,
                 MIGRATION_14_15,
                 MIGRATION_15_16,
-                MIGRATION_16_17
+                MIGRATION_16_17,
+                MIGRATION_17_18
             )
             .build()
     }
@@ -272,5 +275,15 @@ object DatabaseModule {
     @Singleton
     fun provideEnhancedPredictionDao(database: AppDatabase): EnhancedPredictionDao {
         return database.enhancedPredictionDao()
+    }
+
+    /**
+     * Blood Indicator DAO 제공
+     * US Treasury 기반 시장 건강도 지표 데이터를 관리하는 DAO
+     */
+    @Provides
+    @Singleton
+    fun provideBloodIndicatorDao(database: AppDatabase): BloodIndicatorDao {
+        return database.bloodIndicatorDao()
     }
 }

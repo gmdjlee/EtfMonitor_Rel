@@ -134,3 +134,55 @@ enum class MarketType(val code: String, val displayName: String) {
         fun fromCode(code: String): MarketType? = entries.find { it.code == code }
     }
 }
+
+/**
+ * Blood Indicator Domain Model
+ *
+ * BLOOD = IRX (3M T-Bill) / (HYG Yield - 10Y Treasury)
+ * - 상승 추세 (RISK_ON): 시장이 건강하고 위험 자산 선호
+ * - 하락 추세 (RISK_OFF): 시장 스트레스, 안전 자산 선호
+ */
+data class BloodIndicator(
+    val id: String,
+    val date: String,
+    val bloodValue: Double,
+    val irx: Double,
+    val hygYield: Double,
+    val tenYearYield: Double,
+    val spreadValue: Double,
+    val spyClose: Double?,
+    val signalType: BloodSignalType,
+    val lastUpdated: Long
+) {
+    /**
+     * Get trend description
+     */
+    fun getTrendDescription(): String = when (signalType) {
+        BloodSignalType.RISK_ON -> "Risk On - 상승 추세"
+        BloodSignalType.RISK_OFF -> "Risk Off - 하락 추세"
+        BloodSignalType.NEUTRAL -> "Neutral - 중립"
+    }
+
+    /**
+     * Get health status
+     */
+    fun getHealthStatus(): String = when (signalType) {
+        BloodSignalType.RISK_ON -> "Healthy"
+        BloodSignalType.RISK_OFF -> "Stressed"
+        BloodSignalType.NEUTRAL -> "Neutral"
+    }
+}
+
+/**
+ * Blood Indicator Signal Type
+ */
+enum class BloodSignalType(val code: String, val displayName: String) {
+    RISK_ON("RISK_ON", "Risk On"),
+    RISK_OFF("RISK_OFF", "Risk Off"),
+    NEUTRAL("NEUTRAL", "Neutral");
+
+    companion object {
+        fun fromCode(code: String): BloodSignalType =
+            entries.find { it.code == code } ?: NEUTRAL
+    }
+}
