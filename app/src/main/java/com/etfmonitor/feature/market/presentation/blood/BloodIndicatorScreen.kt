@@ -355,6 +355,9 @@ private fun BloodChartSection(
     data: List<BloodIndicator>,
     chartColors: SingleChartColorSettings
 ) {
+    // 5년(약 1260 영업일) 이상이면 장기 기간으로 판단
+    val isLongPeriod = data.size > 1000
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -376,6 +379,7 @@ private fun BloodChartSection(
             BloodDualAxisChart(
                 data = data,
                 chartColors = chartColors,
+                isLongPeriod = isLongPeriod,
                 modifier = Modifier.fillMaxWidth().height(300.dp)
             )
 
@@ -442,6 +446,7 @@ private fun LegendItem(color: Color, label: String, isDashed: Boolean = false) {
 private fun BloodDualAxisChart(
     data: List<BloodIndicator>,
     chartColors: SingleChartColorSettings,
+    isLongPeriod: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
@@ -507,8 +512,9 @@ private fun BloodDualAxisChart(
             }
         },
         update = { chart ->
-            val reversed = data.reversed()
-            val bloodValues = reversed.map { it.bloodValue.toFloat() }
+            // Data is already sorted ASC (oldest first) from DAO - no need to reverse
+            val chartData = data
+            val bloodValues = chartData.map { it.bloodValue.toFloat() }
 
             // Calculate moving averages
             val ma20 = calculateMovingAverage(bloodValues, 20)
@@ -516,7 +522,7 @@ private fun BloodDualAxisChart(
             val ma120 = calculateMovingAverage(bloodValues, 120)
 
             // Blood line
-            val bloodEntries = reversed.mapIndexed { index, item ->
+            val bloodEntries = chartData.mapIndexed { index, item ->
                 Entry(index.toFloat(), item.bloodValue.toFloat())
             }
             val bloodDataSet = LineDataSet(bloodEntries, "BLOOD").apply {
@@ -577,7 +583,7 @@ private fun BloodDualAxisChart(
             } else null
 
             // SPY line (if available) - Black solid line
-            val spyEntries = reversed.mapIndexedNotNull { index, item ->
+            val spyEntries = chartData.mapIndexedNotNull { index, item ->
                 item.spyClose?.let { Entry(index.toFloat(), it.toFloat()) }
             }
             val spyDataSet = if (spyEntries.isNotEmpty()) {
@@ -603,11 +609,35 @@ private fun BloodDualAxisChart(
             val combinedData = CombinedData().apply { setData(lineData) }
 
             chart.xAxis.valueFormatter = object : ValueFormatter() {
+                private var lastYear = ""
+
                 override fun getFormattedValue(value: Float): String {
                     val index = value.toInt()
-                    return if (index >= 0 && index < reversed.size) {
-                        reversed[index].date.takeLast(5) // "MM-DD"
-                    } else ""
+                    if (index < 0 || index >= chartData.size) return ""
+
+                    val dateStr = chartData[index].date // "YYYY-MM-DD"
+                    val year = dateStr.substring(0, 4)
+                    val monthDay = dateStr.substring(5) // "MM-DD"
+
+                    return if (isLongPeriod) {
+                        // 5년 이상: 연도만 표시 (연도가 바뀔 때)
+                        if (year != lastYear) {
+                            lastYear = year
+                            year
+                        } else {
+                            ""
+                        }
+                    } else {
+                        // 5년 미만: YY-MM 또는 연도 변경시 연도 표시
+                        val shortYear = dateStr.substring(2, 4) // "YY"
+                        val month = dateStr.substring(5, 7) // "MM"
+                        if (year != lastYear) {
+                            lastYear = year
+                            "'$shortYear.$month"
+                        } else {
+                            monthDay.replace("-", ".")
+                        }
+                    }
                 }
             }
 
