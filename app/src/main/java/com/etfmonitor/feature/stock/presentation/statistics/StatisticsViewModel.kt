@@ -218,11 +218,13 @@ class StatisticsViewModel @Inject constructor(
     fun analyzeStock(stockTicker: String, saveHistory: Boolean = true) {
         viewModelScope.launch {
             _isAnalyzing.value = true
+            // Clear previous analysis to ensure clean loading state
+            _analysisResult.value = null
+            _searchQuery.value = ""
+            _searchResults.value = emptyList()
             try {
                 val result = repository.analyzeStock(stockTicker)
                 _analysisResult.value = result
-                _searchQuery.value = ""
-                _searchResults.value = emptyList()
 
                 // 분석 성공 시 검색 히스토리에 저장 (FAB 네비게이션 시에는 저장하지 않음)
                 if (saveHistory) {
