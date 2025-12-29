@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.core.ui.component.*
+import com.etfmonitor.core.ui.component.DateRangeOption
 import com.etfmonitor.core.ui.theme.*
 import com.etfmonitor.feature.market.domain.model.BloodIndicator
 import com.etfmonitor.feature.market.domain.model.BloodSignalType
@@ -159,7 +160,8 @@ fun BloodIndicatorContent(
 
             // Main Content
             if (bloodData.isNotEmpty()) {
-                val latest = bloodData.firstOrNull()
+                // Data is sorted ASC (oldest first), so last is the most recent
+                val latest = bloodData.lastOrNull()
                 if (latest != null) {
                     // Current Value Display
                     BloodValueSection(latest = latest)
@@ -167,10 +169,18 @@ fun BloodIndicatorContent(
                     // Components Breakdown
                     ComponentsCard(latest = latest)
 
-                    // Date Range Selector
+                    // Date Range Selector (Blood Indicator specific options)
                     DateRangeSelector(
                         selectedRange = selectedRange,
-                        onRangeSelected = { viewModel.updateDateRange(it) }
+                        onRangeSelected = { viewModel.updateDateRange(it) },
+                        availableOptions = listOf(
+                            DateRangeOption.SIX_MONTHS,
+                            DateRangeOption.YEAR,
+                            DateRangeOption.THREE_YEARS,
+                            DateRangeOption.FIVE_YEARS,
+                            DateRangeOption.SEVEN_YEARS,
+                            DateRangeOption.ALL
+                        )
                     )
 
                     // Dual-Axis Chart (BLOOD + SPY)
@@ -346,6 +356,9 @@ private fun BloodChartSection(
     data: List<BloodIndicator>,
     chartColors: SingleChartColorSettings
 ) {
+    // 5년(약 1260 영업일) 이상이면 장기 기간으로 판단
+    val isLongPeriod = data.size > 1000
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -367,6 +380,7 @@ private fun BloodChartSection(
             BloodDualAxisChart(
                 data = data,
                 chartColors = chartColors,
+                isLongPeriod = isLongPeriod,
                 modifier = Modifier.fillMaxWidth().height(300.dp)
             )
 
@@ -383,23 +397,44 @@ private fun BloodChartLegend() {
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         LegendItem(color = Color(0xFFE53935), label = "BLOOD")
-        LegendItem(color = Color(0xFF2196F3), label = "20MA")
-        LegendItem(color = Color(0xFFFFA726), label = "60MA")
-        LegendItem(color = Color(0xFF4CAF50), label = "120MA")
+        LegendItem(color = Color.Black, label = "S&P 500")
+        LegendItem(color = Color(0xFF2196F3), label = "20MA", isDashed = true)
+        LegendItem(color = Color(0xFFFFA726), label = "60MA", isDashed = true)
+        LegendItem(color = Color(0xFF4CAF50), label = "120MA", isDashed = true)
     }
 }
 
 @Composable
-private fun LegendItem(color: Color, label: String) {
+private fun LegendItem(color: Color, label: String, isDashed: Boolean = false) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(12.dp)
-                .background(color, RoundedCornerShape(2.dp))
-        )
+        if (isDashed) {
+            // Dashed line indicator
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier.width(16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 5.dp, height = 3.dp)
+                        .background(color, RoundedCornerShape(1.dp))
+                )
+                Box(
+                    modifier = Modifier
+                        .size(width = 5.dp, height = 3.dp)
+                        .background(color, RoundedCornerShape(1.dp))
+                )
+            }
+        } else {
+            // Solid line indicator
+            Box(
+                modifier = Modifier
+                    .size(width = 16.dp, height = 3.dp)
+                    .background(color, RoundedCornerShape(1.dp))
+            )
+        }
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
@@ -412,6 +447,7 @@ private fun LegendItem(color: Color, label: String) {
 private fun BloodDualAxisChart(
     data: List<BloodIndicator>,
     chartColors: SingleChartColorSettings,
+    isLongPeriod: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
@@ -477,8 +513,9 @@ private fun BloodDualAxisChart(
             }
         },
         update = { chart ->
-            val reversed = data.reversed()
-            val bloodValues = reversed.map { it.bloodValue.toFloat() }
+            // Data is already sorted ASC (oldest first) from DAO - no need to reverse
+            val chartData = data
+            val bloodValues = chartData.map { it.bloodValue.toFloat() }
 
             // Calculate moving averages
             val ma20 = calculateMovingAverage(bloodValues, 20)
@@ -486,7 +523,7 @@ private fun BloodDualAxisChart(
             val ma120 = calculateMovingAverage(bloodValues, 120)
 
             // Blood line
-            val bloodEntries = reversed.mapIndexed { index, item ->
+            val bloodEntries = chartData.mapIndexed { index, item ->
                 Entry(index.toFloat(), item.bloodValue.toFloat())
             }
             val bloodDataSet = LineDataSet(bloodEntries, "BLOOD").apply {
@@ -498,7 +535,7 @@ private fun BloodDualAxisChart(
                 mode = LineDataSet.Mode.CUBIC_BEZIER
             }
 
-            // 20MA line
+            // 20MA line - Dashed line
             val ma20Entries = ma20.mapIndexedNotNull { index, value ->
                 value?.let { Entry(index.toFloat(), it) }
             }
@@ -510,11 +547,11 @@ private fun BloodDualAxisChart(
                     setDrawCircles(false)
                     setDrawValues(false)
                     mode = LineDataSet.Mode.CUBIC_BEZIER
-                    enableDashedLine(0f, 0f, 0f)
+                    enableDashedLine(10f, 5f, 0f)
                 }
             } else null
 
-            // 60MA line
+            // 60MA line - Dashed line
             val ma60Entries = ma60.mapIndexedNotNull { index, value ->
                 value?.let { Entry(index.toFloat(), it) }
             }
@@ -526,10 +563,11 @@ private fun BloodDualAxisChart(
                     setDrawCircles(false)
                     setDrawValues(false)
                     mode = LineDataSet.Mode.CUBIC_BEZIER
+                    enableDashedLine(10f, 5f, 0f)
                 }
             } else null
 
-            // 120MA line
+            // 120MA line - Dashed line
             val ma120Entries = ma120.mapIndexedNotNull { index, value ->
                 value?.let { Entry(index.toFloat(), it) }
             }
@@ -541,22 +579,23 @@ private fun BloodDualAxisChart(
                     setDrawCircles(false)
                     setDrawValues(false)
                     mode = LineDataSet.Mode.CUBIC_BEZIER
+                    enableDashedLine(10f, 5f, 0f)
                 }
             } else null
 
-            // SPY line (if available)
-            val spyEntries = reversed.mapIndexedNotNull { index, item ->
+            // SPY line (if available) - Black solid line
+            val spyEntries = chartData.mapIndexedNotNull { index, item ->
                 item.spyClose?.let { Entry(index.toFloat(), it.toFloat()) }
             }
             val spyDataSet = if (spyEntries.isNotEmpty()) {
                 LineDataSet(spyEntries, "S&P 500").apply {
                     axisDependency = YAxis.AxisDependency.RIGHT
-                    color = spyColor
-                    lineWidth = 1.5f
+                    color = Color.Black.toArgb()
+                    lineWidth = 2f
                     setDrawCircles(false)
                     setDrawValues(false)
                     mode = LineDataSet.Mode.CUBIC_BEZIER
-                    enableDashedLine(10f, 5f, 0f)
+                    // Solid line (no dashing)
                 }
             } else null
 
@@ -571,11 +610,35 @@ private fun BloodDualAxisChart(
             val combinedData = CombinedData().apply { setData(lineData) }
 
             chart.xAxis.valueFormatter = object : ValueFormatter() {
+                private var lastDisplayedYear = ""
+
                 override fun getFormattedValue(value: Float): String {
                     val index = value.toInt()
-                    return if (index >= 0 && index < reversed.size) {
-                        reversed[index].date.takeLast(5) // "MM-DD"
-                    } else ""
+                    if (index < 0 || index >= chartData.size) return ""
+
+                    val dateStr = chartData[index].date // "YYYY-MM-DD"
+                    val year = dateStr.substring(0, 4)
+                    val month = dateStr.substring(5, 7) // "MM"
+
+                    return if (isLongPeriod) {
+                        // 5년 이상: 1월에만 연도 표시
+                        if (month == "01" && year != lastDisplayedYear) {
+                            lastDisplayedYear = year
+                            year
+                        } else {
+                            ""
+                        }
+                    } else {
+                        // 5년 미만: 1월에 연도 표시, 그 외는 월.일 표시
+                        val shortYear = dateStr.substring(2, 4) // "YY"
+                        val day = dateStr.substring(8, 10) // "DD"
+                        if (month == "01" && year != lastDisplayedYear) {
+                            lastDisplayedYear = year
+                            "'$shortYear"
+                        } else {
+                            "$month.$day"
+                        }
+                    }
                 }
             }
 
@@ -724,12 +787,13 @@ private fun BloodInitializeDialog(
     onConfirm: (Int) -> Unit
 ) {
     val options = listOf(
-        BloodPeriodOption(90, "3개월", "약 90일"),
-        BloodPeriodOption(180, "6개월", "약 180일"),
-        BloodPeriodOption(365, "12개월 (권장)", "약 365일"),
-        BloodPeriodOption(730, "24개월", "약 730일")
+        BloodPeriodOption(365, "1년", "약 365일"),
+        BloodPeriodOption(1095, "3년", "약 1,095일"),
+        BloodPeriodOption(1825, "5년 (권장)", "약 1,825일"),
+        BloodPeriodOption(2555, "7년", "약 2,555일"),
+        BloodPeriodOption(3650, "10년", "약 3,650일")
     )
-    var selectedDays by remember { mutableStateOf(365) }
+    var selectedDays by remember { mutableStateOf(1825) }
 
     AlertDialog(
         onDismissRequest = { },

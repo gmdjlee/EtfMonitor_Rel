@@ -28,6 +28,9 @@ enum class DateRangeOption(val label: String, val days: Int) {
     THREE_MONTHS("3개월", 90),
     SIX_MONTHS("6개월", 180),
     YEAR("1년", 365),
+    THREE_YEARS("3년", 1095),
+    FIVE_YEARS("5년", 1825),
+    SEVEN_YEARS("7년", 2555),
     ALL("전체", -1);
 
     companion object {
@@ -155,7 +158,10 @@ object ChartLabelCalculator {
             DateRangeOption.THREE_MONTHS -> 66
             DateRangeOption.SIX_MONTHS -> 132
             DateRangeOption.YEAR -> 252        // 연 ~252일 영업
-            DateRangeOption.ALL -> 500         // 약 2년치
+            DateRangeOption.THREE_YEARS -> 756 // 3년 ~756일 영업
+            DateRangeOption.FIVE_YEARS -> 1260 // 5년 ~1260일 영업
+            DateRangeOption.SEVEN_YEARS -> 1764 // 7년 ~1764일 영업
+            DateRangeOption.ALL -> 2000        // 약 8년치
         }
     }
 }

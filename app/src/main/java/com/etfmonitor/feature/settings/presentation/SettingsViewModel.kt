@@ -205,7 +205,7 @@ class SettingsViewModel @Inject constructor(
     private val _marketIndexPeriodDays = MutableStateFlow(30)
     val marketIndexPeriodDays: StateFlow<Int> = _marketIndexPeriodDays.asStateFlow()
 
-    private val _bloodIndicatorPeriodDays = MutableStateFlow(365)
+    private val _bloodIndicatorPeriodDays = MutableStateFlow(1825)
     val bloodIndicatorPeriodDays: StateFlow<Int> = _bloodIndicatorPeriodDays.asStateFlow()
 
     private val _isDarkTheme = MutableStateFlow<Boolean?>(null)
@@ -296,7 +296,7 @@ class SettingsViewModel @Inject constructor(
         _fearGreedPeriodDays.value = etfDao.getSetting(Keys.FEAR_GREED_PERIOD)?.toIntOrNull() ?: 365
         _marketOscillatorPeriodDays.value = etfDao.getSetting(Keys.OSCILLATOR_PERIOD)?.toIntOrNull() ?: 365
         _marketIndexPeriodDays.value = etfDao.getSetting(Keys.MARKET_INDEX_PERIOD)?.toIntOrNull() ?: 30
-        _bloodIndicatorPeriodDays.value = etfDao.getSetting(Keys.BLOOD_INDICATOR_PERIOD)?.toIntOrNull() ?: 365
+        _bloodIndicatorPeriodDays.value = etfDao.getSetting(Keys.BLOOD_INDICATOR_PERIOD)?.toIntOrNull() ?: 1825
     }
 
     private suspend fun loadUpdateScheduleSettings() {
