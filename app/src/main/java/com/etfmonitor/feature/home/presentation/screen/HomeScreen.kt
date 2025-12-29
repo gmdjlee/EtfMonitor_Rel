@@ -143,9 +143,9 @@ fun HomeScreen(
                 showUnifiedDialog = false
                 viewModel.onUnifiedInitDialogDismiss()
             },
-            onConfirm = { etfDays, depositPages, fearGreedDays, oscillatorDays, marketIndexDays ->
+            onConfirm = { etfDays, depositPages, fearGreedDays, oscillatorDays, marketIndexDays, bloodIndicatorDays ->
                 showUnifiedDialog = false
-                viewModel.initializeAll(etfDays, depositPages, fearGreedDays, oscillatorDays, marketIndexDays)
+                viewModel.initializeAll(etfDays, depositPages, fearGreedDays, oscillatorDays, marketIndexDays, bloodIndicatorDays)
             }
         )
     }

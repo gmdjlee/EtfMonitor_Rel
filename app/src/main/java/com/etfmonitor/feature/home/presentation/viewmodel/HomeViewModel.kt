@@ -288,7 +288,8 @@ class HomeViewModel @Inject constructor(
         depositPages: Int?,
         fearGreedDays: Int?,
         oscillatorDays: Int?,
-        marketIndexDays: Int?
+        marketIndexDays: Int?,
+        bloodIndicatorDays: Int? = null
     ) {
         viewModelScope.launch {
             saveDialogDismissedUseCase.saveAllDialogsDismissed()
@@ -304,7 +305,8 @@ class HomeViewModel @Inject constructor(
                 depositPages = depositPages,
                 fearGreedDays = fearGreedDays,
                 oscillatorDays = oscillatorDays,
-                marketIndexDays = marketIndexDays
+                marketIndexDays = marketIndexDays,
+                bloodIndicatorDays = bloodIndicatorDays
             )
         }
     }

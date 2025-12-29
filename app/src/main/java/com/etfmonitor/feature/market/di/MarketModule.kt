@@ -1,9 +1,11 @@
 package com.etfmonitor.feature.market.di
 
+import com.etfmonitor.feature.market.data.repository.BloodIndicatorRepositoryImpl
 import com.etfmonitor.feature.market.data.repository.FearGreedRepositoryImpl
 import com.etfmonitor.feature.market.data.repository.MarketDepositRepositoryImpl
 import com.etfmonitor.feature.market.data.repository.MarketIndexRepositoryImpl
 import com.etfmonitor.feature.market.data.repository.MarketOscillatorRepositoryImpl
+import com.etfmonitor.feature.market.domain.repository.BloodIndicatorRepository
 import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
 import com.etfmonitor.feature.market.domain.repository.MarketIndexRepository
@@ -22,6 +24,7 @@ import javax.inject.Singleton
  * - MarketDepositRepository (12h smart caching)
  * - MarketOscillatorRepository (180s timeout for 200+ stocks)
  * - MarketIndexRepository
+ * - BloodIndicatorRepository (US Treasury-based market health indicator)
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -50,4 +53,10 @@ abstract class MarketModule {
     abstract fun bindMarketIndexRepository(
         impl: MarketIndexRepositoryImpl
     ): MarketIndexRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBloodIndicatorRepository(
+        impl: BloodIndicatorRepositoryImpl
+    ): BloodIndicatorRepository
 }

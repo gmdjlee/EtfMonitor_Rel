@@ -4,11 +4,14 @@ import com.etfmonitor.core.database.entities.FearGreedIndex as FearGreedEntity
 import com.etfmonitor.core.database.entities.MarketDeposit as MarketDepositEntity
 import com.etfmonitor.core.database.entities.MarketOscillatorData as MarketOscillatorEntity
 import com.etfmonitor.core.database.entities.MarketIndex as MarketIndexEntity
+import com.etfmonitor.core.database.entities.BloodIndicator as BloodIndicatorEntity
 import com.etfmonitor.feature.market.domain.model.FearGreedIndex
 import com.etfmonitor.feature.market.domain.model.MarketDeposit
 import com.etfmonitor.feature.market.domain.model.MarketDepositData
 import com.etfmonitor.feature.market.domain.model.MarketOscillator
 import com.etfmonitor.feature.market.domain.model.MarketIndex
+import com.etfmonitor.feature.market.domain.model.BloodIndicator
+import com.etfmonitor.feature.market.domain.model.BloodSignalType
 import com.etfmonitor.core.analysis.model.MarketDepositData as LegacyMarketDepositData
 
 /**
@@ -134,4 +137,34 @@ object MarketMapper {
     )
 
     fun List<MarketIndexEntity>.toIndexDomainList(): List<MarketIndex> = map { it.toDomain() }
+
+    // ==================== BloodIndicator ====================
+
+    fun BloodIndicatorEntity.toDomain(): BloodIndicator = BloodIndicator(
+        id = id,
+        date = date,
+        bloodValue = bloodValue,
+        irx = irx,
+        hygYield = hygYield,
+        tenYearYield = tenYearYield,
+        spreadValue = spreadValue,
+        spyClose = spyClose,
+        signalType = BloodSignalType.fromCode(signalType),
+        lastUpdated = lastUpdated
+    )
+
+    fun BloodIndicator.toEntity(): BloodIndicatorEntity = BloodIndicatorEntity(
+        id = id,
+        date = date,
+        bloodValue = bloodValue,
+        irx = irx,
+        hygYield = hygYield,
+        tenYearYield = tenYearYield,
+        spreadValue = spreadValue,
+        spyClose = spyClose,
+        signalType = signalType.code,
+        lastUpdated = lastUpdated
+    )
+
+    fun List<BloodIndicatorEntity>.toBloodDomainList(): List<BloodIndicator> = map { it.toDomain() }
 }

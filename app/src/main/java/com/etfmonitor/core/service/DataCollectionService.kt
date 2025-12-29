@@ -15,6 +15,7 @@ import com.etfmonitor.MainActivity
 import com.etfmonitor.R
 import com.etfmonitor.feature.etf.domain.model.DataProgress
 import com.etfmonitor.feature.etf.domain.repository.EtfRepository
+import com.etfmonitor.feature.market.domain.repository.BloodIndicatorRepository
 import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
 import com.etfmonitor.feature.market.domain.repository.MarketIndexRepository
@@ -53,6 +54,9 @@ class DataCollectionService : Service() {
     @Inject
     lateinit var marketDepositRepository: MarketDepositRepository
 
+    @Inject
+    lateinit var bloodIndicatorRepository: BloodIndicatorRepository
+
     private val serviceScope = CoroutineScope(Dispatchers.Default + Job())
     private val notificationManager by lazy {
         getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -69,6 +73,7 @@ class DataCollectionService : Service() {
     private var pendingFearGreedDays: Int? = null
     private var pendingOscillatorDays: Int? = null
     private var pendingMarketIndexDays: Int? = null
+    private var pendingBloodIndicatorDays: Int? = null
 
     companion object {
         private val logger = AppLogger.getLogger("DataCollectSvc")
@@ -87,6 +92,7 @@ class DataCollectionService : Service() {
         const val EXTRA_FEAR_GREED_DAYS = "extra_fear_greed_days"
         const val EXTRA_OSCILLATOR_DAYS = "extra_oscillator_days"
         const val EXTRA_MARKET_INDEX_DAYS = "extra_market_index_days"
+        const val EXTRA_BLOOD_INDICATOR_DAYS = "extra_blood_indicator_days"
 
         fun startInitialize(context: Context, days: Int) {
             val intent = Intent(context, DataCollectionService::class.java).apply {
@@ -110,7 +116,8 @@ class DataCollectionService : Service() {
             depositPages: Int?,
             fearGreedDays: Int?,
             oscillatorDays: Int?,
-            marketIndexDays: Int?
+            marketIndexDays: Int?,
+            bloodIndicatorDays: Int? = null
         ) {
             val intent = Intent(context, DataCollectionService::class.java).apply {
                 action = ACTION_INITIALIZE_ALL
@@ -119,6 +126,7 @@ class DataCollectionService : Service() {
                 fearGreedDays?.let { putExtra(EXTRA_FEAR_GREED_DAYS, it) }
                 oscillatorDays?.let { putExtra(EXTRA_OSCILLATOR_DAYS, it) }
                 marketIndexDays?.let { putExtra(EXTRA_MARKET_INDEX_DAYS, it) }
+                bloodIndicatorDays?.let { putExtra(EXTRA_BLOOD_INDICATOR_DAYS, it) }
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -176,6 +184,9 @@ class DataCollectionService : Service() {
                 } else null
                 pendingMarketIndexDays = if (intent.hasExtra(EXTRA_MARKET_INDEX_DAYS)) {
                     intent.getIntExtra(EXTRA_MARKET_INDEX_DAYS, 30)
+                } else null
+                pendingBloodIndicatorDays = if (intent.hasExtra(EXTRA_BLOOD_INDICATOR_DAYS)) {
+                    intent.getIntExtra(EXTRA_BLOOD_INDICATOR_DAYS, 365)
                 } else null
                 acquireWakeLock()
                 CollectionState.startCollection(isInitialize = true, initialMessage = "통합 초기화 준비 중...")
@@ -297,7 +308,8 @@ class DataCollectionService : Service() {
                      "Deposit: $pendingDepositPages pages, " +
                      "FearGreed: $pendingFearGreedDays days, " +
                      "Oscillator: $pendingOscillatorDays days, " +
-                     "MarketIndex: $pendingMarketIndexDays days")
+                     "MarketIndex: $pendingMarketIndexDays days, " +
+                     "BloodIndicator: $pendingBloodIndicatorDays days")
 
             // Step 1: ETF 데이터 초기화
             etfRepository.initializeData(etfDays)
@@ -424,17 +436,17 @@ class DataCollectionService : Service() {
             if (oscillatorDays != null) {
                 try {
                     logger.d("Starting Market Oscillator initialization: $oscillatorDays days")
-                    CollectionState.updateProgress("과매수/과매도 지표 수집 중...", 85)
-                    updateNotification("과매수/과매도 지표 수집 중...", 85)
+                    CollectionState.updateProgress("과매수/과매도 지표 수집 중...", 80)
+                    updateNotification("과매수/과매도 지표 수집 중...", 80)
 
                     val kospiResult = marketOscillatorRepository.initializeMarketData("KOSPI", oscillatorDays) { message, progress ->
-                        val adjustedProgress = 85 + (progress * 0.075).toInt()
+                        val adjustedProgress = 80 + (progress * 0.05).toInt()
                         CollectionState.updateProgress("KOSPI $message", adjustedProgress)
                         updateNotification("KOSPI $message", adjustedProgress)
                     }
 
                     val kosdaqResult = marketOscillatorRepository.initializeMarketData("KOSDAQ", oscillatorDays) { message, progress ->
-                        val adjustedProgress = 92 + (progress * 0.075).toInt()
+                        val adjustedProgress = 85 + (progress * 0.05).toInt()
                         CollectionState.updateProgress("KOSDAQ $message", adjustedProgress)
                         updateNotification("KOSDAQ $message", adjustedProgress)
                     }
@@ -447,6 +459,36 @@ class DataCollectionService : Service() {
                     }
                 } catch (e: Exception) {
                     logger.e("Error in Market Oscillator initialization", e)
+                }
+            }
+            // Continue to Blood Indicator
+            continueWithBloodIndicator()
+        }
+    }
+
+    private fun continueWithBloodIndicator() {
+        serviceScope.launch {
+            val bloodIndicatorDays = pendingBloodIndicatorDays
+            if (bloodIndicatorDays != null) {
+                try {
+                    logger.d("Starting Blood Indicator initialization: $bloodIndicatorDays days")
+                    CollectionState.updateProgress("Blood Indicator 수집 중...", 92)
+                    updateNotification("Blood Indicator 수집 중...", 92)
+
+                    val result = bloodIndicatorRepository.initializeBloodIndicator(bloodIndicatorDays) { message, progress ->
+                        val adjustedProgress = 92 + (progress * 0.08).toInt()
+                        CollectionState.updateProgress(message, adjustedProgress)
+                        updateNotification(message, adjustedProgress)
+                    }
+
+                    if (result.isSuccess) {
+                        val count = result.getOrNull() ?: 0
+                        logger.d("Blood Indicator initialization completed: $count records")
+                    } else {
+                        logger.e("Blood Indicator initialization failed: ${result.exceptionOrNull()?.message}")
+                    }
+                } catch (e: Exception) {
+                    logger.e("Error in Blood Indicator initialization", e)
                 }
             }
             // All done
@@ -464,6 +506,8 @@ class DataCollectionService : Service() {
         pendingDepositPages = null
         pendingFearGreedDays = null
         pendingOscillatorDays = null
+        pendingMarketIndexDays = null
+        pendingBloodIndicatorDays = null
 
         releaseWakeLock()
         stopSelf()
@@ -567,7 +611,7 @@ class DataCollectionService : Service() {
         serviceScope.launch {
             try {
                 logger.d("Starting Market Oscillator update")
-                updateNotification("과매수/과매도 데이터 업데이트 중...", 0)
+                updateNotification("과매수/과매도 데이터 업데이트 중...", 70)
 
                 // KOSPI와 KOSDAQ 데이터 업데이트
                 val kospiResult = marketOscillatorRepository.updateMarketData("KOSPI")
@@ -576,19 +620,51 @@ class DataCollectionService : Service() {
                 if (kospiResult.isSuccess && kosdaqResult.isSuccess) {
                     val kospiCount = kospiResult.getOrNull() ?: 0
                     val kosdaqCount = kosdaqResult.getOrNull() ?: 0
-                    val successMsg = "업데이트 완료! 과매수/과매도 ${kospiCount + kosdaqCount}개 데이터"
-                    logger.d(successMsg)
-                    CollectionState.complete(successMsg)
-                    updateNotification(successMsg, 100, isComplete = true)
+                    logger.d("Market Oscillator update completed: ${kospiCount + kosdaqCount} records")
+                    // Continue to Blood Indicator update
+                    updateBloodIndicator()
                 } else {
                     val errorMsg = "과매수/과매도 업데이트 실패"
                     logger.e(errorMsg)
                     CollectionState.error(errorMsg)
                     updateNotification(errorMsg, 0, isError = true)
+                    releaseWakeLock()
+                    stopSelf()
                 }
             } catch (e: Exception) {
                 logger.e("Error in Market Oscillator update", e)
                 val errorMsg = "과매수/과매도 업데이트 실패: ${e.message}"
+                CollectionState.error(errorMsg)
+                updateNotification(errorMsg, 0, isError = true)
+                releaseWakeLock()
+                stopSelf()
+            }
+        }
+    }
+
+    private fun updateBloodIndicator() {
+        serviceScope.launch {
+            try {
+                logger.d("Starting Blood Indicator update")
+                updateNotification("Blood Indicator 업데이트 중...", 85)
+
+                val result = bloodIndicatorRepository.updateBloodIndicator()
+
+                if (result.isSuccess) {
+                    val count = result.getOrNull() ?: 0
+                    val successMsg = "업데이트 완료! Blood Indicator $count 개 데이터"
+                    logger.d(successMsg)
+                    CollectionState.complete(successMsg)
+                    updateNotification(successMsg, 100, isComplete = true)
+                } else {
+                    val errorMsg = "Blood Indicator 업데이트 실패: ${result.exceptionOrNull()?.message}"
+                    logger.e(errorMsg)
+                    CollectionState.error(errorMsg)
+                    updateNotification(errorMsg, 0, isError = true)
+                }
+            } catch (e: Exception) {
+                logger.e("Error in Blood Indicator update", e)
+                val errorMsg = "Blood Indicator 업데이트 실패: ${e.message}"
                 CollectionState.error(errorMsg)
                 updateNotification(errorMsg, 0, isError = true)
             } finally {

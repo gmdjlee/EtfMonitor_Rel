@@ -438,4 +438,40 @@ object WorkManagerHelper {
 
         logger.d("Advanced analysis chained after ETF collection")
     }
+
+    // ==================== Blood Indicator Worker ====================
+
+    /**
+     * 매일 지정된 시간에 Blood Indicator 업데이트 작업 스케줄링
+     *
+     * Blood Indicator는 US 시장 데이터를 기반으로 하므로
+     * 미국 시장 마감 후 (한국 시간 기준) 업데이트하는 것이 좋습니다.
+     *
+     * @param context Context
+     * @param hour 업데이트할 시간 (0-23), 기본값: 7 (한국 시간 오전 7시 = 미국 동부 시간 오후 6시)
+     * @param minute 업데이트할 분 (0-59), 기본값: 0
+     */
+    fun scheduleBloodIndicatorUpdate(context: Context, hour: Int = 7, minute: Int = 0) {
+        scheduleDailyUpdate<BloodIndicatorUpdateWorker>(
+            context = context,
+            hour = hour,
+            minute = minute,
+            workName = BloodIndicatorUpdateWorker.WORK_NAME,
+            taskName = "blood indicator"
+        )
+    }
+
+    /**
+     * Blood Indicator 스케줄링 취소
+     */
+    fun cancelBloodIndicatorUpdate(context: Context) {
+        cancelUpdate(context, BloodIndicatorUpdateWorker.WORK_NAME, "blood indicator")
+    }
+
+    /**
+     * 즉시 Blood Indicator 수동 업데이트 실행
+     */
+    fun runBloodIndicatorUpdateNow(context: Context) {
+        runUpdateNow<BloodIndicatorUpdateWorker>(context, "blood indicator")
+    }
 }
