@@ -251,11 +251,10 @@ def fetch_blood_data(start_date: str, end_date: str) -> Optional[pd.DataFrame]:
             log.error("Failed to fetch required data (IRX or TNX)")
             return None
 
-        # Resample IRX to weekly (Friday) - convert from percentage (4.5 = 4.5%)
-        # IRX is already in percentage format (e.g., 4.5 means 4.5%)
+        # Resample IRX to weekly (Friday)
+        # IRX is in percentage format (e.g., 4.5 means 4.5%)
+        # Keep as percentage to match reference chart scale
         irx_weekly = irx_df["Close"].resample("W-FRI").last()
-        # Convert to decimal for calculation (4.5% -> 0.045)
-        irx_weekly = irx_weekly / 100
 
         # Resample 10Y Treasury to weekly (Friday)
         # TNX is in percentage format (e.g., 4.5 means 4.5%)
@@ -357,8 +356,8 @@ def get_blood_indicator_json(start_date: str, end_date: str) -> str:
         date_str = idx.strftime("%Y-%m-%d")
 
         blood_val = row["BLOOD"]
-        # Convert IRX from decimal back to percentage for display (0.045 -> 4.5)
-        irx_val = row["IRX"] * 100 if pd.notna(row["IRX"]) else 0.0
+        # IRX is already in percentage format (e.g., 4.5 means 4.5%)
+        irx_val = row["IRX"] if pd.notna(row["IRX"]) else 0.0
         hyg_yield_val = row["HYG_Yield"]
         tnx_val = row["TNX"]
         spread_val = row["Spread"]
@@ -405,14 +404,14 @@ def get_latest_blood_value() -> str:
     latest = df.iloc[-1]
     date_str = df.index[-1].strftime("%Y-%m-%d")
 
-    # Convert IRX from decimal back to percentage for display (0.045 -> 4.5)
-    irx_pct = latest["IRX"] * 100 if pd.notna(latest["IRX"]) else 0.0
+    # IRX is already in percentage format (e.g., 4.5 means 4.5%)
+    irx_val = latest["IRX"] if pd.notna(latest["IRX"]) else 0.0
 
     return to_json({
         "date": date_str,
         "bloodValue": round(float(latest["BLOOD"]), 4),
         "signal": latest["Signal"],
-        "irx": round(float(irx_pct), 4),
+        "irx": round(float(irx_val), 4),
         "hygYield": round(float(latest["HYG_Yield"]), 4),
         "tenYearYield": round(float(latest["TNX"]), 4),
         "spreadValue": round(float(latest["Spread"]), 4)
