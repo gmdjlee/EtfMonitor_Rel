@@ -26,6 +26,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
+import com.etfmonitor.core.ui.component.DateRangeOption
 import com.etfmonitor.core.ui.component.DateRangeSelector
 import com.etfmonitor.feature.market.domain.model.MarketOscillator
 import com.etfmonitor.core.ui.component.LoadingCard
@@ -158,7 +159,15 @@ fun MarketOscillatorScreen(
             // Date Range Selector
             DateRangeSelector(
                 selectedRange = selectedRange,
-                onRangeSelected = { viewModel.updateDateRange(it) }
+                onRangeSelected = { viewModel.updateDateRange(it) },
+                availableOptions = listOf(
+                    DateRangeOption.WEEK,
+                    DateRangeOption.MONTH,
+                    DateRangeOption.THREE_MONTHS,
+                    DateRangeOption.SIX_MONTHS,
+                    DateRangeOption.YEAR,
+                    DateRangeOption.ALL
+                )
             )
 
             // State Display

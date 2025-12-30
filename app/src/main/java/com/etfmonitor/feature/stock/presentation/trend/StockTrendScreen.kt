@@ -136,7 +136,15 @@ private fun TrendContent(
         // 기간 선택
         DateRangeSelector(
             selectedRange = selectedRange,
-            onRangeSelected = onRangeSelected
+            onRangeSelected = onRangeSelected,
+            availableOptions = listOf(
+                DateRangeOption.WEEK,
+                DateRangeOption.MONTH,
+                DateRangeOption.THREE_MONTHS,
+                DateRangeOption.SIX_MONTHS,
+                DateRangeOption.YEAR,
+                DateRangeOption.ALL
+            )
         )
 
         SummaryCard(trend.timeSeries)

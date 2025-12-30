@@ -31,6 +31,7 @@ import com.etfmonitor.core.ui.component.MacdChart
 import com.etfmonitor.core.ui.component.TrendSignalChart
 import com.etfmonitor.core.ui.component.ElderImpulseChart
 import com.etfmonitor.core.ui.component.DemarkTDChart
+import com.etfmonitor.core.ui.component.DateRangeOption
 import com.etfmonitor.core.ui.component.DateRangeSelector
 import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.feature.stock.presentation.oscillator.OscillatorViewModel
@@ -118,7 +119,15 @@ fun StocksHubScreen(
         if (currentTicker != null) {
             DateRangeSelector(
                 selectedRange = selectedRange,
-                onRangeSelected = { viewModel.updateDateRange(it) }
+                onRangeSelected = { viewModel.updateDateRange(it) },
+                availableOptions = listOf(
+                    DateRangeOption.WEEK,
+                    DateRangeOption.MONTH,
+                    DateRangeOption.THREE_MONTHS,
+                    DateRangeOption.SIX_MONTHS,
+                    DateRangeOption.YEAR,
+                    DateRangeOption.ALL
+                )
             )
         }
 
