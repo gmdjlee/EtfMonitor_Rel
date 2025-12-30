@@ -39,6 +39,11 @@ interface BloodIndicatorRepository {
     suspend fun getLatestDate(): String?
 
     /**
+     * Get earliest date in database
+     */
+    suspend fun getEarliestDate(): String?
+
+    /**
      * Get last update time
      */
     suspend fun getLastUpdateTime(): Long?

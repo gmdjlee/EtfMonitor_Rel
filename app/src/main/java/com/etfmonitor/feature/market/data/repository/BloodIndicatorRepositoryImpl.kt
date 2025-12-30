@@ -65,6 +65,11 @@ class BloodIndicatorRepositoryImpl @Inject constructor(
             bloodIndicatorDao.getLatestDate()
         }
 
+    override suspend fun getEarliestDate(): String? =
+        withContext(Dispatchers.IO) {
+            bloodIndicatorDao.getEarliestDate()
+        }
+
     override suspend fun getLastUpdateTime(): Long? =
         withContext(Dispatchers.IO) {
             bloodIndicatorDao.getLastUpdateTime()

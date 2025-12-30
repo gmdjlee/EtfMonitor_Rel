@@ -356,9 +356,6 @@ private fun BloodChartSection(
     data: List<BloodIndicator>,
     chartColors: SingleChartColorSettings
 ) {
-    // 5년(약 1260 영업일) 이상이면 장기 기간으로 판단
-    val isLongPeriod = data.size > 1000
-
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -380,7 +377,6 @@ private fun BloodChartSection(
             BloodDualAxisChart(
                 data = data,
                 chartColors = chartColors,
-                isLongPeriod = isLongPeriod,
                 modifier = Modifier.fillMaxWidth().height(300.dp)
             )
 
@@ -447,7 +443,6 @@ private fun LegendItem(color: Color, label: String, isDashed: Boolean = false) {
 private fun BloodDualAxisChart(
     data: List<BloodIndicator>,
     chartColors: SingleChartColorSettings,
-    isLongPeriod: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
@@ -610,34 +605,23 @@ private fun BloodDualAxisChart(
             val combinedData = CombinedData().apply { setData(lineData) }
 
             chart.xAxis.valueFormatter = object : ValueFormatter() {
-                private var lastDisplayedYear = ""
+                private var lastDisplayedYearMonth = ""
 
                 override fun getFormattedValue(value: Float): String {
                     val index = value.toInt()
                     if (index < 0 || index >= chartData.size) return ""
 
                     val dateStr = chartData[index].date // "YYYY-MM-DD"
-                    val year = dateStr.substring(0, 4)
+                    val shortYear = dateStr.substring(2, 4) // "YY"
                     val month = dateStr.substring(5, 7) // "MM"
+                    val yearMonth = "$shortYear/$month"
 
-                    return if (isLongPeriod) {
-                        // 5년 이상: 1월에만 연도 표시
-                        if (month == "01" && year != lastDisplayedYear) {
-                            lastDisplayedYear = year
-                            year
-                        } else {
-                            ""
-                        }
+                    // 동일한 년/월이 이미 표시되었으면 중복 방지
+                    return if (yearMonth != lastDisplayedYearMonth) {
+                        lastDisplayedYearMonth = yearMonth
+                        yearMonth
                     } else {
-                        // 5년 미만: 1월에 연도 표시, 그 외는 월.일 표시
-                        val shortYear = dateStr.substring(2, 4) // "YY"
-                        val day = dateStr.substring(8, 10) // "DD"
-                        if (month == "01" && year != lastDisplayedYear) {
-                            lastDisplayedYear = year
-                            "'$shortYear"
-                        } else {
-                            "$month.$day"
-                        }
+                        ""
                     }
                 }
             }
