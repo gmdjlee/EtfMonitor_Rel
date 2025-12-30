@@ -5,6 +5,13 @@ Uses Yahoo Finance REST API to fetch US Treasury and HYG data.
 BLOOD = IRX / (HYG Yield - 10Y Treasury)
 - Rising BLOOD = Risk On (Market healthy)
 - Falling BLOOD = Risk Off (Market stress)
+
+Version: 2.0 (Unified with Colab code style)
+Changes from v1.0:
+- IRX divided by 100 (decimal format)
+- Actual HYG dividend yield from Yahoo Finance (fixed value)
+- Weekly resampling (W-FRI)
+- No EMA smoothing (raw values)
 """
 import json
 import time
@@ -20,7 +27,7 @@ log = get_logger(__name__)
 
 # Yahoo Finance API endpoints
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
-YAHOO_QUOTE_URL = "https://query1.finance.yahoo.com/v7/finance/quote"
+YAHOO_QUOTE_URL = "https://query1.finance.yahoo.com/v10/finance/quoteSummary/{symbol}"
 
 # Tickers
 TICKER_IRX = "^IRX"      # 13-Week Treasury Bill
@@ -32,6 +39,9 @@ TICKER_SPY = "SPY"       # S&P 500 ETF (for reference)
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
+
+# Default HYG dividend yield (fallback value)
+DEFAULT_HYG_YIELD = 5.72
 
 
 def _fetch_yahoo_chart(symbol: str, start_ts: int, end_ts: int) -> Optional[pd.DataFrame]:
@@ -99,25 +109,40 @@ def _fetch_yahoo_chart(symbol: str, start_ts: int, end_ts: int) -> Optional[pd.D
         return None
 
 
-def _get_hyg_yield_estimate(hyg_df: pd.DataFrame) -> pd.Series:
+def _get_hyg_dividend_yield() -> float:
     """
-    Estimate HYG dividend yield based on price patterns.
-    HYG typically yields 5-8%, inverse relationship with price.
+    Fetch actual HYG dividend yield from Yahoo Finance.
 
-    In production, you'd fetch actual dividend data from Yahoo Finance.
+    Returns:
+        Dividend yield as percentage (e.g., 5.72 for 5.72%)
     """
-    base_yield = 6.0  # Approximate baseline yield for HYG
+    try:
+        url = YAHOO_QUOTE_URL.format(symbol=TICKER_HYG)
+        params = {"modules": "summaryDetail"}
 
-    if len(hyg_df) > 20:
-        ma20 = hyg_df["Close"].rolling(20).mean()
-        deviation = (hyg_df["Close"] - ma20) / ma20 * 100
-        # Inverse relationship: falling price = higher yield
-        yield_series = base_yield - deviation.fillna(0) * 0.25
-        # Clamp to reasonable range
-        yield_series = yield_series.clip(4.0, 10.0)
-        return yield_series
+        resp = requests.get(url, params=params, headers=HEADERS, timeout=30)
+        resp.raise_for_status()
 
-    return pd.Series([base_yield] * len(hyg_df), index=hyg_df.index)
+        data = resp.json()
+
+        if "quoteSummary" in data and "result" in data["quoteSummary"]:
+            result = data["quoteSummary"]["result"]
+            if result:
+                summary = result[0].get("summaryDetail", {})
+                dividend_yield = summary.get("dividendYield", {}).get("raw", None)
+
+                if dividend_yield is not None:
+                    # Yahoo returns as decimal (0.0572), convert to percentage (5.72)
+                    yield_pct = dividend_yield * 100
+                    log.info("HYG dividend yield fetched: %.4f%%", yield_pct)
+                    return yield_pct
+
+        log.warning("Could not fetch HYG dividend yield, using default %.2f%%", DEFAULT_HYG_YIELD)
+        return DEFAULT_HYG_YIELD
+
+    except Exception as e:
+        log.error("Error fetching HYG dividend yield: %s", e)
+        return DEFAULT_HYG_YIELD
 
 
 def _calc_signal(blood_value: float, prev_blood: Optional[float], ma_20: Optional[float] = None) -> str:
@@ -178,11 +203,8 @@ def fetch_blood_data(start_date: str, end_date: str) -> Optional[pd.DataFrame]:
             log.error("Failed to parse dates")
             return None
 
-        # Add buffer for rolling calculations
-        buffer_start = start_dt - timedelta(days=60)
-
         # Convert to Unix timestamps
-        start_ts = int(buffer_start.timestamp())
+        start_ts = int(start_dt.timestamp())
         end_ts = int((end_dt + timedelta(days=1)).timestamp())
 
         # Fetch data with delay between requests
@@ -205,37 +227,44 @@ def fetch_blood_data(start_date: str, end_date: str) -> Optional[pd.DataFrame]:
             log.error("Failed to fetch required data")
             return None
 
-        # Create combined DataFrame aligned by date
-        df = pd.DataFrame(index=irx_df.index)
-        df["IRX"] = irx_df["Close"]
-        df["TNX"] = tnx_df.reindex(df.index, method="ffill")["Close"]
-        df["HYG_Close"] = hyg_df.reindex(df.index, method="ffill")["Close"]
+        # Get actual HYG dividend yield (fixed value for entire period)
+        hyg_dividend_yield = _get_hyg_dividend_yield()
 
-        if spy_df is not None:
-            df["SPY_Close"] = spy_df.reindex(df.index, method="ffill")["Close"]
+        # === IRX: Divide by 100 (convert % to decimal) ===
+        irx_df["Close"] = irx_df["Close"] / 100
+
+        # === Resample to weekly (W-FRI) ===
+        irx_weekly = irx_df["Close"].resample('W-FRI').last()
+        tnx_weekly = tnx_df["Close"].resample('W-FRI').last()
+        hyg_weekly = hyg_df["Close"].resample('W-FRI').last()
+        spy_weekly = spy_df["Close"].resample('W-FRI').last() if spy_df is not None else None
+
+        # Create combined DataFrame aligned by date
+        df = pd.DataFrame(index=irx_weekly.index)
+        df["IRX"] = irx_weekly
+        df["TNX"] = tnx_weekly.reindex(df.index, method="ffill")
+        df["HYG_Close"] = hyg_weekly.reindex(df.index, method="ffill")
+
+        if spy_weekly is not None:
+            df["SPY_Close"] = spy_weekly.reindex(df.index, method="ffill")
         else:
             df["SPY_Close"] = np.nan
 
         # Forward fill missing values
         df = df.ffill()
 
-        # Estimate HYG yield
-        hyg_for_yield = hyg_df.reindex(df.index, method="ffill")
-        df["HYG_Yield"] = _get_hyg_yield_estimate(hyg_for_yield)
+        # === Use actual HYG dividend yield (fixed value) ===
+        df["HYG_Yield"] = hyg_dividend_yield
 
         # Calculate spread (denominator)
         df["Spread"] = df["HYG_Yield"] - df["TNX"]
 
-        # Calculate BLOOD indicator
-        # Handle division by zero/small numbers
-        df["BLOOD_Raw"] = np.where(
+        # === Calculate BLOOD indicator (no smoothing) ===
+        df["BLOOD"] = np.where(
             df["Spread"].abs() > 0.1,
             df["IRX"] / df["Spread"],
             np.nan
         )
-
-        # Smooth with 5-day EMA for less noise
-        df["BLOOD"] = df["BLOOD_Raw"].ewm(span=5, adjust=False).mean()
 
         # Calculate moving averages
         df["MA_20"] = df["BLOOD"].rolling(20).mean()
@@ -308,8 +337,8 @@ def get_blood_indicator_json(start_date: str, end_date: str) -> str:
         records.append({
             "id": f"BLOOD-{date_str}",
             "date": date_str,
-            "bloodValue": round(float(blood_val), 4) if pd.notna(blood_val) else 0.0,
-            "irx": round(float(irx_val), 4) if pd.notna(irx_val) else 0.0,
+            "bloodValue": round(float(blood_val), 6) if pd.notna(blood_val) else 0.0,
+            "irx": round(float(irx_val), 6) if pd.notna(irx_val) else 0.0,
             "hygYield": round(float(hyg_yield_val), 4) if pd.notna(hyg_yield_val) else 0.0,
             "tenYearYield": round(float(tnx_val), 4) if pd.notna(tnx_val) else 0.0,
             "spreadValue": round(float(spread_val), 4) if pd.notna(spread_val) else 0.0,
@@ -340,9 +369,9 @@ def get_latest_blood_value() -> str:
 
     return to_json({
         "date": date_str,
-        "bloodValue": round(float(latest["BLOOD"]), 4),
+        "bloodValue": round(float(latest["BLOOD"]), 6),
         "signal": latest["Signal"],
-        "irx": round(float(latest["IRX"]), 4),
+        "irx": round(float(latest["IRX"]), 6),
         "hygYield": round(float(latest["HYG_Yield"]), 4),
         "tenYearYield": round(float(latest["TNX"]), 4),
         "spreadValue": round(float(latest["Spread"]), 4)
