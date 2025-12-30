@@ -81,7 +81,14 @@ class BloodIndicatorViewModel @Inject constructor(
      * 날짜 범위에 따른 데이터 로딩
      */
     private suspend fun loadDataByRange(range: DateRangeOption) {
-        val (startDate, endDate) = ChartLabelCalculator.calculateDateRange(range)
+        val (startDate, endDate) = if (range == DateRangeOption.ALL) {
+            // ALL 옵션: 실제 DB의 가장 이른 날짜부터 최근 날짜까지
+            val earliest = repository.getEarliestDate() ?: "2015-01-01"
+            val latest = repository.getLatestDate() ?: java.time.LocalDate.now().toString()
+            Pair(earliest, latest)
+        } else {
+            ChartLabelCalculator.calculateDateRange(range)
+        }
         repository.getByDateRange(startDate, endDate)
             .collect { data ->
                 _bloodData.value = data

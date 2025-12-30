@@ -40,6 +40,9 @@ interface BloodIndicatorDao {
     @Query("SELECT MAX(date) FROM blood_indicator")
     suspend fun getLatestDate(): String?
 
+    @Query("SELECT MIN(date) FROM blood_indicator")
+    suspend fun getEarliestDate(): String?
+
     @Query("SELECT MAX(lastUpdated) FROM blood_indicator")
     suspend fun getLastUpdateTime(): Long?
 }
