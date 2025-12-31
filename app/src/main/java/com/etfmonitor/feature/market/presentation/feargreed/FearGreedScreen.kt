@@ -197,7 +197,15 @@ fun FearGreedContent(
                     // Date Range Selector
                     DateRangeSelector(
                         selectedRange = selectedRange,
-                        onRangeSelected = { viewModel.updateDateRange(it) }
+                        onRangeSelected = { viewModel.updateDateRange(it) },
+                        availableOptions = listOf(
+                            DateRangeOption.WEEK,
+                            DateRangeOption.MONTH,
+                            DateRangeOption.THREE_MONTHS,
+                            DateRangeOption.SIX_MONTHS,
+                            DateRangeOption.YEAR,
+                            DateRangeOption.ALL
+                        )
                     )
 
                     // Chart

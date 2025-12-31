@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
+import com.etfmonitor.core.ui.component.DateRangeOption
 import com.etfmonitor.core.ui.component.DateRangeSelector
 import com.etfmonitor.core.ui.theme.*
 import com.etfmonitor.feature.market.domain.model.MarketDepositData
@@ -128,7 +129,15 @@ fun MarketDepositContent(
                 // Date Range Selector
                 DateRangeSelector(
                     selectedRange = selectedRange,
-                    onRangeSelected = { viewModel.updateDateRange(it) }
+                    onRangeSelected = { viewModel.updateDateRange(it) },
+                    availableOptions = listOf(
+                        DateRangeOption.WEEK,
+                        DateRangeOption.MONTH,
+                        DateRangeOption.THREE_MONTHS,
+                        DateRangeOption.SIX_MONTHS,
+                        DateRangeOption.YEAR,
+                        DateRangeOption.ALL
+                    )
                 )
 
                 // Chart
