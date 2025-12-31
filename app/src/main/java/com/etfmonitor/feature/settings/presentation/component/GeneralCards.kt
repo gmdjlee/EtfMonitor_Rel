@@ -627,6 +627,182 @@ private fun ApiKeyInfoSection(selectedProvider: AIProvider) {
     }
 }
 
+/**
+ * FRED API Key Card for Blood Indicator data collection.
+ * FRED (Federal Reserve Economic Data) provides free economic data.
+ * Get API key from: https://fred.stlouisfed.org/docs/api/api_key.html
+ */
+@Composable
+fun FredApiKeyCard(
+    isConfigured: Boolean,
+    onSetApiKey: (String) -> Unit,
+    onClearApiKey: () -> Unit
+) {
+    var showInputDialog by remember { mutableStateOf(false) }
+    var showClearConfirmDialog by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Key,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    stringResource(R.string.settings_fred_api_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            HorizontalDivider()
+
+            Text(
+                stringResource(R.string.settings_fred_api_desc),
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            // API 키 상태 표시
+            Surface(
+                color = if (isConfigured)
+                    MaterialTheme.colorScheme.primaryContainer
+                else
+                    MaterialTheme.colorScheme.errorContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            if (isConfigured) Icons.Default.CheckCircle else Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = if (isConfigured)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            if (isConfigured) stringResource(R.string.settings_fred_api_set)
+                            else stringResource(R.string.settings_fred_api_not_set),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isConfigured)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+
+            // 버튼
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { showInputDialog = true },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        if (isConfigured) Icons.Default.Edit else Icons.Default.Key,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(if (isConfigured) stringResource(R.string.settings_action_change) else stringResource(R.string.settings_action_set))
+                }
+
+                if (isConfigured) {
+                    IconButton(
+                        onClick = { showClearConfirmDialog = true }
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = stringResource(R.string.settings_action_delete),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+
+            // 안내 문구
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Text(
+                        stringResource(R.string.settings_fred_api_url_label),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "https://fred.stlouisfed.org/docs/api/api_key.html",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+
+    // API 키 입력 다이얼로그
+    if (showInputDialog) {
+        ApiKeyInputDialog(
+            title = stringResource(R.string.settings_fred_api_dialog_title),
+            placeholder = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+            onDismiss = { showInputDialog = false },
+            onConfirm = { apiKey ->
+                onSetApiKey(apiKey)
+                showInputDialog = false
+            }
+        )
+    }
+
+    // 삭제 확인 다이얼로그
+    if (showClearConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmDialog = false },
+            icon = { Icon(Icons.Default.Warning, null) },
+            title = { Text(stringResource(R.string.settings_fred_api_delete)) },
+            text = { Text(stringResource(R.string.settings_fred_api_delete_confirm)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onClearApiKey()
+                        showClearConfirmDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text(stringResource(R.string.settings_action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirmDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+}
+
 @Composable
 fun ApiKeyInputDialog(
     title: String,
