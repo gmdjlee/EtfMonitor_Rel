@@ -1201,13 +1201,13 @@ class SettingsViewModel @Inject constructor(
     fun setFredApiKey(apiKey: String) {
         if (apiKey.isBlank()) { _message.value = "FRED API 키를 입력해주세요"; return }
         saveSetting("FRED API 키가 저장되었습니다") {
-            etfDao.saveSetting(Keys.FRED_API_KEY, apiKey)
+            etfDao.saveSetting(Setting(Keys.FRED_API_KEY, apiKey))
             _isFredApiKeyConfigured.value = true
         }
     }
 
     fun clearFredApiKey() = saveSetting("FRED API 키가 삭제되었습니다") {
-        etfDao.saveSetting(Keys.FRED_API_KEY, "")
+        etfDao.saveSetting(Setting(Keys.FRED_API_KEY, ""))
         _isFredApiKeyConfigured.value = false
     }
 
