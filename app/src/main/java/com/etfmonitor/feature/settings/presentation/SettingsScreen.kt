@@ -192,6 +192,7 @@ private fun GeneralTab(
     val selectedGeminiModel by viewModel.selectedGeminiModel.collectAsState()
     val isLoadingClaudeModels by viewModel.isLoadingClaudeModels.collectAsState()
     val isLoadingGeminiModels by viewModel.isLoadingGeminiModels.collectAsState()
+    val isFredApiKeyConfigured by viewModel.isFredApiKeyConfigured.collectAsState()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -238,6 +239,15 @@ private fun GeneralTab(
                 onLoadGeminiModels = { viewModel.loadGeminiModels() },
                 onSelectClaudeModel = { viewModel.setClaudeModel(it) },
                 onSelectGeminiModel = { viewModel.setGeminiModel(it) }
+            )
+        }
+
+        // FRED API 키 설정 (Blood Indicator 용)
+        item {
+            FredApiKeyCard(
+                isConfigured = isFredApiKeyConfigured,
+                onSetApiKey = { viewModel.setFredApiKey(it) },
+                onClearApiKey = { viewModel.clearFredApiKey() }
             )
         }
 

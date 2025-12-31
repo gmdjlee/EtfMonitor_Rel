@@ -14,28 +14,31 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Python response model for Blood Indicator data
+ * Python response model for Blood Indicator data (v2.0 - FRED API)
  */
 @Serializable
 private data class BloodIndicatorResponse(
     val id: String,
     val date: String,
     val bloodValue: Double,
-    val irx: Double,
-    val hygYield: Double,
-    val tenYearYield: Double,
-    val spreadValue: Double,
+    val bloodSma: Double,
+    val us03my: Double,
+    val highYieldSpread: Double,
     val spyClose: Double? = null,
-    val signalType: String
+    val signalType: String,
+    val signalColor: String
 )
 
 /**
- * Blood Indicator Python Client
- * US Treasury 기반 시장 건강도 지표 데이터 수집
+ * Blood Indicator Python Client (v2.0 - FRED API)
  *
- * BLOOD = IRX (3M T-Bill) / (HYG Yield - 10Y Treasury)
- * - 상승 추세 (RISK_ON): 시장이 건강하고 위험 자산 선호
- * - 하락 추세 (RISK_OFF): 시장 스트레스, 안전 자산 선호
+ * BLOOD = US03MY (3M T-Bill) / BAMLH0A0HYM2 (High Yield Spread)
+ * - 100주 SMA 위 (RISK_ON): Green - 시장이 건강하고 위험 자산 선호
+ * - 100주 SMA 아래 (RISK_OFF): Red - 시장 스트레스, 안전 자산 선호
+ *
+ * Data Sources:
+ * - US03MY: Yahoo Finance (^IRX)
+ * - BAMLH0A0HYM2: FRED API (free API key required)
  */
 @Singleton
 class BloodIndicatorPyClient @Inject constructor(
@@ -43,7 +46,7 @@ class BloodIndicatorPyClient @Inject constructor(
 ) {
     companion object {
         private val logger = AppLogger.getLogger("BloodIndicatorPyClient")
-        private const val TIMEOUT_MS = 60_000L  // 60 seconds for US market data
+        private const val TIMEOUT_MS = 90_000L  // 90 seconds for 100-week SMA calculation
         private const val MODULE_NAME = "blood_indicator"
     }
 
@@ -52,6 +55,23 @@ class BloodIndicatorPyClient @Inject constructor(
     private val json = Json {
         ignoreUnknownKeys = true
         coerceInputValues = true
+    }
+
+    /**
+     * Set FRED API key for data collection.
+     * Required for fetching High Yield Spread data from FRED.
+     *
+     * Get free key from: https://fred.stlouisfed.org/docs/api/api_key.html
+     *
+     * @param apiKey FRED API key
+     */
+    suspend fun setFredApiKey(apiKey: String) = withContext(Dispatchers.IO) {
+        try {
+            module.callAttr("set_fred_api_key", apiKey)
+            logger.d("FRED API key set successfully")
+        } catch (e: Exception) {
+            logger.e("Error setting FRED API key", e)
+        }
     }
 
     /**
@@ -87,12 +107,12 @@ class BloodIndicatorPyClient @Inject constructor(
                     id = response.id,
                     date = response.date,
                     bloodValue = response.bloodValue,
-                    irx = response.irx,
-                    hygYield = response.hygYield,
-                    tenYearYield = response.tenYearYield,
-                    spreadValue = response.spreadValue,
+                    bloodSma = response.bloodSma,
+                    us03my = response.us03my,
+                    highYieldSpread = response.highYieldSpread,
                     spyClose = response.spyClose,
                     signalType = response.signalType,
+                    signalColor = response.signalColor,
                     lastUpdated = System.currentTimeMillis()
                 )
             }
@@ -127,11 +147,11 @@ class BloodIndicatorPyClient @Inject constructor(
             data class LatestResponse(
                 val date: String,
                 val bloodValue: Double,
+                val bloodSma: Double,
                 val signal: String,
-                val irx: Double,
-                val hygYield: Double,
-                val tenYearYield: Double,
-                val spreadValue: Double
+                val signalColor: String,
+                val us03my: Double,
+                val highYieldSpread: Double
             )
 
             val response = json.decodeFromString<LatestResponse>(result)
@@ -140,16 +160,41 @@ class BloodIndicatorPyClient @Inject constructor(
                 id = BloodIndicator.createId(response.date),
                 date = response.date,
                 bloodValue = response.bloodValue,
-                irx = response.irx,
-                hygYield = response.hygYield,
-                tenYearYield = response.tenYearYield,
-                spreadValue = response.spreadValue,
+                bloodSma = response.bloodSma,
+                us03my = response.us03my,
+                highYieldSpread = response.highYieldSpread,
                 spyClose = null,
                 signalType = response.signal,
+                signalColor = response.signalColor,
                 lastUpdated = System.currentTimeMillis()
             )
         } catch (e: Exception) {
             logger.e("Error fetching latest Blood Indicator", e)
+            null
+        }
+    }
+
+    /**
+     * Get Blood Indicator summary statistics.
+     *
+     * @return Summary data as JSON string or null on error
+     */
+    suspend fun getBloodSummary(): String? = withContext(Dispatchers.IO) {
+        try {
+            logger.d("Fetching Blood Indicator summary")
+
+            val result = withTimeout(TIMEOUT_MS) {
+                module.callAttr("get_blood_summary").toString()
+            }
+
+            if (result.contains("\"error\"")) {
+                logger.e("Python returned error: $result")
+                return@withContext null
+            }
+
+            result
+        } catch (e: Exception) {
+            logger.e("Error fetching Blood Indicator summary", e)
             null
         }
     }

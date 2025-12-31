@@ -136,30 +136,34 @@ enum class MarketType(val code: String, val displayName: String) {
 }
 
 /**
- * Blood Indicator Domain Model
+ * Blood Indicator Domain Model (v2.0 - FRED API)
  *
- * BLOOD = IRX (3M T-Bill) / (HYG Yield - 10Y Treasury)
- * - 상승 추세 (RISK_ON): 시장이 건강하고 위험 자산 선호
- * - 하락 추세 (RISK_OFF): 시장 스트레스, 안전 자산 선호
+ * BLOOD = US03MY (3M T-Bill) / BAMLH0A0HYM2 (High Yield Spread from FRED)
+ * - 100주 SMA 위 (RISK_ON): Green - 시장이 건강하고 위험 자산 선호
+ * - 100주 SMA 아래 (RISK_OFF): Red - 시장 스트레스, 안전 자산 선호
+ *
+ * Data Sources:
+ * - US03MY: Yahoo Finance (^IRX)
+ * - BAMLH0A0HYM2: FRED API (free API key required)
  */
 data class BloodIndicator(
     val id: String,
     val date: String,
     val bloodValue: Double,
-    val irx: Double,
-    val hygYield: Double,
-    val tenYearYield: Double,
-    val spreadValue: Double,
+    val bloodSma: Double,           // 100-week SMA of BLOOD value
+    val us03my: Double,             // 3-Month T-Bill Rate (^IRX from Yahoo)
+    val highYieldSpread: Double,    // ICE BofA High Yield Spread (BAMLH0A0HYM2 from FRED)
     val spyClose: Double?,
     val signalType: BloodSignalType,
+    val signalColor: String,        // "green", "red", "gray"
     val lastUpdated: Long
 ) {
     /**
      * Get trend description
      */
     fun getTrendDescription(): String = when (signalType) {
-        BloodSignalType.RISK_ON -> "Risk On - 상승 추세"
-        BloodSignalType.RISK_OFF -> "Risk Off - 하락 추세"
+        BloodSignalType.RISK_ON -> "Risk On - SMA 상향 돌파"
+        BloodSignalType.RISK_OFF -> "Risk Off - SMA 하향 돌파"
         BloodSignalType.NEUTRAL -> "Neutral - 중립"
     }
 
@@ -171,6 +175,11 @@ data class BloodIndicator(
         BloodSignalType.RISK_OFF -> "Stressed"
         BloodSignalType.NEUTRAL -> "Neutral"
     }
+
+    /**
+     * Check if current value is above SMA
+     */
+    fun isAboveSma(): Boolean = bloodValue > bloodSma
 }
 
 /**

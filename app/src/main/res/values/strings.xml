@@ -295,6 +295,16 @@
     <string name="settings_action_test">테스트</string>
     <string name="settings_action_delete">삭제</string>
 
+    <!-- Settings - FRED API -->
+    <string name="settings_fred_api_title">FRED API 설정</string>
+    <string name="settings_fred_api_desc">Blood Indicator 차트에 FRED(미국 연방준비은행 경제 데이터) API가 필요합니다. 무료로 발급받을 수 있습니다.</string>
+    <string name="settings_fred_api_set">FRED API 키 설정됨</string>
+    <string name="settings_fred_api_not_set">FRED API 키 미설정</string>
+    <string name="settings_fred_api_url_label">FRED API 키 발급:</string>
+    <string name="settings_fred_api_dialog_title">FRED API 키 설정</string>
+    <string name="settings_fred_api_delete">FRED API 키 삭제</string>
+    <string name="settings_fred_api_delete_confirm">FRED API 키를 삭제하시겠습니까? Blood Indicator 데이터 수집에 API 키가 필요합니다.</string>
+
     <!-- Settings - Model Selection -->
     <string name="settings_model_select">%s 모델 선택</string>
     <string name="settings_model_load">사용 가능한 모델 불러오기</string>

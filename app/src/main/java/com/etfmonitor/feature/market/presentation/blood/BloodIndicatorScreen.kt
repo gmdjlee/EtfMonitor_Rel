@@ -34,11 +34,15 @@ import com.github.mikephil.charting.data.*
 import com.github.mikephil.charting.formatter.ValueFormatter
 
 /**
- * Blood Indicator Screen - US Market Health Monitor
+ * Blood Indicator Screen - US Market Health Monitor (v2.0)
  *
- * BLOOD = IRX (3M T-Bill) / (HYG Yield - 10Y Treasury)
- * - Rising BLOOD = Risk On (Market healthy)
- * - Falling BLOOD = Risk Off (Market stress)
+ * BLOOD = US03MY (3M T-Bill) / BAMLH0A0HYM2 (High Yield Spread from FRED)
+ * - Above 100-week SMA = Risk On (Market healthy, Green)
+ * - Below 100-week SMA = Risk Off (Market stress, Red)
+ *
+ * Data Sources:
+ * - US03MY: Yahoo Finance (^IRX)
+ * - BAMLH0A0HYM2: FRED API (free API key required)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -310,13 +314,20 @@ private fun ComponentsCard(latest: BloodIndicator) {
 
             HorizontalDivider()
 
-            ComponentRow("IRX (3M T-Bill)", "${String.format("%.2f", latest.irx)}%")
-            ComponentRow("HYG Yield", "${String.format("%.2f", latest.hygYield)}%")
-            ComponentRow("10Y Treasury", "${String.format("%.2f", latest.tenYearYield)}%")
+            ComponentRow("US03MY (3M T-Bill)", "${String.format("%.2f", latest.us03my)}%")
+            ComponentRow("High Yield Spread", "${String.format("%.2f", latest.highYieldSpread)}%")
+
+            HorizontalDivider()
+
             ComponentRow(
-                "Spread (HYG - 10Y)",
-                "${String.format("%.2f", latest.spreadValue)}%",
-                if (latest.spreadValue > 0) MaterialTheme.extendedColors.chartGreen
+                "100주 SMA",
+                String.format("%.4f", latest.bloodSma),
+                MaterialTheme.colorScheme.primary
+            )
+            ComponentRow(
+                "SMA 대비",
+                if (latest.isAboveSma()) "상향 돌파" else "하향 돌파",
+                if (latest.isAboveSma()) MaterialTheme.extendedColors.chartGreen
                 else MaterialTheme.extendedColors.chartRed
             )
 
@@ -370,7 +381,7 @@ private fun BloodChartSection(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "BLOOD vs S&P 500 (with MAs)",
+                text = "BLOOD vs 100주 SMA & S&P 500",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
 
@@ -380,7 +391,7 @@ private fun BloodChartSection(
                 modifier = Modifier.fillMaxWidth().height(300.dp)
             )
 
-            // Moving Average Legend
+            // Legend
             BloodChartLegend()
         }
     }
@@ -393,10 +404,8 @@ private fun BloodChartLegend() {
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         LegendItem(color = Color(0xFFE53935), label = "BLOOD")
+        LegendItem(color = Color(0xFF2196F3), label = "100주 SMA", isDashed = true)
         LegendItem(color = Color.Black, label = "S&P 500")
-        LegendItem(color = Color(0xFF2196F3), label = "20MA", isDashed = true)
-        LegendItem(color = Color(0xFFFFA726), label = "60MA", isDashed = true)
-        LegendItem(color = Color(0xFF4CAF50), label = "120MA", isDashed = true)
     }
 }
 
@@ -451,10 +460,8 @@ private fun BloodDualAxisChart(
     val textColor = chartColors.textColor
     val gridColor = if (isDark) ChartGridDark.toArgb() else ChartGridLight.toArgb()
 
-    // Moving average colors
-    val ma20Color = Color(0xFF2196F3).toArgb()  // Blue
-    val ma60Color = Color(0xFFFFA726).toArgb()  // Orange
-    val ma120Color = Color(0xFF4CAF50).toArgb() // Green
+    // 100-week SMA color (Blue)
+    val smaColor = Color(0xFF2196F3).toArgb()
 
     AndroidView(
         factory = { context ->
@@ -510,14 +517,8 @@ private fun BloodDualAxisChart(
         update = { chart ->
             // Data is already sorted ASC (oldest first) from DAO - no need to reverse
             val chartData = data
-            val bloodValues = chartData.map { it.bloodValue.toFloat() }
 
-            // Calculate moving averages
-            val ma20 = calculateMovingAverage(bloodValues, 20)
-            val ma60 = calculateMovingAverage(bloodValues, 60)
-            val ma120 = calculateMovingAverage(bloodValues, 120)
-
-            // Blood line
+            // Blood line (Red)
             val bloodEntries = chartData.mapIndexed { index, item ->
                 Entry(index.toFloat(), item.bloodValue.toFloat())
             }
@@ -530,53 +531,19 @@ private fun BloodDualAxisChart(
                 mode = LineDataSet.Mode.CUBIC_BEZIER
             }
 
-            // 20MA line - Dashed line
-            val ma20Entries = ma20.mapIndexedNotNull { index, value ->
-                value?.let { Entry(index.toFloat(), it) }
+            // 100-week SMA line (Blue, Dashed) - from data, not calculated
+            val smaEntries = chartData.mapIndexed { index, item ->
+                Entry(index.toFloat(), item.bloodSma.toFloat())
             }
-            val ma20DataSet = if (ma20Entries.isNotEmpty()) {
-                LineDataSet(ma20Entries, "20MA").apply {
-                    axisDependency = YAxis.AxisDependency.LEFT
-                    color = ma20Color
-                    lineWidth = 1.5f
-                    setDrawCircles(false)
-                    setDrawValues(false)
-                    mode = LineDataSet.Mode.CUBIC_BEZIER
-                    enableDashedLine(10f, 5f, 0f)
-                }
-            } else null
-
-            // 60MA line - Dashed line
-            val ma60Entries = ma60.mapIndexedNotNull { index, value ->
-                value?.let { Entry(index.toFloat(), it) }
+            val smaDataSet = LineDataSet(smaEntries, "100W SMA").apply {
+                axisDependency = YAxis.AxisDependency.LEFT
+                color = smaColor
+                lineWidth = 1.5f
+                setDrawCircles(false)
+                setDrawValues(false)
+                mode = LineDataSet.Mode.CUBIC_BEZIER
+                enableDashedLine(10f, 5f, 0f)
             }
-            val ma60DataSet = if (ma60Entries.isNotEmpty()) {
-                LineDataSet(ma60Entries, "60MA").apply {
-                    axisDependency = YAxis.AxisDependency.LEFT
-                    color = ma60Color
-                    lineWidth = 1.5f
-                    setDrawCircles(false)
-                    setDrawValues(false)
-                    mode = LineDataSet.Mode.CUBIC_BEZIER
-                    enableDashedLine(10f, 5f, 0f)
-                }
-            } else null
-
-            // 120MA line - Dashed line
-            val ma120Entries = ma120.mapIndexedNotNull { index, value ->
-                value?.let { Entry(index.toFloat(), it) }
-            }
-            val ma120DataSet = if (ma120Entries.isNotEmpty()) {
-                LineDataSet(ma120Entries, "120MA").apply {
-                    axisDependency = YAxis.AxisDependency.LEFT
-                    color = ma120Color
-                    lineWidth = 1.5f
-                    setDrawCircles(false)
-                    setDrawValues(false)
-                    mode = LineDataSet.Mode.CUBIC_BEZIER
-                    enableDashedLine(10f, 5f, 0f)
-                }
-            } else null
 
             // SPY line (if available) - Black solid line
             val spyEntries = chartData.mapIndexedNotNull { index, item ->
@@ -596,9 +563,7 @@ private fun BloodDualAxisChart(
 
             val dataSets = mutableListOf<LineDataSet>()
             dataSets.add(bloodDataSet)
-            ma20DataSet?.let { dataSets.add(it) }
-            ma60DataSet?.let { dataSets.add(it) }
-            ma120DataSet?.let { dataSets.add(it) }
+            dataSets.add(smaDataSet)
             spyDataSet?.let { dataSets.add(it) }
 
             val lineData = LineData(dataSets as List<LineDataSet>)
@@ -662,15 +627,16 @@ private fun ExplanationCard() {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Blood Indicator 해석",
+                text = "Blood Indicator 해석 (v2.0)",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
             )
             Text(
                 text = """
-                    • BLOOD = IRX / (HYG Yield - 10Y Treasury)
-                    • 상승 추세 (Risk On): 시장이 건강하고 위험 자산 선호
-                    • 하락 추세 (Risk Off): 시장 스트레스, 안전 자산 선호
-                    • US 국채 금리와 하이일드 채권 스프레드로 글로벌 위험 선호도 측정
+                    • BLOOD = US03MY / High Yield Spread (FRED)
+                    • 100주 SMA 상향 돌파 (Risk On): 시장이 건강하고 위험 자산 선호
+                    • 100주 SMA 하향 돌파 (Risk Off): 시장 스트레스, 안전 자산 선호
+                    • TradingView Pine Script Blood Indicator와 동일한 계산 방식
+                    • 데이터 출처: Yahoo Finance (US03MY), FRED API (BAMLH0A0HYM2)
                 """.trimIndent(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
@@ -771,21 +737,21 @@ private fun BloodInitializeDialog(
     onConfirm: (Int) -> Unit
 ) {
     val options = listOf(
-        BloodPeriodOption(365, "1년", "약 365일"),
-        BloodPeriodOption(1095, "3년", "약 1,095일"),
-        BloodPeriodOption(1825, "5년 (권장)", "약 1,825일"),
-        BloodPeriodOption(2555, "7년", "약 2,555일"),
-        BloodPeriodOption(3650, "10년", "약 3,650일")
+        BloodPeriodOption(365, "1년", "약 52주"),
+        BloodPeriodOption(1095, "3년 (권장)", "약 156주, 100주 SMA 표시"),
+        BloodPeriodOption(1825, "5년", "약 260주"),
+        BloodPeriodOption(2555, "7년", "약 364주"),
+        BloodPeriodOption(3650, "10년", "약 520주")
     )
-    var selectedDays by remember { mutableStateOf(1825) }
+    var selectedDays by remember { mutableStateOf(1095) }
 
     AlertDialog(
         onDismissRequest = { },
-        title = { Text("Blood Indicator 데이터 수집") },
+        title = { Text("Blood Indicator 데이터 수집 (v2.0)") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "US 국채 및 HYG 데이터를 수집하여 시장 건강도를 분석합니다.",
+                    "US 국채(Yahoo Finance) 및 High Yield Spread(FRED API) 데이터를 수집합니다.",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(Modifier.height(8.dp))
@@ -813,11 +779,22 @@ private fun BloodInitializeDialog(
                 Spacer(Modifier.height(8.dp))
 
                 Surface(
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Text(
+                        "⚠️ FRED API 키가 필요합니다.\n설정 > API 키에서 등록해 주세요.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+
+                Surface(
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     shape = MaterialTheme.shapes.small
                 ) {
                     Text(
-                        "데이터 수집에 약 1분 정도 소요됩니다.",
+                        "데이터 수집에 약 1-2분 정도 소요됩니다.",
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(8.dp)
                     )

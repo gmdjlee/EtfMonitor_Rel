@@ -150,6 +150,7 @@ class SettingsViewModel @Inject constructor(
             const val BLOOD_INDICATOR_PERIOD = "blood_indicator_period_days"
             const val DARK_THEME = "dark_theme"
             const val QUICK_CHART_ANALYSIS = "quick_chart_analysis_enabled"
+            const val FRED_API_KEY = "fred_api_key"
 
             fun updateHour(type: String) = "${type}_update_hour"
             fun updateMinute(type: String) = "${type}_update_minute"
@@ -229,6 +230,10 @@ class SettingsViewModel @Inject constructor(
 
     private val _isGeminiApiKeyConfigured = MutableStateFlow(false)
     val isGeminiApiKeyConfigured: StateFlow<Boolean> = _isGeminiApiKeyConfigured.asStateFlow()
+
+    // FRED API key for Blood Indicator
+    private val _isFredApiKeyConfigured = MutableStateFlow(false)
+    val isFredApiKeyConfigured: StateFlow<Boolean> = _isFredApiKeyConfigured.asStateFlow()
 
     private val _apiKeyTestState = MutableStateFlow<ApiKeyTestState>(ApiKeyTestState.Idle)
     val apiKeyTestState: StateFlow<ApiKeyTestState> = _apiKeyTestState.asStateFlow()
@@ -1144,6 +1149,9 @@ class SettingsViewModel @Inject constructor(
             _selectedProvider.value = apiKeyProvider.getSelectedProvider()
             _isClaudeApiKeyConfigured.value = apiKeyProvider.hasApiKey(AIProvider.CLAUDE)
             _isGeminiApiKeyConfigured.value = apiKeyProvider.hasApiKey(AIProvider.GEMINI)
+            // Check FRED API key
+            val fredKey = etfDao.getSetting(Keys.FRED_API_KEY)
+            _isFredApiKeyConfigured.value = !fredKey.isNullOrBlank()
         }
     }
 
@@ -1182,6 +1190,32 @@ class SettingsViewModel @Inject constructor(
         if (_selectedProvider.value == AIProvider.GEMINI) {
             _apiKeyTestState.value = ApiKeyTestState.Idle
         }
+    }
+
+    // ==================== FRED API Key Management (Blood Indicator) ====================
+
+    /**
+     * Set FRED API key for Blood Indicator data collection.
+     * Get free key from: https://fred.stlouisfed.org/docs/api/api_key.html
+     */
+    fun setFredApiKey(apiKey: String) {
+        if (apiKey.isBlank()) { _message.value = "FRED API 키를 입력해주세요"; return }
+        saveSetting("FRED API 키가 저장되었습니다") {
+            etfDao.saveSetting(Setting(Keys.FRED_API_KEY, apiKey))
+            _isFredApiKeyConfigured.value = true
+        }
+    }
+
+    fun clearFredApiKey() = saveSetting("FRED API 키가 삭제되었습니다") {
+        etfDao.saveSetting(Setting(Keys.FRED_API_KEY, ""))
+        _isFredApiKeyConfigured.value = false
+    }
+
+    /**
+     * Get FRED API key (for use by BloodIndicatorRepository)
+     */
+    suspend fun getFredApiKey(): String? {
+        return etfDao.getSetting(Keys.FRED_API_KEY)?.takeIf { it.isNotBlank() }
     }
 
     fun testApiConnection() {
