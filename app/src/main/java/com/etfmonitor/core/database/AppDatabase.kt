@@ -69,7 +69,7 @@ import com.etfmonitor.core.database.entities.BloodIndicator
         EnhancedPrediction::class,
         BloodIndicator::class
     ],
-    version = 18,
+    version = 19,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -779,6 +779,44 @@ val MIGRATION_17_18 = object : Migration(17, 18) {
         )
 
         // 2. 인덱스 생성
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_blood_indicator_date ON blood_indicator(date)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_blood_indicator_signalType ON blood_indicator(signalType)")
+    }
+}
+
+/**
+ * Migration from version 18 to 19: Update BloodIndicator table for v2.0 FRED API
+ * - Remove: irx, hygYield, tenYearYield, spreadValue
+ * - Add: bloodSma (100-week SMA), us03my (3M T-Bill), highYieldSpread (FRED), signalColor
+ *
+ * BLOOD = US03MY / BAMLH0A0HYM2 (High Yield Spread from FRED)
+ * - Above 100-week SMA = Risk On (Green)
+ * - Below 100-week SMA = Risk Off (Red)
+ */
+val MIGRATION_18_19 = object : Migration(18, 19) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // 1. 기존 테이블 삭제 (데이터는 다시 수집 가능)
+        database.execSQL("DROP TABLE IF EXISTS blood_indicator")
+
+        // 2. 새 스키마로 테이블 생성
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS blood_indicator (
+                id TEXT PRIMARY KEY NOT NULL,
+                date TEXT NOT NULL,
+                bloodValue REAL NOT NULL,
+                bloodSma REAL NOT NULL,
+                us03my REAL NOT NULL,
+                highYieldSpread REAL NOT NULL,
+                spyClose REAL,
+                signalType TEXT NOT NULL,
+                signalColor TEXT NOT NULL,
+                lastUpdated INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // 3. 인덱스 생성
         database.execSQL("CREATE INDEX IF NOT EXISTS index_blood_indicator_date ON blood_indicator(date)")
         database.execSQL("CREATE INDEX IF NOT EXISTS index_blood_indicator_signalType ON blood_indicator(signalType)")
     }

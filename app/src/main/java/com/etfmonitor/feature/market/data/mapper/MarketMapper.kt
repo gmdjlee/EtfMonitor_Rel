@@ -144,12 +144,12 @@ object MarketMapper {
         id = id,
         date = date,
         bloodValue = bloodValue,
-        irx = irx,
-        hygYield = hygYield,
-        tenYearYield = tenYearYield,
-        spreadValue = spreadValue,
+        bloodSma = bloodSma,
+        us03my = us03my,
+        highYieldSpread = highYieldSpread,
         spyClose = spyClose,
         signalType = BloodSignalType.fromCode(signalType),
+        signalColor = signalColor,
         lastUpdated = lastUpdated
     )
 
@@ -157,12 +157,12 @@ object MarketMapper {
         id = id,
         date = date,
         bloodValue = bloodValue,
-        irx = irx,
-        hygYield = hygYield,
-        tenYearYield = tenYearYield,
-        spreadValue = spreadValue,
+        bloodSma = bloodSma,
+        us03my = us03my,
+        highYieldSpread = highYieldSpread,
         spyClose = spyClose,
         signalType = signalType.code,
+        signalColor = signalColor,
         lastUpdated = lastUpdated
     )
 

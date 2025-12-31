@@ -20,8 +20,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Blood Indicator Repository Implementation
- * US Treasury 기반 시장 건강도 지표 데이터 관리
+ * Blood Indicator Repository Implementation (v2.0 - FRED API)
+ *
+ * BLOOD = US03MY (3M T-Bill) / BAMLH0A0HYM2 (High Yield Spread from FRED)
+ * - 100주 SMA 위 (RISK_ON): Green - 시장이 건강하고 위험 자산 선호
+ * - 100주 SMA 아래 (RISK_OFF): Red - 시장 스트레스, 안전 자산 선호
+ *
+ * Requires FRED API key (free from https://fred.stlouisfed.org/docs/api/api_key.html)
  */
 @Singleton
 class BloodIndicatorRepositoryImpl @Inject constructor(
@@ -33,6 +38,21 @@ class BloodIndicatorRepositoryImpl @Inject constructor(
     companion object {
         private val logger = AppLogger.getLogger("BloodIndicatorRepoImpl")
         private const val KEY_DIALOG_DISMISSED = "blood_indicator_dialog_dismissed"
+        private const val KEY_FRED_API_KEY = "fred_api_key"
+    }
+
+    /**
+     * Set FRED API key in Python client from stored settings.
+     * Should be called before fetching Blood Indicator data.
+     */
+    private suspend fun setFredApiKeyFromSettings() {
+        val fredApiKey = etfDao.getSetting(KEY_FRED_API_KEY)
+        if (!fredApiKey.isNullOrBlank()) {
+            pyClient.setFredApiKey(fredApiKey)
+            logger.d("FRED API key set from settings")
+        } else {
+            logger.w("FRED API key not configured. Blood Indicator data fetch may fail.")
+        }
     }
 
     override fun getAll(): Flow<List<BloodIndicator>> =
@@ -92,6 +112,9 @@ class BloodIndicatorRepositoryImpl @Inject constructor(
 
             onProgress?.invoke("Blood Indicator 데이터 수집 준비 중...", 0)
 
+            // Set FRED API key before fetching
+            setFredApiKeyFromSettings()
+
             // Calculate date range
             val endDate = LocalDate.now()
             val startDate = endDate.minusDays(days.toLong())
@@ -100,7 +123,7 @@ class BloodIndicatorRepositoryImpl @Inject constructor(
             val startStr = startDate.format(formatter)
             val endStr = endDate.format(formatter)
 
-            onProgress?.invoke("US 시장 데이터 수집 중...", 20)
+            onProgress?.invoke("US 시장 데이터 수집 중 (Yahoo Finance + FRED)...", 20)
 
             // Fetch from Python
             val data = pyClient.fetchBloodIndicator(startStr, endStr)
@@ -132,6 +155,9 @@ class BloodIndicatorRepositoryImpl @Inject constructor(
     override suspend fun updateBloodIndicator(): Result<Int> = withContext(Dispatchers.IO) {
         try {
             logger.d("Updating Blood Indicator...")
+
+            // Set FRED API key before fetching
+            setFredApiKeyFromSettings()
 
             // Fetch recent 30 days
             val endDate = LocalDate.now()
