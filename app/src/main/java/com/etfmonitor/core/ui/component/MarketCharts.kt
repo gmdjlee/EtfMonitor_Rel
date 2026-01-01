@@ -14,6 +14,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
 import com.etfmonitor.feature.market.domain.model.MarketDepositData
 import com.etfmonitor.core.analysis.model.OscillatorResult
+import com.etfmonitor.core.common.util.DateFormatter
 import com.etfmonitor.core.ui.theme.*
 import com.github.mikephil.charting.charts.CombinedChart
 import com.github.mikephil.charting.components.XAxis
@@ -100,17 +101,8 @@ fun MarketCapOscillatorChart(
                             setTextColor(textColor)
                             granularity = 1f
                             labelRotationAngle = -45f
-                            setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(result.dates.size), false)
-                            valueFormatter = object : ValueFormatter() {
-                                override fun getFormattedValue(value: Float): String {
-                                    val index = value.toInt()
-                                    return if (index >= 0 && index < result.dates.size) {
-                                        result.dates[index]
-                                    } else {
-                                        ""
-                                    }
-                                }
-                            }
+                            setAvoidFirstLastClipping(true)  // Prevent edge label clipping
+                            // labelCount and valueFormatter are set in update block
                         }
 
                         // 왼쪽 Y축 (시가총액)
@@ -154,6 +146,23 @@ fun MarketCapOscillatorChart(
             },
             update = { chart ->
                 try {
+                    val dataCount = result.dates.size
+
+                    // Update x-axis with dynamic label count and smart date formatting
+                    chart.xAxis.apply {
+                        setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(dataCount), false)
+                        valueFormatter = object : ValueFormatter() {
+                            override fun getFormattedValue(value: Float): String {
+                                val index = value.toInt()
+                                return if (index >= 0 && index < result.dates.size) {
+                                    DateFormatter.formatForChartByDataCount(result.dates[index], dataCount)
+                                } else {
+                                    ""
+                                }
+                            }
+                        }
+                    }
+
                     // 시가총액 라인
                     val marketCapEntries = marketCap.mapIndexed { index, value ->
                         Entry(index.toFloat(), value.toFloat())
@@ -261,17 +270,8 @@ fun MarketDepositChart(
                         setTextColor(textColor)
                         granularity = 1f
                         labelRotationAngle = -45f
-                        setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(data.dates.size), false)
-                        valueFormatter = object : ValueFormatter() {
-                            override fun getFormattedValue(value: Float): String {
-                                val index = value.toInt()
-                                return if (index >= 0 && index < data.dates.size) {
-                                    data.dates[index]
-                                } else {
-                                    ""
-                                }
-                            }
-                        }
+                        setAvoidFirstLastClipping(true)  // Prevent edge label clipping
+                        // labelCount and valueFormatter are set in update block
                     }
 
                     // 왼쪽 Y축 (고객예탁금)
@@ -310,6 +310,23 @@ fun MarketDepositChart(
                 }
             },
             update = { chart ->
+                val dataCount = data.dates.size
+
+                // Update x-axis with dynamic label count and smart date formatting
+                chart.xAxis.apply {
+                    setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(dataCount), false)
+                    valueFormatter = object : ValueFormatter() {
+                        override fun getFormattedValue(value: Float): String {
+                            val index = value.toInt()
+                            return if (index >= 0 && index < data.dates.size) {
+                                DateFormatter.formatForChartByDataCount(data.dates[index], dataCount)
+                            } else {
+                                ""
+                            }
+                        }
+                    }
+                }
+
                 // 고객예탁금
                 val depositEntries = data.depositAmounts.mapIndexed { index, value ->
                     Entry(index.toFloat(), value.toFloat())
