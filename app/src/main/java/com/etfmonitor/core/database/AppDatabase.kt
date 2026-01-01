@@ -93,6 +93,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun priceCacheDao(): PriceCacheDao
     abstract fun enhancedPredictionDao(): EnhancedPredictionDao
     abstract fun bloodIndicatorDao(): BloodIndicatorDao
+    abstract fun backupDao(): BackupDao
 }
 
 /**

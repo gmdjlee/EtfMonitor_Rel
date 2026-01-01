@@ -40,6 +40,7 @@ import com.etfmonitor.core.database.StockIndicatorAIResultDao
 import com.etfmonitor.core.database.PriceCacheDao
 import com.etfmonitor.core.database.EnhancedPredictionDao
 import com.etfmonitor.core.database.BloodIndicatorDao
+import com.etfmonitor.core.database.BackupDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -287,5 +288,15 @@ object DatabaseModule {
     @Singleton
     fun provideBloodIndicatorDao(database: AppDatabase): BloodIndicatorDao {
         return database.bloodIndicatorDao()
+    }
+
+    /**
+     * Backup DAO 제공
+     * 데이터 백업/복구 관련 쿼리를 관리하는 DAO
+     */
+    @Provides
+    @Singleton
+    fun provideBackupDao(database: AppDatabase): BackupDao {
+        return database.backupDao()
     }
 }

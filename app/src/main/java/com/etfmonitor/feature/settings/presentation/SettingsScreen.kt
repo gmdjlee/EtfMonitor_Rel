@@ -37,6 +37,7 @@ import com.etfmonitor.feature.settings.presentation.component.*
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToBackup: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val themes by viewModel.themes.collectAsState()
@@ -138,7 +139,8 @@ fun SettingsScreen(
                     isDarkTheme = isDarkTheme,
                     fontScaleSettings = fontScaleSettings,
                     quickChartAnalysisEnabled = quickChartAnalysisEnabled,
-                    viewModel = viewModel
+                    viewModel = viewModel,
+                    onNavigateToBackup = onNavigateToBackup
                 )
                 1 -> KeywordTab(
                     themes = themes,
@@ -179,7 +181,8 @@ private fun GeneralTab(
     isDarkTheme: Boolean?,
     fontScaleSettings: com.etfmonitor.core.ui.theme.FontScaleSettings,
     quickChartAnalysisEnabled: Boolean,
-    viewModel: SettingsViewModel
+    viewModel: SettingsViewModel,
+    onNavigateToBackup: () -> Unit
 ) {
     val selectedProvider by viewModel.selectedProvider.collectAsState()
     val isClaudeConfigured by viewModel.isClaudeApiKeyConfigured.collectAsState()
@@ -260,6 +263,13 @@ private fun GeneralTab(
                 onTitleScaleChange = { viewModel.setTitleScale(it) },
                 onBodyScaleChange = { viewModel.setBodyScale(it) },
                 onLabelScaleChange = { viewModel.setLabelScale(it) }
+            )
+        }
+
+        // 백업 및 복구
+        item {
+            BackupCard(
+                onNavigateToBackup = onNavigateToBackup
             )
         }
     }
