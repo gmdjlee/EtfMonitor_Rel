@@ -6,8 +6,10 @@ import android.os.Build
 import com.etfmonitor.BuildConfig
 import com.etfmonitor.core.database.BackupDao
 import com.etfmonitor.feature.backup.data.dto.*
+import com.etfmonitor.feature.backup.data.remote.GoogleDriveHelper
 import com.etfmonitor.feature.backup.domain.model.*
 import com.etfmonitor.feature.backup.domain.repository.BackupRepository
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -29,7 +31,8 @@ import javax.inject.Singleton
 @Singleton
 class BackupRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val backupDao: BackupDao
+    private val backupDao: BackupDao,
+    private val googleDriveHelper: GoogleDriveHelper
 ) : BackupRepository {
 
     private val json = Json {
@@ -828,25 +831,170 @@ class BackupRepositoryImpl @Inject constructor(
         listLocalBackups().find { it.id == backupId || it.fileName.startsWith(backupId) }
     }
 
-    // ==================== Google Drive Operations (Placeholder) ====================
+    // ==================== Google Drive Operations ====================
 
     override fun uploadToGoogleDrive(backupId: String): Flow<BackupProgress> = flow {
-        emit(BackupProgress.Error("Google Drive 기능은 아직 구현되지 않았습니다"))
-    }
+        emit(BackupProgress.Uploading(0))
 
-    override suspend fun listGoogleDriveBackups(): Result<List<BackupInfo>> {
-        return Result.failure(BackupError.GoogleDriveError("Google Drive 기능은 아직 구현되지 않았습니다"))
+        try {
+            if (!googleDriveHelper.isSignedIn()) {
+                emit(BackupProgress.Error("Google Drive에 로그인이 필요합니다"))
+                return@flow
+            }
+
+            val backupInfo = getBackupInfo(backupId)
+                ?: throw BackupError.FileAccessError("백업을 찾을 수 없습니다")
+
+            val localFile = File(backupInfo.filePath)
+            if (!localFile.exists()) {
+                throw BackupError.FileAccessError("백업 파일이 없습니다")
+            }
+
+            emit(BackupProgress.Uploading(50))
+
+            val result = googleDriveHelper.uploadBackup(localFile, localFile.name)
+            result.fold(
+                onSuccess = { driveInfo ->
+                    emit(BackupProgress.Uploading(100))
+                    // Return success with updated backup info
+                    val updatedBackupInfo = backupInfo.copy(
+                        isCloudBackup = true,
+                        cloudFileId = driveInfo.id
+                    )
+                    emit(BackupProgress.Success(updatedBackupInfo))
+                },
+                onFailure = { e ->
+                    emit(BackupProgress.Error("업로드 실패: ${e.message}", e))
+                }
+            )
+        } catch (e: Exception) {
+            emit(BackupProgress.Error("업로드 실패: ${e.message}", e))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    override suspend fun listGoogleDriveBackups(): Result<List<BackupInfo>> = withContext(Dispatchers.IO) {
+        if (!googleDriveHelper.isSignedIn()) {
+            return@withContext Result.failure(BackupError.GoogleDriveError("Google Drive에 로그인이 필요합니다"))
+        }
+
+        googleDriveHelper.listBackups().fold(
+            onSuccess = { driveBackups ->
+                val backupInfoList = driveBackups.map { driveBackup ->
+                    BackupInfo(
+                        id = driveBackup.id,
+                        fileName = driveBackup.name,
+                        filePath = "",  // Cloud backup has no local path
+                        fileSize = driveBackup.size,
+                        createdAt = driveBackup.createdTime,
+                        backupType = BackupType.FULL,  // Default, actual type would need to be read from file
+                        entityCounts = emptyMap(),
+                        schemaVersion = SCHEMA_VERSION,
+                        dateRange = null,
+                        isCloudBackup = true,
+                        cloudFileId = driveBackup.id
+                    )
+                }
+                Result.success(backupInfoList)
+            },
+            onFailure = { e ->
+                Result.failure(BackupError.GoogleDriveError("목록 조회 실패: ${e.message}"))
+            }
+        )
     }
 
     override fun downloadFromGoogleDrive(driveFileId: String): Flow<BackupProgress> = flow {
-        emit(BackupProgress.Error("Google Drive 기능은 아직 구현되지 않았습니다"))
+        emit(BackupProgress.Preparing("다운로드 준비 중..."))
+
+        try {
+            if (!googleDriveHelper.isSignedIn()) {
+                emit(BackupProgress.Error("Google Drive에 로그인이 필요합니다"))
+                return@flow
+            }
+
+            // Create temporary file for download
+            val tempFile = File(backupDirectory, "temp_download_${System.currentTimeMillis()}")
+
+            val result = googleDriveHelper.downloadBackup(driveFileId, tempFile)
+            result.fold(
+                onSuccess = { downloadedFile ->
+                    emit(BackupProgress.Uploading(100))
+
+                    // Read metadata from downloaded file
+                    try {
+                        val jsonString = if (downloadedFile.name.endsWith(COMPRESSED_EXTENSION)) {
+                            GZIPInputStream(FileInputStream(downloadedFile)).bufferedReader(Charsets.UTF_8).readText()
+                        } else {
+                            downloadedFile.readText(Charsets.UTF_8)
+                        }
+
+                        val backupData = json.decodeFromString<BackupData>(jsonString)
+                        val metadata = backupData.metadata
+
+                        // Rename to proper backup filename
+                        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+                        val timestamp = dateFormat.format(Date(metadata.createdAt))
+                        val extension = if (downloadedFile.name.endsWith(COMPRESSED_EXTENSION))
+                            "$BACKUP_EXTENSION$COMPRESSED_EXTENSION"
+                        else
+                            BACKUP_EXTENSION
+                        val newFileName = "etfmonitor_backup_$timestamp$extension"
+                        val newFile = File(backupDirectory, newFileName)
+                        downloadedFile.renameTo(newFile)
+
+                        val backupInfo = BackupInfo(
+                            id = newFile.nameWithoutExtension.replace(COMPRESSED_EXTENSION, ""),
+                            fileName = newFileName,
+                            filePath = newFile.absolutePath,
+                            fileSize = newFile.length(),
+                            createdAt = metadata.createdAt,
+                            backupType = metadata.backupType,
+                            entityCounts = metadata.entityCounts,
+                            schemaVersion = metadata.schemaVersion,
+                            dateRange = metadata.dateRange,
+                            isCloudBackup = false,
+                            cloudFileId = driveFileId
+                        )
+
+                        emit(BackupProgress.Success(backupInfo))
+                    } catch (e: Exception) {
+                        tempFile.delete()
+                        emit(BackupProgress.Error("백업 파일 처리 실패: ${e.message}", e))
+                    }
+                },
+                onFailure = { e ->
+                    tempFile.delete()
+                    emit(BackupProgress.Error("다운로드 실패: ${e.message}", e))
+                }
+            )
+        } catch (e: Exception) {
+            emit(BackupProgress.Error("다운로드 실패: ${e.message}", e))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    override suspend fun deleteFromGoogleDrive(driveFileId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        if (!googleDriveHelper.isSignedIn()) {
+            return@withContext Result.failure(BackupError.GoogleDriveError("Google Drive에 로그인이 필요합니다"))
+        }
+
+        googleDriveHelper.deleteBackup(driveFileId).fold(
+            onSuccess = { Result.success(Unit) },
+            onFailure = { e -> Result.failure(BackupError.GoogleDriveError("삭제 실패: ${e.message}")) }
+        )
     }
 
-    override suspend fun deleteFromGoogleDrive(driveFileId: String): Result<Unit> {
-        return Result.failure(BackupError.GoogleDriveError("Google Drive 기능은 아직 구현되지 않았습니다"))
+    override fun isGoogleDriveSignedIn(): Boolean = googleDriveHelper.isSignedIn()
+
+    /**
+     * Initialize Google Drive service after sign-in
+     */
+    suspend fun initializeGoogleDrive(account: GoogleSignInAccount): Result<Unit> {
+        return googleDriveHelper.initializeDriveService(account)
     }
 
-    override fun isGoogleDriveSignedIn(): Boolean = false
+    /**
+     * Get Google Drive helper for sign-in operations
+     */
+    fun getGoogleDriveHelper(): GoogleDriveHelper = googleDriveHelper
 
     // ==================== Statistics ====================
 

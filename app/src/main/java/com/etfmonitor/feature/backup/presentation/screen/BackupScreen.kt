@@ -1,5 +1,6 @@
 package com.etfmonitor.feature.backup.presentation.screen
 
+import android.app.Activity
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -28,6 +30,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.feature.backup.domain.model.*
 import com.etfmonitor.feature.backup.presentation.state.*
 import com.etfmonitor.feature.backup.presentation.viewmodel.BackupViewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.launch
 import java.text.DecimalFormat
 
@@ -42,9 +46,27 @@ fun BackupScreen(
     val restoreState by viewModel.restoreState.collectAsState()
     val backupDetailState by viewModel.backupDetailState.collectAsState()
     val deleteConfirmState by viewModel.deleteConfirmState.collectAsState()
+    val googleDriveState by viewModel.googleDriveState.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    // Google Sign-In launcher
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                viewModel.handleGoogleSignInResult(account)
+            } catch (e: ApiException) {
+                viewModel.handleGoogleSignInResult(null)
+            }
+        } else {
+            viewModel.handleGoogleSignInResult(null)
+        }
+    }
 
     // File picker for restore
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -127,6 +149,7 @@ fun BackupScreen(
                         entityCounts = currentState.entityCounts,
                         dateRange = currentState.dateRange,
                         estimatedSize = currentState.estimatedSize,
+                        googleDriveState = googleDriveState,
                         onBackupClick = { viewModel.showBackupDetail(it) },
                         onRestoreClick = { viewModel.showRestoreFromLocalBackup(it) },
                         onDeleteClick = { viewModel.showDeleteConfirmation(it) },
@@ -138,7 +161,14 @@ fun BackupScreen(
                         onRestoreFromFile = {
                             viewModel.showRestoreFromFileDialog()
                             filePickerLauncher.launch(arrayOf("*/*"))
-                        }
+                        },
+                        onGoogleSignIn = {
+                            googleSignInLauncher.launch(viewModel.getGoogleSignInIntent())
+                        },
+                        onGoogleSignOut = { viewModel.signOutFromGoogleDrive() },
+                        onLoadDriveBackups = { viewModel.loadGoogleDriveBackups() },
+                        onDownloadFromDrive = { viewModel.downloadFromGoogleDrive(it) },
+                        onDeleteFromDrive = { viewModel.deleteFromGoogleDrive(it) }
                     )
                 }
             }
@@ -180,12 +210,18 @@ private fun BackupContent(
     entityCounts: Map<EntityType, Int>,
     dateRange: DateRange?,
     estimatedSize: Long,
+    googleDriveState: GoogleDriveState,
     onBackupClick: (BackupInfo) -> Unit,
     onRestoreClick: (BackupInfo) -> Unit,
     onDeleteClick: (BackupInfo) -> Unit,
     onExportClick: (BackupInfo) -> Unit,
     onUploadClick: (BackupInfo) -> Unit,
-    onRestoreFromFile: () -> Unit
+    onRestoreFromFile: () -> Unit,
+    onGoogleSignIn: () -> Unit,
+    onGoogleSignOut: () -> Unit,
+    onLoadDriveBackups: () -> Unit,
+    onDownloadFromDrive: (String) -> Unit,
+    onDeleteFromDrive: (String) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -205,6 +241,18 @@ private fun BackupContent(
         item {
             QuickActionsCard(
                 onRestoreFromFile = onRestoreFromFile
+            )
+        }
+
+        // Google Drive Section
+        item {
+            GoogleDriveCard(
+                state = googleDriveState,
+                onSignIn = onGoogleSignIn,
+                onSignOut = onGoogleSignOut,
+                onLoadBackups = onLoadDriveBackups,
+                onDownload = onDownloadFromDrive,
+                onDelete = onDeleteFromDrive
             )
         }
 
@@ -382,6 +430,235 @@ private fun EmptyBackupsCard() {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
+        }
+    }
+}
+
+@Composable
+private fun GoogleDriveCard(
+    state: GoogleDriveState,
+    onSignIn: () -> Unit,
+    onSignOut: () -> Unit,
+    onLoadBackups: () -> Unit,
+    onDownload: (String) -> Unit,
+    onDelete: (String) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Cloud,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    text = "Google Drive",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.weight(1f)
+                )
+
+                when (state) {
+                    is GoogleDriveState.NotSignedIn -> {
+                        FilledTonalButton(onClick = onSignIn) {
+                            Icon(Icons.Default.Login, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("로그인")
+                        }
+                    }
+                    is GoogleDriveState.SignedIn, is GoogleDriveState.Backups -> {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconButton(onClick = onLoadBackups) {
+                                Icon(Icons.Default.Refresh, contentDescription = "새로고침")
+                            }
+                            IconButton(onClick = onSignOut) {
+                                Icon(Icons.Default.Logout, contentDescription = "로그아웃")
+                            }
+                        }
+                    }
+                    else -> {}
+                }
+            }
+
+            when (state) {
+                is GoogleDriveState.NotSignedIn -> {
+                    Text(
+                        text = "Google Drive에 로그인하여 백업을 클라우드에 저장하세요",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                    )
+                }
+                is GoogleDriveState.Loading -> {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        Text(
+                            text = "로딩 중...",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+                is GoogleDriveState.Uploading -> {
+                    Column {
+                        Text(
+                            text = state.message,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        LinearProgressIndicator(
+                            progress = { state.progress / 100f },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+                is GoogleDriveState.Downloading -> {
+                    Column {
+                        Text(
+                            text = state.message,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        LinearProgressIndicator(
+                            progress = { state.progress / 100f },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+                is GoogleDriveState.SignedIn -> {
+                    Text(
+                        text = "연결됨. 백업 목록을 불러오려면 새로고침을 클릭하세요.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                    )
+                }
+                is GoogleDriveState.Backups -> {
+                    if (state.backups.isEmpty()) {
+                        Text(
+                            text = "클라우드에 저장된 백업이 없습니다",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                        )
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "클라우드 백업 (${state.backups.size})",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            state.backups.forEach { backup ->
+                                DriveBackupItem(
+                                    backupInfo = backup,
+                                    onDownload = { onDownload(backup.id) },
+                                    onDelete = { onDelete(backup.id) }
+                                )
+                            }
+                        }
+                    }
+                }
+                is GoogleDriveState.Error -> {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Error,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = state.message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DriveBackupItem(
+    backupInfo: BackupInfo,
+    onDownload: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = backupInfo.fileName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "${formatTimestamp(backupInfo.createdAt)} • ${formatFileSize(backupInfo.fileSize)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "메뉴")
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("다운로드") },
+                        leadingIcon = { Icon(Icons.Default.CloudDownload, null) },
+                        onClick = {
+                            showMenu = false
+                            onDownload()
+                        }
+                    )
+                    HorizontalDivider()
+                    DropdownMenuItem(
+                        text = { Text("삭제", color = MaterialTheme.colorScheme.error) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Delete,
+                                null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            onDelete()
+                        }
+                    )
+                }
+            }
         }
     }
 }

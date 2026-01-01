@@ -76,7 +76,9 @@ android {
                 "/META-INF/LICENSE",
                 "/META-INF/LICENSE.txt",
                 "/META-INF/NOTICE",
-                "/META-INF/NOTICE.txt"
+                "/META-INF/NOTICE.txt",
+                "/META-INF/INDEX.LIST",
+                "/META-INF/*.kotlin_module"
             )
         }
     }
@@ -160,6 +162,11 @@ dependencies {
 
     // Security - Encrypted SharedPreferences for API key storage
     implementation(libs.androidx.security.crypto)
+
+    // Google Play Services & Drive API
+    implementation(libs.play.services.auth)
+    implementation(libs.google.api.client)
+    implementation(libs.google.drive.api)
 
     // Hilt Dependency Injection
     implementation(libs.hilt.android)

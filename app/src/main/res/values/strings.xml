@@ -236,6 +236,7 @@
     <string name="settings_tab_data_update">데이터 업데이트</string>
     <string name="settings_tab_period">수집 기간</string>
     <string name="settings_tab_chart">차트</string>
+    <string name="settings_tab_backup">백업</string>
 
     <!-- Settings - Theme -->
     <string name="settings_theme">테마</string>
@@ -308,6 +309,23 @@
     <!-- Backup Settings -->
     <string name="settings_backup_title">백업 및 복구</string>
     <string name="settings_backup_desc">데이터 백업, 복구 및 관리</string>
+
+    <!-- Google Drive Backup -->
+    <string name="backup_google_drive">Google Drive</string>
+    <string name="backup_google_drive_sign_in">로그인</string>
+    <string name="backup_google_drive_sign_out">로그아웃</string>
+    <string name="backup_google_drive_not_signed_in">Google Drive에 로그인하여 백업을 클라우드에 저장하세요</string>
+    <string name="backup_google_drive_connected">연결됨. 백업 목록을 불러오려면 새로고침을 클릭하세요.</string>
+    <string name="backup_google_drive_loading">로딩 중…</string>
+    <string name="backup_google_drive_uploading">업로드 중… %d%%</string>
+    <string name="backup_google_drive_downloading">다운로드 중… %d%%</string>
+    <string name="backup_google_drive_no_backups">클라우드에 저장된 백업이 없습니다</string>
+    <string name="backup_google_drive_cloud_backups">클라우드 백업 (%d)</string>
+    <string name="backup_google_drive_upload_success">Google Drive에 업로드되었습니다</string>
+    <string name="backup_google_drive_download_success">다운로드가 완료되었습니다</string>
+    <string name="backup_google_drive_delete_success">Google Drive에서 삭제되었습니다</string>
+    <string name="backup_google_drive_error_not_signed_in">Google Drive에 로그인이 필요합니다</string>
+    <string name="backup_google_drive_sign_in_cancelled">로그인 취소됨</string>
 
     <!-- Settings - Model Selection -->
     <string name="settings_model_select">%s 모델 선택</string>
@@ -767,6 +785,7 @@
     <string name="cd_download_tab">다운로드 탭</string>
     <string name="cd_period_tab">기간 탭</string>
     <string name="cd_palette_tab">색상 탭</string>
+    <string name="cd_backup_tab">백업 탭</string>
     <string name="cd_info_button">정보</string>
     <string name="cd_warning_icon">경고</string>
     <string name="cd_error_icon">오류</string>
