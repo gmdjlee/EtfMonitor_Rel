@@ -166,6 +166,7 @@ dependencies {
     // Google Play Services & Drive API
     implementation(libs.play.services.auth)
     implementation(libs.google.api.client)
+    implementation(libs.google.api.client.gson)
     implementation(libs.google.drive.api)
 
     // Hilt Dependency Injection
