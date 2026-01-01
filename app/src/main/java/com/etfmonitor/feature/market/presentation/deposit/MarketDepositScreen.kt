@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
+import com.etfmonitor.core.common.util.DateFormatter
+import com.etfmonitor.core.ui.component.ChartLabelCalculator
 import com.etfmonitor.core.ui.component.DateRangeOption
 import com.etfmonitor.core.ui.component.DateRangeSelector
 import com.etfmonitor.core.ui.theme.*
@@ -398,6 +400,7 @@ private fun MarketDepositChartView(
                 setScaleEnabled(true)
                 setPinchZoom(true)
                 setDrawGridBackground(false)
+                setExtraBottomOffset(10f)  // Extra padding for rotated labels
                 setDrawOrder(arrayOf(
                     CombinedChart.DrawOrder.LINE,
                     CombinedChart.DrawOrder.LINE
@@ -412,17 +415,8 @@ private fun MarketDepositChartView(
                     setTextColor(textColor)
                     granularity = 1f
                     labelRotationAngle = -45f
-                    setLabelCount(10, false)
-                    valueFormatter = object : ValueFormatter() {
-                        override fun getFormattedValue(value: Float): String {
-                            val index = value.toInt()
-                            return if (index >= 0 && index < data.dates.size) {
-                                data.dates[index]
-                            } else {
-                                ""
-                            }
-                        }
-                    }
+                    setAvoidFirstLastClipping(true)  // Prevent edge label clipping
+                    // labelCount and valueFormatter are set in update block
                 }
 
                 axisLeft.apply {
@@ -459,6 +453,23 @@ private fun MarketDepositChartView(
             }
         },
         update = { chart ->
+            val dataCount = data.dates.size
+
+            // Update x-axis with dynamic label count and smart date formatting
+            chart.xAxis.apply {
+                setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(dataCount), false)
+                valueFormatter = object : ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        val index = value.toInt()
+                        return if (index >= 0 && index < data.dates.size) {
+                            DateFormatter.formatForChartByDataCount(data.dates[index], dataCount)
+                        } else {
+                            ""
+                        }
+                    }
+                }
+            }
+
             val depositEntries = data.depositAmounts.mapIndexed { index, value ->
                 Entry(index.toFloat(), value.toFloat())
             }
