@@ -1,0 +1,19 @@
+# ETF Monitor Backup Data Generator
+# Python 3.9+ required
+
+# Data Collection
+pykrx>=1.0.45
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Web Scraping
+beautifulsoup4>=4.12.0
+requests>=2.31.0
+lxml>=4.9.0
+
+# Progress Display
+tqdm>=4.66.0
+rich>=13.0.0
+
+# Date/Time
+python-dateutil>=2.8.0
