@@ -412,12 +412,12 @@ private fun BackupCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = backupInfo.metadata.createdAt,
+                        text = formatTimestamp(backupInfo.createdAt),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "v${backupInfo.metadata.schemaVersion} • ${formatFileSize(backupInfo.size)}",
+                        text = "v${backupInfo.schemaVersion} • ${formatFileSize(backupInfo.fileSize)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -477,11 +477,14 @@ private fun BackupCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Entity summary
-            val entitySummary = backupInfo.metadata.entityCounts.entries
+            val entitySummary = backupInfo.entityCounts.entries
                 .filter { it.value > 0 }
                 .sortedByDescending { it.value }
                 .take(3)
-                .joinToString(" • ") { "${it.key.displayName}: ${formatNumber(it.value)}" }
+                .joinToString(" • ") { (key, count) ->
+                    val displayName = EntityType.fromTableName(key)?.displayName ?: key
+                    "$displayName: ${formatNumber(count)}"
+                }
 
             Text(
                 text = entitySummary,
@@ -558,7 +561,7 @@ private fun CreateBackupDialog(
         is CreateBackupState.Success -> {
             SuccessDialog(
                 title = "백업 완료",
-                message = "백업이 성공적으로 생성되었습니다.\n크기: ${formatFileSize(state.backupInfo.size)}",
+                message = "백업이 성공적으로 생성되었습니다.\n크기: ${formatFileSize(state.backupInfo.fileSize)}",
                 onDismiss = onDismiss
             )
         }
@@ -745,10 +748,10 @@ private fun RestoreDialog(
             SuccessDialog(
                 title = "복구 완료",
                 message = buildString {
-                    appendLine("추가된 항목: ${result.insertedCount}")
-                    appendLine("건너뛴 항목: ${result.skippedCount}")
-                    if (result.failedCount > 0) {
-                        appendLine("실패한 항목: ${result.failedCount}")
+                    appendLine("추가된 항목: ${result.imported}")
+                    appendLine("건너뛴 항목: ${result.skipped}")
+                    if (result.errors > 0) {
+                        appendLine("실패한 항목: ${result.errors}")
                     }
                 },
                 onDismiss = onDismiss
@@ -792,7 +795,7 @@ private fun RestoreConfigDialog(
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        Text("생성일: ${metadata.createdAt}")
+                        Text("생성일: ${formatTimestamp(metadata.createdAt)}")
                         Text("스키마 버전: ${metadata.schemaVersion}")
                         if (metadata.dateRange != null) {
                             Text("데이터 기간: ${metadata.dateRange.startDate} ~ ${metadata.dateRange.endDate}")
@@ -815,10 +818,11 @@ private fun RestoreConfigDialog(
                 // Only show entities that exist in backup
                 val availableEntities = metadata.entityCounts
                     .filter { it.value > 0 }
-                    .map { it.key }
+                    .mapNotNull { (tableName, count) ->
+                        EntityType.fromTableName(tableName)?.let { it to count }
+                    }
 
-                availableEntities.forEach { entityType ->
-                    val count = metadata.entityCounts[entityType] ?: 0
+                availableEntities.forEach { (entityType, count) ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -871,20 +875,20 @@ private fun BackupDetailDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     DetailRow("백업 ID", backup.id)
-                    DetailRow("생성일시", backup.metadata.createdAt)
-                    DetailRow("스키마 버전", backup.metadata.schemaVersion.toString())
-                    DetailRow("파일 크기", formatFileSize(backup.size))
-                    DetailRow("압축", if (backup.isCompressed) "예" else "아니오")
+                    DetailRow("생성일시", formatTimestamp(backup.createdAt))
+                    DetailRow("스키마 버전", backup.schemaVersion.toString())
+                    DetailRow("파일 크기", formatFileSize(backup.fileSize))
+                    DetailRow("백업 타입", if (backup.backupType == BackupType.FULL) "전체" else "선택")
 
-                    if (backup.metadata.dateRange != null) {
+                    if (backup.dateRange != null) {
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                         Text(
                             text = "데이터 범위",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
-                        DetailRow("시작일", backup.metadata.dateRange.startDate)
-                        DetailRow("종료일", backup.metadata.dateRange.endDate)
+                        DetailRow("시작일", backup.dateRange.startDate)
+                        DetailRow("종료일", backup.dateRange.endDate)
                     }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -894,10 +898,11 @@ private fun BackupDetailDialog(
                         fontWeight = FontWeight.Bold
                     )
 
-                    backup.metadata.entityCounts
+                    backup.entityCounts
                         .filter { it.value > 0 }
-                        .forEach { (entity, count) ->
-                            DetailRow(entity.displayName, formatNumber(count))
+                        .forEach { (tableName, count) ->
+                            val displayName = EntityType.fromTableName(tableName)?.displayName ?: tableName
+                            DetailRow(displayName, formatNumber(count))
                         }
                 }
             },
@@ -949,7 +954,7 @@ private fun DeleteConfirmDialog(
                 },
                 title = { Text("백업 삭제") },
                 text = {
-                    Text("이 백업을 삭제하시겠습니까?\n\n${state.backupInfo.metadata.createdAt}\n${formatFileSize(state.backupInfo.size)}")
+                    Text("이 백업을 삭제하시겠습니까?\n\n${formatTimestamp(state.backupInfo.createdAt)}\n${formatFileSize(state.backupInfo.fileSize)}")
                 },
                 confirmButton = {
                     Button(
@@ -1088,4 +1093,9 @@ private fun formatFileSize(bytes: Long): String {
 
 private fun formatNumber(number: Int): String {
     return DecimalFormat("#,###").format(number)
+}
+
+private fun formatTimestamp(timestamp: Long): String {
+    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
+    return sdf.format(java.util.Date(timestamp))
 }

@@ -120,49 +120,61 @@ class BackupViewModel @Inject constructor(
         val current = _createBackupState.value
         if (current !is CreateBackupState.Visible) return
 
+        val dateRange = if (current.startDate != null && current.endDate != null) {
+            DateRange(current.startDate, current.endDate)
+        } else null
+
         val options = BackupOptions(
-            entities = current.selectedEntities,
+            selectedEntities = current.selectedEntities,
             compress = current.useCompression,
-            startDate = current.startDate,
-            endDate = current.endDate
+            dateRange = dateRange
         )
 
         viewModelScope.launch {
             backupRepository.createBackup(options)
                 .collect { progress ->
                     when (progress) {
-                        is BackupProgress.Starting -> {
+                        is BackupProgress.Preparing -> {
                             _createBackupState.value = CreateBackupState.InProgress(
-                                message = "백업 시작...",
+                                message = progress.message,
                                 progress = 0,
                                 processedEntities = 0,
-                                totalEntities = progress.totalEntities
+                                totalEntities = 0
                             )
                         }
-                        is BackupProgress.Processing -> {
+                        is BackupProgress.Exporting -> {
                             _createBackupState.value = CreateBackupState.InProgress(
-                                message = "${progress.entityType.displayName} 처리 중...",
-                                progress = progress.progress,
-                                processedEntities = progress.processedEntities,
-                                totalEntities = progress.totalEntities
+                                message = "${progress.currentEntity} 처리 중...",
+                                progress = (progress.overallProgress * 100) / progress.overallTotal.coerceAtLeast(1),
+                                processedEntities = progress.overallProgress,
+                                totalEntities = progress.overallTotal
                             )
                         }
                         is BackupProgress.Compressing -> {
                             val currentProgress = _createBackupState.value
                             if (currentProgress is CreateBackupState.InProgress) {
                                 _createBackupState.value = currentProgress.copy(
-                                    message = "압축 중..."
+                                    message = "압축 중... ${progress.progress}%"
                                 )
                             }
                         }
-                        is BackupProgress.Completed -> {
+                        is BackupProgress.Uploading -> {
+                            val currentProgress = _createBackupState.value
+                            if (currentProgress is CreateBackupState.InProgress) {
+                                _createBackupState.value = currentProgress.copy(
+                                    message = "업로드 중... ${progress.progress}%"
+                                )
+                            }
+                        }
+                        is BackupProgress.Success -> {
                             _createBackupState.value = CreateBackupState.Success(progress.backupInfo)
                             loadData() // Refresh backup list
                             _snackbarMessage.emit(SnackbarMessage("백업이 완료되었습니다"))
                         }
-                        is BackupProgress.Failed -> {
-                            _createBackupState.value = CreateBackupState.Error(progress.error.message)
+                        is BackupProgress.Error -> {
+                            _createBackupState.value = CreateBackupState.Error(progress.message)
                         }
+                        is BackupProgress.Idle -> { /* Do nothing */ }
                     }
                 }
         }
@@ -180,8 +192,18 @@ class BackupViewModel @Inject constructor(
 
             val result = backupRepository.getBackupInfo(backupInfo.id)
             if (result != null) {
+                // Convert BackupInfo to BackupMetadata for the Configure state
+                val metadata = BackupMetadata(
+                    appVersion = "",  // Not stored in BackupInfo
+                    schemaVersion = backupInfo.schemaVersion,
+                    createdAt = backupInfo.createdAt,
+                    backupType = backupInfo.backupType,
+                    dateRange = backupInfo.dateRange,
+                    selectedEntities = backupInfo.entityCounts.keys.toList(),
+                    entityCounts = backupInfo.entityCounts
+                )
                 _restoreState.value = RestoreState.Configure(
-                    metadata = backupInfo.metadata,
+                    metadata = metadata,
                     backupId = backupInfo.id
                 )
             } else {
@@ -231,7 +253,7 @@ class BackupViewModel @Inject constructor(
         if (current !is RestoreState.Configure) return
 
         val options = RestoreOptions(
-            entities = current.selectedEntities,
+            selectedEntities = current.selectedEntities,
             mergeMode = true // Always use merge mode
         )
 
@@ -246,32 +268,39 @@ class BackupViewModel @Inject constructor(
         viewModelScope.launch {
             restoreFlow.collect { progress ->
                 when (progress) {
-                    is RestoreProgress.Starting -> {
+                    is RestoreProgress.Validating -> {
                         _restoreState.value = RestoreState.InProgress(
-                            message = "복구 시작...",
+                            message = progress.message,
                             progress = 0,
                             processedEntities = 0,
-                            totalEntities = progress.totalEntities
+                            totalEntities = 0
                         )
                     }
-                    is RestoreProgress.Processing -> {
+                    is RestoreProgress.Importing -> {
                         _restoreState.value = RestoreState.InProgress(
-                            message = "${progress.entityType.displayName} 복구 중...",
-                            progress = progress.progress,
-                            processedEntities = progress.processedEntities,
-                            totalEntities = progress.totalEntities
+                            message = "${progress.currentEntity} 복구 중...",
+                            progress = (progress.overallProgress * 100) / progress.overallTotal.coerceAtLeast(1),
+                            processedEntities = progress.overallProgress,
+                            totalEntities = progress.overallTotal
                         )
                     }
-                    is RestoreProgress.Completed -> {
-                        _restoreState.value = RestoreState.Success(progress.result)
+                    is RestoreProgress.Success -> {
+                        // Create ImportResult for UI state
+                        val result = ImportResult(
+                            imported = progress.totalImported,
+                            skipped = progress.totalSkipped,
+                            errors = progress.details.values.sumOf { it.errors }
+                        )
+                        _restoreState.value = RestoreState.Success(result)
                         loadData() // Refresh
                         _snackbarMessage.emit(
-                            SnackbarMessage("복구 완료: ${progress.result.insertedCount}개 항목 추가됨")
+                            SnackbarMessage("복구 완료: ${progress.totalImported}개 항목 추가됨")
                         )
                     }
-                    is RestoreProgress.Failed -> {
-                        _restoreState.value = RestoreState.Error(progress.error.message)
+                    is RestoreProgress.Error -> {
+                        _restoreState.value = RestoreState.Error(progress.message)
                     }
+                    is RestoreProgress.Idle -> { /* Do nothing */ }
                 }
             }
         }
@@ -342,23 +371,23 @@ class BackupViewModel @Inject constructor(
             backupRepository.uploadToGoogleDrive(backupId)
                 .collect { progress ->
                     when (progress) {
-                        is BackupProgress.Starting -> {
+                        is BackupProgress.Preparing -> {
                             _googleDriveState.value = GoogleDriveState.Uploading(0, "업로드 준비 중...")
                         }
-                        is BackupProgress.Processing -> {
+                        is BackupProgress.Uploading -> {
                             _googleDriveState.value = GoogleDriveState.Uploading(
                                 progress.progress,
                                 "업로드 중..."
                             )
                         }
-                        is BackupProgress.Completed -> {
+                        is BackupProgress.Success -> {
                             _googleDriveState.value = GoogleDriveState.SignedIn
                             _snackbarMessage.emit(SnackbarMessage("Google Drive에 업로드되었습니다"))
                         }
-                        is BackupProgress.Failed -> {
-                            _googleDriveState.value = GoogleDriveState.Error(progress.error.message)
+                        is BackupProgress.Error -> {
+                            _googleDriveState.value = GoogleDriveState.Error(progress.message)
                             _snackbarMessage.emit(
-                                SnackbarMessage(progress.error.message, isError = true)
+                                SnackbarMessage(progress.message, isError = true)
                             )
                         }
                         else -> {}
@@ -388,24 +417,24 @@ class BackupViewModel @Inject constructor(
             backupRepository.downloadFromGoogleDrive(driveFileId)
                 .collect { progress ->
                     when (progress) {
-                        is BackupProgress.Starting -> {
+                        is BackupProgress.Preparing -> {
                             _googleDriveState.value = GoogleDriveState.Downloading(0, "다운로드 준비 중...")
                         }
-                        is BackupProgress.Processing -> {
+                        is BackupProgress.Exporting -> {
                             _googleDriveState.value = GoogleDriveState.Downloading(
-                                progress.progress,
+                                (progress.overallProgress * 100) / progress.overallTotal.coerceAtLeast(1),
                                 "다운로드 중..."
                             )
                         }
-                        is BackupProgress.Completed -> {
+                        is BackupProgress.Success -> {
                             loadGoogleDriveBackups()
                             loadData()
                             _snackbarMessage.emit(SnackbarMessage("다운로드가 완료되었습니다"))
                         }
-                        is BackupProgress.Failed -> {
-                            _googleDriveState.value = GoogleDriveState.Error(progress.error.message)
+                        is BackupProgress.Error -> {
+                            _googleDriveState.value = GoogleDriveState.Error(progress.message)
                             _snackbarMessage.emit(
-                                SnackbarMessage(progress.error.message, isError = true)
+                                SnackbarMessage(progress.message, isError = true)
                             )
                         }
                         else -> {}
