@@ -35,6 +35,154 @@ import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.launch
 import java.text.DecimalFormat
 
+/**
+ * Embedded backup content for use in Settings tab
+ * Contains all backup functionality without the Scaffold wrapper
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BackupTabContent(
+    viewModel: BackupViewModel = hiltViewModel()
+) {
+    val state by viewModel.state.collectAsState()
+    val createBackupState by viewModel.createBackupState.collectAsState()
+    val restoreState by viewModel.restoreState.collectAsState()
+    val backupDetailState by viewModel.backupDetailState.collectAsState()
+    val deleteConfirmState by viewModel.deleteConfirmState.collectAsState()
+    val googleDriveState by viewModel.googleDriveState.collectAsState()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    // Google Sign-In launcher
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                viewModel.handleGoogleSignInResult(account)
+            } catch (e: ApiException) {
+                viewModel.handleGoogleSignInResult(null)
+            }
+        } else {
+            viewModel.handleGoogleSignInResult(null)
+        }
+    }
+
+    // File picker for restore
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.validateBackupFile(it) }
+    }
+
+    // File saver for export
+    var pendingExportBackupId by remember { mutableStateOf<String?>(null) }
+    val fileSaverLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri: Uri? ->
+        uri?.let { destinationUri ->
+            pendingExportBackupId?.let { backupId ->
+                viewModel.exportBackup(backupId, destinationUri)
+            }
+        }
+        pendingExportBackupId = null
+    }
+
+    // Collect snackbar messages
+    LaunchedEffect(Unit) {
+        viewModel.snackbarMessage.collect { message ->
+            snackbarHostState.showSnackbar(
+                message = message.message,
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        when (val currentState = state) {
+            is BackupState.Loading -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+            is BackupState.Error -> {
+                ErrorContent(
+                    message = currentState.message,
+                    onRetry = { viewModel.loadData() },
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+            is BackupState.Idle -> {
+                BackupContentWithFab(
+                    localBackups = currentState.localBackups,
+                    entityCounts = currentState.entityCounts,
+                    dateRange = currentState.dateRange,
+                    estimatedSize = currentState.estimatedSize,
+                    googleDriveState = googleDriveState,
+                    onBackupClick = { viewModel.showBackupDetail(it) },
+                    onRestoreClick = { viewModel.showRestoreFromLocalBackup(it) },
+                    onDeleteClick = { viewModel.showDeleteConfirmation(it) },
+                    onExportClick = { backupInfo ->
+                        pendingExportBackupId = backupInfo.id
+                        fileSaverLauncher.launch("etfmonitor_backup_${backupInfo.id}.etfbackup")
+                    },
+                    onUploadClick = { viewModel.uploadToGoogleDrive(it.id) },
+                    onRestoreFromFile = {
+                        viewModel.showRestoreFromFileDialog()
+                        filePickerLauncher.launch(arrayOf("*/*"))
+                    },
+                    onGoogleSignIn = {
+                        googleSignInLauncher.launch(viewModel.getGoogleSignInIntent())
+                    },
+                    onGoogleSignOut = { viewModel.signOutFromGoogleDrive() },
+                    onLoadDriveBackups = { viewModel.loadGoogleDriveBackups() },
+                    onDownloadFromDrive = { viewModel.downloadFromGoogleDrive(it) },
+                    onDeleteFromDrive = { viewModel.deleteFromGoogleDrive(it) },
+                    onCreateBackup = { viewModel.showCreateBackupDialog() },
+                    onRefresh = { viewModel.loadData() }
+                )
+            }
+        }
+
+        // Snackbar host
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+
+    // Dialogs
+    CreateBackupDialog(
+        state = createBackupState,
+        onDismiss = { viewModel.hideCreateBackupDialog() },
+        onUpdateOptions = { entities, compress, startDate, endDate ->
+            viewModel.updateCreateBackupOptions(entities, compress, startDate, endDate)
+        },
+        onConfirm = { viewModel.createBackup() }
+    )
+
+    RestoreDialog(
+        state = restoreState,
+        onDismiss = { viewModel.hideRestoreDialog() },
+        onUpdateOptions = { entities -> viewModel.updateRestoreOptions(entities) },
+        onConfirm = { viewModel.startRestore() }
+    )
+
+    BackupDetailDialog(
+        state = backupDetailState,
+        onDismiss = { viewModel.hideBackupDetail() }
+    )
+
+    DeleteConfirmDialog(
+        state = deleteConfirmState,
+        onDismiss = { viewModel.hideDeleteConfirmation() },
+        onConfirm = { viewModel.confirmDelete() }
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BackupScreen(
@@ -202,6 +350,115 @@ fun BackupScreen(
         onDismiss = { viewModel.hideDeleteConfirmation() },
         onConfirm = { viewModel.confirmDelete() }
     )
+}
+
+/**
+ * Backup content with embedded FAB for use in Settings tab
+ */
+@Composable
+private fun BackupContentWithFab(
+    localBackups: List<BackupInfo>,
+    entityCounts: Map<EntityType, Int>,
+    dateRange: DateRange?,
+    estimatedSize: Long,
+    googleDriveState: GoogleDriveState,
+    onBackupClick: (BackupInfo) -> Unit,
+    onRestoreClick: (BackupInfo) -> Unit,
+    onDeleteClick: (BackupInfo) -> Unit,
+    onExportClick: (BackupInfo) -> Unit,
+    onUploadClick: (BackupInfo) -> Unit,
+    onRestoreFromFile: () -> Unit,
+    onGoogleSignIn: () -> Unit,
+    onGoogleSignOut: () -> Unit,
+    onLoadDriveBackups: () -> Unit,
+    onDownloadFromDrive: (String) -> Unit,
+    onDeleteFromDrive: (String) -> Unit,
+    onCreateBackup: () -> Unit,
+    onRefresh: () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Action buttons at top
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilledTonalButton(
+                        onClick = onCreateBackup,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("백업 생성")
+                    }
+                    OutlinedButton(
+                        onClick = onRefresh
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = "새로고침")
+                    }
+                }
+            }
+
+            // Database Status Card
+            item {
+                DatabaseStatusCard(
+                    entityCounts = entityCounts,
+                    dateRange = dateRange,
+                    estimatedSize = estimatedSize
+                )
+            }
+
+            // Quick Actions
+            item {
+                QuickActionsCard(
+                    onRestoreFromFile = onRestoreFromFile
+                )
+            }
+
+            // Google Drive Section
+            item {
+                GoogleDriveCard(
+                    state = googleDriveState,
+                    onSignIn = onGoogleSignIn,
+                    onSignOut = onGoogleSignOut,
+                    onLoadBackups = onLoadDriveBackups,
+                    onDownload = onDownloadFromDrive,
+                    onDelete = onDeleteFromDrive
+                )
+            }
+
+            // Local Backups Section
+            item {
+                Text(
+                    text = "로컬 백업 (${localBackups.size})",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            if (localBackups.isEmpty()) {
+                item {
+                    EmptyBackupsCard()
+                }
+            } else {
+                items(localBackups) { backup ->
+                    BackupCard(
+                        backupInfo = backup,
+                        onClick = { onBackupClick(backup) },
+                        onRestore = { onRestoreClick(backup) },
+                        onDelete = { onDeleteClick(backup) },
+                        onExport = { onExportClick(backup) },
+                        onUpload = { onUploadClick(backup) }
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
