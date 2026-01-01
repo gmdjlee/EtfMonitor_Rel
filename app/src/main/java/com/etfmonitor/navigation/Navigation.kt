@@ -29,6 +29,7 @@ import com.etfmonitor.feature.market.presentation.hub.MarketIndicatorHubScreen
 import com.etfmonitor.feature.etf.presentation.hub.EtfHubScreen
 import com.etfmonitor.feature.stock.presentation.hub.StocksHubScreen
 import com.etfmonitor.feature.analysis.presentation.hub.AnalysisHubScreen
+import com.etfmonitor.feature.backup.presentation.screen.BackupScreen
 
 sealed class Screen(val route: String) {
     // Main navigation tabs
@@ -82,6 +83,8 @@ sealed class Screen(val route: String) {
     object AIAnalysis : Screen("ai_analysis")
     // 고급 분석 대시보드
     object AdvancedDashboard : Screen("advanced_dashboard")
+    // 백업 및 복구
+    object Backup : Screen("backup")
 }
 
 // Routes that show bottom navigation (use base routes for pattern matching)
@@ -315,6 +318,14 @@ fun Navigation(
 
             composable(Screen.Settings.route) {
                 SettingsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToBackup = { navController.navigate(Screen.Backup.route) }
+                )
+            }
+
+            // 백업 및 복구 화면
+            composable(Screen.Backup.route) {
+                BackupScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

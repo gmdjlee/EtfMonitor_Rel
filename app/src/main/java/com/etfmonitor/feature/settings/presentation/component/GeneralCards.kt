@@ -1135,3 +1135,54 @@ fun ModelSelectionSection(
         }
     }
 }
+
+/**
+ * 백업 및 복구 카드
+ * 데이터 백업 화면으로 이동하는 진입점 제공
+ */
+@Composable
+fun BackupCard(
+    onNavigateToBackup: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onNavigateToBackup)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Backup,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Column {
+                    Text(
+                        stringResource(R.string.settings_backup_title),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        stringResource(R.string.settings_backup_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
