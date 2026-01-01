@@ -72,7 +72,8 @@ fun SettingsScreen(
         stringResource(R.string.settings_tab_keyword),
         stringResource(R.string.settings_tab_data_update),
         stringResource(R.string.settings_tab_period),
-        stringResource(R.string.settings_tab_chart)
+        stringResource(R.string.settings_tab_chart),
+        stringResource(R.string.settings_tab_backup)
     )
 
     LaunchedEffect(message) {
@@ -127,6 +128,7 @@ fun SettingsScreen(
                                 2 -> Icon(Icons.Default.CloudDownload, contentDescription = stringResource(R.string.cd_download_tab))
                                 3 -> Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.cd_period_tab))
                                 4 -> Icon(Icons.Default.Palette, contentDescription = stringResource(R.string.cd_palette_tab))
+                                5 -> Icon(Icons.Default.Backup, contentDescription = stringResource(R.string.cd_backup_tab))
                             }
                         }
                     )
@@ -139,8 +141,7 @@ fun SettingsScreen(
                     isDarkTheme = isDarkTheme,
                     fontScaleSettings = fontScaleSettings,
                     quickChartAnalysisEnabled = quickChartAnalysisEnabled,
-                    viewModel = viewModel,
-                    onNavigateToBackup = onNavigateToBackup
+                    viewModel = viewModel
                 )
                 1 -> KeywordTab(
                     themes = themes,
@@ -170,6 +171,9 @@ fun SettingsScreen(
                     chartColorSettings = chartColorSettings,
                     viewModel = viewModel
                 )
+                5 -> BackupTab(
+                    onNavigateToBackup = onNavigateToBackup
+                )
             }
         }
     }
@@ -181,8 +185,7 @@ private fun GeneralTab(
     isDarkTheme: Boolean?,
     fontScaleSettings: com.etfmonitor.core.ui.theme.FontScaleSettings,
     quickChartAnalysisEnabled: Boolean,
-    viewModel: SettingsViewModel,
-    onNavigateToBackup: () -> Unit
+    viewModel: SettingsViewModel
 ) {
     val selectedProvider by viewModel.selectedProvider.collectAsState()
     val isClaudeConfigured by viewModel.isClaudeApiKeyConfigured.collectAsState()
@@ -265,8 +268,19 @@ private fun GeneralTab(
                 onLabelScaleChange = { viewModel.setLabelScale(it) }
             )
         }
+    }
+}
 
-        // 백업 및 복구
+// ==================== Backup Tab ====================
+@Composable
+private fun BackupTab(
+    onNavigateToBackup: () -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
         item {
             BackupCard(
                 onNavigateToBackup = onNavigateToBackup

@@ -1,11 +1,15 @@
 package com.etfmonitor.feature.backup.presentation.viewmodel
 
+import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etfmonitor.feature.backup.data.remote.GoogleDriveHelper
+import com.etfmonitor.feature.backup.data.repository.BackupRepositoryImpl
 import com.etfmonitor.feature.backup.domain.model.*
 import com.etfmonitor.feature.backup.domain.repository.BackupRepository
 import com.etfmonitor.feature.backup.presentation.state.*
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -16,7 +20,8 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class BackupViewModel @Inject constructor(
-    private val backupRepository: BackupRepository
+    private val backupRepository: BackupRepository,
+    private val googleDriveHelper: GoogleDriveHelper
 ) : ViewModel() {
 
     // ==================== Main State ====================
@@ -456,5 +461,46 @@ class BackupViewModel @Inject constructor(
                     )
                 }
         }
+    }
+
+    // ==================== Google Drive Sign-In ====================
+
+    fun getGoogleSignInIntent(): Intent {
+        return googleDriveHelper.getSignInIntent()
+    }
+
+    fun handleGoogleSignInResult(account: GoogleSignInAccount?) {
+        if (account == null) {
+            _googleDriveState.value = GoogleDriveState.Error("로그인 취소됨")
+            return
+        }
+
+        viewModelScope.launch {
+            _googleDriveState.value = GoogleDriveState.Loading
+
+            googleDriveHelper.initializeDriveService(account)
+                .onSuccess {
+                    _googleDriveState.value = GoogleDriveState.SignedIn
+                    loadGoogleDriveBackups()
+                    _snackbarMessage.emit(SnackbarMessage("Google Drive에 연결되었습니다"))
+                }
+                .onFailure { error ->
+                    _googleDriveState.value = GoogleDriveState.Error(
+                        error.message ?: "Google Drive 초기화 실패"
+                    )
+                }
+        }
+    }
+
+    fun signOutFromGoogleDrive() {
+        viewModelScope.launch {
+            googleDriveHelper.signOut()
+            _googleDriveState.value = GoogleDriveState.NotSignedIn
+            _snackbarMessage.emit(SnackbarMessage("Google Drive에서 로그아웃되었습니다"))
+        }
+    }
+
+    fun getSignedInAccount(): GoogleSignInAccount? {
+        return googleDriveHelper.getSignedInAccount()
     }
 }

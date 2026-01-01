@@ -20,6 +20,11 @@ hiltNavigationCompose = "1.2.0"
 okhttp = "4.12.0"
 securityCrypto = "1.1.0-alpha06"
 
+# Google Play Services & Drive API
+playServicesAuth = "21.0.0"
+googleApiClient = "1.33.0"
+googleDriveApi = "v3-rev197-1.25.0"
+
 # Testing
 junit = "4.13.2"
 junit5 = "5.10.2"
@@ -80,6 +85,11 @@ hilt-android-compiler = { group = "com.google.dagger", name = "hilt-android-comp
 hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hiltWork" }
 hilt-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "hiltWork" }
 hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
+
+# Google Play Services & Drive API
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
+google-api-client = { group = "com.google.api-client", name = "google-api-client-android", version.ref = "googleApiClient" }
+google-drive-api = { group = "com.google.apis", name = "google-api-services-drive", version.ref = "googleDriveApi" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
