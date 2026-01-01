@@ -302,11 +302,9 @@ class EtfHoldingsCollector(BaseCollector):
         holdings = []
 
         try:
-            df = self.retry_with_backoff(
-                stock.get_etf_portfolio_deposit_file,
-                ticker,
-                date_ymd
-            )
+            # Don't use retry_with_backoff here because pykrx internal errors
+            # (like uint64 overflow for negative values) won't be fixed by retrying
+            df = stock.get_etf_portfolio_deposit_file(ticker, date_ymd)
 
             if df is None or df.empty:
                 return holdings
@@ -336,7 +334,10 @@ class EtfHoldingsCollector(BaseCollector):
                     "snapshotType": self.config.etf.snapshot_type
                 })
 
+        except OverflowError as e:
+            # pykrx internal error with negative values and uint64
+            self.logger.debug(f"Skipping {ticker} on {date_iso}: pykrx overflow error")
         except Exception as e:
-            self.logger.debug(f"Error getting holdings for {ticker}: {e}")
+            self.logger.debug(f"Error getting holdings for {ticker} on {date_iso}: {e}")
 
         return holdings

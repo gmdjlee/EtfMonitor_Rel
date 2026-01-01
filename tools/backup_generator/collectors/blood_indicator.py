@@ -81,14 +81,20 @@ class BloodIndicatorCollector(BaseCollector):
                 tbill_df = self._fetch_yahoo_data(
                     self.TBILL_SYMBOL,
                     start_date,
-                    end_date
+                    end_date,
+                    value_column="tbill"
                 )
                 progress.update(task, advance=1)
 
                 # Step 3: Fetch SPY close for reference
                 progress.update(task, description="[cyan]Fetching SPY (Yahoo)...")
                 self.rate_limit(self.config.rate_limit.yahoo_delay)
-                spy_df = self._fetch_yahoo_data("SPY", start_date, end_date)
+                spy_df = self._fetch_yahoo_data(
+                    "SPY",
+                    start_date,
+                    end_date,
+                    value_column="spy_close"
+                )
                 progress.update(task, advance=1)
 
                 # Step 4: Calculate Blood Indicator
@@ -164,9 +170,17 @@ class BloodIndicatorCollector(BaseCollector):
         self,
         symbol: str,
         start_date: datetime,
-        end_date: datetime
+        end_date: datetime,
+        value_column: str = "close"
     ) -> pd.DataFrame:
-        """Fetch data from Yahoo Finance API"""
+        """Fetch data from Yahoo Finance API
+
+        Args:
+            symbol: Stock symbol
+            start_date: Start date
+            end_date: End date
+            value_column: Name for the value column in returned DataFrame
+        """
         # Convert to Unix timestamp
         start_ts = int(start_date.timestamp())
         end_ts = int(end_date.timestamp())
@@ -206,7 +220,7 @@ class BloodIndicatorCollector(BaseCollector):
                 date = datetime.fromtimestamp(ts)
                 records.append({
                     "date": date,
-                    "close": closes[i]
+                    value_column: closes[i]
                 })
 
         df = pd.DataFrame(records)
@@ -221,7 +235,13 @@ class BloodIndicatorCollector(BaseCollector):
         tbill_df: pd.DataFrame,
         spy_df: pd.DataFrame
     ) -> list[dict]:
-        """Calculate Blood Indicator from collected data"""
+        """Calculate Blood Indicator from collected data
+
+        Expected columns:
+        - hy_spread_df: "value" (High Yield Spread)
+        - tbill_df: "tbill" (T-Bill rate)
+        - spy_df: "spy_close" (SPY close price)
+        """
         results = []
 
         if hy_spread_df.empty or tbill_df.empty:
@@ -233,12 +253,11 @@ class BloodIndicatorCollector(BaseCollector):
         tbill_weekly = tbill_df.resample("W-FRI").last()
         spy_weekly = spy_df.resample("W-FRI").last() if not spy_df.empty else None
 
-        # Merge data
+        # Merge data - columns are now distinct: "value", "tbill", "spy_close"
         merged = pd.merge(
             hy_weekly, tbill_weekly,
             left_index=True, right_index=True,
-            how="inner",
-            suffixes=("_hy", "_tbill")
+            how="inner"
         )
 
         if spy_weekly is not None and not spy_weekly.empty:
@@ -252,7 +271,7 @@ class BloodIndicatorCollector(BaseCollector):
             return results
 
         # Calculate Blood value: T-Bill Rate / High Yield Spread * 100
-        merged["blood"] = merged["close"] / merged["value"] * 100
+        merged["blood"] = merged["tbill"] / merged["value"] * 100
 
         # Calculate 100-week SMA
         merged["blood_sma"] = merged["blood"].rolling(window=self.SMA_PERIOD).mean()
@@ -275,16 +294,17 @@ class BloodIndicatorCollector(BaseCollector):
                 signal_type = "RISK_OFF"
                 signal_color = "red"
 
+            # Get SPY close if available
             spy_close = None
-            if "close" in row and pd.notna(row.get("close")):
-                spy_close = float(row["close"])
+            if "spy_close" in row.index and pd.notna(row["spy_close"]):
+                spy_close = float(row["spy_close"])
 
             results.append({
                 "id": f"BLOOD-{date_str}",
                 "date": date_str,
                 "bloodValue": round(blood_value, 4),
                 "bloodSma": round(blood_sma, 4) if blood_sma else 0.0,
-                "us03my": round(float(row.get("close", 0) if "close" in row.index else row.iloc[1]), 4),
+                "us03my": round(float(row["tbill"]), 4),
                 "highYieldSpread": round(float(row["value"]), 4),
                 "spyClose": spy_close,
                 "signalType": signal_type,
