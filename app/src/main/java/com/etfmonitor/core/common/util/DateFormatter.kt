@@ -65,4 +65,31 @@ object DateFormatter {
             date
         }
     }
+
+    /**
+     * Format date for chart X-axis based on data count
+     * - Short period (< 90 data points): "MM/dd" format
+     * - Long period (>= 90 data points): "YY-MM" format
+     *
+     * @param date Date string in "yyyy-MM-dd" format
+     * @param dataCount Total number of data points in the chart
+     */
+    fun formatForChartByDataCount(date: String, dataCount: Int): String {
+        return try {
+            val parts = date.split("-")
+            if (parts.size == 3) {
+                if (dataCount >= 90) {
+                    // Long period: show YY-MM
+                    "${parts[0].takeLast(2)}-${parts[1]}"
+                } else {
+                    // Short period: show MM/dd
+                    "${parts[1]}/${parts[2]}"
+                }
+            } else {
+                date
+            }
+        } catch (e: Exception) {
+            date
+        }
+    }
 }

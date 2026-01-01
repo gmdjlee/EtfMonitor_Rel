@@ -23,7 +23,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.foundation.isSystemInDarkTheme
 import com.etfmonitor.R
+import com.etfmonitor.core.common.util.DateFormatter
 import com.etfmonitor.core.ui.component.*
+import com.etfmonitor.core.ui.component.ChartLabelCalculator
 import com.etfmonitor.core.ui.theme.*
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
@@ -585,18 +587,7 @@ fun FearGreedChart(
                     setTextColor(textColor)
                     granularity = 1f
                     labelRotationAngle = -45f
-                    setLabelCount(10, false)
-                    valueFormatter = object : ValueFormatter() {
-                        override fun getFormattedValue(value: Float): String {
-                            val index = value.toInt()
-                            val reversedData = data.reversed()
-                            return if (index >= 0 && index < reversedData.size) {
-                                reversedData[index].date
-                            } else {
-                                ""
-                            }
-                        }
-                    }
+                    // labelCount and valueFormatter are set in update block
                 }
 
                 axisLeft.apply {
@@ -633,9 +624,27 @@ fun FearGreedChart(
             }
         },
         update = { chart ->
-            val reversedData = data.reversed()
+            // Data comes in descending order (newest first), so we need to reverse for chart
+            // Chart should display: oldest on left (index 0) -> newest on right (index n-1)
+            val chartData = data.sortedBy { it.date }
+            val dataCount = chartData.size
 
-            val oscillatorEntries = reversedData.mapIndexed { index, item ->
+            // Update x-axis with current data
+            chart.xAxis.apply {
+                setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(dataCount), false)
+                valueFormatter = object : ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        val index = value.toInt()
+                        return if (index >= 0 && index < chartData.size) {
+                            DateFormatter.formatForChartByDataCount(chartData[index].date, dataCount)
+                        } else {
+                            ""
+                        }
+                    }
+                }
+            }
+
+            val oscillatorEntries = chartData.mapIndexed { index, item ->
                 Entry(index.toFloat(), item.oscillator.toFloat())
             }
             val oscillatorDataSet = LineDataSet(oscillatorEntries, "Oscillator").apply {
@@ -650,10 +659,10 @@ fun FearGreedChart(
                 highLightColor = fearGreedColor
             }
 
-            val indexEntries = reversedData.mapIndexed { index, item ->
+            val indexEntries = chartData.mapIndexed { index, item ->
                 Entry(index.toFloat(), item.indexValue.toFloat())
             }
-            val indexDataSet = LineDataSet(indexEntries, "${reversedData.firstOrNull()?.market ?: ""} 지수").apply {
+            val indexDataSet = LineDataSet(indexEntries, "${chartData.lastOrNull()?.market ?: ""} 지수").apply {
                 axisDependency = YAxis.AxisDependency.RIGHT
                 color = indexColor
                 lineWidth = 2.5f
