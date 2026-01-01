@@ -573,6 +573,7 @@ fun FearGreedChart(
                 setScaleEnabled(true)
                 setPinchZoom(true)
                 setDrawGridBackground(false)
+                setExtraBottomOffset(10f)  // Extra padding for rotated labels
                 setDrawOrder(arrayOf(
                     CombinedChart.DrawOrder.LINE,
                     CombinedChart.DrawOrder.LINE
@@ -587,6 +588,7 @@ fun FearGreedChart(
                     setTextColor(textColor)
                     granularity = 1f
                     labelRotationAngle = -45f
+                    setAvoidFirstLastClipping(true)  // Prevent edge label clipping
                     // labelCount and valueFormatter are set in update block
                 }
 

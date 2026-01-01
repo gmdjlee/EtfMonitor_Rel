@@ -327,6 +327,7 @@ private fun StockTrendLineChart(
                 setPinchZoom(true)
                 setDrawGridBackground(false)
                 legend.isEnabled = false
+                setExtraBottomOffset(10f)  // Extra padding for rotated labels
 
                 xAxis.apply {
                     position = XAxis.XAxisPosition.BOTTOM
@@ -337,6 +338,7 @@ private fun StockTrendLineChart(
                     setTextColor(textColor)
                     granularity = 1f
                     labelRotationAngle = -45f
+                    setAvoidFirstLastClipping(true)  // Prevent edge label clipping
                     // labelCount and valueFormatter are set in update block
                 }
 
