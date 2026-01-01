@@ -59,7 +59,7 @@ class BackupViewModel @Inject constructor(
                 val dateRange = backupRepository.getDataDateRange()
                 val estimatedSize = backupRepository.estimateBackupSize(
                     BackupOptions(
-                        entities = EntityType.entries.toSet(),
+                        selectedEntities = EntityType.entries.toSet(),
                         compress = true
                     )
                 )
