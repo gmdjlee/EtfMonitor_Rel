@@ -74,6 +74,7 @@ fun MarketCapOscillatorChart(
                         setScaleEnabled(true)
                         setPinchZoom(true)
                         setDrawGridBackground(false)
+                        setExtraBottomOffset(10f)  // Extra padding for rotated labels
                         setDrawOrder(arrayOf(
                             CombinedChart.DrawOrder.LINE,
                             CombinedChart.DrawOrder.LINE
@@ -249,6 +250,7 @@ fun MarketDepositChart(
                     setScaleEnabled(true)
                     setPinchZoom(true)
                     setDrawGridBackground(false)
+                    setExtraBottomOffset(10f)  // Extra padding for rotated labels
 
                     // 마커 뷰
                     val markerView = CustomMarkerView(
