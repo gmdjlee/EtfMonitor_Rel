@@ -318,8 +318,7 @@ fun Navigation(
 
             composable(Screen.Settings.route) {
                 SettingsScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToBackup = { navController.navigate(Screen.Backup.route) }
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 

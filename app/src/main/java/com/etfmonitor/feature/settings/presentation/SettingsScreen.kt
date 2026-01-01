@@ -12,6 +12,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
+import com.etfmonitor.feature.backup.presentation.screen.BackupTabContent
+import com.etfmonitor.feature.backup.presentation.viewmodel.BackupViewModel
 import com.etfmonitor.feature.settings.presentation.component.*
 
 /**
@@ -37,8 +39,8 @@ import com.etfmonitor.feature.settings.presentation.component.*
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToBackup: () -> Unit = {},
-    viewModel: SettingsViewModel = hiltViewModel()
+    viewModel: SettingsViewModel = hiltViewModel(),
+    backupViewModel: BackupViewModel = hiltViewModel()
 ) {
     val themes by viewModel.themes.collectAsState()
     val exclusions by viewModel.exclusions.collectAsState()
@@ -172,7 +174,7 @@ fun SettingsScreen(
                     viewModel = viewModel
                 )
                 5 -> BackupTab(
-                    onNavigateToBackup = onNavigateToBackup
+                    backupViewModel = backupViewModel
                 )
             }
         }
@@ -274,19 +276,9 @@ private fun GeneralTab(
 // ==================== Backup Tab ====================
 @Composable
 private fun BackupTab(
-    onNavigateToBackup: () -> Unit
+    backupViewModel: BackupViewModel
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            BackupCard(
-                onNavigateToBackup = onNavigateToBackup
-            )
-        }
-    }
+    BackupTabContent(viewModel = backupViewModel)
 }
 
 // ==================== Keyword Tab ====================
