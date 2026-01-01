@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
+import com.etfmonitor.core.ui.component.ChartLabelCalculator
 import com.etfmonitor.core.ui.component.DateRangeOption
 import com.etfmonitor.core.ui.component.DateRangeSelector
 import com.etfmonitor.core.ui.theme.ChartGridDark
@@ -326,6 +327,7 @@ private fun StockTrendLineChart(
                 setPinchZoom(true)
                 setDrawGridBackground(false)
                 legend.isEnabled = false
+                setExtraBottomOffset(10f)  // Extra padding for rotated labels
 
                 xAxis.apply {
                     position = XAxis.XAxisPosition.BOTTOM
@@ -336,7 +338,8 @@ private fun StockTrendLineChart(
                     setTextColor(textColor)
                     granularity = 1f
                     labelRotationAngle = -45f
-                    setLabelCount(6, false)
+                    setAvoidFirstLastClipping(true)  // Prevent edge label clipping
+                    // labelCount and valueFormatter are set in update block
                 }
 
                 axisLeft.apply {
@@ -351,6 +354,7 @@ private fun StockTrendLineChart(
             }
         },
         update = { chart ->
+            val dataCount = data.size
             val entries = data.mapIndexed { index, item ->
                 Entry(index.toFloat(), valueExtractor(item))
             }
@@ -366,13 +370,17 @@ private fun StockTrendLineChart(
                 highLightColor = lineColor
             }
 
-            chart.xAxis.valueFormatter = object : ValueFormatter() {
-                override fun getFormattedValue(value: Float): String {
-                    val index = value.toInt()
-                    return if (index >= 0 && index < data.size) {
-                        formatDateForChart(data[index].date)
-                    } else {
-                        ""
+            // Update x-axis with dynamic label count and smart date formatting
+            chart.xAxis.apply {
+                setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(dataCount), false)
+                valueFormatter = object : ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        val index = value.toInt()
+                        return if (index >= 0 && index < data.size) {
+                            DateFormatter.formatForChartByDataCount(data[index].date, dataCount)
+                        } else {
+                            ""
+                        }
                     }
                 }
             }
@@ -383,8 +391,6 @@ private fun StockTrendLineChart(
         modifier = modifier
     )
 }
-
-private fun formatDateForChart(date: String): String = DateFormatter.formatForChart(date)
 
 @Composable
 private fun DataTable(timeSeries: List<HoldingTimeSeries>) {

@@ -107,8 +107,9 @@ object ChartLabelCalculator {
             dataPoints <= 30 -> 10                            // 1개월: 3일마다
             dataPoints <= 90 -> 10                            // 3개월: 9일마다
             dataPoints <= 180 -> 8                            // 6개월: 22일마다
-            dataPoints <= 365 -> 6                            // 1년: 60일마다
-            else -> 4                                         // 1년 이상: 90일마다
+            dataPoints <= 365 -> 8                            // 1년: 45일마다 (increased from 6)
+            dataPoints <= 730 -> 10                           // 2년: 73일마다
+            else -> 12                                        // 2년 이상: more labels for visibility
         }
     }
 
