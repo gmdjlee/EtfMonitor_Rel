@@ -202,6 +202,11 @@ private fun GeneralTab(
     val isLoadingGeminiModels by viewModel.isLoadingGeminiModels.collectAsState()
     val isFredApiKeyConfigured by viewModel.isFredApiKeyConfigured.collectAsState()
 
+    // KIS Open API
+    val isKisApiConfigured by viewModel.isKisApiConfigured.collectAsState()
+    val kisAccountNumber by viewModel.kisAccountNumber.collectAsState()
+    val isKisVirtualMode by viewModel.isKisVirtualMode.collectAsState()
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -256,6 +261,20 @@ private fun GeneralTab(
                 isConfigured = isFredApiKeyConfigured,
                 onSetApiKey = { viewModel.setFredApiKey(it) },
                 onClearApiKey = { viewModel.clearFredApiKey() }
+            )
+        }
+
+        // KIS Open API 설정 (한국투자증권)
+        item {
+            KisApiKeyCard(
+                isConfigured = isKisApiConfigured,
+                accountNumber = kisAccountNumber,
+                isVirtualMode = isKisVirtualMode,
+                onSetCredentials = { appKey, appSecret, accountNumber ->
+                    viewModel.setKisCredentials(appKey, appSecret, accountNumber)
+                },
+                onClearCredentials = { viewModel.clearKisCredentials() },
+                onSetVirtualMode = { viewModel.setKisVirtualMode(it) }
             )
         }
 

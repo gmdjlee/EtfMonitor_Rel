@@ -306,6 +306,26 @@
     <string name="settings_fred_api_delete">FRED API 키 삭제</string>
     <string name="settings_fred_api_delete_confirm">FRED API 키를 삭제하시겠습니까? Blood Indicator 데이터 수집에 API 키가 필요합니다.</string>
 
+    <!-- Settings - KIS Open API -->
+    <string name="settings_kis_api_title">한국투자증권 Open API</string>
+    <string name="settings_kis_api_desc">한국 증시 데이터 수집을 위해 한국투자증권 Open API가 필요합니다. 계좌 개설 후 API 키를 발급받으세요.</string>
+    <string name="settings_kis_api_set">KIS API 설정됨</string>
+    <string name="settings_kis_api_not_set">KIS API 미설정</string>
+    <string name="settings_kis_api_url_label">KIS Developers API 신청:</string>
+    <string name="settings_kis_api_note">* 데이터 조회만 수행하며 실제 거래는 하지 않습니다.</string>
+    <string name="settings_kis_api_dialog_title">KIS Open API 설정</string>
+    <string name="settings_kis_api_dialog_desc">KIS Developers에서 발급받은 APP KEY와 APP SECRET을 입력하세요.</string>
+    <string name="settings_kis_api_delete">KIS API 자격 증명 삭제</string>
+    <string name="settings_kis_api_delete_confirm">KIS API 자격 증명을 삭제하시겠습니까? 한국 증시 데이터 수집에 API 자격 증명이 필요합니다.</string>
+    <string name="settings_kis_account_number">계좌번호: %s</string>
+    <string name="settings_kis_account_label">계좌번호 (선택)</string>
+    <string name="settings_kis_account_optional">계좌번호는 선택 사항입니다</string>
+    <string name="settings_kis_mode_title">API 모드 선택</string>
+    <string name="settings_kis_mode_real">실전투자</string>
+    <string name="settings_kis_mode_real_desc">실제 시장 데이터 조회 (프로덕션용)</string>
+    <string name="settings_kis_mode_virtual">모의투자</string>
+    <string name="settings_kis_mode_virtual_desc">가상 데이터로 테스트 (개발용)</string>
+
     <!-- Backup Settings -->
     <string name="settings_backup_title">백업 및 복구</string>
     <string name="settings_backup_desc">데이터 백업, 복구 및 관리</string>

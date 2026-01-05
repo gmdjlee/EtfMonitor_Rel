@@ -235,6 +235,16 @@ class SettingsViewModel @Inject constructor(
     private val _isFredApiKeyConfigured = MutableStateFlow(false)
     val isFredApiKeyConfigured: StateFlow<Boolean> = _isFredApiKeyConfigured.asStateFlow()
 
+    // KIS Open API 관련 상태
+    private val _isKisApiConfigured = MutableStateFlow(false)
+    val isKisApiConfigured: StateFlow<Boolean> = _isKisApiConfigured.asStateFlow()
+
+    private val _kisAccountNumber = MutableStateFlow<String?>(null)
+    val kisAccountNumber: StateFlow<String?> = _kisAccountNumber.asStateFlow()
+
+    private val _isKisVirtualMode = MutableStateFlow(false)
+    val isKisVirtualMode: StateFlow<Boolean> = _isKisVirtualMode.asStateFlow()
+
     private val _apiKeyTestState = MutableStateFlow<ApiKeyTestState>(ApiKeyTestState.Idle)
     val apiKeyTestState: StateFlow<ApiKeyTestState> = _apiKeyTestState.asStateFlow()
 
@@ -1152,6 +1162,10 @@ class SettingsViewModel @Inject constructor(
             // Check FRED API key
             val fredKey = etfDao.getSetting(Keys.FRED_API_KEY)
             _isFredApiKeyConfigured.value = !fredKey.isNullOrBlank()
+            // Check KIS API key
+            _isKisApiConfigured.value = apiKeyProvider.isKisApiConfigured()
+            _kisAccountNumber.value = apiKeyProvider.getKisAccountNumber()
+            _isKisVirtualMode.value = apiKeyProvider.isKisVirtualMode()
         }
     }
 
@@ -1216,6 +1230,79 @@ class SettingsViewModel @Inject constructor(
      */
     suspend fun getFredApiKey(): String? {
         return etfDao.getSetting(Keys.FRED_API_KEY)?.takeIf { it.isNotBlank() }
+    }
+
+    // ==================== KIS Open API Key Management ====================
+
+    /**
+     * KIS Open API APP KEY 설정
+     */
+    fun setKisAppKey(appKey: String) {
+        if (appKey.isBlank()) { _message.value = "APP KEY를 입력해주세요"; return }
+        saveSetting("KIS APP KEY가 저장되었습니다") {
+            apiKeyProvider.setKisAppKey(appKey)
+            _isKisApiConfigured.value = apiKeyProvider.isKisApiConfigured()
+        }
+    }
+
+    /**
+     * KIS Open API APP SECRET 설정
+     */
+    fun setKisAppSecret(appSecret: String) {
+        if (appSecret.isBlank()) { _message.value = "APP SECRET을 입력해주세요"; return }
+        saveSetting("KIS APP SECRET이 저장되었습니다") {
+            apiKeyProvider.setKisAppSecret(appSecret)
+            _isKisApiConfigured.value = apiKeyProvider.isKisApiConfigured()
+        }
+    }
+
+    /**
+     * KIS Open API 자격 증명 일괄 설정
+     */
+    fun setKisCredentials(appKey: String, appSecret: String, accountNumber: String?) {
+        if (appKey.isBlank()) { _message.value = "APP KEY를 입력해주세요"; return }
+        if (appSecret.isBlank()) { _message.value = "APP SECRET을 입력해주세요"; return }
+        saveSetting("KIS Open API 자격 증명이 저장되었습니다") {
+            apiKeyProvider.setKisAppKey(appKey)
+            apiKeyProvider.setKisAppSecret(appSecret)
+            if (!accountNumber.isNullOrBlank()) {
+                apiKeyProvider.setKisAccountNumber(accountNumber)
+                _kisAccountNumber.value = accountNumber
+            }
+            _isKisApiConfigured.value = apiKeyProvider.isKisApiConfigured()
+        }
+    }
+
+    /**
+     * KIS Open API 자격 증명 삭제
+     */
+    fun clearKisCredentials() = saveSetting("KIS Open API 자격 증명이 삭제되었습니다") {
+        apiKeyProvider.removeKisCredentials()
+        _isKisApiConfigured.value = false
+        _kisAccountNumber.value = null
+        _isKisVirtualMode.value = false
+    }
+
+    /**
+     * KIS Open API 계좌번호 설정
+     */
+    fun setKisAccountNumber(accountNumber: String) {
+        if (accountNumber.isBlank()) { _message.value = "계좌번호를 입력해주세요"; return }
+        saveSetting("KIS 계좌번호가 저장되었습니다") {
+            apiKeyProvider.setKisAccountNumber(accountNumber)
+            _kisAccountNumber.value = accountNumber
+        }
+    }
+
+    /**
+     * KIS Open API 모의투자 모드 설정
+     */
+    fun setKisVirtualMode(isVirtual: Boolean) = saveSetting(
+        if (isVirtual) "모의투자 모드로 전환되었습니다"
+        else "실전투자 모드로 전환되었습니다"
+    ) {
+        apiKeyProvider.setKisVirtualMode(isVirtual)
+        _isKisVirtualMode.value = isVirtual
     }
 
     fun testApiConnection() {
