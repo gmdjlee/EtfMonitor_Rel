@@ -121,7 +121,8 @@ def get_stock_data(ticker: str, days: int = 180) -> str:
     """
     Get stock market cap and investor trading data.
 
-    Uses KIS API for investor trading data, with pykrx fallback.
+    Uses KIS API for both investor trading and market cap (calculated from
+    close price × listed shares), with pykrx fallback.
 
     Returns: JSON {
         "ticker": "...",
@@ -145,10 +146,12 @@ def get_stock_data(ticker: str, days: int = 180) -> str:
         inv_df = None
         mcap_df = None
 
-        # Try KIS API first for investor trading data
+        # Try KIS API first
         if is_kis_available():
+            client = get_kis_client()
+
+            # Get investor trading data
             try:
-                client = get_kis_client()
                 inv_df = client.get_investor_trading(ticker, s)
                 if not inv_df.empty:
                     inv_df["date"] = pd.to_datetime(inv_df["date"])
@@ -157,9 +160,18 @@ def get_stock_data(ticker: str, days: int = 180) -> str:
                     log.info("Got investor trading data via KIS API for %s", ticker)
                 else:
                     inv_df = None
-            except Exception as e:
-                log.warning("KIS API investor trading failed, falling back to pykrx: %s", e)
+            except Exception as ex:
+                log.warning("KIS API investor trading failed: %s", ex)
                 inv_df = None
+
+            # Get market cap data (calculated from OHLCV + listed shares)
+            try:
+                ohlcv_df = client.get_stock_ohlcv_with_market_cap(ticker, s, e)
+                if not ohlcv_df.empty and "market_cap" in ohlcv_df.columns:
+                    mcap_df = ohlcv_df[["market_cap"]]
+                    log.info("Got market cap via KIS API (OHLCV × listed shares) for %s", ticker)
+            except Exception as ex:
+                log.warning("KIS API market cap calculation failed: %s", ex)
 
         # Fallback to pykrx for investor trading
         if inv_df is None and PYKRX_AVAILABLE:
@@ -170,15 +182,19 @@ def get_stock_data(ticker: str, days: int = 180) -> str:
                         "foreign_net": pykrx_inv["외국인합계"],
                         "institution_net": pykrx_inv["기관합계"]
                     })
-            except Exception as e:
-                log.warning("pykrx investor trading failed: %s", e)
+                    log.info("Got investor trading via pykrx for %s", ticker)
+            except Exception as ex:
+                log.warning("pykrx investor trading failed: %s", ex)
 
-        # Get market cap data (currently pykrx only, as KIS API doesn't provide historical market cap)
-        if PYKRX_AVAILABLE:
+        # Fallback to pykrx for market cap
+        if (mcap_df is None or mcap_df.empty) and PYKRX_AVAILABLE:
             try:
-                mcap_df = pykrx_stock.get_market_cap(s, e, ticker)
-            except Exception as e:
-                log.warning("pykrx market cap failed: %s", e)
+                pykrx_mcap = pykrx_stock.get_market_cap(s, e, ticker)
+                if not pykrx_mcap.empty:
+                    mcap_df = pd.DataFrame({"market_cap": pykrx_mcap["시가총액"]})
+                    log.info("Got market cap via pykrx for %s", ticker)
+            except Exception as ex:
+                log.warning("pykrx market cap failed: %s", ex)
 
         if inv_df is None or inv_df.empty:
             return err_json("투자자 거래 데이터를 가져올 수 없습니다")
@@ -190,7 +206,7 @@ def get_stock_data(ticker: str, days: int = 180) -> str:
         i5d = inv_df["institution_net"].rolling(5).sum()
 
         df = pd.DataFrame({
-            "market_cap": mcap_df["시가총액"],
+            "market_cap": mcap_df["market_cap"],
             "foreign_5d": f5d,
             "institution_5d": i5d
         }).dropna()

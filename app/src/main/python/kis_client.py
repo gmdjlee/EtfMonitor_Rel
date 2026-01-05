@@ -469,7 +469,8 @@ class KISAPIClient:
             market: "kospi" or "kosdaq"
 
         Returns:
-            DataFrame with columns: ticker, name, market
+            DataFrame with columns: ticker, name, market, listed_shares
+            (listed_shares is in units of 1000)
         """
         if market.lower() == "kospi":
             url = "https://new.real.download.dws.co.kr/common/master/kospi_code.mst.zip"
@@ -486,18 +487,53 @@ class KISAPIClient:
             with zf.open(filename) as f:
                 content = f.read().decode("cp949")
 
-        # Parse fixed-width format
+        # Parse using fixed-width format based on official KIS spec
+        # Part 2 field specs (last 228 bytes of each record)
+        # Reference: https://github.com/koreainvestment/open-trading-api/blob/main/stocks_info/kis_kospi_code_mst.py
+        field_specs = [
+            2, 1, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 9, 5, 5, 1, 1, 1, 2, 1, 1, 1, 2, 2, 2, 3,
+            1, 3, 12, 12, 8, 15, 21, 2, 7, 1, 1, 1, 1, 1, 9,
+            9, 9, 5, 9, 8, 9, 3, 1, 1, 1
+        ]
+        # Index 50 is listed_shares (lstn_stcn), 15 bytes
+        # Calculate offset: sum of specs[0:50]
+        listed_shares_offset = sum(field_specs[:50])  # 108
+        listed_shares_len = field_specs[50]  # 15
+
         stocks = []
         for line in content.strip().split("\n"):
-            if len(line) >= 20:
-                ticker = line[0:9].strip()
-                name = line[21:].split("|")[0].strip() if "|" in line else line[21:].strip()
-                if ticker and len(ticker) == 6 and ticker.isdigit():
-                    stocks.append({
-                        "ticker": ticker,
-                        "name": name,
-                        "market": market.upper()
-                    })
+            if len(line) < 228:
+                continue
+
+            # Part 1: ticker (9 bytes) + standard code (12 bytes) + name (variable)
+            ticker = line[0:9].strip()
+
+            # Skip if not a valid 6-digit ticker
+            if not ticker or len(ticker) != 6 or not ticker.isdigit():
+                continue
+
+            # Name is between position 21 and the last 228 bytes
+            part2_start = len(line) - 228
+            name = line[21:part2_start].strip()
+
+            # Part 2: Extract listed shares from fixed position
+            part2 = line[part2_start:]
+            listed_shares_str = part2[listed_shares_offset:listed_shares_offset + listed_shares_len].strip()
+
+            try:
+                # listed_shares is in units of 1000 (천)
+                listed_shares = int(listed_shares_str) if listed_shares_str else 0
+            except ValueError:
+                listed_shares = 0
+
+            stocks.append({
+                "ticker": ticker,
+                "name": name,
+                "market": market.upper(),
+                "listed_shares": listed_shares  # in units of 1000
+            })
 
         return pd.DataFrame(stocks)
 
@@ -531,6 +567,74 @@ class KISAPIClient:
             raise ValueError(f"Unknown market: {market}")
 
         return df["ticker"].tolist()
+
+    # ========================================
+    # Listed Shares Cache (for market cap calculation)
+    # ========================================
+
+    _listed_shares_cache: Dict[str, int] = {}
+
+    def get_listed_shares(self, ticker: str) -> int:
+        """
+        Get listed shares for a ticker (in units of 1000).
+
+        Args:
+            ticker: Stock ticker (e.g., "005930")
+
+        Returns:
+            Listed shares in units of 1000 (multiply by 1000 for actual shares)
+        """
+        # Check cache first
+        if ticker in self._listed_shares_cache:
+            return self._listed_shares_cache[ticker]
+
+        # Load from master file if cache is empty
+        if not self._listed_shares_cache:
+            try:
+                df = self.get_all_stocks()
+                for _, row in df.iterrows():
+                    self._listed_shares_cache[row["ticker"]] = row.get("listed_shares", 0)
+            except Exception as e:
+                log.warning(f"Failed to load listed shares from master: {e}")
+                return 0
+
+        return self._listed_shares_cache.get(ticker, 0)
+
+    def get_stock_ohlcv_with_market_cap(
+        self,
+        ticker: str,
+        start_date: str,
+        end_date: str
+    ) -> pd.DataFrame:
+        """
+        Get stock daily OHLCV data with calculated market cap.
+
+        Market cap = close price * listed_shares * 1000
+
+        Args:
+            ticker: Stock ticker (e.g., "005930")
+            start_date: Start date (YYYYMMDD)
+            end_date: End date (YYYYMMDD)
+
+        Returns:
+            DataFrame with OHLCV columns + market_cap, indexed by date
+        """
+        # Get OHLCV data
+        df = self.get_stock_ohlcv(ticker, start_date, end_date)
+
+        if df.empty:
+            return df
+
+        # Get listed shares (in units of 1000)
+        listed_shares = self.get_listed_shares(ticker)
+
+        if listed_shares > 0:
+            # Calculate market cap: close * listed_shares * 1000
+            df["market_cap"] = df["close"] * listed_shares * 1000
+        else:
+            df["market_cap"] = 0
+
+        return df
 
 
 # ========================================
