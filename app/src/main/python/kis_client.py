@@ -541,10 +541,22 @@ _client: Optional[KISAPIClient] = None
 
 
 def init_kis_client(app_key: str, app_secret: str):
-    """Initialize global KIS API client."""
+    """
+    Initialize global KIS API client.
+
+    Also registers the client with core.py for use by other modules.
+    """
     global _client
     _client = KISAPIClient(app_key, app_secret)
-    log.info("KIS API client initialized")
+
+    # Register with core.py for other modules to use
+    try:
+        from core import set_kis_client
+        set_kis_client(_client)
+        log.info("KIS API client initialized and registered with core")
+    except ImportError:
+        log.warning("Could not register KIS client with core module")
+        log.info("KIS API client initialized")
 
 
 def get_client() -> KISAPIClient:
