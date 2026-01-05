@@ -1,6 +1,8 @@
 """
 Core utilities for EtfMonitor Python modules.
 HTTP client, date utilities, and common functions.
+
+Supports both KIS API (preferred) and pykrx (fallback).
 """
 import json
 import time
@@ -10,6 +12,22 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 import requests
 from pykrx import stock
+
+# KIS API support (optional, falls back to pykrx if not initialized)
+_kis_client = None
+
+def set_kis_client(client):
+    """Set the global KIS client instance for use in core functions."""
+    global _kis_client
+    _kis_client = client
+
+def get_kis_client():
+    """Get the global KIS client if available."""
+    return _kis_client
+
+def is_kis_available() -> bool:
+    """Check if KIS client is available and initialized."""
+    return _kis_client is not None
 
 # Logger setup
 _loggers: Dict[str, logging.Logger] = {}
@@ -207,7 +225,21 @@ def get_name(ticker: str) -> str:
 
 
 def get_etf_tickers(date: Optional[str] = None) -> List[str]:
-    """Get ETF tickers."""
+    """
+    Get ETF tickers.
+
+    Uses KIS API if available, falls back to pykrx.
+    """
+    # Try KIS API first
+    if is_kis_available():
+        try:
+            client = get_kis_client()
+            df = client.get_etf_list()
+            return df["ticker"].tolist() if not df.empty else []
+        except Exception as e:
+            get_logger("core").warning(f"KIS API failed for ETF list, falling back to pykrx: {e}")
+
+    # Fallback to pykrx
     d = date or market_date()
     try:
         tickers = stock.get_etf_ticker_list(d)
@@ -217,7 +249,26 @@ def get_etf_tickers(date: Optional[str] = None) -> List[str]:
 
 
 def get_etf_name(ticker: str) -> str:
-    """Get ETF name by ticker."""
+    """
+    Get ETF name by ticker.
+
+    Uses KIS API if available, falls back to pykrx.
+    """
+    # Try KIS API first
+    if is_kis_available():
+        try:
+            client = get_kis_client()
+            # Try to get from ETF list first (cached)
+            df = client.get_etf_list()
+            match = df[df["ticker"] == ticker]
+            if not match.empty:
+                return match.iloc[0]["name"]
+            # Try stock info as fallback
+            return client.get_stock_name(ticker)
+        except Exception as e:
+            get_logger("core").warning(f"KIS API failed for ETF name, falling back to pykrx: {e}")
+
+    # Fallback to pykrx
     try:
         name = stock.get_etf_ticker_name(ticker)
         return str(name).strip() if name else ""
