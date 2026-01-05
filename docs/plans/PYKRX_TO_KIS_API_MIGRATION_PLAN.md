@@ -974,9 +974,14 @@ chaquopy {
 """
 Korea Investment Securities Open API Client.
 Replaces pykrx for all Korean market data needs.
+
+Reference: https://github.com/koreainvestment/open-trading-api
 """
 import requests
 import json
+import time
+import zipfile
+import io
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple
 import pandas as pd
@@ -988,11 +993,20 @@ class KISAPIClient:
     BASE_URL = "https://openapi.koreainvestment.com:9443"
     TOKEN_EXPIRY_HOURS = 23
 
+    # Rate limiting: 20 requests per second
+    RATE_LIMIT_PER_SEC = 20
+    MIN_REQUEST_INTERVAL = 1.0 / RATE_LIMIT_PER_SEC  # 0.05 seconds
+
+    # Retry configuration
+    MAX_RETRIES = 3
+    RETRY_DELAY_BASE = 1.0  # seconds (exponential backoff: 1, 2, 4)
+
     def __init__(self, app_key: str, app_secret: str):
         self.app_key = app_key
         self.app_secret = app_secret
         self._token: Optional[str] = None
         self._token_expiry: Optional[datetime] = None
+        self._last_request_time: float = 0
 
     def _get_token(self) -> str:
         """Get or refresh OAuth access token."""
@@ -1017,8 +1031,15 @@ class KISAPIClient:
         log.info("KIS API token refreshed")
         return self._token
 
+    def _rate_limit(self):
+        """Enforce rate limiting (20 requests/second)."""
+        elapsed = time.time() - self._last_request_time
+        if elapsed < self.MIN_REQUEST_INTERVAL:
+            time.sleep(self.MIN_REQUEST_INTERVAL - elapsed)
+        self._last_request_time = time.time()
+
     def _request(self, endpoint: str, tr_id: str, params: Dict) -> Dict:
-        """Make authenticated API request."""
+        """Make authenticated API request with rate limiting and retry."""
         token = self._get_token()
         url = f"{self.BASE_URL}{endpoint}"
 
@@ -1030,9 +1051,21 @@ class KISAPIClient:
             "tr_id": tr_id
         }
 
-        response = requests.get(url, headers=headers, params=params, timeout=30)
-        response.raise_for_status()
-        return response.json()
+        last_error = None
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                self._rate_limit()
+                response = requests.get(url, headers=headers, params=params, timeout=30)
+                response.raise_for_status()
+                return response.json()
+            except requests.exceptions.RequestException as e:
+                last_error = e
+                if attempt < self.MAX_RETRIES - 1:
+                    delay = self.RETRY_DELAY_BASE * (2 ** attempt)
+                    log.warning(f"Request failed (attempt {attempt + 1}), retrying in {delay}s: {e}")
+                    time.sleep(delay)
+
+        raise last_error
 
     # ========================================
     # ETF Holdings (replaces pykrx get_etf_portfolio_deposit_file)
@@ -1162,6 +1195,203 @@ class KISAPIClient:
         df["date"] = pd.to_datetime(df["date"])
         df.set_index("date", inplace=True)
         return df.sort_index()
+
+    # ========================================
+    # Index OHLCV (replaces pykrx get_index_ohlcv)
+    # ========================================
+
+    def get_index_ohlcv(
+        self,
+        index_code: str,
+        start_date: str
+    ) -> pd.DataFrame:
+        """
+        Get index daily OHLCV data.
+
+        Args:
+            index_code: Index code (e.g., "0001" for KOSPI, "1001" for KOSDAQ)
+            start_date: Start date (YYYYMMDD)
+
+        Returns:
+            DataFrame with columns: date, open, high, low, close, volume
+        """
+        params = {
+            "fid_period_div_code": "D",
+            "fid_cond_mrkt_div_code": "U",
+            "fid_input_iscd": index_code,
+            "fid_input_date_1": start_date
+        }
+
+        data = self._request(
+            "/uapi/domestic-stock/v1/quotations/inquire-index-daily-price",
+            "FHPUP02120000",
+            params
+        )
+
+        if data.get("rt_cd") != "0":
+            raise ValueError(f"API error: {data.get('msg1')}")
+
+        output2 = data.get("output2", [])
+
+        df = pd.DataFrame([{
+            "date": item.get("stck_bsop_date"),
+            "open": float(item.get("bstp_nmix_oprc", 0)),
+            "high": float(item.get("bstp_nmix_hgpr", 0)),
+            "low": float(item.get("bstp_nmix_lwpr", 0)),
+            "close": float(item.get("bstp_nmix_prpr", 0)),
+            "volume": int(item.get("acml_vol", 0))
+        } for item in output2])
+
+        if not df.empty:
+            df["date"] = pd.to_datetime(df["date"])
+            df.set_index("date", inplace=True)
+            return df.sort_index()
+        return df
+
+    # ========================================
+    # Stock Info (replaces pykrx get_market_ticker_name)
+    # ========================================
+
+    def get_stock_info(self, ticker: str) -> Dict:
+        """
+        Get current stock info including name and price.
+
+        Args:
+            ticker: Stock ticker (e.g., "005930")
+
+        Returns:
+            Dict with keys: ticker, name, price, market_cap, etc.
+        """
+        params = {
+            "fid_cond_mrkt_div_code": "J",
+            "fid_input_iscd": ticker
+        }
+
+        data = self._request(
+            "/uapi/domestic-stock/v1/quotations/inquire-price",
+            "FHKST01010100",
+            params
+        )
+
+        if data.get("rt_cd") != "0":
+            raise ValueError(f"API error: {data.get('msg1')}")
+
+        output = data.get("output", {})
+
+        return {
+            "ticker": ticker,
+            "name": output.get("hts_kor_isnm", ""),
+            "price": int(output.get("stck_prpr", 0)),
+            "market_cap": int(output.get("hts_avls", 0)) * 100000000,  # 억원 → 원
+            "volume": int(output.get("acml_vol", 0)),
+            "per": float(output.get("per", 0)),
+            "pbr": float(output.get("pbr", 0))
+        }
+
+    def get_stock_name(self, ticker: str) -> str:
+        """Get stock name by ticker."""
+        info = self.get_stock_info(ticker)
+        return info.get("name", "")
+
+    # ========================================
+    # Market Cap Ranking (replaces pykrx get_market_cap)
+    # ========================================
+
+    def get_market_cap_ranking(
+        self,
+        market: str = "0000",
+        limit: int = 100
+    ) -> pd.DataFrame:
+        """
+        Get market capitalization ranking.
+
+        Args:
+            market: Market code ("0000": all, "0001": KOSPI, "1001": KOSDAQ)
+            limit: Maximum number of results
+
+        Returns:
+            DataFrame with columns: rank, ticker, name, price, market_cap
+        """
+        params = {
+            "fid_input_price_2": "",
+            "fid_cond_mrkt_div_code": "J",
+            "fid_cond_scr_div_code": "20174",
+            "fid_div_cls_code": "0",
+            "fid_input_iscd": market,
+            "fid_trgt_cls_code": "0",
+            "fid_trgt_exls_cls_code": "0",
+            "fid_input_price_1": "",
+            "fid_vol_cnt": ""
+        }
+
+        data = self._request(
+            "/uapi/domestic-stock/v1/ranking/market-cap",
+            "FHPST01740000",
+            params
+        )
+
+        if data.get("rt_cd") != "0":
+            raise ValueError(f"API error: {data.get('msg1')}")
+
+        output = data.get("output", [])[:limit]
+
+        return pd.DataFrame([{
+            "rank": int(item.get("data_rank", 0)),
+            "ticker": item.get("stck_shrn_iscd"),
+            "name": item.get("hts_kor_isnm"),
+            "price": int(item.get("stck_prpr", 0)),
+            "market_cap": int(item.get("stck_avls", 0)) * 100000000
+        } for item in output])
+
+    # ========================================
+    # Stock List (KOSPI/KOSDAQ master files)
+    # ========================================
+
+    def download_stock_master(self, market: str = "kospi") -> pd.DataFrame:
+        """
+        Download stock master list from KIS server.
+
+        Args:
+            market: "kospi" or "kosdaq"
+
+        Returns:
+            DataFrame with columns: ticker, name, market
+        """
+        if market.lower() == "kospi":
+            url = "https://new.real.download.dws.co.kr/common/master/kospi_code.mst.zip"
+        elif market.lower() == "kosdaq":
+            url = "https://new.real.download.dws.co.kr/common/master/kosdaq_code.mst.zip"
+        else:
+            raise ValueError(f"Unknown market: {market}")
+
+        response = requests.get(url, timeout=60)
+        response.raise_for_status()
+
+        with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
+            filename = zf.namelist()[0]
+            with zf.open(filename) as f:
+                content = f.read().decode("cp949")
+
+        # Parse fixed-width format
+        stocks = []
+        for line in content.strip().split("\n"):
+            if len(line) >= 20:
+                ticker = line[0:9].strip()
+                name = line[21:].split("|")[0].strip() if "|" in line else line[21:].strip()
+                if ticker and len(ticker) == 6 and ticker.isdigit():
+                    stocks.append({
+                        "ticker": ticker,
+                        "name": name,
+                        "market": market.upper()
+                    })
+
+        return pd.DataFrame(stocks)
+
+    def get_all_stocks(self) -> pd.DataFrame:
+        """Get all KOSPI and KOSDAQ stocks."""
+        kospi = self.download_stock_master("kospi")
+        kosdaq = self.download_stock_master("kosdaq")
+        return pd.concat([kospi, kosdaq], ignore_index=True)
 
 # ========================================
 # Global instance management
@@ -1547,61 +1777,262 @@ Search and remove all `from pykrx import stock` statements from:
 
 ## 8. Testing Strategy
 
-### Unit Testing
+### 8.1 Unit Testing (KIS API)
 
-- Test each yfinance function independently
-- Test ticker format conversion
-- Test fallback manager logic
-- Mock external API calls
+**New File:** `app/src/test/python/test_kis_client.py`
 
-### Integration Testing
+```python
+import pytest
+from unittest.mock import Mock, patch
+from kis_client import KISAPIClient
 
-- Test full data flow from Python to Kotlin
-- Verify JSON output format compatibility
-- Test timeout handling
+class TestKISClient:
+    @pytest.fixture
+    def mock_client(self):
+        """Create client with mocked requests."""
+        with patch('kis_client.requests') as mock_requests:
+            client = KISAPIClient("test_key", "test_secret")
+            yield client, mock_requests
 
-### Comparison Testing
+    def test_token_refresh(self, mock_client):
+        """Test OAuth token acquisition."""
+        client, mock_requests = mock_client
+        mock_requests.post.return_value.json.return_value = {
+            "access_token": "test_token",
+            "expires_in": 86400
+        }
+        token = client._get_token()
+        assert token == "test_token"
 
-- Compare pykrx vs yfinance data for same tickers
-- Validate acceptable variance thresholds
-- Document any systematic differences
+    def test_rate_limiting(self, mock_client):
+        """Test rate limiting enforces 20 req/sec."""
+        client, _ = mock_client
+        import time
+        start = time.time()
+        for _ in range(5):
+            client._rate_limit()
+        elapsed = time.time() - start
+        assert elapsed >= 0.2  # 5 requests * 0.05s minimum interval
 
-### Performance Testing
+    def test_retry_logic(self, mock_client):
+        """Test exponential backoff on failures."""
+        client, mock_requests = mock_client
+        mock_requests.get.side_effect = [
+            Exception("Network error"),
+            Exception("Network error"),
+            Mock(json=lambda: {"rt_cd": "0", "output": []})
+        ]
+        # Should succeed on 3rd attempt
+        client._token = "test"
+        client._token_expiry = datetime.now() + timedelta(hours=1)
+        result = client._request("/test", "TEST", {})
+        assert result["rt_cd"] == "0"
 
-- Measure latency for yfinance vs pykrx
-- Test concurrent requests
-- Validate caching effectiveness
+    def test_get_etf_holdings(self, mock_client):
+        """Test ETF holdings retrieval."""
+        client, mock_requests = mock_client
+        mock_requests.get.return_value.json.return_value = {
+            "rt_cd": "0",
+            "output2": [{
+                "stck_shrn_iscd": "005930",
+                "stck_prpr_name": "삼성전자",
+                "hldg_wght": "15.23",
+                "evlu_amt": "1234567890",
+                "hldg_qty": "1000"
+            }]
+        }
+        client._token = "test"
+        client._token_expiry = datetime.now() + timedelta(hours=1)
+        df = client.get_etf_holdings("069500")
+        assert len(df) == 1
+        assert df.iloc[0]["ticker"] == "005930"
+        assert df.iloc[0]["weight"] == 15.23
+
+    def test_get_investor_trading(self, mock_client):
+        """Test investor trading data retrieval."""
+        client, mock_requests = mock_client
+        mock_requests.get.return_value.json.return_value = {
+            "rt_cd": "0",
+            "output2": [{
+                "stck_bsop_date": "20250105",
+                "frgn_ntby_qty": "12345",
+                "orgn_ntby_qty": "6789",
+                "prsn_ntby_qty": "-19134"
+            }]
+        }
+        client._token = "test"
+        client._token_expiry = datetime.now() + timedelta(hours=1)
+        df = client.get_investor_trading("005930", "20250101")
+        assert len(df) == 1
+        assert df.iloc[0]["foreign_net"] == 12345
+
+    def test_get_index_ohlcv(self, mock_client):
+        """Test index OHLCV retrieval."""
+        client, mock_requests = mock_client
+        mock_requests.get.return_value.json.return_value = {
+            "rt_cd": "0",
+            "output2": [{
+                "stck_bsop_date": "20250105",
+                "bstp_nmix_oprc": "2500.00",
+                "bstp_nmix_hgpr": "2520.00",
+                "bstp_nmix_lwpr": "2480.00",
+                "bstp_nmix_prpr": "2510.00",
+                "acml_vol": "123456789"
+            }]
+        }
+        client._token = "test"
+        client._token_expiry = datetime.now() + timedelta(hours=1)
+        df = client.get_index_ohlcv("0001", "20250101")
+        assert len(df) == 1
+        assert df.iloc[0]["close"] == 2510.00
+```
+
+### 8.2 Integration Testing
+
+| Test Case | Description | Expected Result |
+|-----------|-------------|-----------------|
+| Token lifecycle | Obtain token → Use for requests → Auto-refresh before expiry | Token refreshed within 23 hours |
+| ETF holdings flow | Python → JSON → Kotlin parsing | Matching data in Android Room DB |
+| Investor trading flow | Multiple days data → 5-day rolling sum | Correct cumulative values |
+| Rate limit compliance | Burst 50 requests | All succeed within 2.5 seconds |
+
+### 8.3 Comparison Testing (Validation Phase)
+
+During migration, run both pykrx and KIS API in parallel:
+
+```python
+def compare_etf_holdings(etf_ticker: str) -> dict:
+    """Compare ETF holdings from both sources."""
+    from pykrx import stock as pykrx
+    from kis_client import get_client
+
+    # Get pykrx data
+    pykrx_df = pykrx.get_etf_portfolio_deposit_file(etf_ticker)
+
+    # Get KIS data
+    kis_df = get_client().get_etf_holdings(etf_ticker)
+
+    # Compare
+    comparison = {
+        "pykrx_count": len(pykrx_df),
+        "kis_count": len(kis_df),
+        "coverage": len(kis_df) / len(pykrx_df) if len(pykrx_df) > 0 else 0,
+        "weight_diff_avg": 0  # Calculate average weight difference
+    }
+
+    return comparison
+```
+
+**Acceptance Criteria:**
+- ETF holdings coverage ≥ 95%
+- Weight variance ≤ 1%
+- Investor trading data match ≥ 99%
+
+### 8.4 Performance Testing
+
+| Metric | Target | Method |
+|--------|--------|--------|
+| Single request latency | < 500ms | Measure 100 requests |
+| Token refresh time | < 2s | Measure 10 refreshes |
+| Batch ETF holdings (10 ETFs) | < 10s | Sequential with rate limiting |
+| Error recovery time | < 5s | Simulate network failure |
 
 ---
 
 ## 9. Rollback Plan
 
-### Immediate Rollback
+### 9.1 Feature Flag (Recommended)
 
-If migration causes critical issues:
+Implement a feature flag to switch between pykrx and KIS API:
 
 ```python
-# In data_source_manager.py
-USE_YFINANCE = False  # Set to False to disable yfinance
+# In kis_client.py
+import os
 
-def with_fallback(self, sources, *args, **kwargs):
-    if not USE_YFINANCE:
-        # Skip yfinance sources
-        sources = [s for s in sources if "yfinance" not in s.__name__]
-    # ... rest of logic
+USE_KIS_API = os.environ.get("USE_KIS_API", "true").lower() == "true"
+
+def get_data_source():
+    """Get appropriate data source based on feature flag."""
+    if USE_KIS_API:
+        try:
+            return get_client()
+        except RuntimeError:
+            log.warning("KIS client not initialized, falling back to pykrx")
+            return None
+    return None  # Use pykrx
 ```
 
-### Gradual Rollback
+```kotlin
+// In SettingsViewModel.kt
+private val _useKisApi = MutableStateFlow(true)
 
-1. Monitor error rates per data source
-2. Disable yfinance for problematic tickers only
-3. Maintain pykrx as always-available fallback
+fun toggleKisApi(enabled: Boolean) {
+    viewModelScope.launch {
+        repository.setSetting("use_kis_api", enabled.toString())
+        _useKisApi.value = enabled
+        // Reinitialize Python client
+        pyKrxClient.setKisApiEnabled(enabled)
+    }
+}
+```
 
-### Full Rollback
+### 9.2 Gradual Rollout Strategy
 
-1. Revert Python file changes
-2. Remove `yfinance` from build.gradle.kts
-3. No Kotlin changes needed (Python handles all logic)
+| Phase | Coverage | Duration | Rollback Trigger |
+|-------|----------|----------|------------------|
+| Alpha | Developer only | 1 week | Any critical bug |
+| Beta | 10% users (opt-in) | 2 weeks | Error rate > 5% |
+| GA | 100% users | Permanent | Error rate > 1% |
+
+### 9.3 Immediate Rollback Steps
+
+If KIS API causes critical issues:
+
+1. **Settings Toggle (User-level)**
+   ```
+   Settings → Data Source → Disable "KIS API 사용"
+   ```
+
+2. **Environment Variable (Developer)**
+   ```bash
+   export USE_KIS_API=false
+   ```
+
+3. **Code Rollback (Emergency)**
+   ```bash
+   git revert <kis-migration-commit>
+   git push origin main
+   ```
+
+### 9.4 Full Rollback Procedure
+
+1. **Revert Python files** to pykrx versions
+   ```bash
+   git checkout HEAD~1 -- app/src/main/python/etfcollector.py
+   git checkout HEAD~1 -- app/src/main/python/stocks.py
+   git checkout HEAD~1 -- app/src/main/python/market.py
+   ```
+
+2. **Keep kis_client.py** for future use (no harm if unused)
+
+3. **Update build.gradle.kts** to restore pykrx
+   ```kotlin
+   pip {
+       install("pykrx")  // Restore
+       // ... other packages
+   }
+   ```
+
+4. **Clear Settings cache** to reset API configuration
+   ```kotlin
+   apiKeyProvider.clearKisCredentials()
+   ```
+
+### 9.5 Data Continuity
+
+- **No database migration needed** - same data schema
+- **Historical data preserved** - pykrx and KIS use same ticker format
+- **Cache invalidation** - Clear Python data cache on rollback
 
 ---
 
@@ -1763,15 +2194,33 @@ yf.download(["005930.KS", "000660.KS"], period="1mo", group_by="ticker")
 
 ## Appendix C: pykrx to KIS API Function Mapping
 
-| pykrx Function | KIS API Endpoint | TR ID |
-|----------------|------------------|-------|
-| `get_etf_portfolio_deposit_file()` | `inquire-component-stock-price` | FHKST121600C0 |
-| `get_market_trading_value_by_date()` | `investor-trade-by-stock-daily` | FHPTJ04160001 |
-| `get_market_ohlcv()` | `inquire-daily-price` | FHKST01010400 |
-| `get_index_ohlcv()` | `inquire-index-daily-price` | - |
-| `get_market_cap()` | `inquire-price` | FHKST01010100 |
-| `get_etf_ticker_list()` | 종목정보 마스터파일 | - |
-| `get_market_ticker_list()` | 종목정보 마스터파일 | - |
+| pykrx Function | KIS API Endpoint | TR ID | KISAPIClient Method |
+|----------------|------------------|-------|---------------------|
+| `get_etf_portfolio_deposit_file()` | `/uapi/etfetn/v1/quotations/inquire-component-stock-price` | FHKST121600C0 | `get_etf_holdings()` |
+| `get_market_trading_value_by_date()` | `/uapi/domestic-stock/v1/quotations/investor-trade-by-stock-daily` | FHPTJ04160001 | `get_investor_trading()` |
+| `get_market_ohlcv()` | `/uapi/domestic-stock/v1/quotations/inquire-daily-price` | FHKST01010400 | `get_stock_ohlcv()` |
+| `get_index_ohlcv()` | `/uapi/domestic-stock/v1/quotations/inquire-index-daily-price` | FHPUP02120000 | `get_index_ohlcv()` |
+| `get_market_cap()` | `/uapi/domestic-stock/v1/ranking/market-cap` | FHPST01740000 | `get_market_cap_ranking()` |
+| `get_market_ticker_name()` | `/uapi/domestic-stock/v1/quotations/inquire-price` | FHKST01010100 | `get_stock_info()` / `get_stock_name()` |
+| `get_etf_ticker_list()` | 종목정보 마스터파일 다운로드 | N/A | `download_stock_master()` |
+| `get_market_ticker_list()` | 종목정보 마스터파일 다운로드 | N/A | `get_all_stocks()` |
+
+### Index Codes Reference
+
+| pykrx Code | KIS Code | Index Name |
+|------------|----------|------------|
+| 1001 | 0001 | KOSPI |
+| 2001 | 1001 | KOSDAQ |
+| 1028 | 0028 | KOSPI 200 |
+
+### Market Codes Reference
+
+| Market | fid_cond_mrkt_div_code | Notes |
+|--------|------------------------|-------|
+| 전체 | J | KRX (KOSPI + KOSDAQ) |
+| KOSPI | S | KOSPI only |
+| KOSDAQ | Q | KOSDAQ only |
+| NXT | NX | K-OTC market |
 
 ---
 
@@ -1797,12 +2246,20 @@ Option B is appropriate when:
 
 ---
 
-**Document Version:** 2.1
+**Document Version:** 3.0
 **Last Updated:** 2025-01-05
 **Change Log:**
 - v1.0 (2025-01-05): Initial yfinance migration plan
 - v2.0 (2025-01-05): Added KIS API as recommended solution, FinanceDataReader and Daum Finance analysis
 - v2.1 (2025-01-05): Added detailed account setup guide, API credential acquisition process, OAuth token management
+- v3.0 (2025-01-05): Complete revision based on official KIS GitHub repository
+  - Added missing API methods: Index OHLCV, Market Cap, Stock Info, Stock List
+  - Added rate limiting (20 req/sec) and retry logic with exponential backoff
+  - Updated Testing Strategy for KIS API (unit tests, integration tests, comparison tests)
+  - Updated Rollback Plan with feature flag and gradual rollout strategy
+  - Expanded function mapping table with KISAPIClient method references
+  - Added Index/Market code reference tables
+  - Renamed file from `PYKRX_TO_YFINANCE_MIGRATION_PLAN.md` to `PYKRX_TO_KIS_API_MIGRATION_PLAN.md`
 
 ---
 
@@ -1811,7 +2268,33 @@ Option B is appropriate when:
 ### Official Documentation
 - [한국투자증권 홈페이지](https://www.truefriend.com)
 - [KIS Developers Portal](https://apiportal.koreainvestment.com/intro)
-- [KIS Open Trading API GitHub](https://github.com/koreainvestment/open-trading-api)
+- [KIS Open Trading API GitHub](https://github.com/koreainvestment/open-trading-api) ⭐ **Primary Reference**
+
+### GitHub Repository Structure (koreainvestment/open-trading-api)
+
+```
+open-trading-api/
+├── examples_llm/           # LLM-optimized API examples
+│   ├── domestic_stock/     # 156 subdirectories (OHLCV, investor trading, etc.)
+│   └── etfetn/             # ETF/ETN APIs (holdings, NAV, etc.)
+├── examples_user/          # User-friendly integrated examples
+├── stocks_info/            # Stock master files (KOSPI, KOSDAQ)
+│   ├── kis_kospi_code_mst.py
+│   └── kis_kosdaq_code_mst.py
+├── kis_auth.py             # Authentication helpers
+└── kis_devlp.yaml          # Credential configuration template
+```
+
+### Key API Examples from GitHub
+
+| API Category | GitHub Path | Key Files |
+|-------------|-------------|-----------|
+| ETF Holdings | `examples_llm/etfetn/inquire_component_stock_price/` | `inquire_component_stock_price.py` |
+| Investor Trading | `examples_llm/domestic_stock/investor_trade_by_stock_daily/` | `investor_trade_by_stock_daily.py` |
+| Index OHLCV | `examples_llm/domestic_stock/inquire_index_daily_price/` | `inquire_index_daily_price.py` |
+| Stock Price | `examples_llm/domestic_stock/inquire_price/` | `inquire_price.py` |
+| Market Cap | `examples_llm/domestic_stock/market_cap/` | `market_cap.py` |
+| Stock List | `stocks_info/` | `kis_kospi_code_mst.py`, `kis_kosdaq_code_mst.py` |
 
 ### Account Setup Guides
 - [스마트폰 계좌개설 안내](https://www.truefriend.com/main/customer/guide/_static/TF04aa090000.jsp)
@@ -1821,3 +2304,12 @@ Option B is appropriate when:
 - [오픈API 서비스 신청 가이드 (WikiDocs)](https://wikidocs.net/164056)
 - [API 접속 토큰 발급 가이드 (WikiDocs)](https://wikidocs.net/230259)
 - [한국투자증권 Open API 신청 가이드 (Velog)](https://velog.io/@refinedstone/1-Open-API-신청)
+
+### API Rate Limits
+
+| Limit Type | Value | Notes |
+|------------|-------|-------|
+| Requests per second | 20 | General API calls |
+| Token issuance | 1 per minute | OAuth token refresh |
+| Token validity | 24 hours | Auto-refresh recommended at 23 hours |
+| API key validity | 1 year | Renewal required 30 days before expiry |
