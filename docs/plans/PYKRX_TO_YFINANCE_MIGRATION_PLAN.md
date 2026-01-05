@@ -665,24 +665,280 @@ class KISAPIClient:
 
 **Objective:** Obtain KIS API access and set up credentials
 
-#### 1.1 Account Setup
+---
 
-1. **Open Korea Investment Securities Account**
-   - Register at https://www.koreainvestment.com
-   - Complete identity verification
-   - Can use 비대면 (non-face-to-face) account opening
+#### 1.1 한국투자증권 계좌 개설 (Account Setup)
 
-2. **Register for API Access**
-   - Visit https://apiportal.koreainvestment.com
-   - Login with securities account
-   - Apply for Open API access
-   - Receive APP_KEY and APP_SECRET
+> **소요 시간:** 약 10분 (비대면 개설)
+> **필요 조건:** 만 19세 이상, 본인 명의 휴대폰, 신분증 (주민등록증 또는 운전면허증)
 
-3. **Store Credentials Securely**
-   - Use encrypted SharedPreferences in Android (existing pattern)
-   - Store in Settings screen alongside Claude/Gemini API keys
+##### 방법 1: 한국투자증권 앱으로 직접 개설 (권장)
 
-#### 1.2 Update build.gradle.kts
+1. **앱 다운로드**
+   - Google Play Store에서 "한국투자" 앱 설치
+   - 또는 https://www.truefriend.com 접속
+
+2. **비대면 계좌개설 시작**
+   - 앱 실행 → "계좌개설" 메뉴 선택
+   - 개설 가능 시간: 24시간 (23:00~00:30 제외)
+
+3. **본인 인증**
+   - 신분증 촬영 (주민등록증 또는 운전면허증)
+   - 휴대폰 본인 인증
+   - 영상통화 또는 ARS 인증
+
+4. **계좌 유형 선택**
+   - **위탁(종합계좌)**: 주식/ETF 거래용 → **이 계좌 선택**
+   - 금융상품(CMA): 현금 관리용
+   - 연금저축: 연금용
+
+5. **개설 완료**
+   - 계좌번호 발급 (8자리-2자리 형식: 12345678-01)
+   - 계좌 비밀번호 설정
+
+##### 방법 2: 카카오뱅크 제휴 개설 (간편)
+
+1. **카카오뱅크 앱 실행**
+2. **메뉴 → 제휴 → 증권사 주식계좌**
+3. **한국투자증권 주식계좌 → 개설하기**
+4. **카카오뱅크 계좌 연결**
+5. **동의 및 인증 후 개설 완료**
+
+---
+
+#### 1.2 KIS Developers API 서비스 신청
+
+> **소요 시간:** 약 5분
+> **필요 조건:** 한국투자증권 계좌, 한국투자증권 홈페이지 로그인 ID
+
+##### Step 1: KIS Developers 접속
+
+**경로 A (홈페이지)**
+```
+한국투자증권 홈페이지 (https://www.truefriend.com)
+→ 트레이딩
+→ Open API
+→ KIS Developers
+→ KIS Developers 서비스 신청하기
+```
+
+**경로 B (직접 접속)**
+```
+https://apiportal.koreainvestment.com
+→ 오른쪽 상단 "API신청" 클릭
+→ 로그인 (본인인증)
+```
+
+##### Step 2: API 서비스 신청
+
+1. **로그인** (공동인증서 또는 간편인증)
+2. **계좌 선택**
+   - 실전투자: 실제 계좌번호 선택
+   - 모의투자: 모의투자 계좌번호 입력 (별도 신청 필요)
+3. **본인 인증** (문자 인증번호)
+4. **신청 완료**
+
+##### Step 3: APP KEY / APP SECRET 확인
+
+1. **신청정보 화면**에서 확인
+2. **신청현황 테이블**에서 해당 계좌의 키 확인
+3. **복사 방법**: 클립보드에 복사 후 사용 (화면에 직접 노출되지 않음)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    KIS Developers 신청현황                       │
+├──────────────┬─────────────────┬─────────────────┬──────────────┤
+│ 계좌번호      │ APP KEY         │ APP SECRET      │ 상태         │
+├──────────────┼─────────────────┼─────────────────┼──────────────┤
+│ 12345678-01  │ PSxxx... [복사] │ xxx... [복사]   │ 사용중       │
+└──────────────┴─────────────────┴─────────────────┴──────────────┘
+```
+
+##### ⚠️ 보안 주의사항
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 🔐 APP KEY / APP SECRET 보안 관리                               │
+├─────────────────────────────────────────────────────────────────┤
+│ • 절대 타인에게 공유하지 마세요                                  │
+│ • 소스코드에 하드코딩하지 마세요                                 │
+│ • 유출 시 즉시 홈페이지에서 재발급 하세요                        │
+│ • Git 저장소에 커밋하지 마세요 (.gitignore 활용)                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+##### API 이용 기간
+
+| 항목 | 내용 |
+|-----|------|
+| **이용 기간** | 신청일로부터 **1년** |
+| **갱신 시점** | 만료 30일 전부터 가능 |
+| **갱신 시** | APP KEY, APP SECRET 재발급 |
+| **토큰 발급** | 1분당 1회 제한 |
+
+---
+
+#### 1.3 실전투자 vs 모의투자 선택
+
+| 구분 | 실전투자 | 모의투자 |
+|-----|---------|---------|
+| **용도** | 실제 데이터 조회/거래 | 개발/테스트용 |
+| **API URL** | `openapi.koreainvestment.com:9443` | `openapivts.koreainvestment.com:29443` |
+| **데이터** | 실시간 실제 데이터 | 가상 데이터 |
+| **거래** | 실제 매매 가능 | 가상 매매 |
+| **권장** | **프로덕션용** | 개발 초기 테스트용 |
+
+> **EtfMonitor 앱에서는 실전투자 API를 사용합니다** (데이터 조회만 수행, 거래 기능 없음)
+
+---
+
+#### 1.4 OAuth 접속 토큰 발급
+
+##### 토큰 발급 흐름
+
+```
+┌─────────────┐    APP KEY + APP SECRET    ┌─────────────────┐
+│   Client    │ ─────────────────────────► │  KIS OAuth API  │
+│  (Python)   │                            │  /oauth2/tokenP │
+└─────────────┘                            └────────┬────────┘
+       ▲                                            │
+       │            ACCESS TOKEN (24시간 유효)       │
+       └────────────────────────────────────────────┘
+```
+
+##### API 엔드포인트
+
+| 환경 | URL |
+|-----|-----|
+| **실전투자** | `https://openapi.koreainvestment.com:9443/oauth2/tokenP` |
+| **모의투자** | `https://openapivts.koreainvestment.com:29443/oauth2/tokenP` |
+
+##### 토큰 발급 요청
+
+```python
+import requests
+import json
+
+def get_access_token(app_key: str, app_secret: str) -> str:
+    """OAuth 접속 토큰 발급"""
+
+    url = "https://openapi.koreainvestment.com:9443/oauth2/tokenP"
+
+    headers = {
+        "content-type": "application/json"
+    }
+
+    body = {
+        "grant_type": "client_credentials",
+        "appkey": app_key,
+        "appsecret": app_secret
+    }
+
+    response = requests.post(url, headers=headers, json=body)
+    response.raise_for_status()
+
+    data = response.json()
+    access_token = data["access_token"]
+
+    # 토큰 유효 시간: 약 24시간 (86400초)
+    # expires_in: 86400
+
+    return access_token
+```
+
+##### 토큰 응답 예시
+
+```json
+{
+    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9...",
+    "token_type": "Bearer",
+    "expires_in": 86400,
+    "access_token_token_expired": "2025-01-06 15:30:00"
+}
+```
+
+##### ⚠️ 토큰 관리 주의사항
+
+| 항목 | 제한 | 권장 사항 |
+|-----|------|----------|
+| **발급 빈도** | 1분당 1회 | 하루에 1번만 발급 |
+| **유효 기간** | 24시간 | 만료 5분 전 갱신 |
+| **재발급** | 잦은 발급 시 이용 제한 | 기존 토큰 재사용 |
+| **저장** | 메모리 또는 안전한 저장소 | 앱 재시작 시 재발급 |
+
+---
+
+#### 1.5 Android 앱 설정 (Settings Screen)
+
+EtfMonitor 앱에서 KIS API 자격 증명을 저장하기 위한 설정 화면 구성:
+
+```kotlin
+// Settings screen에 추가할 UI 컴포넌트
+@Composable
+fun KISApiSettings(
+    appKey: String,
+    appSecret: String,
+    onCredentialsChange: (String, String) -> Unit
+) {
+    Column {
+        Text(
+            text = "한국투자증권 Open API",
+            style = MaterialTheme.typography.titleMedium
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = appKey,
+            onValueChange = { onCredentialsChange(it, appSecret) },
+            label = { Text("APP KEY") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = appSecret,
+            onValueChange = { onCredentialsChange(appKey, it) },
+            label = { Text("APP SECRET") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "* KIS Developers에서 발급받은 키를 입력하세요",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+```
+
+##### 자격 증명 저장 (암호화)
+
+기존 Claude/Gemini API 키 저장 패턴과 동일하게 **AES256-GCM 암호화** 사용:
+
+```kotlin
+// ApiKeyProvider 인터페이스에 추가
+interface ApiKeyProvider {
+    // 기존
+    fun getClaudeApiKey(): String?
+    fun getGeminiApiKey(): String?
+
+    // KIS API 추가
+    fun getKisAppKey(): String?
+    fun getKisAppSecret(): String?
+    fun setKisAppKey(appKey: String)
+    fun setKisAppSecret(appSecret: String)
+    fun isKisApiConfigured(): Boolean
+}
+```
+
+#### 1.6 Update build.gradle.kts
 
 **File:** `app/build.gradle.kts`
 
@@ -1541,8 +1797,27 @@ Option B is appropriate when:
 
 ---
 
-**Document Version:** 2.0
+**Document Version:** 2.1
 **Last Updated:** 2025-01-05
 **Change Log:**
 - v1.0 (2025-01-05): Initial yfinance migration plan
 - v2.0 (2025-01-05): Added KIS API as recommended solution, FinanceDataReader and Daum Finance analysis
+- v2.1 (2025-01-05): Added detailed account setup guide, API credential acquisition process, OAuth token management
+
+---
+
+## References
+
+### Official Documentation
+- [한국투자증권 홈페이지](https://www.truefriend.com)
+- [KIS Developers Portal](https://apiportal.koreainvestment.com/intro)
+- [KIS Open Trading API GitHub](https://github.com/koreainvestment/open-trading-api)
+
+### Account Setup Guides
+- [스마트폰 계좌개설 안내](https://www.truefriend.com/main/customer/guide/_static/TF04aa090000.jsp)
+- [비대면 계좌 개설 방법](https://moneytime.co.kr/entry/📈-한국투자증권-비대면-계좌-개설-방법-2025년-완전-가이드)
+
+### API Development Resources
+- [오픈API 서비스 신청 가이드 (WikiDocs)](https://wikidocs.net/164056)
+- [API 접속 토큰 발급 가이드 (WikiDocs)](https://wikidocs.net/230259)
+- [한국투자증권 Open API 신청 가이드 (Velog)](https://velog.io/@refinedstone/1-Open-API-신청)
