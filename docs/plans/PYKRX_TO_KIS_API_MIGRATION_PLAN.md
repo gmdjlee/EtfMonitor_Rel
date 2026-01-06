@@ -1,7 +1,7 @@
 # pykrx → KIS API Migration Plan
 
 **Date:** 2025-01-06
-**Status:** In Progress (Phase 4 Complete, Phase 4.5 Pending)
+**Status:** In Progress (Phase 4.5 Complete, Phase 5 Pending)
 **Author:** Claude Code
 
 ## ⚠️ Migration Strategy: Complete pykrx Removal
@@ -19,10 +19,68 @@
 | Phase 2 | Create KIS API Client | ✅ Complete |
 | Phase 3 | Migrate etfcollector.py (remove pykrx) | ✅ Complete |
 | Phase 4 | Migrate stocks.py (remove pykrx) | ✅ Complete |
-| **Phase 4.5** | **Migrate market.py & trend_signal.py (remove pykrx)** | **⬜ Pending** |
-| Phase 5 | Kotlin Integration | ⬜ Pending |
+| Phase 4.5 | Migrate market.py & trend_signal.py (remove pykrx) | ✅ Complete |
+| **Phase 5** | **Kotlin Integration** | **⬜ Pending** |
 | Phase 6 | Testing & Validation | ⬜ Pending |
 | Phase 7 | Remove pykrx from dependencies | ⬜ Pending |
+
+---
+
+## Phase 4.5 Completion Summary (2025-01-06)
+
+### What Was Implemented
+
+Phase 4.5 completes the **full removal of pykrx** from all Python modules. All data collection now uses KIS API exclusively.
+
+#### kis_client.py - Added `get_index_components()`
+
+```python
+def get_index_components(self, market: str = "KOSPI", limit: int = 200) -> List[str]:
+    """Get top N stocks by market cap as index components."""
+    market_code = "0001" if market.upper() == "KOSPI" else "1001"
+    df = self.get_market_cap_ranking(market=market_code, limit=limit)
+    return df["ticker"].tolist()
+```
+
+#### Files Migrated (pykrx completely removed)
+
+| File | Changes | Status |
+|------|---------|--------|
+| `market.py` | Removed `from pykrx import stock`, uses KIS API exclusively | ✅ Complete |
+| `trend_signal.py` | Removed `from pykrx import stock`, uses KIS API exclusively | ✅ Complete |
+| `core.py` | Removed pykrx fallback, KIS API only | ✅ Complete |
+| `stocks.py` | Removed pykrx fallback (was Phase 4), KIS API only | ✅ Complete |
+| `etfcollector.py` | Removed pykrx fallback (was Phase 3), KIS API only | ✅ Complete |
+
+#### Verification
+
+```bash
+# No pykrx imports remain
+$ grep -r "from pykrx\|import pykrx" app/src/main/python/
+# (no results)
+```
+
+All pykrx references in comments are documentation-only (e.g., "replaces pykrx" in kis_client.py).
+
+### Files Now Using KIS API Exclusively
+
+| File | Data Source | Notes |
+|------|-------------|-------|
+| `kis_client.py` | KIS Open API | Primary API client |
+| `etfcollector.py` | KIS API via kis_client | ETF list, holdings |
+| `stocks.py` | KIS API via kis_client | Stock data, investor trading |
+| `market.py` | KIS API via kis_client | Index data, oscillator |
+| `trend_signal.py` | KIS API via kis_client | Technical indicators |
+| `core.py` | KIS API via kis_client | Utility functions |
+| `feargreed.py` | KRX API (direct) | Never used pykrx |
+| `deposit_scraper.py` | Naver scraping | Never used pykrx |
+| `stock_predictor_v2.py` | Processed data | Never used pykrx |
+
+### Next Steps
+
+- **Phase 5**: Kotlin Integration (ensure Kotlin clients properly initialize KIS API)
+- **Phase 6**: Testing & Validation
+- **Phase 7**: Remove `install("pykrx")` from `build.gradle.kts`
 
 ---
 

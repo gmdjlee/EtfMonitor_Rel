@@ -600,6 +600,37 @@ class KISAPIClient:
 
         return self._listed_shares_cache.get(ticker, 0)
 
+    # ========================================
+    # Index Components (replaces pykrx get_index_portfolio_deposit_file)
+    # ========================================
+
+    def get_index_components(self, market: str = "KOSPI", limit: int = 200) -> List[str]:
+        """
+        Get top N stocks by market cap as index components.
+
+        This replaces pykrx.get_index_portfolio_deposit_file() with a better approach:
+        - Gets the most liquid and impactful stocks
+        - Automatically updates with market changes
+        - No static list maintenance required
+
+        Args:
+            market: "KOSPI" or "KOSDAQ"
+            limit: Number of stocks to return (default 200)
+
+        Returns:
+            List of ticker strings
+
+        Raises:
+            ValueError: If API returns error
+        """
+        market_code = "0001" if market.upper() == "KOSPI" else "1001"
+        df = self.get_market_cap_ranking(market=market_code, limit=limit)
+        return df["ticker"].tolist()
+
+    # ========================================
+    # Stock OHLCV with Market Cap
+    # ========================================
+
     def get_stock_ohlcv_with_market_cap(
         self,
         ticker: str,
