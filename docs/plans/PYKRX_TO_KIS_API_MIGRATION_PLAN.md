@@ -4,18 +4,25 @@
 **Status:** In Progress (Phase 4 Complete, Phase 4.5 Pending)
 **Author:** Claude Code
 
+## ⚠️ Migration Strategy: Complete pykrx Removal
+
+> **Important:** This migration will **completely remove pykrx** from the codebase.
+> - No fallback to pykrx
+> - KIS API is the sole data source
+> - pykrx library will be removed from dependencies after migration
+
 ## Migration Progress
 
 | Phase | Description | Status |
 |-------|-------------|--------|
 | Phase 1 | Research & Planning | ✅ Complete |
 | Phase 2 | Create KIS API Client | ✅ Complete |
-| Phase 3 | Migrate etfcollector.py | ✅ Complete |
-| Phase 4 | Migrate stocks.py | ✅ Complete |
-| **Phase 4.5** | **Migrate market.py & trend_signal.py** | **⬜ Pending** |
+| Phase 3 | Migrate etfcollector.py (remove pykrx) | ✅ Complete |
+| Phase 4 | Migrate stocks.py (remove pykrx) | ✅ Complete |
+| **Phase 4.5** | **Migrate market.py & trend_signal.py (remove pykrx)** | **⬜ Pending** |
 | Phase 5 | Kotlin Integration | ⬜ Pending |
 | Phase 6 | Testing & Validation | ⬜ Pending |
-| Phase 7 | Cleanup & Finalization | ⬜ Pending |
+| Phase 7 | Remove pykrx from dependencies | ⬜ Pending |
 
 ---
 
@@ -42,7 +49,7 @@
 
 #### Market Cap Calculation via KIS API
 
-The app previously used `pykrx.get_market_cap()` to get historical market capitalization. KIS API provides:
+KIS API provides two methods for market cap:
 
 1. **Real-time market cap** via `inquire-price` API (`hts_avls` field in 억원 units)
 2. **Historical market cap** calculated via: `close_price × listed_shares × 1000`
@@ -56,41 +63,37 @@ def get_stock_ohlcv_with_market_cap(self, ticker, start_date, end_date):
     return df
 ```
 
-#### stocks.py Migration
+#### stocks.py Migration (pykrx removed)
 
-- Uses KIS API as primary source with pykrx fallback
-- `get_stock_data()` now gets investor trading AND market cap from KIS API
+- Uses KIS API exclusively (no pykrx fallback)
+- `get_stock_data()` gets investor trading AND market cap from KIS API
 - 5-day rolling sum calculation preserved for foreign/institutional data
 
-#### etfcollector.py Migration
+#### etfcollector.py Migration (pykrx removed)
 
-- Uses KIS API as primary source with pykrx fallback
-- `get_etf_list_with_names()` and `get_etf_holdings()` both support KIS API
+- Uses KIS API exclusively (no pykrx fallback)
+- `get_etf_list_with_names()` and `get_etf_holdings()` use KIS API only
 
-### What's Still Missing
+### Remaining Work
 
-#### ⚠️ Index Component Stock List
+#### Index Component Stock List
 
-The following pykrx function is NOT YET available in kis_client.py:
+For market oscillator calculation, need ~200 component stocks for KOSPI/KOSDAQ indices.
+
+**KIS API Solution (Recommended):**
+
+Use `get_market_cap_ranking(limit=200)` to get top 200 stocks by market cap as index component approximation. This is actually better than the pykrx approach as it:
+- Gets the most liquid and impactful stocks
+- Automatically updates with market changes
+- No static list maintenance required
 
 ```python
-# pykrx - Gets all component stocks of an index
-tickers = stock.get_index_portfolio_deposit_file(index_code)
-# Returns: List of ~200 tickers for KOSPI/KOSDAQ components
+def get_index_components(self, market: str = "KOSPI", limit: int = 200) -> List[str]:
+    """Get top N stocks by market cap as index components."""
+    market_code = "0001" if market.upper() == "KOSPI" else "1001"
+    df = self.get_market_cap_ranking(market=market_code, limit=limit)
+    return df["ticker"].tolist()
 ```
-
-This is **CRITICAL** for `market.py` which calculates market oscillator by:
-1. Getting all component stocks of KOSPI (1028) or KOSDAQ (2203)
-2. Collecting OHLCV for each stock
-3. Calculating overbought/oversold indicators
-
-**KIS API Solution Options:**
-
-1. **Use ETF component stocks as proxy** - KODEX 200 (069500) components approximate KOSPI 200
-2. **Use top N stocks by market cap** - `get_market_cap_ranking()` can provide top stocks
-3. **Maintain static component list** - Download and cache index components periodically
-
-> **Recommended:** Use `get_market_cap_ranking(limit=200)` as a reasonable approximation for market oscillator calculation
 
 ---
 
@@ -114,15 +117,10 @@ This document outlines the comprehensive plan for migrating the EtfMonitor Andro
 ### Recommended Approach
 
 **Option A (Recommended): KIS API Single-Source Architecture**
-- Uses Korea Investment Securities Open API as the sole data source
+- Uses Korea Investment Securities Open API as the **sole** data source
 - Requires: Korea Investment Securities brokerage account
 - Provides: All data types currently used by the app
-- Benefits: Single API, official support, reliable data
-
-**Option B (Fallback): Hybrid Multi-Source Architecture**
-- Uses yfinance for OHLCV + FinanceDataReader for lists + pykrx for holdings/investor data
-- Requires: No account needed
-- Limitation: Still depends on pykrx for critical features
+- Benefits: Single API, official support, reliable data, **complete pykrx removal**
 
 ---
 
@@ -136,8 +134,6 @@ This document outlines the comprehensive plan for migrating the EtfMonitor Andro
    - 2.4 [KIS Open API (Recommended)](#24-kis-open-api-recommended)
 3. [Gap Analysis](#3-gap-analysis)
 4. [Architecture Design](#4-architecture-design)
-   - 4.1 [Option A: KIS API Single-Source](#41-option-a-kis-api-single-source)
-   - 4.2 [Option B: Hybrid Multi-Source](#42-option-b-hybrid-multi-source)
 5. [Implementation Phases (KIS API)](#5-implementation-phases-kis-api)
 6. [File Change Summary](#6-file-change-summary)
 7. [Risk Assessment](#7-risk-assessment)
@@ -493,19 +489,13 @@ def call_kis_api(endpoint: str, params: dict, token: str, app_key: str) -> dict:
 │                         MIGRATION VERDICT                                  │
 ├───────────────────────────────────────────────────────────────────────────┤
 │                                                                           │
-│  Option A: KIS API (Recommended)                                          │
-│  ────────────────────────────────                                         │
+│  KIS API Single-Source Architecture                                       │
+│  ────────────────────────────────────                                     │
 │  Full Migration:     ✅ POSSIBLE                                          │
 │  Single Source:      ✅ YES (KIS API only)                                │
+│  pykrx Removal:      ✅ COMPLETE                                          │
 │  Requirement:        ⚠️ Korea Investment Securities account               │
 │  Reliability:        ✅ Official API with support                         │
-│                                                                           │
-│  Option B: Hybrid Multi-Source                                            │
-│  ─────────────────────────────                                            │
-│  Full Migration:     ❌ NOT POSSIBLE                                      │
-│  Sources:            yfinance (OHLCV) + FDR (lists) + pykrx (holdings)   │
-│  Requirement:        None                                                 │
-│  Reliability:        ⚠️ Multiple failure points                          │
 │                                                                           │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
@@ -514,7 +504,7 @@ def call_kis_api(endpoint: str, params: dict, token: str, app_key: str) -> dict:
 
 ## 4. Architecture Design
 
-### 4.1 Option A: KIS API Single-Source (Recommended)
+### 4.1 KIS API Single-Source Architecture
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -556,46 +546,20 @@ def call_kis_api(endpoint: str, params: dict, token: str, app_key: str) -> dict:
 - APP_KEY and APP_SECRET from API portal
 - OAuth token refresh management
 
-### 4.2 Option B: Hybrid Multi-Source (Alternative)
+### 4.2 Data Source Assignment
 
-```
-                    ┌─────────────────────────────────────────────────────────┐
-                    │                  DataSourceManager                      │
-                    │  (Priority-based fallback with caching)                 │
-                    └────────────────────────┬────────────────────────────────┘
-                                             │
-           ┌─────────────────────────────────┼─────────────────────────────────┐
-           │                                 │                                 │
-    ┌──────▼──────┐                   ┌──────▼──────┐                   ┌──────▼──────┐
-    │  yfinance   │                   │   pykrx    │                   │    FDR      │
-    │             │                   │            │                   │             │
-    └──────┬──────┘                   └──────┬─────┘                   └──────┬──────┘
-           │                                  │                                │
-           │  • Stock OHLCV                   │  • ETF holdings               │  • ETF list
-           │  • Market cap                    │  • Investor trading           │  • Stock list
-           │  • Index OHLCV                   │  • Index components           │  • Index components
-           └──────────────────────────────────┴────────────────────────────────┘
-```
+| Feature | KIS API Endpoint | TR_ID |
+|---------|------------------|-------|
+| Stock OHLCV | inquire-daily-price | FHKST01010400 |
+| Market Cap | inquire-price + master file | FHKST01010100 |
+| Index OHLCV | inquire-index-daily-price | FHPUP02120000 |
+| ETF List | inquire-search-stock-info | CTPF1002R |
+| ETF Holdings | inquire-component-stock-price | FHKST121600C0 |
+| Stock List | Master file download | N/A |
+| Investor Trading | investor-trade-by-stock-daily | FHPTJ04160001 |
+| Index Components | market-cap ranking | FHPST01740000 |
 
-**Limitations:**
-- ❌ Still requires pykrx for ETF holdings and investor trading
-- ❌ Multiple points of failure
-- ❌ More complex error handling
-
-### 4.3 Data Source Assignment Comparison
-
-| Feature | Option A (KIS) | Option B (Hybrid) |
-|---------|---------------|-------------------|
-| Stock OHLCV | KIS API | yfinance → pykrx |
-| Market Cap | KIS API | yfinance → pykrx |
-| Index OHLCV | KIS API | yfinance → pykrx |
-| ETF List | KIS 종목파일 | FDR → pykrx |
-| ETF Holdings | **KIS API** ✅ | pykrx (no alternative) |
-| Stock List | KIS 종목파일 | FDR → pykrx |
-| Investor Trading | **KIS API** ✅ | pykrx (no alternative) |
-| Index Components | KIS API | FDR → pykrx |
-
-### 4.4 KIS API Client Implementation
+### 4.3 KIS API Client Implementation
 
 ```python
 """
@@ -747,7 +711,7 @@ class KISAPIClient:
 
 ## 5. Implementation Phases (KIS API)
 
-> **Note:** This section describes the recommended KIS API implementation. For the hybrid approach (Option B), see the legacy phase documentation in Appendix B.
+> **Strategy:** KIS API is the sole data source. pykrx will be completely removed from the codebase.
 
 ### Phase 1: Prerequisites & Setup
 
@@ -1591,32 +1555,39 @@ def get_stock_data(ticker: str, days: int = 30) -> str:
 
 ---
 
-### Phase 4.5: Migrate market.py & trend_signal.py
+### Phase 4.5: Migrate market.py & trend_signal.py (Complete pykrx Removal)
 
-**Objective:** Replace remaining pykrx usage in market oscillator and trend signal modules
+**Objective:** Remove all pykrx usage from market oscillator and trend signal modules
 
 **Status:** ⬜ Pending
 
+> ⚠️ **No Fallback:** KIS API is the sole data source. If KIS API fails, return error to user.
+
 #### 4.5.1 Files Requiring Migration
 
-| File | pykrx Functions Used | KIS API Replacement |
-|------|---------------------|---------------------|
-| `market.py` | `get_index_ohlcv()` | `kis_client.get_index_ohlcv()` ✅ |
-| `market.py` | `get_index_portfolio_deposit_file()` | See solution below ⚠️ |
-| `market.py` | `get_market_ohlcv()` | `kis_client.get_stock_ohlcv()` ✅ |
-| `trend_signal.py` | `get_market_ohlcv()` | `kis_client.get_stock_ohlcv()` ✅ |
+| File | pykrx Functions to Remove | KIS API Replacement |
+|------|---------------------------|---------------------|
+| `market.py` | `from pykrx import stock` | Remove import |
+| `market.py` | `stock.get_index_ohlcv()` | `kis_client.get_index_ohlcv()` |
+| `market.py` | `stock.get_index_portfolio_deposit_file()` | `kis_client.get_index_components()` |
+| `market.py` | `stock.get_market_ohlcv()` | `kis_client.get_stock_ohlcv()` |
+| `trend_signal.py` | `from pykrx import stock` | Remove import |
+| `trend_signal.py` | `stock.get_market_ohlcv()` | `kis_client.get_stock_ohlcv()` |
+| `core.py` | `from pykrx import stock` | Remove import |
+| `core.py` | `stock.get_market_ticker_name()` | `kis_client.get_stock_name()` |
 
-#### 4.5.2 Index Components Solution
-
-The market oscillator needs ~200 component stocks for KOSPI/KOSDAQ indices. Since KIS API doesn't provide direct index component list, implement one of these approaches:
-
-**Option A: Use Market Cap Ranking (Recommended)**
+#### 4.5.2 Add get_index_components() to kis_client.py
 
 ```python
 # In kis_client.py - Add new function
 def get_index_components(self, market: str = "KOSPI", limit: int = 200) -> List[str]:
     """
-    Get top N stocks by market cap as index component approximation.
+    Get top N stocks by market cap as index components.
+
+    This replaces pykrx.get_index_portfolio_deposit_file() with a better approach:
+    - Gets the most liquid and impactful stocks
+    - Automatically updates with market changes
+    - No static list maintenance required
 
     Args:
         market: "KOSPI" or "KOSDAQ"
@@ -1624,149 +1595,257 @@ def get_index_components(self, market: str = "KOSPI", limit: int = 200) -> List[
 
     Returns:
         List of ticker strings
+
+    Raises:
+        ValueError: If API returns error
     """
     market_code = "0001" if market.upper() == "KOSPI" else "1001"
     df = self.get_market_cap_ranking(market=market_code, limit=limit)
     return df["ticker"].tolist()
 ```
 
-**Option B: Use ETF Holdings as Proxy**
+#### 4.5.3 Modify market.py (Remove pykrx)
 
 ```python
-def get_index_components_via_etf(self, market: str = "KOSPI") -> List[str]:
-    """Use ETF holdings as index component proxy."""
-    etf_ticker = "069500" if market.upper() == "KOSPI" else "229200"  # KODEX 200 / KODEX KOSDAQ150
-    df = self.get_etf_holdings(etf_ticker)
-    return df["ticker"].tolist()
-```
+"""
+Market index and oscillator module.
+Uses KIS API exclusively - no pykrx dependency.
+"""
+import time
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+import numpy as np
+import pandas as pd
 
-**Option C: Static Component List with Cache**
+# REMOVED: from pykrx import stock
 
-Maintain a static list of index components that is refreshed periodically (monthly).
+from core import get_logger, get_name, to_json, err_json, MARKETS, REQ_DELAY, get_kis_client
 
-#### 4.5.3 Modify market.py
+log = get_logger(__name__)
 
-```python
-# market.py - Updated with KIS API support
+BATCH_SIZE = 50
 
-from core import is_kis_available, get_kis_client
 
-def _get_index(self, market: str) -> Optional[pd.DataFrame]:
-    """Get index OHLCV data - KIS API with pykrx fallback."""
+def fetch_index(market: str, start: str, end: str) -> List[Dict[str, Any]]:
+    """Fetch market index data via KIS API."""
     cfg = MARKETS.get(market)
     if not cfg:
-        return None
+        return []
 
-    # Try KIS API first
-    if is_kis_available():
+    try:
+        client = get_kis_client()
+        df = client.get_index_ohlcv(cfg["idx"], start)
+
+        if df is None or df.empty:
+            log.warning(f"No index data for {market}")
+            return []
+
+        result = []
+        prev_close = None
+
+        for idx, row in df.iterrows():
+            close = float(row["close"])
+            change = 0.0
+            if prev_close and prev_close > 0:
+                change = ((close - prev_close) / prev_close) * 100
+
+            result.append({
+                "date": idx.strftime("%Y-%m-%d"),
+                "market": market,
+                "closePrice": close,
+                "openPrice": float(row["open"]),
+                "highPrice": float(row["high"]),
+                "lowPrice": float(row["low"]),
+                "volume": int(row["volume"]),
+                "changeRate": round(change, 2)
+            })
+            prev_close = close
+
+        log.info("Index %s: %d records via KIS API", market, len(result))
+        return result
+
+    except Exception as e:
+        log.error("fetch_index error (%s): %s", market, e)
+        return []
+
+
+class Oscillator:
+    """Market overbought/oversold oscillator calculator."""
+
+    def __init__(self, start: str, end: str):
+        self.start = start
+        self.end = end
+        self._validate()
+
+    def _validate(self):
+        s = datetime.strptime(self.start, '%Y%m%d')
+        e = datetime.strptime(self.end, '%Y%m%d')
+        if s > e:
+            raise ValueError(f"Invalid date range: {self.start} > {self.end}")
+
+    def _get_index(self, market: str) -> Optional[pd.DataFrame]:
+        """Get index OHLCV data via KIS API."""
+        cfg = MARKETS.get(market)
+        if not cfg:
+            return None
+
         try:
             client = get_kis_client()
             df = client.get_index_ohlcv(cfg["idx"], self.start)
-            if not df.empty:
-                return pd.DataFrame({"날짜": df.index, "종가": df["close"].values})
+            if df.empty:
+                return None
+            return pd.DataFrame({"날짜": df.index, "종가": df["close"].values})
         except Exception as e:
-            log.warning(f"KIS API index failed: {e}")
-
-    # Fallback to pykrx
-    try:
-        df = stock.get_index_ohlcv(self.start, self.end, cfg["idx"])
-        if df.empty:
+            log.error("Index fetch error (%s): %s", market, e)
             return None
-        return pd.DataFrame({"날짜": df.index, "종가": df["종가"].values})
-    except Exception as e:
-        log.error("Index fetch error (%s): %s", market, e)
-        return None
 
-def _get_components(self, market: str) -> tuple:
-    """Get component stocks - KIS API with pykrx fallback."""
-    cfg = MARKETS.get(market)
-    if not cfg:
-        return pd.DataFrame(), pd.DataFrame()
+    def _get_components(self, market: str) -> tuple:
+        """Get component stocks via KIS API (market cap ranking)."""
+        cfg = MARKETS.get(market)
+        if not cfg:
+            return pd.DataFrame(), pd.DataFrame()
 
-    # Try KIS API first (using market cap ranking as proxy)
-    tickers = None
-    if is_kis_available():
         try:
             client = get_kis_client()
             tickers = client.get_index_components(market, limit=200)
             log.info(f"{market}: Got {len(tickers)} components via KIS API")
-        except Exception as e:
-            log.warning(f"KIS API components failed: {e}")
 
-    # Fallback to pykrx
-    if not tickers:
-        try:
-            tickers = stock.get_index_portfolio_deposit_file(cfg["comp"])
-            log.info(f"{market}: Got {len(tickers)} components via pykrx")
+            if not tickers:
+                log.error(f"{market}: No component stocks found")
+                return pd.DataFrame(), pd.DataFrame()
+
+            # Get index dates for alignment
+            index_df = client.get_index_ohlcv(cfg["idx"], self.start)
+            dates = index_df.index
+
+            close_dict, vol_dict = {}, {}
+
+            for i in range(0, len(tickers), BATCH_SIZE):
+                batch = tickers[i:i + BATCH_SIZE]
+                for t in batch:
+                    try:
+                        df = client.get_stock_ohlcv(t, self.start, self.end)
+                        if not df.empty:
+                            aligned = df.reindex(dates)
+                            name = get_name(t)
+                            col = f"{name}({t})" if name else t
+                            close_dict[col] = aligned["close"]
+                            vol_dict[col] = aligned["volume"].fillna(0)
+                    except Exception as e:
+                        log.debug(f"Skip {t}: {e}")
+                        continue
+                time.sleep(REQ_DELAY)
+
+            return pd.DataFrame(close_dict), pd.DataFrame(vol_dict)
+
         except Exception as e:
-            log.error(f"pykrx components failed: {e}")
+            log.error(f"_get_components error ({market}): {e}")
             return pd.DataFrame(), pd.DataFrame()
 
-    # ... rest of the function (OHLCV collection for each ticker)
+    # ... rest of oscillator calculation methods (unchanged)
 ```
 
-#### 4.5.4 Modify trend_signal.py
+#### 4.5.4 Modify trend_signal.py (Remove pykrx)
 
 ```python
-# trend_signal.py - Updated with KIS API support
+"""
+Trend signal analysis module.
+Uses KIS API exclusively - no pykrx dependency.
+"""
+import json
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+import numpy as np
+import pandas as pd
 
-from core import is_kis_available, get_kis_client
+# REMOVED: from pykrx import stock
+
+from core import get_logger, get_name, to_json, err_json, get_kis_client
+
+log = get_logger(__name__)
+
 
 def _get_ohlcv(ticker: str, days: int, interval: str = "d") -> Optional[pd.DataFrame]:
-    """Get OHLCV data - KIS API with pykrx fallback."""
+    """Get OHLCV data via KIS API."""
     extra = days * 3 if interval == "m" else (days * 2 if interval == "w" else days)
     end = datetime.now()
     start = end - timedelta(days=extra)
     s, e = start.strftime("%Y%m%d"), end.strftime("%Y%m%d")
 
-    df = None
+    try:
+        client = get_kis_client()
+        df = client.get_stock_ohlcv(ticker, s, e)
 
-    # Try KIS API first
-    if is_kis_available():
-        try:
-            client = get_kis_client()
-            df = client.get_stock_ohlcv(ticker, s, e)
-            if not df.empty:
-                df = df.rename(columns={
-                    "open": "O", "high": "H", "low": "L", "close": "C", "volume": "V"
-                })
-                log.debug(f"Got OHLCV via KIS API for {ticker}")
-        except Exception as ex:
-            log.warning(f"KIS API OHLCV failed for {ticker}: {ex}")
-
-    # Fallback to pykrx
-    if df is None or df.empty:
-        try:
-            df = stock.get_market_ohlcv(s, e, ticker)
-            if not df.empty:
-                df = df.rename(columns={"시가": "O", "고가": "H", "저가": "L", "종가": "C", "거래량": "V"})
-        except Exception as ex:
-            log.error(f"OHLCV error ({ticker}): {ex}")
+        if df is None or df.empty:
+            log.warning(f"No OHLCV data for {ticker}")
             return None
 
-    if df is None or df.empty:
+        # Rename columns to internal format
+        df = df.rename(columns={
+            "open": "O", "high": "H", "low": "L", "close": "C", "volume": "V"
+        })
+        df = df[["O", "H", "L", "C", "V"]]
+
+        # Resample if needed
+        if interval == "w":
+            df = df.resample("W").agg({
+                "O": "first", "H": "max", "L": "min", "C": "last", "V": "sum"
+            }).dropna()
+        elif interval == "m":
+            df = _resample_monthly(df)
+
+        return df if not df.empty else None
+
+    except Exception as e:
+        log.error(f"OHLCV error ({ticker}): {e}")
         return None
 
-    df = df[["O", "H", "L", "C", "V"]]
 
-    # Resample if needed
-    if interval == "w":
-        df = df.resample("W").agg({"O": "first", "H": "max", "L": "min", "C": "last", "V": "sum"}).dropna()
-    elif interval == "m":
-        df = _resample_monthly(df)
-
-    return df if not df.empty else None
+# ... rest of trend signal functions (DeMark TD, Elder Impulse, etc.) unchanged
 ```
 
-#### 4.5.5 Modify core.py
-
-Remove direct pykrx import where possible, use KIS API for stock name lookup:
+#### 4.5.5 Modify core.py (Remove pykrx)
 
 ```python
-# core.py - Updated
+"""
+Core utilities for EtfMonitor Python modules.
+Uses KIS API exclusively - no pykrx dependency.
+"""
+import json
+import time
+import logging
+import sys
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Union
+import requests
+
+# REMOVED: from pykrx import stock
+
+# KIS API client (required - no fallback)
+_kis_client = None
+
+def set_kis_client(client):
+    """Set the global KIS client instance."""
+    global _kis_client
+    _kis_client = client
+
+def get_kis_client():
+    """Get the global KIS client. Raises error if not initialized."""
+    if _kis_client is None:
+        raise RuntimeError("KIS API client not initialized. Configure KIS API in Settings.")
+    return _kis_client
+
+def is_kis_available() -> bool:
+    """Check if KIS client is initialized."""
+    return _kis_client is not None
+
+
+# Name cache
+_name_cache: Dict[str, str] = {}
+
 
 def get_name(ticker: str) -> str:
-    """Get stock name - KIS API with pykrx fallback."""
+    """Get stock name via KIS API."""
     if not ticker:
         return ""
 
@@ -1774,38 +1853,67 @@ def get_name(ticker: str) -> str:
     if ticker in _name_cache:
         return _name_cache[ticker]
 
-    # Try KIS API first
-    if is_kis_available():
-        try:
-            name = _kis_client.get_stock_name(ticker)
-            if name:
-                _name_cache[ticker] = name
-                return name
-        except Exception:
-            pass
+    # KIS API only - no pykrx fallback
+    if not is_kis_available():
+        return ""
 
-    # Fallback to pykrx
     try:
-        from pykrx import stock
-        name = stock.get_market_ticker_name(ticker)
+        name = _kis_client.get_stock_name(ticker)
         if name:
             _name_cache[ticker] = name
             return name
-    except Exception:
-        pass
+    except Exception as e:
+        log.debug(f"get_name failed for {ticker}: {e}")
 
     return ""
+
+
+def get_tickers(date: Optional[str] = None, market: str = "ALL") -> List[str]:
+    """Get stock ticker list via KIS API."""
+    if not is_kis_available():
+        return []
+
+    try:
+        return _kis_client.get_market_ticker_list(market)
+    except Exception as e:
+        log.error(f"get_tickers failed: {e}")
+        return []
+
+
+def get_etf_tickers(date: Optional[str] = None) -> List[str]:
+    """Get ETF ticker list via KIS API."""
+    if not is_kis_available():
+        return []
+
+    try:
+        df = _kis_client.get_etf_list()
+        return df["ticker"].tolist() if not df.empty else []
+    except Exception as e:
+        log.error(f"get_etf_tickers failed: {e}")
+        return []
+
+
+def get_etf_name(ticker: str) -> str:
+    """Get ETF name via KIS API."""
+    return get_name(ticker)  # Same as stock name lookup
+
+
+# ... rest of core utilities (HttpClient, date utilities, etc.) unchanged
 ```
 
 #### 4.5.6 Implementation Checklist
 
 - [ ] Add `get_index_components()` function to `kis_client.py`
-- [ ] Update `market.py` to use KIS API with pykrx fallback
-- [ ] Update `trend_signal.py` to use KIS API with pykrx fallback
-- [ ] Update `core.py` to use KIS API for `get_name()` and `get_tickers()`
-- [ ] Test market oscillator calculation with KIS API
-- [ ] Test trend signal analysis with KIS API
-- [ ] Verify fallback works when KIS API is not initialized
+- [ ] Remove `from pykrx import stock` from `market.py`
+- [ ] Update `market.py` to use KIS API only (no fallback)
+- [ ] Remove `from pykrx import stock` from `trend_signal.py`
+- [ ] Update `trend_signal.py` to use KIS API only (no fallback)
+- [ ] Remove `from pykrx import stock` from `core.py`
+- [ ] Update `core.py` to use KIS API only (no fallback)
+- [ ] Update `get_kis_client()` to raise error if not initialized
+- [ ] Test market oscillator calculation with KIS API only
+- [ ] Test trend signal analysis with KIS API only
+- [ ] Verify proper error messages when KIS API not configured
 
 ---
 
@@ -2137,13 +2245,15 @@ def compare_etf_holdings(etf_ticker: str):
 
 ---
 
-### Phase 7: Cleanup & Finalization
+### Phase 7: Complete pykrx Removal
 
-**Objective:** Remove pykrx dependency after successful migration
+**Objective:** Remove pykrx library completely from the codebase
 
 **Status:** ⬜ Pending (requires Phase 4.5, 5, 6 completion first)
 
-#### 7.1 Remove pykrx from Dependencies
+> ✅ **Final Goal:** After this phase, there should be **ZERO** references to pykrx in the codebase.
+
+#### 7.1 Remove pykrx from build.gradle.kts
 
 **File:** `app/build.gradle.kts`
 
@@ -2151,154 +2261,174 @@ def compare_etf_holdings(etf_ticker: str):
 chaquopy {
     defaultConfig {
         pip {
-            // REMOVED: install("pykrx")
+            // ❌ REMOVE THIS LINE:
+            // install("pykrx")
+
+            // ✅ Keep these:
             install("pandas")
             install("numpy")
             install("requests")
-            // ...
+            install("beautifulsoup4")
+            install("scikit-learn")
+            install("xgboost")
+            install("lightgbm")
         }
     }
 }
 ```
 
-#### 7.2 Remove pykrx Imports
+#### 7.2 Verify No pykrx References Remain
 
-Search and remove all `from pykrx import stock` statements from:
-- `etfcollector.py`
-- `stocks.py`
-- `market.py`
-- `trend_signal.py`
-- `core.py`
+Run the following to ensure complete removal:
 
-#### 7.3 Update Documentation
+```bash
+# Should return NO results
+grep -r "pykrx" app/src/main/python/
+grep -r "from pykrx" app/src/main/python/
+grep -r "import pykrx" app/src/main/python/
+```
 
-- Update CLAUDE.md to reflect KIS API usage
-- Update Python script docstrings
-- Add KIS API setup instructions to README
+**Files that should have NO pykrx references:**
+- ✅ `kis_client.py` - Never had pykrx
+- ✅ `etfcollector.py` - pykrx removed in Phase 3
+- ✅ `stocks.py` - pykrx removed in Phase 4
+- ✅ `market.py` - pykrx removed in Phase 4.5
+- ✅ `trend_signal.py` - pykrx removed in Phase 4.5
+- ✅ `core.py` - pykrx removed in Phase 4.5
+- ✅ `feargreed.py` - Never had pykrx (uses KRX API directly)
+- ✅ `deposit_scraper.py` - Never had pykrx (uses Naver scraping)
+- ✅ `stock_predictor_v2.py` - Never had pykrx (uses processed data)
+
+#### 7.3 Update CLAUDE.md Documentation
+
+Update the Python Scripts table to remove pykrx references:
+
+```markdown
+| Script | Uses | Notes |
+|--------|------|-------|
+| **kis_client.py** | KIS Open API | Primary data source |
+| **etfcollector.py** | kis_client | ETF list, holdings |
+| **stocks.py** | kis_client | Stock data, investor trading |
+| **market.py** | kis_client | Index data, oscillator |
+| **trend_signal.py** | kis_client | Technical indicators |
+| **core.py** | kis_client | Shared utilities |
+| **feargreed.py** | KRX API | Fear & Greed Index |
+| **deposit_scraper.py** | Naver | Market deposits |
+```
+
+#### 7.4 Update Python Script Docstrings
+
+Add KIS API requirement to all migrated scripts:
+
+```python
+"""
+[Script name] module.
+
+Requires KIS API credentials to be configured in Settings.
+Uses KIS Open API as the sole data source.
+"""
+```
+
+#### 7.5 Add KIS API Setup Guide
+
+Create user documentation for KIS API setup:
+
+1. Create Korea Investment Securities account
+2. Register at KIS Developers portal
+3. Obtain APP_KEY and APP_SECRET
+4. Configure in app Settings
+
+#### 7.6 Implementation Checklist
+
+- [ ] Remove `install("pykrx")` from `build.gradle.kts`
+- [ ] Verify `grep -r "pykrx"` returns no results
+- [ ] Update CLAUDE.md Python scripts section
+- [ ] Update all Python script docstrings
+- [ ] Test app build without pykrx dependency
+- [ ] Test all data collection features work with KIS API only
+- [ ] Document KIS API setup requirements
 
 ---
 
 ## 6. File Change Summary
 
-### Option A: KIS API Migration (Recommended)
+### KIS API Migration (Complete pykrx Removal)
 
 #### New Files (2 files)
 
 | File | Purpose | Lines (est.) |
 |------|---------|--------------|
-| `app/src/main/python/kis_client.py` | KIS Open API client | ~300 |
-| `app/src/test/python/test_kis_client.py` | Unit tests for KIS client | ~150 |
+| `app/src/main/python/kis_client.py` | KIS Open API client | ~700 |
+| `app/src/test/python/test_kis_client.py` | Unit tests for KIS client | ~200 |
 
-#### Modified Files (7 files)
+#### Modified Files (8 files)
 
 | File | Changes | Complexity |
 |------|---------|------------|
 | `app/build.gradle.kts` | Remove `install("pykrx")` | Low |
-| `app/src/main/python/etfcollector.py` | Replace pykrx with KIS API | Medium |
-| `app/src/main/python/stocks.py` | Replace pykrx with KIS API | Medium |
-| `app/src/main/python/market.py` | Replace pykrx with KIS API | Medium |
-| `app/src/main/python/trend_signal.py` | Replace pykrx with KIS API | Medium |
-| `app/src/main/python/core.py` | Replace pykrx with KIS API | Low |
+| `app/src/main/python/etfcollector.py` | Remove pykrx, use KIS API only | Medium |
+| `app/src/main/python/stocks.py` | Remove pykrx, use KIS API only | Medium |
+| `app/src/main/python/market.py` | Remove pykrx, use KIS API only | Medium |
+| `app/src/main/python/trend_signal.py` | Remove pykrx, use KIS API only | Medium |
+| `app/src/main/python/core.py` | Remove pykrx, use KIS API only | Medium |
 | `SettingsViewModel.kt` | Add KIS credential management | Low |
+| `CLAUDE.md` | Update Python scripts documentation | Low |
 
 #### Unchanged Files
 
 | File | Reason |
 |------|--------|
-| `app/src/main/python/feargreed.py` | Already uses direct KRX API |
-| `app/src/main/python/deposit_scraper.py` | Already uses Naver scraping |
+| `app/src/main/python/feargreed.py` | Uses direct KRX API (not pykrx) |
+| `app/src/main/python/deposit_scraper.py` | Uses Naver scraping (not pykrx) |
 | `app/src/main/python/stock_predictor_v2.py` | Uses processed data from other modules |
-
----
-
-### Option B: Hybrid Migration (Alternative)
-
-#### New Files (5 files)
-
-| File | Purpose | Lines (est.) |
-|------|---------|--------------|
-| `app/src/main/python/yf_client.py` | yfinance wrapper for Korean stocks | ~200 |
-| `app/src/main/python/fdr_client.py` | FinanceDataReader wrapper | ~150 |
-| `app/src/main/python/data_source_manager.py` | Multi-source fallback manager | ~250 |
-| `app/src/test/python/test_yf_client.py` | Unit tests for yfinance wrapper | ~150 |
-| `app/src/test/python/test_data_source_manager.py` | Unit tests for fallback manager | ~150 |
-
-#### Modified Files (6 files)
-
-| File | Changes | Complexity |
-|------|---------|------------|
-| `app/build.gradle.kts` | Add `install("yfinance")`, `install("financedatareader")` | Low |
-| `app/src/main/python/stocks.py` | yfinance for OHLCV, keep pykrx for investor data | Medium |
-| `app/src/main/python/market.py` | yfinance for index OHLCV, keep pykrx for components | Medium |
-| `app/src/main/python/trend_signal.py` | yfinance for OHLCV/market cap | Medium |
-| `app/src/main/python/core.py` | FDR for stock list, pykrx fallback | Medium |
-| `app/src/main/python/etfcollector.py` | FDR for ETF list, **pykrx still required for holdings** | High |
-
-#### Limitations (Option B)
-
-| Feature | Status |
-|---------|--------|
-| ETF Holdings | ⚠️ **Still requires pykrx** |
-| Investor Trading | ⚠️ **Still requires pykrx** |
 
 ---
 
 ## 7. Risk Assessment
 
-### Option A: KIS API Risks
+### KIS API Migration Risks
 
 #### High Risk
 
 | Risk | Impact | Likelihood | Mitigation |
 |------|--------|------------|------------|
-| **Account requirement** | Users need brokerage account | High | Clear documentation, consider Option B for users without account |
-| API rate limiting | Data fetch failures | Medium | Request throttling, caching, respect API limits |
-| Token expiration | Authentication failures | Low | Automatic token refresh (23-hour expiry) |
+| **Account requirement** | Users need KIS brokerage account | High | Clear documentation, provide setup guide |
+| **KIS API not configured** | App cannot fetch data | High | Show clear error message, guide to Settings |
+| API rate limiting | Data fetch failures | Medium | Request throttling (20 req/sec), caching |
 
 #### Medium Risk
 
 | Risk | Impact | Likelihood | Mitigation |
 |------|--------|------------|------------|
+| Token expiration | Authentication failures | Low | Automatic token refresh (23-hour expiry) |
 | API endpoint changes | Breaking changes | Low | Version API calls, monitor KIS announcements |
-| Network timeouts | Slow responses | Medium | 30s timeout, retry logic |
-| Response format changes | Parsing errors | Low | Schema validation, graceful fallbacks |
+| Network timeouts | Slow responses | Medium | 30s timeout, retry logic with exponential backoff |
+| Response format changes | Parsing errors | Low | Schema validation, graceful error handling |
 
 #### Low Risk
 
 | Risk | Impact | Likelihood | Mitigation |
 |------|--------|------------|------------|
-| Credential storage security | API key exposure | Low | Use encrypted SharedPreferences (existing pattern) |
-| Data consistency | Slight variance from pykrx | Low | Comparison testing during migration |
+| Credential storage security | API key exposure | Low | AES256-GCM encrypted SharedPreferences |
+| Data consistency | Slight variance from old pykrx data | Low | Comparison testing during migration |
+| Market cap calculation accuracy | Minor variance | Low | close × listed_shares is standard formula |
 
-### Option B: Hybrid Architecture Risks
+### Risk Mitigation Strategy
 
-#### High Risk
+1. **KIS Account Requirement**
+   - Provide detailed setup guide in app
+   - Show clear error message with link to KIS Developers portal
+   - Consider adding onboarding wizard for first-time setup
 
-| Risk | Impact | Likelihood | Mitigation |
-|------|--------|------------|------------|
-| **pykrx still required** | Cannot fully remove dependency | High | None - this is inherent limitation |
-| Multiple failure points | Complex error handling | High | DataSourceManager with fallback |
-| pykrx deprecation | Critical features break | Low | No alternative for ETF holdings/investor trading |
+2. **API Failures**
+   - Implement comprehensive error handling
+   - Cache last successful data for offline viewing
+   - Show user-friendly error messages with retry option
 
-#### Medium Risk
-
-| Risk | Impact | Likelihood | Mitigation |
-|------|--------|------------|------------|
-| yfinance Korean data gaps | OHLCV missing for some stocks | Medium | Automatic pykrx fallback |
-| Rate limiting (yfinance) | Data fetch failures | Medium | Request throttling + caching |
-| Data timing differences | Slight variance between sources | High | Document acceptable thresholds |
-
-### Risk Comparison Summary
-
-| Factor | Option A (KIS) | Option B (Hybrid) |
-|--------|---------------|-------------------|
-| **Single Point of Failure** | ✅ Better - one API | ⚠️ Worse - multiple sources |
-| **Account Requirement** | ⚠️ Required | ✅ None |
-| **Complete pykrx Removal** | ✅ Yes | ❌ No |
-| **Error Handling Complexity** | ✅ Simple | ⚠️ Complex |
-| **Official Support** | ✅ KIS support | ⚠️ Community only |
-
----
+3. **Rate Limiting**
+   - Built-in 20 req/sec throttling in kis_client.py
+   - Batch requests where possible
+   - Cache frequently accessed data (stock names, listed shares)
 
 ## 8. Testing Strategy
 
@@ -2681,43 +2811,7 @@ tr_id: {TR_ID}
 
 ---
 
-## Appendix B: yfinance Reference (Option B)
-
-### yfinance Key Methods
-
-```python
-# Ticker object
-ticker = yf.Ticker("005930.KS")
-
-# Historical data
-ticker.history(period="1mo")  # 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max
-ticker.history(start="2024-01-01", end="2024-12-31")
-ticker.history(interval="1d")  # 1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo
-
-# Stock info
-ticker.info  # Dict with ~150 fields
-ticker.info['marketCap']
-ticker.info['sector']
-ticker.info['industry']
-
-# Multiple tickers
-yf.download(["005930.KS", "000660.KS"], period="1mo", group_by="ticker")
-```
-
-### Korean Ticker Format
-
-| pykrx Ticker | yfinance Ticker | Name |
-|--------------|-----------------|------|
-| 005930 | 005930.KS | 삼성전자 |
-| 000660 | 000660.KS | SK하이닉스 |
-| 035720 | 035720.KQ | 카카오 |
-| 035420 | 035420.KQ | NAVER |
-| 1001 (KOSPI Index) | ^KS11 | KOSPI |
-| 2001 (KOSDAQ Index) | ^KQ11 | KOSDAQ |
-
----
-
-## Appendix C: pykrx to KIS API Function Mapping
+## Appendix B: pykrx to KIS API Function Mapping
 
 | pykrx Function | KIS API Endpoint | TR ID | KISAPIClient Method |
 |----------------|------------------|-------|---------------------|
@@ -2749,42 +2843,44 @@ yf.download(["005930.KS", "000660.KS"], period="1mo", group_by="ticker")
 
 ---
 
-## Appendix D: Decision Summary
+## Appendix C: Decision Summary
 
-### Recommendation: Option A (KIS API)
+### Decision: Complete pykrx Removal via KIS API
 
 **Primary Reasons:**
-1. ✅ **Complete pykrx replacement** - All critical functions available
+1. ✅ **Complete pykrx removal** - All critical functions available in KIS API
 2. ✅ **Single source** - Simplified architecture and error handling
 3. ✅ **Official support** - Korea Investment Securities provides documentation and support
 4. ✅ **Reliable data** - Direct from securities firm, not web scraping
+5. ✅ **No fallback complexity** - Clean, maintainable codebase
 
-**Trade-off:**
-- ⚠️ Requires Korea Investment Securities brokerage account
+**Requirement:**
+- ⚠️ Users must have Korea Investment Securities brokerage account
+- Clear setup guide and error messages provided in app
 
-### When to Use Option B (Hybrid)
+### User Experience Considerations
 
-Option B is appropriate when:
-- Users cannot open a brokerage account
-- Need to support users without KIS credentials
-- Want to keep pykrx as fallback during transition
+When KIS API is not configured:
+1. Show clear error message explaining the requirement
+2. Provide link to KIS Developers portal
+3. Guide user through Settings to configure credentials
+4. Consider showing cached data if available
 
 ---
 
-**Document Version:** 3.0
-**Last Updated:** 2025-01-05
+**Document Version:** 4.0
+**Last Updated:** 2025-01-06
 **Change Log:**
 - v1.0 (2025-01-05): Initial yfinance migration plan
-- v2.0 (2025-01-05): Added KIS API as recommended solution, FinanceDataReader and Daum Finance analysis
-- v2.1 (2025-01-05): Added detailed account setup guide, API credential acquisition process, OAuth token management
+- v2.0 (2025-01-05): Added KIS API as recommended solution
 - v3.0 (2025-01-05): Complete revision based on official KIS GitHub repository
-  - Added missing API methods: Index OHLCV, Market Cap, Stock Info, Stock List
-  - Added rate limiting (20 req/sec) and retry logic with exponential backoff
-  - Updated Testing Strategy for KIS API (unit tests, integration tests, comparison tests)
-  - Updated Rollback Plan with feature flag and gradual rollout strategy
-  - Expanded function mapping table with KISAPIClient method references
-  - Added Index/Market code reference tables
-  - Renamed file from `PYKRX_TO_YFINANCE_MIGRATION_PLAN.md` to `PYKRX_TO_KIS_API_MIGRATION_PLAN.md`
+- v4.0 (2025-01-06): Complete pykrx removal (no fallback)
+  - Removed all pykrx fallback code references
+  - Removed Option B (Hybrid) documentation
+  - Updated all phases to use KIS API exclusively
+  - Added Phase 4.5 for market.py and trend_signal.py migration
+  - Updated Phase 7 for complete pykrx removal verification
+  - Simplified architecture diagrams to KIS API only
 
 ---
 
