@@ -423,20 +423,23 @@ fun observeData() {
 
 ### Python Integration
 **Embedded Python** via Chaquopy includes:
-- `pykrx`: Korean stock market API
+- `kis_client`: KIS Open API client (primary data source)
 - `pandas`: Data manipulation
 - `scikit-learn`: Machine learning (stock predictions)
 - `beautifulsoup4`: Web scraping
 - `numpy`: Numerical computing
 - `requests`: HTTP client
 
+> **Note:** KIS API credentials (APP_KEY, APP_SECRET) must be configured in Settings for data collection to work.
+
 #### Python Scripts (app/src/main/python/)
 | Script | Exposed Functions | Return Format | Notes |
 |--------|------------------|---------------|-------|
-| **etfcollector.py** | `get_etf_list_with_names()`, `get_etf_list()`, `get_etf_holdings()` | JSON array | Uses pykrx, filters by keywords |
+| **kis_client.py** | `get_etf_list()`, `get_etf_holdings()`, `get_stock_ohlcv()`, `get_investor_trading()` | JSON object | KIS Open API client (primary data source) |
+| **etfcollector.py** | `get_etf_list_with_names()`, `get_etf_list()`, `get_etf_holdings()` | JSON array | Uses KIS API, filters by keywords |
 | **stocks.py** | `search_stock()`, `get_stock_data()`, `get_stock_ohlcv()`, `get_all_stocks_list()` | JSON object | 5-day rolling sums for investor data |
 | **market.py** | `fetch_all_markets()`, `fetch_recent_days()`, `get_market_oscillator()` | JSON object | Oscillator collects 200+ component stocks |
-| **core.py** | `get_business_days()`, date/number utilities | Various | Shared utilities, not directly called |
+| **core.py** | `get_business_days()`, date/number utilities | Various | Shared utilities, uses KIS API |
 | **feargreed.py** | `run_analysis()`, `combine()`, `analyze()` | DataFrame tuple | 5 indicators @ 20% each (Mom, PCR, VIX, Spread, RSI) |
 | **deposit_scraper.py** | `scrape_deposit_data()`, `get_market_deposit_data()` | JSON string | Scrapes Naver Finance |
 | **stock_predictor_v2.py** | `train_and_predict_v2()`, `get_model_status_v2()`, `clear_model_cache_v2()` | JSON | 28 features, ensemble (XGBoost/LightGBM/RF/GB), SMOTE |
@@ -1525,7 +1528,7 @@ dependencies {
 - **Room**: https://developer.android.com/training/data-storage/room
 - **Coroutines**: https://kotlinlang.org/docs/coroutines-overview.html
 - **Chaquopy**: https://chaquo.com/chaquopy/
-- **PyKrx**: https://github.com/sharebook-kr/pykrx
+- **KIS Open API**: https://apiportal.koreainvestment.com/
 
 ---
 

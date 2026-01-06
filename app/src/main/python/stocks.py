@@ -2,8 +2,8 @@
 Stock data collection and analysis module.
 Unified module merging stockcollector, stock_data_fetcher, and stock_analyzer.
 
-Uses KIS API exclusively - no pykrx dependency.
 Requires KIS API credentials to be configured in Settings.
+Uses KIS Open API as the sole data source.
 """
 import json
 from datetime import datetime, timedelta
