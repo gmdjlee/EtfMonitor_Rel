@@ -58,8 +58,17 @@ def get_all_stocks(date: Optional[str] = None) -> str:
     Get all stocks from KOSPI + KOSDAQ via KIS API.
 
     Returns: JSON [{"ticker": "...", "name": "..."}, ...]
+             or {"error": "...", "error_type": "..."} on error
     """
     try:
+        # Check KIS API availability first
+        if not is_kis_available():
+            log.error("KIS API not configured")
+            return to_json({
+                "error": "KIS API가 설정되지 않았습니다. 설정 화면에서 KIS API 키를 입력해주세요.",
+                "error_type": "api_not_configured"
+            })
+
         d = date or market_date()
         tickers = get_tickers(date=d)
 
@@ -74,10 +83,16 @@ def get_all_stocks(date: Optional[str] = None) -> str:
 
     except RuntimeError as e:
         log.error("KIS API error: %s", e)
-        return err_json(str(e))
+        return to_json({
+            "error": str(e),
+            "error_type": "api_error"
+        })
     except Exception as e:
         log.error("get_all_stocks error: %s", e)
-        return to_json([])
+        return to_json({
+            "error": f"종목 데이터를 가져오는 중 오류가 발생했습니다: {e}",
+            "error_type": "unknown_error"
+        })
 
 
 def search_stock(query: str) -> str:

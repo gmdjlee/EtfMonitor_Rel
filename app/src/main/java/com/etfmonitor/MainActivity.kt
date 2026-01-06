@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.etfmonitor.core.database.EtfDao
+import com.etfmonitor.core.common.util.ApiConfigurationException
 import com.etfmonitor.core.common.util.NetworkException
 import com.etfmonitor.core.network.ai.ApiKeyProvider
 import com.etfmonitor.core.network.python.PyKrxClient
@@ -75,6 +76,10 @@ class MainActivity : ComponentActivity() {
     // 네트워크 에러 다이얼로그 상태
     private val showNetworkErrorDialog = mutableStateOf(false)
     private val networkErrorMessage = mutableStateOf("")
+
+    // API 설정 필요 다이얼로그 상태
+    private val showApiConfigDialog = mutableStateOf(false)
+    private val apiConfigMessage = mutableStateOf("")
 
     // ✅ 알림 권한 요청 (Android 13+)
     private val requestPermissionLauncher = registerForActivityResult(
@@ -167,6 +172,24 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
+
+                    // API 설정 필요 다이얼로그
+                    if (showApiConfigDialog.value) {
+                        AlertDialog(
+                            onDismissRequest = { showApiConfigDialog.value = false },
+                            title = { Text("API 설정 필요") },
+                            text = { Text(apiConfigMessage.value) },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        showApiConfigDialog.value = false
+                                    }
+                                ) {
+                                    Text("확인")
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -186,13 +209,31 @@ class MainActivity : ComponentActivity() {
                 } else {
                     val exception = result.exceptionOrNull()
                     logger.e("Failed to initialize stock database: ${exception?.message}")
-                    if (exception is NetworkException) {
-                        networkErrorMessage.value = exception.message ?: "네트워크 연결을 확인해 주세요."
-                        showNetworkErrorDialog.value = true
-                    }
+                    handleStockInitializationError(exception)
                 }
             } catch (e: Exception) {
                 logger.e("Error retrying stock initialization", e)
+            }
+        }
+    }
+
+    /**
+     * 종목 데이터 초기화 에러 처리
+     */
+    private fun handleStockInitializationError(exception: Throwable?) {
+        when (exception) {
+            is ApiConfigurationException -> {
+                apiConfigMessage.value = exception.message ?: "KIS API 설정이 필요합니다. 설정 화면에서 API 키를 입력해주세요."
+                showApiConfigDialog.value = true
+            }
+            is NetworkException -> {
+                networkErrorMessage.value = exception.message ?: "네트워크 연결을 확인해 주세요."
+                showNetworkErrorDialog.value = true
+            }
+            else -> {
+                // 기타 오류는 네트워크 오류로 표시
+                networkErrorMessage.value = exception?.message ?: "데이터를 가져오는 중 오류가 발생했습니다."
+                showNetworkErrorDialog.value = true
             }
         }
     }
@@ -248,11 +289,7 @@ class MainActivity : ComponentActivity() {
                     } else {
                         val exception = result.exceptionOrNull()
                         logger.e("Failed to initialize stock database: ${exception?.message}")
-                        // 네트워크 에러인 경우 다이얼로그 표시
-                        if (exception is NetworkException) {
-                            networkErrorMessage.value = exception.message ?: "네트워크 연결을 확인해 주세요."
-                            showNetworkErrorDialog.value = true
-                        }
+                        handleStockInitializationError(exception)
                     }
                 } else {
                     logger.d("Stock database already has $stockCount stocks")

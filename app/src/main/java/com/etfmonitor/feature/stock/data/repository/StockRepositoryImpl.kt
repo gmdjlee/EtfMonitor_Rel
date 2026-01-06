@@ -109,10 +109,19 @@ class StockRepositoryImpl @Inject constructor(
         try {
             logger.d("Initializing stock data from Python...")
 
-            val stockList = pyClient.getAllStocksList()
+            val stockListResult = pyClient.getAllStocksList()
+
+            // Handle error from Python client
+            if (stockListResult.isFailure) {
+                val exception = stockListResult.exceptionOrNull()
+                logger.e("Failed to get stocks list from Python: ${exception?.message}")
+                return@withContext Result.failure(exception ?: NetworkException("알 수 없는 오류가 발생했습니다."))
+            }
+
+            val stockList = stockListResult.getOrNull() ?: emptyList()
 
             if (stockList.isEmpty()) {
-                logger.e("Failed to get stocks list from Python (empty result - possible network issue)")
+                logger.e("Failed to get stocks list from Python (empty result)")
                 return@withContext Result.failure(
                     NetworkException("종목 데이터를 가져올 수 없습니다. 네트워크 연결을 확인해 주세요.")
                 )

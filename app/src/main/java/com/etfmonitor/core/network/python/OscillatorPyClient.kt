@@ -116,6 +116,12 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
     )
 
     @Serializable
+    private data class StockListErrorResponse(
+        val error: String = "",
+        @SerialName("error_type") val errorType: String = ""
+    )
+
+    @Serializable
     private data class TrendSignalResponse(
         val ticker: String = "",
         val name: String = "",
@@ -331,24 +337,50 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
 
     /**
      * 전체 종목 리스트 가져오기 (자동완성용)
+     *
+     * @return Result containing list of (ticker, name) pairs or error
      */
-    suspend fun getAllStocksList(): List<Pair<String, String>> = withContext(Dispatchers.IO) {
+    suspend fun getAllStocksList(): Result<List<Pair<String, String>>> = withContext(Dispatchers.IO) {
         try {
             withTimeout(TIMEOUT_MS) {
-                logger.d( "getAllStocksList")
+                logger.d("getAllStocksList")
                 val jsonStr = stocksModule.callAttr("get_all_stocks_list").toString()
 
-                if (jsonStr.contains("\"error\"")) {
-                    logger.e( "Error getting stocks list")
-                    return@withTimeout emptyList()
+                // Check for error response (JSON object with "error" key)
+                if (jsonStr.contains("\"error\"") && jsonStr.contains("\"error_type\"")) {
+                    try {
+                        val errorResponse = json.decodeFromString<StockListErrorResponse>(jsonStr)
+                        logger.e("Error getting stocks list: ${errorResponse.error} (type: ${errorResponse.errorType})")
+
+                        val exception = when (errorResponse.errorType) {
+                            "api_not_configured" -> com.etfmonitor.core.common.util.ApiConfigurationException(
+                                "KIS API",
+                                errorResponse.error
+                            )
+                            "api_error" -> com.etfmonitor.core.common.util.ApiException(
+                                errorResponse.error,
+                                apiName = "KIS API"
+                            )
+                            else -> com.etfmonitor.core.common.util.NetworkException(
+                                errorResponse.error
+                            )
+                        }
+                        return@withTimeout Result.failure(exception)
+                    } catch (e: Exception) {
+                        // If error response parsing fails, try as regular list
+                        logger.w("Failed to parse error response, trying as list")
+                    }
                 }
 
                 val stockList = json.decodeFromString<List<StockListItem>>(jsonStr)
-                stockList.map { Pair(it.ticker, it.name) }
+                Result.success(stockList.map { Pair(it.ticker, it.name) })
             }
+        } catch (e: TimeoutCancellationException) {
+            logger.e("getAllStocksList timeout", PythonTimeoutException(TIMEOUT_MS, "stocks", "get_all_stocks_list"))
+            Result.failure(PythonTimeoutException(TIMEOUT_MS, "stocks", "get_all_stocks_list"))
         } catch (e: Exception) {
-            logger.e( "getAllStocksList error", e)
-            emptyList()
+            logger.e("getAllStocksList error", e)
+            Result.failure(e)
         }
     }
 
