@@ -97,6 +97,74 @@ class PyKrxClient @Inject constructor(
     private val etfModule by lazy { python.getModule("etfcollector") }
     private val stockModule by lazy { python.getModule("stocks") }
     private val coreModule by lazy { python.getModule("core") }
+    private val kisModule by lazy { python.getModule("kis_client") }
+
+    // ==================== KIS API Initialization ====================
+
+    /**
+     * KIS API 클라이언트 초기화
+     *
+     * @param appKey KIS Open API APP KEY
+     * @param appSecret KIS Open API APP SECRET
+     * @return 초기화 성공 여부
+     */
+    suspend fun initializeKisClient(appKey: String, appSecret: String): Boolean =
+        withContext(Dispatchers.IO) {
+            try {
+                withTimeout(TIMEOUT_MS) {
+                    kisModule.callAttr("init_kis_client", appKey, appSecret)
+                    logger.i("KIS API client initialized successfully")
+                    true
+                }
+            } catch (e: TimeoutCancellationException) {
+                logger.e("KIS client initialization timeout", e)
+                false
+            } catch (e: Exception) {
+                logger.e("Failed to initialize KIS client", e)
+                false
+            }
+        }
+
+    /**
+     * KIS API 클라이언트 초기화 상태 확인
+     *
+     * @return 초기화 여부
+     */
+    suspend fun isKisClientInitialized(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val result = kisModule.callAttr("is_client_initialized")
+            result.toBoolean()
+        } catch (e: Exception) {
+            logger.e("Error checking KIS client status", e)
+            false
+        }
+    }
+
+    /**
+     * KIS API 연결 테스트
+     *
+     * 삼성전자(005930) 종목명을 조회하여 API 연결 상태를 확인합니다.
+     *
+     * @return 연결 성공 여부
+     */
+    suspend fun testKisApiConnection(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            withTimeout(TIMEOUT_MS) {
+                // 삼성전자 종목명 조회로 연결 테스트
+                val client = kisModule.callAttr("get_client")
+                val result = client.callAttr("get_stock_name", "005930")
+                val name = result.toString()
+                logger.d("KIS API connection test: 005930 -> $name")
+                name.isNotEmpty() && name != "None"
+            }
+        } catch (e: TimeoutCancellationException) {
+            logger.e("KIS API connection test timeout", e)
+            false
+        } catch (e: Exception) {
+            logger.e("KIS API connection test failed", e)
+            false
+        }
+    }
 
     /**
      * ETF 목록을 필터링과 함께 조회 (최적화된 버전)
