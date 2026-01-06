@@ -29,6 +29,7 @@ import com.etfmonitor.core.ui.theme.*
 import com.etfmonitor.feature.home.domain.model.HomeState
 import com.etfmonitor.feature.home.domain.model.HomeSummary
 import com.etfmonitor.feature.home.presentation.component.DaysSelectionDialog
+import com.etfmonitor.feature.home.presentation.component.KisApiSetupDialog
 import com.etfmonitor.feature.home.presentation.component.UnifiedInitializationDialog
 import com.etfmonitor.feature.home.presentation.viewmodel.HomeViewModel
 
@@ -57,13 +58,19 @@ fun HomeScreen(
     val state by viewModel.state.collectAsState()
     val showFirstRunDialog by viewModel.showFirstRunDialog.collectAsState()
     val showUnifiedInitDialog by viewModel.showUnifiedInitDialog.collectAsState()
+    val showKisApiDialog by viewModel.showKisApiDialog.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val lastDate = (state as? HomeState.Idle)?.lastDate
 
     var showDaysDialog by remember { mutableStateOf(false) }
     var showUnifiedDialog by remember { mutableStateOf(false) }
+    var showKisDialog by remember { mutableStateOf(false) }
 
-    // Dialog handlers
+    // Dialog handlers - KIS API dialog first, then UnifiedInit dialog
+    LaunchedEffect(showKisApiDialog) {
+        if (showKisApiDialog) showKisDialog = true
+    }
+
     LaunchedEffect(showUnifiedInitDialog) {
         if (showUnifiedInitDialog) showUnifiedDialog = true
     }
@@ -122,7 +129,24 @@ fun HomeScreen(
         }
     }
 
-    // Dialogs
+    // Dialogs - KIS API setup dialog first (before data collection dialogs)
+    if (showKisDialog) {
+        KisApiSetupDialog(
+            onDismiss = {
+                showKisDialog = false
+                viewModel.onKisApiDialogDismiss()
+            },
+            onConfirm = { appKey, appSecret ->
+                showKisDialog = false
+                viewModel.saveKisCredentials(appKey, appSecret)
+            },
+            onSkip = {
+                showKisDialog = false
+                viewModel.onKisApiDialogSkip()
+            }
+        )
+    }
+
     if (showDaysDialog) {
         DaysSelectionDialog(
             onDismiss = {

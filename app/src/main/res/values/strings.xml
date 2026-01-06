@@ -12,6 +12,7 @@
     <string name="action_apply">적용</string>
     <string name="action_clear">지우기</string>
     <string name="action_later">나중에</string>
+    <string name="action_skip">건너뛰기</string>
     <string name="action_reset">초기화</string>
     <string name="action_start_collection">수집 시작</string>
     <string name="action_collect_data">데이터 수집</string>
@@ -552,6 +553,9 @@
     <string name="menu_advanced_analysis_desc">시총가중/유동성/섹터 종합분석</string>
 
     <!-- HomeScreen Dialogs -->
+    <string name="dialog_kis_api_setup_title">KIS Open API 설정</string>
+    <string name="dialog_kis_api_setup_desc">한국 증시 데이터 수집을 위해 한국투자증권 Open API 자격 증명이 필요합니다.\n\nKIS Developers에서 계좌 개설 후 APP KEY와 APP SECRET을 발급받으세요.</string>
+    <string name="dialog_kis_api_required_warning">KIS API가 설정되지 않으면 데이터 수집이 작동하지 않습니다.</string>
     <string name="dialog_init_data_collection">초기 데이터 수집</string>
     <string name="dialog_etf_collection_period">ETF 데이터 수집 기간을 선택하세요</string>
     <string name="dialog_select_data_to_collect">수집할 데이터를 선택하세요.</string>
