@@ -22,6 +22,7 @@ import com.etfmonitor.core.ui.theme.SingleChartColorSettings
 import com.etfmonitor.core.ui.theme.ThemeManager
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.worker.WorkManagerHelper
+import com.etfmonitor.core.network.python.PyKrxClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -130,6 +131,7 @@ class SettingsViewModel @Inject constructor(
     private val bloodIndicatorRepository: BloodIndicatorRepository,
     private val aiAnalysisRepository: AIAnalysisRepository,
     private val apiKeyProvider: ApiKeyProvider,
+    private val pyKrxClient: PyKrxClient,
     private val etfDao: EtfDao,
     private val themeManager: ThemeManager,
     @ApplicationContext private val context: Context
@@ -244,6 +246,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _isKisVirtualMode = MutableStateFlow(false)
     val isKisVirtualMode: StateFlow<Boolean> = _isKisVirtualMode.asStateFlow()
+
+    private val _kisApiTestState = MutableStateFlow<ApiKeyTestState>(ApiKeyTestState.Idle)
+    val kisApiTestState: StateFlow<ApiKeyTestState> = _kisApiTestState.asStateFlow()
 
     private val _apiKeyTestState = MutableStateFlow<ApiKeyTestState>(ApiKeyTestState.Idle)
     val apiKeyTestState: StateFlow<ApiKeyTestState> = _apiKeyTestState.asStateFlow()
@@ -1303,6 +1308,68 @@ class SettingsViewModel @Inject constructor(
     ) {
         apiKeyProvider.setKisVirtualMode(isVirtual)
         _isKisVirtualMode.value = isVirtual
+    }
+
+    /**
+     * KIS Open API 연결 테스트
+     *
+     * 저장된 자격 증명으로 KIS API 클라이언트를 초기화하고
+     * 삼성전자 종목명 조회를 통해 연결 상태를 확인합니다.
+     */
+    fun testKisApiConnection() {
+        viewModelScope.launch {
+            try {
+                _kisApiTestState.value = ApiKeyTestState.Testing
+
+                val appKey = apiKeyProvider.getKisAppKey()
+                val appSecret = apiKeyProvider.getKisAppSecret()
+
+                if (appKey.isNullOrBlank() || appSecret.isNullOrBlank()) {
+                    _kisApiTestState.value = ApiKeyTestState.Error("APP KEY 또는 APP SECRET이 설정되지 않았습니다")
+                    return@launch
+                }
+
+                // KIS 클라이언트 초기화
+                val initResult = pyKrxClient.initializeKisClient(appKey, appSecret)
+                if (!initResult) {
+                    _kisApiTestState.value = ApiKeyTestState.Error("KIS API 클라이언트 초기화 실패")
+                    return@launch
+                }
+
+                // 연결 테스트
+                val testResult = pyKrxClient.testKisApiConnection()
+                if (testResult) {
+                    _kisApiTestState.value = ApiKeyTestState.Success
+                    _message.value = "KIS Open API 연결 성공!"
+                } else {
+                    _kisApiTestState.value = ApiKeyTestState.Error("API 연결 테스트 실패")
+                }
+            } catch (e: Exception) {
+                _kisApiTestState.value = ApiKeyTestState.Error(e.message ?: "알 수 없는 오류")
+            }
+        }
+    }
+
+    /**
+     * KIS API 테스트 상태 초기화
+     */
+    fun clearKisApiTestState() {
+        _kisApiTestState.value = ApiKeyTestState.Idle
+    }
+
+    /**
+     * KIS API 클라이언트 초기화 (앱 시작 시 호출)
+     *
+     * 저장된 자격 증명이 있으면 Python KIS 클라이언트를 자동으로 초기화합니다.
+     */
+    suspend fun initializeKisClientIfConfigured(): Boolean {
+        return if (apiKeyProvider.isKisApiConfigured()) {
+            val appKey = apiKeyProvider.getKisAppKey() ?: return false
+            val appSecret = apiKeyProvider.getKisAppSecret() ?: return false
+            pyKrxClient.initializeKisClient(appKey, appSecret)
+        } else {
+            false
+        }
     }
 
     fun testApiConnection() {

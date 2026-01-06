@@ -1,7 +1,7 @@
 # pykrx → KIS API Migration Plan
 
 **Date:** 2025-01-06
-**Status:** In Progress (Phase 4.5 Complete, Phase 5 Pending)
+**Status:** In Progress (Phase 5 Complete, Phase 6 Pending)
 **Author:** Claude Code
 
 ## ⚠️ Migration Strategy: Complete pykrx Removal
@@ -20,8 +20,8 @@
 | Phase 3 | Migrate etfcollector.py (remove pykrx) | ✅ Complete |
 | Phase 4 | Migrate stocks.py (remove pykrx) | ✅ Complete |
 | Phase 4.5 | Migrate market.py & trend_signal.py (remove pykrx) | ✅ Complete |
-| **Phase 5** | **Kotlin Integration** | **⬜ Pending** |
-| Phase 6 | Testing & Validation | ⬜ Pending |
+| Phase 5 | Kotlin Integration | ✅ Complete |
+| **Phase 6** | **Testing & Validation** | **⬜ Pending** |
 | Phase 7 | Remove pykrx from dependencies | ⬜ Pending |
 
 ---
@@ -78,9 +78,139 @@ All pykrx references in comments are documentation-only (e.g., "replaces pykrx" 
 
 ### Next Steps
 
-- **Phase 5**: Kotlin Integration (ensure Kotlin clients properly initialize KIS API)
 - **Phase 6**: Testing & Validation
 - **Phase 7**: Remove `install("pykrx")` from `build.gradle.kts`
+
+---
+
+## Phase 5 Completion Summary (2025-01-06)
+
+### What Was Implemented
+
+Phase 5 adds **KIS API credential management** to the Android app, enabling users to configure and test KIS API connectivity through the Settings screen.
+
+### Implementation Details
+
+#### 5.1 ApiKeyProvider Interface (Already Implemented)
+
+**File:** `app/src/main/java/com/etfmonitor/core/network/ai/ApiKeyProvider.kt`
+
+KIS API methods were already added:
+- `getKisAppKey()`, `setKisAppKey()`
+- `getKisAppSecret()`, `setKisAppSecret()`
+- `isKisApiConfigured()`
+- `removeKisCredentials()`
+- `getKisAccountNumber()`, `setKisAccountNumber()`
+- `isKisVirtualMode()`, `setKisVirtualMode()`
+
+#### 5.2 SharedPreferencesApiKeyProvider (Already Implemented)
+
+**File:** `app/src/main/java/com/etfmonitor/core/network/ai/SharedPreferencesApiKeyProvider.kt`
+
+Uses encrypted SharedPreferences (AES256-GCM) for secure credential storage.
+
+#### 5.3 SettingsViewModel Enhancements
+
+**File:** `app/src/main/java/com/etfmonitor/feature/settings/presentation/SettingsViewModel.kt`
+
+Added:
+- `_kisApiTestState` StateFlow for connection test status
+- `testKisApiConnection()` method for testing KIS API connectivity
+- `clearKisApiTestState()` method
+- `initializeKisClientIfConfigured()` suspend function
+
+```kotlin
+fun testKisApiConnection() {
+    viewModelScope.launch {
+        _kisApiTestState.value = ApiKeyTestState.Testing
+        // Initialize KIS client and test connection
+        val initResult = pyKrxClient.initializeKisClient(appKey, appSecret)
+        val testResult = pyKrxClient.testKisApiConnection()
+        // Update state based on result
+    }
+}
+```
+
+#### 5.4 PyKrxClient KIS Integration
+
+**File:** `app/src/main/java/com/etfmonitor/core/network/python/PyKrxClient.kt`
+
+Added KIS API initialization methods:
+
+```kotlin
+// Initialize KIS client with credentials
+suspend fun initializeKisClient(appKey: String, appSecret: String): Boolean
+
+// Check if KIS client is initialized
+suspend fun isKisClientInitialized(): Boolean
+
+// Test KIS API connection by fetching Samsung Electronics name
+suspend fun testKisApiConnection(): Boolean
+```
+
+These methods call the Python `kis_client` module:
+- `init_kis_client(app_key, app_secret)`
+- `is_client_initialized()`
+- `get_client().get_stock_name("005930")`
+
+#### 5.5 MainActivity Auto-Initialization
+
+**File:** `app/src/main/java/com/etfmonitor/MainActivity.kt`
+
+Added `initializeKisApiIfConfigured()` method that:
+1. Checks if KIS API credentials are configured
+2. If configured, initializes the Python KIS client on app start
+3. Logs success/failure for debugging
+
+```kotlin
+private fun initializeKisApiIfConfigured() {
+    if (apiKeyProvider.isKisApiConfigured()) {
+        lifecycleScope.launch {
+            val appKey = apiKeyProvider.getKisAppKey()
+            val appSecret = apiKeyProvider.getKisAppSecret()
+            if (!appKey.isNullOrBlank() && !appSecret.isNullOrBlank()) {
+                pyKrxClient.initializeKisClient(appKey, appSecret)
+            }
+        }
+    }
+}
+```
+
+#### 5.6 Settings UI (Already Implemented)
+
+**File:** `app/src/main/java/com/etfmonitor/feature/settings/presentation/SettingsScreen.kt`
+
+KIS API settings section is already implemented with:
+- Status indicator (configured/not configured)
+- APP KEY input field
+- APP SECRET input field (masked)
+- Account number field (optional)
+- Mode selection (Real/Virtual trading)
+- Connection test button
+- Help text with KIS Developers URL
+
+#### 5.7 String Resources (Already Implemented)
+
+**File:** `app/src/main/res/values/strings.xml`
+
+Korean UI strings are complete:
+- `settings_kis_api_title` - 한국투자증권 Open API
+- `settings_kis_api_desc` - Description text
+- `settings_kis_api_set` / `settings_kis_api_not_set` - Status labels
+- `settings_kis_api_dialog_title` - Dialog title
+- Mode selection strings (Real/Virtual)
+- Delete confirmation strings
+
+### Implementation Checklist
+
+- [x] Add KIS API methods to `ApiKeyProvider` interface
+- [x] Implement KIS methods in `SharedPreferencesApiKeyProvider`
+- [x] Add KIS StateFlows to `SettingsViewModel`
+- [x] Create KIS settings UI section in `SettingsScreen`
+- [x] Add KIS initialization methods to `PyKrxClient`
+- [x] Add auto-initialization in `MainActivity`
+- [x] Add connection test functionality
+- [x] Add string resources for Korean UI text
 
 ---
 
