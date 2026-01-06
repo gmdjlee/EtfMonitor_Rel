@@ -1,24 +1,32 @@
 """
 Market index and oscillator module.
-Unified module merging market_oscillator and market_index_fetcher.
+Uses KIS API exclusively - no pykrx dependency.
+
+Requires KIS API credentials to be configured in Settings.
 """
 import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
-from pykrx import stock
 
-from core import get_logger, get_name, to_json, err_json, MARKETS, REQ_DELAY
+from core import get_logger, get_name, to_json, err_json, MARKETS, REQ_DELAY, get_kis_client, is_kis_available
 
 log = get_logger(__name__)
 
 BATCH_SIZE = 50
 
 
+def _ensure_kis_client():
+    """Ensure KIS client is available, raise error if not."""
+    if not is_kis_available():
+        raise RuntimeError("KIS API not configured. Please configure KIS credentials in Settings.")
+    return get_kis_client()
+
+
 def fetch_index(market: str, start: str, end: str) -> List[Dict[str, Any]]:
     """
-    Fetch market index data.
+    Fetch market index data via KIS API.
 
     Returns: [{
         "date": "YYYY-MM-DD",
@@ -36,15 +44,21 @@ def fetch_index(market: str, start: str, end: str) -> List[Dict[str, Any]]:
         return []
 
     try:
-        df = stock.get_index_ohlcv(start, end, cfg["idx"])
+        client = _ensure_kis_client()
+        # KIS API uses index codes: "0001" for KOSPI, "1001" for KOSDAQ
+        # Our MARKETS config uses "1001"/"2001" - map accordingly
+        index_code = "0001" if market == "KOSPI" else "1001"
+        df = client.get_index_ohlcv(index_code, start)
+
         if df is None or df.empty:
+            log.warning(f"No index data for {market}")
             return []
 
         result = []
         prev_close = None
 
         for idx, row in df.iterrows():
-            close = float(row["종가"])
+            close = float(row["close"])
             change = 0.0
             if prev_close and prev_close > 0:
                 change = ((close - prev_close) / prev_close) * 100
@@ -53,10 +67,10 @@ def fetch_index(market: str, start: str, end: str) -> List[Dict[str, Any]]:
                 "date": idx.strftime("%Y-%m-%d"),
                 "market": market,
                 "closePrice": close,
-                "openPrice": float(row["시가"]),
-                "highPrice": float(row["고가"]),
-                "lowPrice": float(row["저가"]),
-                "volume": int(row["거래량"]),
+                "openPrice": float(row["open"]),
+                "highPrice": float(row["high"]),
+                "lowPrice": float(row["low"]),
+                "volume": int(row["volume"]),
                 "changeRate": round(change, 2)
             })
             prev_close = close
@@ -94,12 +108,13 @@ def get_latest_index(market: str) -> Optional[Dict]:
 
 
 class Oscillator:
-    """Market overbought/oversold oscillator calculator."""
+    """Market overbought/oversold oscillator calculator using KIS API."""
 
     def __init__(self, start: str, end: str):
         self.start = start
         self.end = end
         self._validate()
+        self._client = _ensure_kis_client()
 
     def _validate(self):
         s = datetime.strptime(self.start, '%Y%m%d')
@@ -108,48 +123,69 @@ class Oscillator:
             raise ValueError(f"Invalid date range: {self.start} > {self.end}")
 
     def _get_index(self, market: str) -> Optional[pd.DataFrame]:
+        """Get index OHLCV data via KIS API."""
         cfg = MARKETS.get(market)
         if not cfg:
             return None
 
         try:
-            df = stock.get_index_ohlcv(self.start, self.end, cfg["idx"])
-            if df.empty:
+            # Map market to KIS index code
+            index_code = "0001" if market == "KOSPI" else "1001"
+            df = self._client.get_index_ohlcv(index_code, self.start)
+
+            if df is None or df.empty:
                 return None
-            return pd.DataFrame({"날짜": df.index, "종가": df["종가"].values})
+
+            # Return DataFrame with date and close columns
+            result = pd.DataFrame({
+                "날짜": df.index,
+                "종가": df["close"].values
+            })
+            return result
+
         except Exception as e:
             log.error("Index fetch error (%s): %s", market, e)
             return None
 
     def _get_components(self, market: str) -> tuple:
+        """Get component stock data via KIS API."""
         cfg = MARKETS.get(market)
         if not cfg:
             return pd.DataFrame(), pd.DataFrame()
 
         try:
-            tickers = stock.get_index_portfolio_deposit_file(cfg["comp"])
+            # Get top 200 stocks by market cap as index components
+            tickers = self._client.get_index_components(market, limit=200)
+
             if not tickers:
+                log.warning(f"No component stocks for {market}")
                 return pd.DataFrame(), pd.DataFrame()
 
             log.info("%s: collecting %d components", market, len(tickers))
 
-            dates = stock.get_index_ohlcv(self.start, self.end, cfg["idx"]).index
-            close_dict, vol_dict = {}, {}
-            ticker_list = list(tickers)
+            # Get index dates for alignment
+            index_code = "0001" if market == "KOSPI" else "1001"
+            index_df = self._client.get_index_ohlcv(index_code, self.start)
+            if index_df is None or index_df.empty:
+                return pd.DataFrame(), pd.DataFrame()
 
-            for i in range(0, len(ticker_list), BATCH_SIZE):
-                batch = ticker_list[i:i + BATCH_SIZE]
+            dates = index_df.index
+            close_dict, vol_dict = {}, {}
+
+            for i in range(0, len(tickers), BATCH_SIZE):
+                batch = tickers[i:i + BATCH_SIZE]
                 for t in batch:
                     try:
-                        df = stock.get_market_ohlcv(self.start, self.end, t)
-                        if not df.empty:
+                        df = self._client.get_stock_ohlcv(t, self.start, self.end)
+                        if df is not None and not df.empty:
                             aligned = df.reindex(dates)
                             name = get_name(t)
                             col = f"{name}({t})" if name else t
-                            close_dict[col] = aligned["종가"]
-                            vol_dict[col] = aligned["거래량"].fillna(0)
+                            close_dict[col] = aligned["close"]
+                            vol_dict[col] = aligned["volume"].fillna(0)
                         time.sleep(REQ_DELAY)
-                    except Exception:
+                    except Exception as e:
+                        log.debug(f"Error fetching {t}: {e}")
                         continue
 
             close_df = pd.DataFrame(close_dict, index=dates)
@@ -167,6 +203,7 @@ class Oscillator:
             return pd.DataFrame(), pd.DataFrame()
 
     def _calc(self, close_df: pd.DataFrame, vol_df: pd.DataFrame) -> np.ndarray:
+        """Calculate oscillator values."""
         cols = [c for c in close_df.columns if c != "날짜"]
         if not cols:
             return np.array([])
@@ -239,6 +276,10 @@ def get_market_oscillator(market: str, start: str, end: str) -> str:
         osc = Oscillator(start, end)
         result = osc.analyze(market)
         return to_json(result) if result else err_json("Analysis failed")
+    except RuntimeError as e:
+        # KIS API not configured
+        log.error("KIS API error: %s", e)
+        return err_json(str(e))
     except Exception as e:
         log.error("get_market_oscillator error: %s", e)
         return err_json(str(e))

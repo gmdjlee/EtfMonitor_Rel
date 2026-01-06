@@ -1,22 +1,19 @@
 """
 ETF data collection module.
 
-Uses KIS Open API (preferred) with pykrx fallback.
-
-Phase 3 of KIS API Migration:
-- get_etf_list_with_names(): KIS API with pykrx fallback
-- get_etf_holdings(): KIS API with pykrx fallback
+Uses KIS API exclusively - no pykrx dependency.
+Requires KIS API credentials to be configured in Settings.
 """
 import json
 from datetime import datetime
 from typing import Any, Dict, List
-from pykrx import stock
 
 from core import (
     get_logger,
     get_etf_tickers,
     get_etf_name as core_get_etf_name,
     to_json,
+    err_json,
     is_kis_available,
     get_kis_client
 )
@@ -24,16 +21,21 @@ from core import (
 log = get_logger(__name__)
 
 
+def _ensure_kis_client():
+    """Ensure KIS client is available, raise error if not."""
+    if not is_kis_available():
+        raise RuntimeError("KIS API not configured. Please configure KIS credentials in Settings.")
+    return get_kis_client()
+
+
 def get_etf_list_with_names(date: str, include_json: str = "[]", exclude_json: str = "[]") -> str:
     """
-    Get filtered ETF list.
+    Get filtered ETF list via KIS API.
 
     Filtering rules:
     1. Must contain '액티브' (required)
     2. Must contain at least one theme keyword from include_json
     3. Must not contain any keyword from exclude_json
-
-    Uses KIS API if available, falls back to pykrx.
 
     Returns: JSON [{"ticker": "...", "name": "..."}, ...]
     """
@@ -50,86 +52,73 @@ def get_etf_list_with_names(date: str, include_json: str = "[]", exclude_json: s
     # Theme keywords (excluding '액티브')
     themes = [k for k in include if k != '액티브']
 
-    # Get ETF list - try KIS API first, fallback to pykrx
-    etf_list = _get_etf_list_internal(date)
-    if not etf_list:
+    try:
+        # Get ETF list via KIS API
+        etf_list = _get_etf_list_internal(date)
+        if not etf_list:
+            return to_json([])
+
+        result: List[Dict[str, str]] = []
+
+        for etf in etf_list:
+            try:
+                ticker = etf["ticker"]
+                name = etf["name"]
+
+                if not name:
+                    continue
+
+                # Step 1: Must have '액티브'
+                if '액티브' not in name:
+                    continue
+
+                # Step 2: Exclude keywords check
+                if any(kw in name for kw in exclude):
+                    continue
+
+                # Step 3: Must have theme keyword (or none required)
+                if themes and not any(kw in name for kw in themes):
+                    continue
+
+                result.append({"ticker": ticker, "name": name})
+
+            except Exception:
+                continue
+
+        log.info("ETF filter result: %d/%d passed", len(result), len(etf_list))
+        return to_json(result)
+
+    except RuntimeError as e:
+        log.error("KIS API error: %s", e)
+        return err_json(str(e))
+    except Exception as e:
+        log.error("get_etf_list_with_names error: %s", e)
         return to_json([])
-
-    result: List[Dict[str, str]] = []
-
-    for etf in etf_list:
-        try:
-            ticker = etf["ticker"]
-            name = etf["name"]
-
-            if not name:
-                continue
-
-            # Step 1: Must have '액티브'
-            if '액티브' not in name:
-                continue
-
-            # Step 2: Exclude keywords check
-            if any(kw in name for kw in exclude):
-                continue
-
-            # Step 3: Must have theme keyword (or none required)
-            if themes and not any(kw in name for kw in themes):
-                continue
-
-            result.append({"ticker": ticker, "name": name})
-
-        except Exception:
-            continue
-
-    log.info("ETF filter result: %d/%d passed", len(result), len(etf_list))
-    return to_json(result)
 
 
 def _get_etf_list_internal(date: str) -> List[Dict[str, str]]:
     """
-    Internal function to get ETF list with names.
-
-    Uses KIS API if available, falls back to pykrx.
+    Internal function to get ETF list with names via KIS API.
 
     Returns: List of {"ticker": ..., "name": ...}
     """
-    # Try KIS API first
-    if is_kis_available():
-        try:
-            client = get_kis_client()
-            df = client.get_etf_list()
-            if not df.empty:
-                log.info("Using KIS API for ETF list")
-                return [{"ticker": row["ticker"], "name": row["name"]}
-                        for _, row in df.iterrows() if row["ticker"]]
-        except Exception as e:
-            log.warning(f"KIS API failed, falling back to pykrx: {e}")
+    client = _ensure_kis_client()
+    df = client.get_etf_list()
 
-    # Fallback to pykrx
-    log.info("Using pykrx for ETF list")
-    try:
-        tickers = stock.get_etf_ticker_list(date)
-        if not tickers:
-            return []
-
-        result = []
-        for t in tickers:
-            try:
-                name = stock.get_etf_ticker_name(t)
-                if name:
-                    result.append({"ticker": str(t), "name": str(name)})
-            except Exception:
-                continue
-        return result
-    except Exception as e:
-        log.error(f"pykrx ETF list failed: {e}")
+    if df.empty:
+        log.warning("No ETF list from KIS API")
         return []
+
+    log.info("Using KIS API for ETF list: %d ETFs", len(df))
+    return [
+        {"ticker": row["ticker"], "name": row["name"]}
+        for _, row in df.iterrows() if row["ticker"]
+    ]
 
 
 def get_etf_list(date: str) -> str:
     """
-    Get all ETF tickers for a date.
+    Get all ETF tickers for a date via KIS API.
 
     Returns: JSON [ticker, ...]
     """
@@ -138,21 +127,22 @@ def get_etf_list(date: str) -> str:
         tickers = get_etf_tickers(date)
         log.info("ETF list: %d tickers", len(tickers))
         return to_json(tickers)
+    except RuntimeError as e:
+        log.error("KIS API error: %s", e)
+        return err_json(str(e))
     except Exception as e:
         log.error("get_etf_list error: %s", e)
         return to_json([])
 
 
 def get_etf_name(ticker: str) -> str:
-    """Get ETF name by ticker."""
+    """Get ETF name by ticker via KIS API."""
     return core_get_etf_name(ticker) if ticker else ""
 
 
 def get_etf_holdings(ticker: str, date: str) -> str:
     """
-    Get ETF portfolio holdings.
-
-    Uses KIS API if available, falls back to pykrx.
+    Get ETF portfolio holdings via KIS API.
 
     Returns: JSON [{"ticker": "...", "weight": ..., "amount": ...}, ...]
     """
@@ -162,46 +152,29 @@ def get_etf_holdings(ticker: str, date: str) -> str:
         log.error("Invalid date format: %s", e)
         return to_json([])
 
-    # Try KIS API first
-    if is_kis_available():
-        try:
-            client = get_kis_client()
-            df = client.get_etf_holdings(ticker)
-
-            if not df.empty:
-                log.info("Using KIS API for ETF holdings: %s", ticker)
-                holdings: List[Dict[str, Any]] = []
-                for _, row in df.iterrows():
-                    holdings.append({
-                        "ticker": str(row.get("ticker", "")),
-                        "weight": float(row.get("weight", 0)),
-                        "amount": float(row.get("amount", 0))
-                    })
-                log.info("ETF holdings %s: %d items (KIS API)", ticker, len(holdings))
-                return to_json(holdings)
-        except Exception as e:
-            log.warning(f"KIS API failed for holdings, falling back to pykrx: {e}")
-
-    # Fallback to pykrx
-    log.info("Using pykrx for ETF holdings: %s", ticker)
     try:
-        df = stock.get_etf_portfolio_deposit_file(ticker, date)
+        client = _ensure_kis_client()
+        df = client.get_etf_holdings(ticker)
 
-        if df is None or df.empty or '비중' not in df.columns:
+        if df.empty:
+            log.warning("No holdings data for %s", ticker)
             return to_json([])
 
+        log.info("Using KIS API for ETF holdings: %s", ticker)
         holdings: List[Dict[str, Any]] = []
-        for stk, row in df.iterrows():
-            amt = float(row.get('금액', 0)) if '금액' in df.columns else 0.0
+        for _, row in df.iterrows():
             holdings.append({
-                "ticker": str(stk),
-                "weight": float(row['비중']),
-                "amount": amt
+                "ticker": str(row.get("ticker", "")),
+                "weight": float(row.get("weight", 0)),
+                "amount": float(row.get("amount", 0))
             })
 
-        log.info("ETF holdings %s: %d items (pykrx)", ticker, len(holdings))
+        log.info("ETF holdings %s: %d items (KIS API)", ticker, len(holdings))
         return to_json(holdings)
 
+    except RuntimeError as e:
+        log.error("KIS API error: %s", e)
+        return err_json(str(e))
     except Exception as e:
         log.error("get_etf_holdings error (%s): %s", ticker, e)
         return to_json([])

@@ -2,7 +2,8 @@
 Core utilities for EtfMonitor Python modules.
 HTTP client, date utilities, and common functions.
 
-Supports both KIS API (preferred) and pykrx (fallback).
+Uses KIS API exclusively - no pykrx dependency.
+Requires KIS API credentials to be configured in Settings.
 """
 import json
 import time
@@ -11,26 +12,30 @@ import sys
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 import requests
-from pykrx import stock
 
-# KIS API support (optional, falls back to pykrx if not initialized)
+# KIS API client reference
 _kis_client = None
+
 
 def set_kis_client(client):
     """Set the global KIS client instance for use in core functions."""
     global _kis_client
     _kis_client = client
 
+
 def get_kis_client():
     """Get the global KIS client if available."""
     return _kis_client
+
 
 def is_kis_available() -> bool:
     """Check if KIS client is available and initialized."""
     return _kis_client is not None
 
+
 # Logger setup
 _loggers: Dict[str, logging.Logger] = {}
+
 
 def get_logger(name: str) -> logging.Logger:
     """Get or create logger for module."""
@@ -43,6 +48,7 @@ def get_logger(name: str) -> logging.Logger:
             logger.addHandler(h)
         _loggers[name] = logger
     return _loggers[name]
+
 
 # Constants
 TIMEOUT = 15
@@ -154,25 +160,41 @@ def days_ago(n: int) -> str:
 
 
 def market_date() -> str:
-    """Get latest market date (most recent business day)."""
+    """Get latest market date (most recent business day).
+
+    Uses KIS API to check for valid trading days.
+    """
+    if not is_kis_available():
+        # If KIS not available, return yesterday as fallback
+        return days_ago(1)
+
+    client = get_kis_client()
+
     # Try up to 7 days back to find a valid market date
     for i in range(7):
         d = days_ago(i)
         try:
-            tickers = stock.get_market_ticker_list(d, market="KOSPI")
-            if tickers is not None and len(list(tickers)) > 0:
+            # Try to get stock data for reference ticker
+            df = client.get_stock_ohlcv(REF_TICKER, d, d)
+            if df is not None and not df.empty:
                 return d
         except Exception:
             continue
+
     # Fallback to yesterday if nothing found
     return days_ago(1)
 
 
 def is_business_day(date_str: str) -> bool:
-    """Check if date is a business day."""
+    """Check if date is a business day using KIS API."""
+    if not is_kis_available():
+        # Cannot determine without KIS API
+        return True
+
     try:
-        df = stock.get_market_ohlcv(date_str, date_str, REF_TICKER)
-        return not df.empty
+        client = get_kis_client()
+        df = client.get_stock_ohlcv(REF_TICKER, date_str, date_str)
+        return df is not None and not df.empty
     except Exception:
         return False
 
@@ -203,49 +225,49 @@ _stock_name_cache: Dict[str, str] = {}
 # Stock utilities
 def get_tickers(market: Optional[str] = None, date: Optional[str] = None) -> List[str]:
     """
-    Get stock tickers for market(s).
+    Get stock tickers for market(s) via KIS API.
 
-    Uses KIS API if available, falls back to pykrx.
+    Args:
+        market: "KOSPI", "KOSDAQ", or None for all
+        date: Ignored (for backward compatibility)
+
+    Returns:
+        List of ticker strings
     """
     global _stock_name_cache
 
-    # Try KIS API first
-    if is_kis_available():
-        try:
-            client = get_kis_client()
-            if market and market.upper() in ["KOSPI", "KOSDAQ"]:
-                df = client.download_stock_master(market.lower())
-                # Cache names for later use
-                for _, row in df.iterrows():
-                    _stock_name_cache[row["ticker"]] = row["name"]
-                return df["ticker"].tolist()
-            else:
-                # All markets
-                df = client.get_all_stocks()
-                for _, row in df.iterrows():
-                    _stock_name_cache[row["ticker"]] = row["name"]
-                return df["ticker"].tolist()
-        except Exception as e:
-            get_logger("core").warning(f"KIS API failed for tickers, falling back to pykrx: {e}")
+    if not is_kis_available():
+        get_logger("core").error("KIS API not configured")
+        return []
 
-    # Fallback to pykrx
-    d = date or market_date()
     try:
-        if market and market in MARKETS:
-            return list(stock.get_market_ticker_list(d, market=market))
-        # All markets
-        kospi = list(stock.get_market_ticker_list(d, market="KOSPI"))
-        kosdaq = list(stock.get_market_ticker_list(d, market="KOSDAQ"))
-        return kospi + kosdaq
-    except Exception:
+        client = get_kis_client()
+        if market and market.upper() in ["KOSPI", "KOSDAQ"]:
+            df = client.download_stock_master(market.lower())
+            # Cache names for later use
+            for _, row in df.iterrows():
+                _stock_name_cache[row["ticker"]] = row["name"]
+            return df["ticker"].tolist()
+        else:
+            # All markets
+            df = client.get_all_stocks()
+            for _, row in df.iterrows():
+                _stock_name_cache[row["ticker"]] = row["name"]
+            return df["ticker"].tolist()
+    except Exception as e:
+        get_logger("core").error(f"Failed to get tickers: {e}")
         return []
 
 
 def get_name(ticker: str) -> str:
     """
-    Get stock name by ticker.
+    Get stock name by ticker via KIS API.
 
-    Uses KIS API if available (with cache), falls back to pykrx.
+    Args:
+        ticker: Stock ticker (e.g., "005930")
+
+    Returns:
+        Stock name or empty string if not found
     """
     if not ticker:
         return ""
@@ -256,77 +278,69 @@ def get_name(ticker: str) -> str:
     if ticker in _stock_name_cache:
         return _stock_name_cache[ticker]
 
-    # Try KIS API
-    if is_kis_available():
-        try:
-            client = get_kis_client()
-            name = client.get_stock_name(ticker)
-            if name:
-                _stock_name_cache[ticker] = name
-                return name
-        except Exception as e:
-            get_logger("core").warning(f"KIS API failed for stock name, falling back to pykrx: {e}")
-
-    # Fallback to pykrx
-    try:
-        name = stock.get_market_ticker_name(ticker)
-        result = str(name).strip() if name else ""
-        if result:
-            _stock_name_cache[ticker] = result
-        return result
-    except Exception:
+    if not is_kis_available():
         return ""
+
+    # Try KIS API
+    try:
+        client = get_kis_client()
+        name = client.get_stock_name(ticker)
+        if name:
+            _stock_name_cache[ticker] = name
+            return name
+    except Exception as e:
+        get_logger("core").warning(f"Failed to get stock name for {ticker}: {e}")
+
+    return ""
 
 
 def get_etf_tickers(date: Optional[str] = None) -> List[str]:
     """
-    Get ETF tickers.
+    Get ETF tickers via KIS API.
 
-    Uses KIS API if available, falls back to pykrx.
+    Args:
+        date: Ignored (for backward compatibility)
+
+    Returns:
+        List of ETF ticker strings
     """
-    # Try KIS API first
-    if is_kis_available():
-        try:
-            client = get_kis_client()
-            df = client.get_etf_list()
-            return df["ticker"].tolist() if not df.empty else []
-        except Exception as e:
-            get_logger("core").warning(f"KIS API failed for ETF list, falling back to pykrx: {e}")
+    if not is_kis_available():
+        get_logger("core").error("KIS API not configured")
+        return []
 
-    # Fallback to pykrx
-    d = date or market_date()
     try:
-        tickers = stock.get_etf_ticker_list(d)
-        return [str(t) for t in tickers] if tickers else []
-    except Exception:
+        client = get_kis_client()
+        df = client.get_etf_list()
+        return df["ticker"].tolist() if not df.empty else []
+    except Exception as e:
+        get_logger("core").error(f"Failed to get ETF list: {e}")
         return []
 
 
 def get_etf_name(ticker: str) -> str:
     """
-    Get ETF name by ticker.
+    Get ETF name by ticker via KIS API.
 
-    Uses KIS API if available, falls back to pykrx.
+    Args:
+        ticker: ETF ticker
+
+    Returns:
+        ETF name or empty string if not found
     """
-    # Try KIS API first
-    if is_kis_available():
-        try:
-            client = get_kis_client()
-            # Try to get from ETF list first (cached)
-            df = client.get_etf_list()
-            match = df[df["ticker"] == ticker]
-            if not match.empty:
-                return match.iloc[0]["name"]
-            # Try stock info as fallback
-            return client.get_stock_name(ticker)
-        except Exception as e:
-            get_logger("core").warning(f"KIS API failed for ETF name, falling back to pykrx: {e}")
+    if not is_kis_available():
+        return ""
 
-    # Fallback to pykrx
     try:
-        name = stock.get_etf_ticker_name(ticker)
-        return str(name).strip() if name else ""
-    except Exception:
+        client = get_kis_client()
+        # Try to get from ETF list first (may be cached)
+        df = client.get_etf_list()
+        match = df[df["ticker"] == ticker]
+        if not match.empty:
+            return match.iloc[0]["name"]
+        # Try stock info as fallback
+        return client.get_stock_name(ticker)
+    except Exception as e:
+        get_logger("core").warning(f"Failed to get ETF name for {ticker}: {e}")
         return ""
 
 
