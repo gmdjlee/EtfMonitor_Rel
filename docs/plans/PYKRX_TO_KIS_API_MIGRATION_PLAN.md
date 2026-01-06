@@ -1,7 +1,7 @@
 # pykrx → KIS API Migration Plan
 
-**Date:** 2025-01-05
-**Status:** In Progress (Phase 4 Complete)
+**Date:** 2025-01-06
+**Status:** In Progress (Phase 4 Complete, Phase 4.5 Pending)
 **Author:** Claude Code
 
 ## Migration Progress
@@ -12,9 +12,85 @@
 | Phase 2 | Create KIS API Client | ✅ Complete |
 | Phase 3 | Migrate etfcollector.py | ✅ Complete |
 | Phase 4 | Migrate stocks.py | ✅ Complete |
+| **Phase 4.5** | **Migrate market.py & trend_signal.py** | **⬜ Pending** |
 | Phase 5 | Kotlin Integration | ⬜ Pending |
 | Phase 6 | Testing & Validation | ⬜ Pending |
 | Phase 7 | Cleanup & Finalization | ⬜ Pending |
+
+---
+
+## Phase 4 Completion Summary (2025-01-06)
+
+### What Was Implemented
+
+#### kis_client.py - Complete KIS API Client
+
+| Function | Purpose | Replaces pykrx |
+|----------|---------|----------------|
+| `get_etf_holdings(ticker)` | ETF component stocks with weights/amounts | `get_etf_portfolio_deposit_file()` |
+| `get_investor_trading(ticker, start_date)` | Daily foreign/institutional net buy | `get_market_trading_value_by_date()` |
+| `get_stock_ohlcv(ticker, start, end)` | Daily OHLCV price data | `get_market_ohlcv()` |
+| `get_stock_ohlcv_with_market_cap(ticker, start, end)` | OHLCV + calculated market cap | `get_market_cap()` |
+| `get_index_ohlcv(index_code, start_date)` | Index daily OHLCV data | `get_index_ohlcv()` |
+| `get_stock_info(ticker)` | Current price, name, market cap | `inquire-price` API |
+| `get_stock_name(ticker)` | Stock name lookup | `get_market_ticker_name()` |
+| `get_market_cap_ranking(market, limit)` | Market cap ranking list | Custom ranking |
+| `get_etf_list()` | All ETF tickers and names | `get_etf_ticker_list()` |
+| `download_stock_master(market)` | KOSPI/KOSDAQ stock list with listed_shares | Master file download |
+| `get_market_ticker_list(market)` | Stock ticker list for market | `get_market_ticker_list()` |
+| `get_listed_shares(ticker)` | Listed shares for market cap calc | From master file |
+
+#### Market Cap Calculation via KIS API
+
+The app previously used `pykrx.get_market_cap()` to get historical market capitalization. KIS API provides:
+
+1. **Real-time market cap** via `inquire-price` API (`hts_avls` field in 억원 units)
+2. **Historical market cap** calculated via: `close_price × listed_shares × 1000`
+
+The `get_stock_ohlcv_with_market_cap()` function implements option 2:
+```python
+def get_stock_ohlcv_with_market_cap(self, ticker, start_date, end_date):
+    df = self.get_stock_ohlcv(ticker, start_date, end_date)
+    listed_shares = self.get_listed_shares(ticker)  # From master file (units of 1000)
+    df["market_cap"] = df["close"] * listed_shares * 1000
+    return df
+```
+
+#### stocks.py Migration
+
+- Uses KIS API as primary source with pykrx fallback
+- `get_stock_data()` now gets investor trading AND market cap from KIS API
+- 5-day rolling sum calculation preserved for foreign/institutional data
+
+#### etfcollector.py Migration
+
+- Uses KIS API as primary source with pykrx fallback
+- `get_etf_list_with_names()` and `get_etf_holdings()` both support KIS API
+
+### What's Still Missing
+
+#### ⚠️ Index Component Stock List
+
+The following pykrx function is NOT YET available in kis_client.py:
+
+```python
+# pykrx - Gets all component stocks of an index
+tickers = stock.get_index_portfolio_deposit_file(index_code)
+# Returns: List of ~200 tickers for KOSPI/KOSDAQ components
+```
+
+This is **CRITICAL** for `market.py` which calculates market oscillator by:
+1. Getting all component stocks of KOSPI (1028) or KOSDAQ (2203)
+2. Collecting OHLCV for each stock
+3. Calculating overbought/oversold indicators
+
+**KIS API Solution Options:**
+
+1. **Use ETF component stocks as proxy** - KODEX 200 (069500) components approximate KOSPI 200
+2. **Use top N stocks by market cap** - `get_market_cap_ranking()` can provide top stocks
+3. **Maintain static component list** - Download and cache index components periodically
+
+> **Recommended:** Use `get_market_cap_ranking(limit=200)` as a reasonable approximation for market oscillator calculation
 
 ---
 
@@ -1515,11 +1591,288 @@ def get_stock_data(ticker: str, days: int = 30) -> str:
 
 ---
 
+### Phase 4.5: Migrate market.py & trend_signal.py
+
+**Objective:** Replace remaining pykrx usage in market oscillator and trend signal modules
+
+**Status:** ⬜ Pending
+
+#### 4.5.1 Files Requiring Migration
+
+| File | pykrx Functions Used | KIS API Replacement |
+|------|---------------------|---------------------|
+| `market.py` | `get_index_ohlcv()` | `kis_client.get_index_ohlcv()` ✅ |
+| `market.py` | `get_index_portfolio_deposit_file()` | See solution below ⚠️ |
+| `market.py` | `get_market_ohlcv()` | `kis_client.get_stock_ohlcv()` ✅ |
+| `trend_signal.py` | `get_market_ohlcv()` | `kis_client.get_stock_ohlcv()` ✅ |
+
+#### 4.5.2 Index Components Solution
+
+The market oscillator needs ~200 component stocks for KOSPI/KOSDAQ indices. Since KIS API doesn't provide direct index component list, implement one of these approaches:
+
+**Option A: Use Market Cap Ranking (Recommended)**
+
+```python
+# In kis_client.py - Add new function
+def get_index_components(self, market: str = "KOSPI", limit: int = 200) -> List[str]:
+    """
+    Get top N stocks by market cap as index component approximation.
+
+    Args:
+        market: "KOSPI" or "KOSDAQ"
+        limit: Number of stocks to return (default 200)
+
+    Returns:
+        List of ticker strings
+    """
+    market_code = "0001" if market.upper() == "KOSPI" else "1001"
+    df = self.get_market_cap_ranking(market=market_code, limit=limit)
+    return df["ticker"].tolist()
+```
+
+**Option B: Use ETF Holdings as Proxy**
+
+```python
+def get_index_components_via_etf(self, market: str = "KOSPI") -> List[str]:
+    """Use ETF holdings as index component proxy."""
+    etf_ticker = "069500" if market.upper() == "KOSPI" else "229200"  # KODEX 200 / KODEX KOSDAQ150
+    df = self.get_etf_holdings(etf_ticker)
+    return df["ticker"].tolist()
+```
+
+**Option C: Static Component List with Cache**
+
+Maintain a static list of index components that is refreshed periodically (monthly).
+
+#### 4.5.3 Modify market.py
+
+```python
+# market.py - Updated with KIS API support
+
+from core import is_kis_available, get_kis_client
+
+def _get_index(self, market: str) -> Optional[pd.DataFrame]:
+    """Get index OHLCV data - KIS API with pykrx fallback."""
+    cfg = MARKETS.get(market)
+    if not cfg:
+        return None
+
+    # Try KIS API first
+    if is_kis_available():
+        try:
+            client = get_kis_client()
+            df = client.get_index_ohlcv(cfg["idx"], self.start)
+            if not df.empty:
+                return pd.DataFrame({"날짜": df.index, "종가": df["close"].values})
+        except Exception as e:
+            log.warning(f"KIS API index failed: {e}")
+
+    # Fallback to pykrx
+    try:
+        df = stock.get_index_ohlcv(self.start, self.end, cfg["idx"])
+        if df.empty:
+            return None
+        return pd.DataFrame({"날짜": df.index, "종가": df["종가"].values})
+    except Exception as e:
+        log.error("Index fetch error (%s): %s", market, e)
+        return None
+
+def _get_components(self, market: str) -> tuple:
+    """Get component stocks - KIS API with pykrx fallback."""
+    cfg = MARKETS.get(market)
+    if not cfg:
+        return pd.DataFrame(), pd.DataFrame()
+
+    # Try KIS API first (using market cap ranking as proxy)
+    tickers = None
+    if is_kis_available():
+        try:
+            client = get_kis_client()
+            tickers = client.get_index_components(market, limit=200)
+            log.info(f"{market}: Got {len(tickers)} components via KIS API")
+        except Exception as e:
+            log.warning(f"KIS API components failed: {e}")
+
+    # Fallback to pykrx
+    if not tickers:
+        try:
+            tickers = stock.get_index_portfolio_deposit_file(cfg["comp"])
+            log.info(f"{market}: Got {len(tickers)} components via pykrx")
+        except Exception as e:
+            log.error(f"pykrx components failed: {e}")
+            return pd.DataFrame(), pd.DataFrame()
+
+    # ... rest of the function (OHLCV collection for each ticker)
+```
+
+#### 4.5.4 Modify trend_signal.py
+
+```python
+# trend_signal.py - Updated with KIS API support
+
+from core import is_kis_available, get_kis_client
+
+def _get_ohlcv(ticker: str, days: int, interval: str = "d") -> Optional[pd.DataFrame]:
+    """Get OHLCV data - KIS API with pykrx fallback."""
+    extra = days * 3 if interval == "m" else (days * 2 if interval == "w" else days)
+    end = datetime.now()
+    start = end - timedelta(days=extra)
+    s, e = start.strftime("%Y%m%d"), end.strftime("%Y%m%d")
+
+    df = None
+
+    # Try KIS API first
+    if is_kis_available():
+        try:
+            client = get_kis_client()
+            df = client.get_stock_ohlcv(ticker, s, e)
+            if not df.empty:
+                df = df.rename(columns={
+                    "open": "O", "high": "H", "low": "L", "close": "C", "volume": "V"
+                })
+                log.debug(f"Got OHLCV via KIS API for {ticker}")
+        except Exception as ex:
+            log.warning(f"KIS API OHLCV failed for {ticker}: {ex}")
+
+    # Fallback to pykrx
+    if df is None or df.empty:
+        try:
+            df = stock.get_market_ohlcv(s, e, ticker)
+            if not df.empty:
+                df = df.rename(columns={"시가": "O", "고가": "H", "저가": "L", "종가": "C", "거래량": "V"})
+        except Exception as ex:
+            log.error(f"OHLCV error ({ticker}): {ex}")
+            return None
+
+    if df is None or df.empty:
+        return None
+
+    df = df[["O", "H", "L", "C", "V"]]
+
+    # Resample if needed
+    if interval == "w":
+        df = df.resample("W").agg({"O": "first", "H": "max", "L": "min", "C": "last", "V": "sum"}).dropna()
+    elif interval == "m":
+        df = _resample_monthly(df)
+
+    return df if not df.empty else None
+```
+
+#### 4.5.5 Modify core.py
+
+Remove direct pykrx import where possible, use KIS API for stock name lookup:
+
+```python
+# core.py - Updated
+
+def get_name(ticker: str) -> str:
+    """Get stock name - KIS API with pykrx fallback."""
+    if not ticker:
+        return ""
+
+    # Check cache first
+    if ticker in _name_cache:
+        return _name_cache[ticker]
+
+    # Try KIS API first
+    if is_kis_available():
+        try:
+            name = _kis_client.get_stock_name(ticker)
+            if name:
+                _name_cache[ticker] = name
+                return name
+        except Exception:
+            pass
+
+    # Fallback to pykrx
+    try:
+        from pykrx import stock
+        name = stock.get_market_ticker_name(ticker)
+        if name:
+            _name_cache[ticker] = name
+            return name
+    except Exception:
+        pass
+
+    return ""
+```
+
+#### 4.5.6 Implementation Checklist
+
+- [ ] Add `get_index_components()` function to `kis_client.py`
+- [ ] Update `market.py` to use KIS API with pykrx fallback
+- [ ] Update `trend_signal.py` to use KIS API with pykrx fallback
+- [ ] Update `core.py` to use KIS API for `get_name()` and `get_tickers()`
+- [ ] Test market oscillator calculation with KIS API
+- [ ] Test trend signal analysis with KIS API
+- [ ] Verify fallback works when KIS API is not initialized
+
+---
+
 ### Phase 5: Kotlin Integration
 
 **Objective:** Add KIS API credential management to Android app
 
-#### 5.1 Add Settings UI
+**Status:** ⬜ Pending
+
+#### 5.1 Update ApiKeyProvider Interface
+
+**File:** `app/src/main/java/com/etfmonitor/core/network/ai/ApiKeyProvider.kt`
+
+```kotlin
+interface ApiKeyProvider {
+    // Existing AI API methods
+    fun getClaudeApiKey(): String?
+    fun setClaudeApiKey(apiKey: String)
+    fun getGeminiApiKey(): String?
+    fun setGeminiApiKey(apiKey: String)
+    fun getSelectedProvider(): AIProvider
+
+    // NEW: KIS API methods
+    fun getKisAppKey(): String?
+    fun setKisAppKey(appKey: String)
+    fun getKisAppSecret(): String?
+    fun setKisAppSecret(appSecret: String)
+    fun isKisApiConfigured(): Boolean
+    fun clearKisCredentials()
+}
+```
+
+#### 5.2 Implement in SharedPreferencesApiKeyProvider
+
+**File:** `app/src/main/java/com/etfmonitor/core/network/ai/SharedPreferencesApiKeyProvider.kt`
+
+```kotlin
+// Add to existing implementation (uses encrypted SharedPreferences)
+private const val KEY_KIS_APP_KEY = "kis_app_key"
+private const val KEY_KIS_APP_SECRET = "kis_app_secret"
+
+override fun getKisAppKey(): String? =
+    encryptedPrefs.getString(KEY_KIS_APP_KEY, null)?.takeIf { it.isNotEmpty() }
+
+override fun setKisAppKey(appKey: String) {
+    encryptedPrefs.edit().putString(KEY_KIS_APP_KEY, appKey).apply()
+}
+
+override fun getKisAppSecret(): String? =
+    encryptedPrefs.getString(KEY_KIS_APP_SECRET, null)?.takeIf { it.isNotEmpty() }
+
+override fun setKisAppSecret(appSecret: String) {
+    encryptedPrefs.edit().putString(KEY_KIS_APP_SECRET, appSecret).apply()
+}
+
+override fun isKisApiConfigured(): Boolean =
+    !getKisAppKey().isNullOrEmpty() && !getKisAppSecret().isNullOrEmpty()
+
+override fun clearKisCredentials() {
+    encryptedPrefs.edit()
+        .remove(KEY_KIS_APP_KEY)
+        .remove(KEY_KIS_APP_SECRET)
+        .apply()
+}
+```
+
+#### 5.3 Add Settings UI
 
 **File:** `app/src/main/java/com/etfmonitor/feature/settings/presentation/SettingsViewModel.kt`
 
@@ -1531,38 +1884,196 @@ val kisAppKey: StateFlow<String> = _kisAppKey.asStateFlow()
 private val _kisAppSecret = MutableStateFlow("")
 val kisAppSecret: StateFlow<String> = _kisAppSecret.asStateFlow()
 
+private val _kisApiConfigured = MutableStateFlow(false)
+val kisApiConfigured: StateFlow<Boolean> = _kisApiConfigured.asStateFlow()
+
+init {
+    // Load KIS API status
+    _kisApiConfigured.value = apiKeyProvider.isKisApiConfigured()
+}
+
 fun updateKisCredentials(appKey: String, appSecret: String) {
     viewModelScope.launch {
         apiKeyProvider.setKisAppKey(appKey)
         apiKeyProvider.setKisAppSecret(appSecret)
         _kisAppKey.value = appKey
         _kisAppSecret.value = appSecret
+        _kisApiConfigured.value = appKey.isNotEmpty() && appSecret.isNotEmpty()
+
+        // Initialize Python KIS client
+        if (appKey.isNotEmpty() && appSecret.isNotEmpty()) {
+            pyKrxClient.initializeKisClient(appKey, appSecret)
+        }
+    }
+}
+
+fun testKisConnection(): Flow<Boolean> = flow {
+    // Test KIS API connection
+    emit(pyKrxClient.testKisApiConnection())
+}
+```
+
+**File:** `app/src/main/java/com/etfmonitor/feature/settings/presentation/SettingsScreen.kt`
+
+```kotlin
+// Add to SettingsScreen composable
+KISApiSettingsSection(
+    appKey = kisAppKey,
+    appSecret = kisAppSecret,
+    isConfigured = kisApiConfigured,
+    onCredentialsChange = { key, secret -> viewModel.updateKisCredentials(key, secret) },
+    onTestConnection = { viewModel.testKisConnection() }
+)
+
+@Composable
+fun KISApiSettingsSection(
+    appKey: String,
+    appSecret: String,
+    isConfigured: Boolean,
+    onCredentialsChange: (String, String) -> Unit,
+    onTestConnection: () -> Unit
+) {
+    SettingsSection(title = "한국투자증권 Open API") {
+        // Status indicator
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (isConfigured) Icons.Default.CheckCircle else Icons.Default.Warning,
+                contentDescription = null,
+                tint = if (isConfigured) MaterialTheme.colorScheme.primary
+                       else MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (isConfigured) "설정됨" else "미설정",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // APP KEY input
+        OutlinedTextField(
+            value = appKey,
+            onValueChange = { onCredentialsChange(it, appSecret) },
+            label = { Text("APP KEY") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // APP SECRET input (masked)
+        OutlinedTextField(
+            value = appSecret,
+            onValueChange = { onCredentialsChange(appKey, it) },
+            label = { Text("APP SECRET") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Help text
+        Text(
+            text = "KIS Developers(apiportal.koreainvestment.com)에서 발급받은 키를 입력하세요",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        // Test connection button
+        if (isConfigured) {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(onClick = onTestConnection) {
+                Text("연결 테스트")
+            }
+        }
     }
 }
 ```
 
-#### 5.2 Initialize KIS Client in Python Bridge
+#### 5.4 Initialize KIS Client in Python Bridge
 
 **File:** `app/src/main/java/com/etfmonitor/core/network/python/PyKrxClient.kt`
 
 ```kotlin
-// Add KIS initialization
-suspend fun initializeKisClient(appKey: String, appSecret: String) = withContext(Dispatchers.IO) {
+// Add KIS initialization methods
+suspend fun initializeKisClient(appKey: String, appSecret: String): Boolean =
+    withContext(Dispatchers.IO) {
+        try {
+            val kisModule = python.getModule("kis_client")
+            kisModule.callAttr("init_kis_client", appKey, appSecret)
+            Log.i(TAG, "KIS API client initialized successfully")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize KIS client", e)
+            false
+        }
+    }
+
+suspend fun isKisClientInitialized(): Boolean = withContext(Dispatchers.IO) {
     try {
         val kisModule = python.getModule("kis_client")
-        kisModule.callAttr("init_kis_client", appKey, appSecret)
-        Log.i(TAG, "KIS API client initialized")
+        val result = kisModule.callAttr("is_client_initialized")
+        result.toBoolean()
     } catch (e: Exception) {
-        Log.e(TAG, "Failed to initialize KIS client", e)
+        false
+    }
+}
+
+suspend fun testKisApiConnection(): Boolean = withContext(Dispatchers.IO) {
+    try {
+        // Test by getting a simple stock info
+        val kisModule = python.getModule("kis_client")
+        val result = kisModule.callAttr("get_client").callAttr("get_stock_name", "005930")
+        result.toString().isNotEmpty()
+    } catch (e: Exception) {
+        Log.e(TAG, "KIS API connection test failed", e)
+        false
     }
 }
 ```
+
+#### 5.5 Auto-Initialize KIS Client on App Start
+
+**File:** `app/src/main/java/com/etfmonitor/MainActivity.kt`
+
+```kotlin
+// In onCreate or appropriate initialization point
+private fun initializeKisApiIfConfigured() {
+    lifecycleScope.launch {
+        if (apiKeyProvider.isKisApiConfigured()) {
+            val appKey = apiKeyProvider.getKisAppKey() ?: return@launch
+            val appSecret = apiKeyProvider.getKisAppSecret() ?: return@launch
+            pyKrxClient.initializeKisClient(appKey, appSecret)
+        }
+    }
+}
+```
+
+#### 5.6 Implementation Checklist
+
+- [ ] Add KIS API methods to `ApiKeyProvider` interface
+- [ ] Implement KIS methods in `SharedPreferencesApiKeyProvider`
+- [ ] Add KIS StateFlows to `SettingsViewModel`
+- [ ] Create `KISApiSettingsSection` composable
+- [ ] Add KIS initialization methods to `PyKrxClient`
+- [ ] Add auto-initialization in `MainActivity`
+- [ ] Add connection test functionality
+- [ ] Add string resources for Korean UI text
+- [ ] Test credential storage encryption
+- [ ] Test Python KIS client initialization from Kotlin
 
 ---
 
 ### Phase 6: Testing & Validation
 
 **Objective:** Ensure KIS API data matches pykrx data quality
+
+**Status:** ⬜ Pending
 
 #### 6.1 Unit Tests
 
@@ -1629,6 +2140,8 @@ def compare_etf_holdings(etf_ticker: str):
 ### Phase 7: Cleanup & Finalization
 
 **Objective:** Remove pykrx dependency after successful migration
+
+**Status:** ⬜ Pending (requires Phase 4.5, 5, 6 completion first)
 
 #### 7.1 Remove pykrx from Dependencies
 
