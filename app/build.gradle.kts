@@ -90,9 +90,8 @@ chaquopy {
 //            options("--no-cache-dir")
 //            options("--timeout", "300")
 
-            // Core packages
+            // Core packages (KIS API migration complete - pykrx removed)
             install("pandas")
-            install("pykrx")
             install("setuptools")
             install("wheel")
             install("requests")

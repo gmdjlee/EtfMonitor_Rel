@@ -1,8 +1,8 @@
 """
 Market index and oscillator module.
-Uses KIS API exclusively - no pykrx dependency.
 
 Requires KIS API credentials to be configured in Settings.
+Uses KIS Open API as the sole data source.
 """
 import time
 from datetime import datetime, timedelta

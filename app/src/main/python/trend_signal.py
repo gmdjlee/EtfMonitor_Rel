@@ -1,10 +1,10 @@
 """
 Trend signal analysis module.
-Uses KIS API exclusively - no pykrx dependency.
 
 Technical indicators: MA, CMF, Fear & Greed Index, DeMark TD Setup, Elder Impulse System.
 
 Requires KIS API credentials to be configured in Settings.
+Uses KIS Open API as the sole data source.
 """
 import json
 from datetime import datetime, timedelta
