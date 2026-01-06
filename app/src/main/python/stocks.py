@@ -1,17 +1,26 @@
 """
 Stock data collection and analysis module.
 Unified module merging stockcollector, stock_data_fetcher, and stock_analyzer.
+
+Migrated to KIS API in Phase 4 of KIS API Migration.
+Uses KIS API as primary source, pykrx as fallback.
 """
 import json
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 import pandas as pd
-from pykrx import stock
 
 from core import (
     get_logger, get_tickers, get_name, market_date,
-    to_json, err_json, MARKETS
+    to_json, err_json, MARKETS, is_kis_available, get_kis_client
 )
+
+# Import pykrx for fallback only
+try:
+    from pykrx import stock as pykrx_stock
+    PYKRX_AVAILABLE = True
+except ImportError:
+    PYKRX_AVAILABLE = False
 
 log = get_logger(__name__)
 
@@ -20,6 +29,8 @@ def get_stock_list(date: str, market: str = "KOSPI") -> str:
     """
     Get stock list for a market.
 
+    Uses KIS API if available, falls back to pykrx.
+
     Returns: JSON [{"ticker": "...", "name": "..."}, ...]
     """
     try:
@@ -27,10 +38,28 @@ def get_stock_list(date: str, market: str = "KOSPI") -> str:
         if market not in MARKETS:
             return to_json([])
 
-        tickers = stock.get_market_ticker_list(date, market=market)
-        result = [{"ticker": str(t), "name": get_name(t)} for t in tickers]
-        log.info("%s: %d stocks (%s)", market, len(result), date)
-        return to_json(result)
+        # Try KIS API first
+        if is_kis_available():
+            try:
+                client = get_kis_client()
+                df = client.download_stock_master(market.lower())
+                result = [
+                    {"ticker": row["ticker"], "name": row["name"]}
+                    for _, row in df.iterrows()
+                ]
+                log.info("%s: %d stocks via KIS API (%s)", market, len(result), date)
+                return to_json(result)
+            except Exception as e:
+                log.warning("KIS API failed for stock list, falling back to pykrx: %s", e)
+
+        # Fallback to pykrx
+        if PYKRX_AVAILABLE:
+            tickers = pykrx_stock.get_market_ticker_list(date, market=market)
+            result = [{"ticker": str(t), "name": get_name(t)} for t in tickers]
+            log.info("%s: %d stocks via pykrx (%s)", market, len(result), date)
+            return to_json(result)
+
+        return to_json([])
 
     except Exception as e:
         log.error("get_stock_list error: %s", e)
@@ -92,6 +121,9 @@ def get_stock_data(ticker: str, days: int = 180) -> str:
     """
     Get stock market cap and investor trading data.
 
+    Uses KIS API for both investor trading and market cap (calculated from
+    close price × listed shares), with pykrx fallback.
+
     Returns: JSON {
         "ticker": "...",
         "name": "...",
@@ -111,18 +143,70 @@ def get_stock_data(ticker: str, days: int = 180) -> str:
         start = end - timedelta(days=days)
         s, e = start.strftime("%Y%m%d"), end.strftime("%Y%m%d")
 
-        mcap = stock.get_market_cap(s, e, ticker)
-        inv = stock.get_market_trading_value_by_date(s, e, ticker)
+        inv_df = None
+        mcap_df = None
 
-        if mcap.empty or inv.empty:
-            return err_json("데이터를 가져올 수 없습니다")
+        # Try KIS API first
+        if is_kis_available():
+            client = get_kis_client()
+
+            # Get investor trading data
+            try:
+                inv_df = client.get_investor_trading(ticker, s)
+                if not inv_df.empty:
+                    inv_df["date"] = pd.to_datetime(inv_df["date"])
+                    inv_df.set_index("date", inplace=True)
+                    inv_df = inv_df.sort_index()
+                    log.info("Got investor trading data via KIS API for %s", ticker)
+                else:
+                    inv_df = None
+            except Exception as ex:
+                log.warning("KIS API investor trading failed: %s", ex)
+                inv_df = None
+
+            # Get market cap data (calculated from OHLCV + listed shares)
+            try:
+                ohlcv_df = client.get_stock_ohlcv_with_market_cap(ticker, s, e)
+                if not ohlcv_df.empty and "market_cap" in ohlcv_df.columns:
+                    mcap_df = ohlcv_df[["market_cap"]]
+                    log.info("Got market cap via KIS API (OHLCV × listed shares) for %s", ticker)
+            except Exception as ex:
+                log.warning("KIS API market cap calculation failed: %s", ex)
+
+        # Fallback to pykrx for investor trading
+        if inv_df is None and PYKRX_AVAILABLE:
+            try:
+                pykrx_inv = pykrx_stock.get_market_trading_value_by_date(s, e, ticker)
+                if not pykrx_inv.empty:
+                    inv_df = pd.DataFrame({
+                        "foreign_net": pykrx_inv["외국인합계"],
+                        "institution_net": pykrx_inv["기관합계"]
+                    })
+                    log.info("Got investor trading via pykrx for %s", ticker)
+            except Exception as ex:
+                log.warning("pykrx investor trading failed: %s", ex)
+
+        # Fallback to pykrx for market cap
+        if (mcap_df is None or mcap_df.empty) and PYKRX_AVAILABLE:
+            try:
+                pykrx_mcap = pykrx_stock.get_market_cap(s, e, ticker)
+                if not pykrx_mcap.empty:
+                    mcap_df = pd.DataFrame({"market_cap": pykrx_mcap["시가총액"]})
+                    log.info("Got market cap via pykrx for %s", ticker)
+            except Exception as ex:
+                log.warning("pykrx market cap failed: %s", ex)
+
+        if inv_df is None or inv_df.empty:
+            return err_json("투자자 거래 데이터를 가져올 수 없습니다")
+        if mcap_df is None or mcap_df.empty:
+            return err_json("시가총액 데이터를 가져올 수 없습니다")
 
         # 5-day rolling sum
-        f5d = inv["외국인합계"].rolling(5).sum()
-        i5d = inv["기관합계"].rolling(5).sum()
+        f5d = inv_df["foreign_net"].rolling(5).sum()
+        i5d = inv_df["institution_net"].rolling(5).sum()
 
         df = pd.DataFrame({
-            "market_cap": mcap["시가총액"],
+            "market_cap": mcap_df["market_cap"],
             "foreign_5d": f5d,
             "institution_5d": i5d
         }).dropna()
@@ -151,6 +235,8 @@ def get_stock_ohlcv(ticker: str, days: int = 180, interval: str = "d") -> str:
     """
     Get OHLCV data for stock.
 
+    Uses KIS API if available, falls back to pykrx.
+
     Args:
         ticker: Stock code
         days: Period in days
@@ -174,14 +260,35 @@ def get_stock_ohlcv(ticker: str, days: int = 180, interval: str = "d") -> str:
         start = end - timedelta(days=extra)
         s, e = start.strftime("%Y%m%d"), end.strftime("%Y%m%d")
 
-        df = stock.get_market_ohlcv(s, e, ticker)
-        if df.empty:
-            return err_json("데이터가 없습니다")
+        df = None
 
-        df = df.rename(columns={
-            "시가": "open", "고가": "high", "저가": "low",
-            "종가": "close", "거래량": "volume"
-        })[["open", "high", "low", "close", "volume"]]
+        # Try KIS API first
+        if is_kis_available():
+            try:
+                client = get_kis_client()
+                df = client.get_stock_ohlcv(ticker, s, e)
+                if not df.empty:
+                    log.info("Got OHLCV data via KIS API for %s", ticker)
+                else:
+                    df = None
+            except Exception as ex:
+                log.warning("KIS API OHLCV failed, falling back to pykrx: %s", ex)
+                df = None
+
+        # Fallback to pykrx
+        if df is None and PYKRX_AVAILABLE:
+            try:
+                pykrx_df = pykrx_stock.get_market_ohlcv(s, e, ticker)
+                if not pykrx_df.empty:
+                    df = pykrx_df.rename(columns={
+                        "시가": "open", "고가": "high", "저가": "low",
+                        "종가": "close", "거래량": "volume"
+                    })[["open", "high", "low", "close", "volume"]]
+            except Exception as ex:
+                log.warning("pykrx OHLCV failed: %s", ex)
+
+        if df is None or df.empty:
+            return err_json("데이터가 없습니다")
 
         # Weekly resample
         if interval == "w":

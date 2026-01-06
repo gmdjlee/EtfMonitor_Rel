@@ -196,9 +196,39 @@ def get_business_days(start: str, end: str) -> str:
         return to_json([])
 
 
+# Stock name cache (populated from KIS stock master)
+_stock_name_cache: Dict[str, str] = {}
+
+
 # Stock utilities
 def get_tickers(market: Optional[str] = None, date: Optional[str] = None) -> List[str]:
-    """Get stock tickers for market(s)."""
+    """
+    Get stock tickers for market(s).
+
+    Uses KIS API if available, falls back to pykrx.
+    """
+    global _stock_name_cache
+
+    # Try KIS API first
+    if is_kis_available():
+        try:
+            client = get_kis_client()
+            if market and market.upper() in ["KOSPI", "KOSDAQ"]:
+                df = client.download_stock_master(market.lower())
+                # Cache names for later use
+                for _, row in df.iterrows():
+                    _stock_name_cache[row["ticker"]] = row["name"]
+                return df["ticker"].tolist()
+            else:
+                # All markets
+                df = client.get_all_stocks()
+                for _, row in df.iterrows():
+                    _stock_name_cache[row["ticker"]] = row["name"]
+                return df["ticker"].tolist()
+        except Exception as e:
+            get_logger("core").warning(f"KIS API failed for tickers, falling back to pykrx: {e}")
+
+    # Fallback to pykrx
     d = date or market_date()
     try:
         if market and market in MARKETS:
@@ -212,14 +242,38 @@ def get_tickers(market: Optional[str] = None, date: Optional[str] = None) -> Lis
 
 
 def get_name(ticker: str) -> str:
-    """Get stock name by ticker."""
+    """
+    Get stock name by ticker.
+
+    Uses KIS API if available (with cache), falls back to pykrx.
+    """
     if not ticker:
         return ""
     if ticker == CASH_TICKER:
         return "원화예금"
+
+    # Check cache first
+    if ticker in _stock_name_cache:
+        return _stock_name_cache[ticker]
+
+    # Try KIS API
+    if is_kis_available():
+        try:
+            client = get_kis_client()
+            name = client.get_stock_name(ticker)
+            if name:
+                _stock_name_cache[ticker] = name
+                return name
+        except Exception as e:
+            get_logger("core").warning(f"KIS API failed for stock name, falling back to pykrx: {e}")
+
+    # Fallback to pykrx
     try:
         name = stock.get_market_ticker_name(ticker)
-        return str(name).strip() if name else ""
+        result = str(name).strip() if name else ""
+        if result:
+            _stock_name_cache[ticker] = result
+        return result
     except Exception:
         return ""
 

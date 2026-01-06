@@ -1,8 +1,20 @@
 # pykrx → KIS API Migration Plan
 
 **Date:** 2025-01-05
-**Status:** Draft (Updated)
+**Status:** In Progress (Phase 4 Complete)
 **Author:** Claude Code
+
+## Migration Progress
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 1 | Research & Planning | ✅ Complete |
+| Phase 2 | Create KIS API Client | ✅ Complete |
+| Phase 3 | Migrate etfcollector.py | ✅ Complete |
+| Phase 4 | Migrate stocks.py | ✅ Complete |
+| Phase 5 | Kotlin Integration | ⬜ Pending |
+| Phase 6 | Testing & Validation | ⬜ Pending |
+| Phase 7 | Cleanup & Finalization | ⬜ Pending |
 
 ---
 
