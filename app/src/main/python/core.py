@@ -159,10 +159,19 @@ def days_ago(n: int) -> str:
     return (datetime.now() - timedelta(days=n)).strftime("%Y%m%d")
 
 
+def _is_weekend(date_str: str) -> bool:
+    """Check if date is a weekend (Saturday=5, Sunday=6)."""
+    dt = parse_date(date_str)
+    if dt is None:
+        return False
+    return dt.weekday() >= 5
+
+
 def market_date() -> str:
     """Get latest market date (most recent business day).
 
     Uses KIS API to check for valid trading days.
+    Skips weekends before making API calls.
     """
     if not is_kis_available():
         # If KIS not available, return yesterday as fallback
@@ -173,6 +182,9 @@ def market_date() -> str:
     # Try up to 7 days back to find a valid market date
     for i in range(7):
         d = days_ago(i)
+        # Skip weekends - they're never trading days
+        if _is_weekend(d):
+            continue
         try:
             # Try to get stock data for reference ticker
             df = client.get_stock_ohlcv(REF_TICKER, d, d)
@@ -186,9 +198,17 @@ def market_date() -> str:
 
 
 def is_business_day(date_str: str) -> bool:
-    """Check if date is a business day using KIS API."""
+    """Check if date is a business day using KIS API.
+
+    Skips weekends first (they're never trading days).
+    Returns False for API errors (assumes non-trading day).
+    """
+    # Weekends are never trading days
+    if _is_weekend(date_str):
+        return False
+
     if not is_kis_available():
-        # Cannot determine without KIS API
+        # Cannot determine without KIS API - assume weekday is trading day
         return True
 
     try:
@@ -196,21 +216,44 @@ def is_business_day(date_str: str) -> bool:
         df = client.get_stock_ohlcv(REF_TICKER, date_str, date_str)
         return df is not None and not df.empty
     except Exception:
+        # API error (e.g., 500 for holidays) - assume non-trading day
         return False
 
 
 def get_business_days(start: str, end: str) -> str:
-    """Get business days in range as JSON string."""
+    """Get business days in range as JSON string.
+
+    Uses batch API call to efficiently fetch trading days.
+    Falls back to weekend-only filtering if API unavailable.
+    """
     try:
         s, e = parse_date(start), parse_date(end)
         if not s or not e or s > e:
             return to_json([])
 
+        start_str = s.strftime("%Y%m%d")
+        end_str = e.strftime("%Y%m%d")
+
+        # Try to get trading days from API in batch (more efficient)
+        if is_kis_available():
+            try:
+                client = get_kis_client()
+                # Get OHLCV for date range - returned dates are trading days
+                df = client.get_stock_ohlcv(REF_TICKER, start_str, end_str)
+                if df is not None and not df.empty:
+                    # Extract dates from the DataFrame index (these are actual trading days)
+                    trading_days = [d.strftime("%Y%m%d") for d in df.index]
+                    return to_json(sorted(trading_days))
+            except Exception:
+                # Fall through to weekday-only filtering
+                pass
+
+        # Fallback: filter out weekends only (can't detect holidays without API)
         days = []
         cur = s
         while cur <= e:
             d = cur.strftime("%Y%m%d")
-            if is_business_day(d):
+            if not _is_weekend(d):
                 days.append(d)
             cur += timedelta(days=1)
         return to_json(days)
