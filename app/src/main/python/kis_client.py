@@ -124,6 +124,83 @@ class KISAPIClient:
 
         raise last_error
 
+    def _request_paginated(
+        self,
+        endpoint: str,
+        tr_id: str,
+        params: Dict,
+        output_keys: List[str] = None,
+        max_pages: int = 10
+    ) -> Dict[str, List]:
+        """
+        Make paginated API request following KIS API pagination pattern.
+
+        KIS API uses tr_cont header for pagination:
+        - "M" or "F": More data available
+        - "" or "D" or "E": No more data
+
+        Args:
+            endpoint: API endpoint path
+            tr_id: Transaction ID for the API call
+            params: Query parameters
+            output_keys: List of output keys to collect (default: ["output"])
+            max_pages: Maximum number of pages to fetch
+
+        Returns:
+            Dict with collected data for each output key
+        """
+        if output_keys is None:
+            output_keys = ["output"]
+
+        results = {key: [] for key in output_keys}
+        tr_cont = ""
+
+        for page in range(max_pages):
+            token = self._get_token()
+            url = f"{self.BASE_URL}{endpoint}"
+
+            headers = {
+                "content-type": "application/json; charset=utf-8",
+                "authorization": f"Bearer {token}",
+                "appkey": self.app_key,
+                "appsecret": self.app_secret,
+                "tr_id": tr_id,
+                "tr_cont": tr_cont
+            }
+
+            self._rate_limit()
+            response = requests.get(url, headers=headers, params=params, timeout=30)
+            response.raise_for_status()
+
+            data = response.json()
+
+            if data.get("rt_cd") != "0":
+                if page == 0:
+                    raise ValueError(f"API error: {data.get('msg1')}")
+                break
+
+            # Collect data from each output key
+            for key in output_keys:
+                output = data.get(key, [])
+                if output:
+                    if isinstance(output, dict):
+                        output = [output]
+                    results[key].extend(output)
+
+            # Check continuation from response header
+            resp_tr_cont = response.headers.get("tr_cont", "")
+
+            if resp_tr_cont in ["M", "F"]:
+                tr_cont = "N"  # Request next page
+                log.info(f"Fetching page {page + 2}...")
+                time.sleep(0.1)  # Small delay between pages
+            else:
+                if page > 0:
+                    log.info(f"Pagination complete. Total pages: {page + 1}")
+                break
+
+        return results
+
     # ========================================
     # ETF Holdings (replaces pykrx get_etf_portfolio_deposit_file)
     # ========================================
@@ -173,7 +250,7 @@ class KISAPIClient:
         start_date: str
     ) -> pd.DataFrame:
         """
-        Get daily investor trading data.
+        Get daily investor trading data with pagination support.
 
         Args:
             ticker: Stock ticker (e.g., "005930")
@@ -190,16 +267,14 @@ class KISAPIClient:
             "fid_etc_cls_code": ""
         }
 
-        data = self._request(
+        results = self._request_paginated(
             "/uapi/domestic-stock/v1/quotations/investor-trade-by-stock-daily",
             "FHPTJ04160001",
-            params
+            params,
+            output_keys=["output2"]
         )
 
-        if data.get("rt_cd") != "0":
-            raise ValueError(f"API error: {data.get('msg1')}")
-
-        output2 = data.get("output2", [])
+        output2 = results.get("output2", [])
 
         return pd.DataFrame([{
             "date": item.get("stck_bsop_date"),
@@ -222,6 +297,10 @@ class KISAPIClient:
         """
         Get stock daily OHLCV data.
 
+        Uses inquire_daily_itemchartprice API which supports date range.
+        Note: Maximum 100 records per call. For longer periods,
+        the data is automatically paginated.
+
         Args:
             ticker: Stock ticker (e.g., "005930")
             start_date: Start date (YYYYMMDD)
@@ -240,15 +319,16 @@ class KISAPIClient:
         }
 
         data = self._request(
-            "/uapi/domestic-stock/v1/quotations/inquire-daily-price",
-            "FHKST01010400",
+            "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
+            "FHKST03010100",
             params
         )
 
         if data.get("rt_cd") != "0":
             raise ValueError(f"API error: {data.get('msg1')}")
 
-        output = data.get("output", [])
+        # output2 contains daily OHLCV data for itemchartprice API
+        output2 = data.get("output2", [])
 
         df = pd.DataFrame([{
             "date": item.get("stck_bsop_date"),
@@ -257,7 +337,7 @@ class KISAPIClient:
             "low": int(item.get("stck_lwpr", 0)),
             "close": int(item.get("stck_clpr", 0)),
             "volume": int(item.get("acml_vol", 0))
-        } for item in output])
+        } for item in output2])
 
         if not df.empty:
             df["date"] = pd.to_datetime(df["date"])
@@ -275,7 +355,7 @@ class KISAPIClient:
         start_date: str
     ) -> pd.DataFrame:
         """
-        Get index daily OHLCV data.
+        Get index daily OHLCV data with pagination support.
 
         Args:
             index_code: Index code (e.g., "0001" for KOSPI, "1001" for KOSDAQ)
@@ -291,16 +371,14 @@ class KISAPIClient:
             "fid_input_date_1": start_date
         }
 
-        data = self._request(
+        results = self._request_paginated(
             "/uapi/domestic-stock/v1/quotations/inquire-index-daily-price",
             "FHPUP02120000",
-            params
+            params,
+            output_keys=["output2"]
         )
 
-        if data.get("rt_cd") != "0":
-            raise ValueError(f"API error: {data.get('msg1')}")
-
-        output2 = data.get("output2", [])
+        output2 = results.get("output2", [])
 
         df = pd.DataFrame([{
             "date": item.get("stck_bsop_date"),
@@ -376,7 +454,7 @@ class KISAPIClient:
         limit: int = 100
     ) -> pd.DataFrame:
         """
-        Get market capitalization ranking.
+        Get market capitalization ranking with pagination support.
 
         Args:
             market: Market code ("0000": all, "0001": KOSPI, "1001": KOSDAQ)
@@ -397,16 +475,18 @@ class KISAPIClient:
             "fid_vol_cnt": ""
         }
 
-        data = self._request(
+        # Calculate max pages needed (assuming ~30 items per page)
+        max_pages = (limit // 30) + 2
+
+        results = self._request_paginated(
             "/uapi/domestic-stock/v1/ranking/market-cap",
             "FHPST01740000",
-            params
+            params,
+            output_keys=["output"],
+            max_pages=max_pages
         )
 
-        if data.get("rt_cd") != "0":
-            raise ValueError(f"API error: {data.get('msg1')}")
-
-        output = data.get("output", [])[:limit]
+        output = results.get("output", [])[:limit]
 
         return pd.DataFrame([{
             "rank": int(item.get("data_rank", 0)),
