@@ -6,7 +6,7 @@ Reference: https://github.com/koreainvestment/open-trading-api
 
 Phase 2 of KIS API Migration:
 - Token management with auto-refresh
-- Rate limiting (20 requests/second)
+- Rate limiting (20 requests/second for live, 2/sec for paper trading)
 - Retry logic with exponential backoff
 - ETF holdings, investor trading, OHLCV data
 - Stock master download from KIS server
@@ -35,27 +35,35 @@ class KISAPIClient:
     BASE_URL = "https://openapi.koreainvestment.com:9443"
     TOKEN_EXPIRY_HOURS = 23
 
-    # Rate limiting: more conservative to avoid 500 errors
-    # KIS recommends 20/sec but we use 5/sec to be safe
-    RATE_LIMIT_PER_SEC = 5
-    MIN_REQUEST_INTERVAL = 1.0 / RATE_LIMIT_PER_SEC  # 0.2 seconds
+    # Rate limiting per KIS API official documentation (2024.08.02)
+    # - Live trading: 20 requests/second per account
+    # - Paper trading: 2 requests/second per account
+    RATE_LIMIT_LIVE = 20  # requests per second
+    RATE_LIMIT_PAPER = 2  # requests per second
 
     # Retry configuration
     MAX_RETRIES = 4
     RETRY_DELAY_BASE = 1.5  # seconds (exponential backoff: 1.5, 3, 6, 12)
 
-    def __init__(self, app_key: str, app_secret: str):
+    def __init__(self, app_key: str, app_secret: str, is_paper_trading: bool = False):
         """
         Initialize KIS API client.
 
         Args:
             app_key: KIS Open API app key
             app_secret: KIS Open API app secret
+            is_paper_trading: True for paper trading (2 req/sec), False for live (20 req/sec)
         """
         self.app_key = app_key
         self.app_secret = app_secret
+        self.is_paper_trading = is_paper_trading
         self._token: Optional[str] = None
         self._token_expiry: Optional[datetime] = None
+
+        # Set rate limit based on trading mode
+        rate_limit = self.RATE_LIMIT_PAPER if is_paper_trading else self.RATE_LIMIT_LIVE
+        self._min_request_interval = 1.0 / rate_limit
+        log.info(f"KIS API client initialized: {'paper' if is_paper_trading else 'live'} trading mode ({rate_limit} req/sec)")
 
     def _get_token(self) -> str:
         """Get or refresh OAuth access token."""
@@ -85,8 +93,8 @@ class KISAPIClient:
         global _global_last_request_time
         with _rate_limit_lock:
             elapsed = time.time() - _global_last_request_time
-            if elapsed < self.MIN_REQUEST_INTERVAL:
-                time.sleep(self.MIN_REQUEST_INTERVAL - elapsed)
+            if elapsed < self._min_request_interval:
+                time.sleep(self._min_request_interval - elapsed)
             _global_last_request_time = time.time()
 
     def _request(self, endpoint: str, tr_id: str, params: Dict) -> Dict:
@@ -810,20 +818,24 @@ class KISAPIClient:
 _client: Optional[KISAPIClient] = None
 
 
-def init_kis_client(app_key: str, app_secret: str):
+def init_kis_client(app_key: str, app_secret: str, is_paper_trading: bool = False):
     """
     Initialize global KIS API client.
+
+    Args:
+        app_key: KIS Open API app key
+        app_secret: KIS Open API app secret
+        is_paper_trading: True for paper trading (2 req/sec), False for live (20 req/sec)
 
     Also registers the client with core.py for use by other modules.
     """
     global _client
-    _client = KISAPIClient(app_key, app_secret)
+    _client = KISAPIClient(app_key, app_secret, is_paper_trading)
 
     # Register with core.py for other modules to use
     try:
         from core import set_kis_client
         set_kis_client(_client)
-        log.info("KIS API client initialized and registered with core")
     except ImportError:
         log.warning("Could not register KIS client with core module")
         log.info("KIS API client initialized")
