@@ -500,46 +500,63 @@ class KISAPIClient:
     # ETF List (replaces pykrx get_etf_ticker_list)
     # ========================================
 
+    # ETF identification keywords (Korean fund company prefixes and ETF indicator)
+    ETF_KEYWORDS = [
+        'ETF', 'KODEX', 'TIGER', 'ARIRANG', 'KOSEF', 'KINDEX',
+        'KBSTAR', 'HANARO', 'SOL', 'ACE', 'TIMEFOLIO', 'FOCUS',
+        'BNK', 'WOORI', 'PLUS', 'TREX', 'SMART', 'RISE', 'VITA'
+    ]
+
     def get_etf_list(self) -> pd.DataFrame:
         """
-        Get all ETF list.
+        Get all ETF list by downloading master files and filtering.
+
+        Korean ETFs are identified by their names containing:
+        - 'ETF' keyword
+        - Fund company prefixes like 'KODEX', 'TIGER', 'ARIRANG', etc.
 
         Returns:
             DataFrame with columns: ticker, name
         """
-        params = {
-            "fid_cond_mrkt_div_code": "J",
-            "fid_cond_scr_div_code": "13001",
-            "fid_input_iscd": "0000",
-            "fid_rank_sort_cls_code": "0",
-            "fid_div_cls_code": "0",
-            "fid_trgt_cls_code": "0",
-            "fid_trgt_exls_cls_code": "0",
-            "fid_input_price_1": "",
-            "fid_input_price_2": "",
-            "fid_vol_cnt": "",
-            "fid_input_date_1": ""
-        }
+        # Check cache first
+        if self._etf_list_cache is not None and not self._etf_list_cache.empty:
+            log.info(f"Using cached ETF list: {len(self._etf_list_cache)} ETFs")
+            return self._etf_list_cache
 
-        data = self._request(
-            "/uapi/domestic-stock/v1/quotations/inquire-search-stock-info",
-            "CTPF1002R",
-            params
-        )
+        try:
+            # Download all stocks (includes ETFs)
+            all_stocks = self.get_all_stocks()
 
-        if data.get("rt_cd") != "0":
-            raise ValueError(f"API error: {data.get('msg1')}")
+            if all_stocks.empty:
+                log.warning("No stocks from master file download")
+                return pd.DataFrame(columns=["ticker", "name"])
 
-        output = data.get("output", [])
+            # Filter for ETFs by name patterns
+            def is_etf(name: str) -> bool:
+                if not name:
+                    return False
+                name_upper = name.upper()
+                return any(kw.upper() in name_upper for kw in self.ETF_KEYWORDS)
 
-        return pd.DataFrame([{
-            "ticker": item.get("stck_shrn_iscd"),
-            "name": item.get("hts_kor_isnm", "")
-        } for item in output if item.get("stck_shrn_iscd")])
+            mask = all_stocks['name'].apply(is_etf)
+            etf_df = all_stocks[mask][['ticker', 'name']].copy().reset_index(drop=True)
+
+            # Cache the result
+            self._etf_list_cache = etf_df
+            log.info(f"ETF list from master files: {len(etf_df)} ETFs found (cached)")
+            return etf_df
+
+        except Exception as e:
+            log.error(f"Failed to get ETF list from master files: {e}")
+            return pd.DataFrame(columns=["ticker", "name"])
 
     # ========================================
     # Stock List (KOSPI/KOSDAQ master files)
     # ========================================
+
+    # Cache for master file downloads (avoid repeated network calls)
+    _master_cache: Dict[str, pd.DataFrame] = {}
+    _etf_list_cache: Optional[pd.DataFrame] = None
 
     def download_stock_master(self, market: str = "kospi") -> pd.DataFrame:
         """
@@ -552,6 +569,12 @@ class KISAPIClient:
             DataFrame with columns: ticker, name, market, listed_shares
             (listed_shares is in units of 1000)
         """
+        # Check cache first
+        cache_key = market.lower()
+        if cache_key in self._master_cache:
+            log.info(f"Using cached {cache_key} master data")
+            return self._master_cache[cache_key]
+
         if market.lower() == "kospi":
             url = "https://new.real.download.dws.co.kr/common/master/kospi_code.mst.zip"
         elif market.lower() == "kosdaq":
@@ -615,7 +638,11 @@ class KISAPIClient:
                 "listed_shares": listed_shares  # in units of 1000
             })
 
-        return pd.DataFrame(stocks)
+        df = pd.DataFrame(stocks)
+        # Cache the result
+        self._master_cache[cache_key] = df
+        log.info(f"Downloaded and cached {cache_key} master: {len(df)} stocks")
+        return df
 
     def get_all_stocks(self) -> pd.DataFrame:
         """Get all KOSPI and KOSDAQ stocks."""
