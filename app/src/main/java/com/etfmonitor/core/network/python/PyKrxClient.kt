@@ -9,8 +9,11 @@ import com.etfmonitor.core.database.entities.SnapshotType
 import com.etfmonitor.core.common.util.DataParsingException
 import com.etfmonitor.core.common.util.PythonRuntimeException
 import com.etfmonitor.core.common.util.PythonTimeoutException
+import com.etfmonitor.core.network.ai.ApiKeyProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.SerializationException
@@ -59,7 +62,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class PyKrxClient @Inject constructor(
-    private val python: Python
+    private val python: Python,
+    private val apiKeyProvider: ApiKeyProvider
 ) {
 
     companion object {
@@ -67,6 +71,11 @@ class PyKrxClient @Inject constructor(
         private const val TIMEOUT_MS = 30_000L
         private const val MAX_RETRIES = 2
     }
+
+    // Mutex to prevent concurrent KIS client initialization
+    private val kisInitMutex = Mutex()
+    // Flag to track if KIS client was initialized in this session
+    private var kisClientInitialized = false
 
     /**
      * kotlinx.serialization 설정
@@ -98,6 +107,72 @@ class PyKrxClient @Inject constructor(
     private val stockModule by lazy { python.getModule("stocks") }
     private val coreModule by lazy { python.getModule("core") }
     private val kisModule by lazy { python.getModule("kis_client") }
+
+    // ==================== KIS API Auto-Initialization ====================
+
+    /**
+     * KIS API 클라이언트 자동 초기화
+     *
+     * Python 호출 전에 KIS 클라이언트가 초기화되어 있는지 확인하고,
+     * 필요한 경우 ApiKeyProvider에서 자격 증명을 가져와 초기화합니다.
+     *
+     * @return 초기화 성공 여부
+     */
+    private suspend fun ensureKisClientInitialized(): Boolean {
+        // Fast path: already initialized in this session
+        if (kisClientInitialized) {
+            return true
+        }
+
+        return kisInitMutex.withLock {
+            // Double-check after acquiring lock
+            if (kisClientInitialized) {
+                return@withLock true
+            }
+
+            // Check if already initialized in Python
+            try {
+                val isInitialized = kisModule.callAttr("is_client_initialized").toBoolean()
+                if (isInitialized) {
+                    kisClientInitialized = true
+                    logger.d("KIS client already initialized in Python")
+                    return@withLock true
+                }
+            } catch (e: Exception) {
+                logger.w("Error checking KIS client status: ${e.message}")
+            }
+
+            // Check if credentials are configured
+            if (!apiKeyProvider.isKisApiConfigured()) {
+                logger.e("KIS API credentials not configured")
+                return@withLock false
+            }
+
+            val appKey = apiKeyProvider.getKisAppKey()
+            val appSecret = apiKeyProvider.getKisAppSecret()
+
+            if (appKey.isNullOrBlank() || appSecret.isNullOrBlank()) {
+                logger.e("KIS API credentials are empty")
+                return@withLock false
+            }
+
+            // Initialize KIS client
+            try {
+                withTimeout(TIMEOUT_MS) {
+                    kisModule.callAttr("init_kis_client", appKey, appSecret)
+                }
+                kisClientInitialized = true
+                logger.i("KIS API client auto-initialized successfully")
+                true
+            } catch (e: TimeoutCancellationException) {
+                logger.e("KIS client initialization timeout", e)
+                false
+            } catch (e: Exception) {
+                logger.e("Failed to initialize KIS client", e)
+                false
+            }
+        }
+    }
 
     // ==================== KIS API Initialization ====================
 
@@ -175,6 +250,12 @@ class PyKrxClient @Inject constructor(
         excludeKeywords: List<String>
     ): List<Etf> = withContext(Dispatchers.IO) {
         try {
+            // Ensure KIS client is initialized before making Python calls
+            if (!ensureKisClientInitialized()) {
+                logger.e("KIS client not initialized, cannot get ETF list")
+                return@withContext emptyList()
+            }
+
             if (includeKeywords.isEmpty()) {
                 logger.e("ERROR: includeKeywords is empty in PyKrxClient")
                 return@withContext emptyList()
@@ -203,6 +284,12 @@ class PyKrxClient @Inject constructor(
                 logger.d( "  Full response: $jsonStr")
             } else {
                 logger.d( "  First 200 chars: ${jsonStr.take(200)}...")
+            }
+
+            // Check for error response (JSON object instead of array)
+            if (jsonStr.trimStart().startsWith("{")) {
+                logger.e("Received error response from Python: $jsonStr")
+                return@withContext emptyList()
             }
 
             // STEP 5: JSON 파싱 (kotlinx.serialization 사용)
@@ -243,10 +330,22 @@ class PyKrxClient @Inject constructor(
      */
     suspend fun getEtfList(date: String): List<Etf> = withContext(Dispatchers.IO) {
         try {
+            // Ensure KIS client is initialized before making Python calls
+            if (!ensureKisClientInitialized()) {
+                logger.e("KIS client not initialized, cannot get ETF list")
+                return@withContext emptyList()
+            }
+
             logger.d( "getEtfList: $date")
 
             val jsonStr = withTimeout(TIMEOUT_MS) {
                 etfModule.callAttr("get_etf_list", date).toString()
+            }
+
+            // Check for error response
+            if (jsonStr.trimStart().startsWith("{")) {
+                logger.e("Received error response from Python: $jsonStr")
+                return@withContext emptyList()
             }
             val tickers = json.decodeFromString<List<String>>(jsonStr)
             logger.d( "Found ${tickers.size} tickers")
@@ -294,11 +393,23 @@ class PyKrxClient @Inject constructor(
      */
     suspend fun getHoldings(etfTicker: String, date: String): List<Holding> =
         withContext(Dispatchers.IO) {
+            // Ensure KIS client is initialized before making Python calls
+            if (!ensureKisClientInitialized()) {
+                logger.e("KIS client not initialized, cannot get holdings")
+                return@withContext emptyList()
+            }
+
             retryWithTimeout(maxRetries = MAX_RETRIES) {
                 try {
                     val jsonStr = etfModule.callAttr("get_etf_holdings", etfTicker, date).toString()
 
                     if (jsonStr == "[]" || jsonStr.isEmpty()) {
+                        return@retryWithTimeout emptyList()
+                    }
+
+                    // Check for error response
+                    if (jsonStr.trimStart().startsWith("{")) {
+                        logger.e("Received error response from Python: $jsonStr")
                         return@retryWithTimeout emptyList()
                     }
 
@@ -334,6 +445,12 @@ class PyKrxClient @Inject constructor(
      */
     suspend fun getBusinessDays(days: Int): List<String> = withContext(Dispatchers.IO) {
         try {
+            // Ensure KIS client is initialized before making Python calls
+            if (!ensureKisClientInitialized()) {
+                logger.e("KIS client not initialized, cannot get business days")
+                return@withContext emptyList()
+            }
+
             logger.d( "getBusinessDays: $days days")
             val end = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
             val start = LocalDate.now()
@@ -344,6 +461,12 @@ class PyKrxClient @Inject constructor(
 
             val jsonStr = withTimeout(TIMEOUT_MS) {
                 coreModule.callAttr("get_business_days", start, end).toString()
+            }
+
+            // Check for error response
+            if (jsonStr.trimStart().startsWith("{")) {
+                logger.e("Received error response from Python: $jsonStr")
+                return@withContext emptyList()
             }
             val datesList = json.decodeFromString<List<String>>(jsonStr)
 
