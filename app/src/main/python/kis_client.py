@@ -42,8 +42,9 @@ class KISAPIClient:
     RATE_LIMIT_PAPER = 2  # requests per second
 
     # Retry configuration
-    MAX_RETRIES = 4
-    RETRY_DELAY_BASE = 1.5  # seconds (exponential backoff: 1.5, 3, 6, 12)
+    # Keep total retry time under 25 seconds to fit within Kotlin's 30s timeout
+    MAX_RETRIES = 3
+    RETRY_DELAY_BASE = 1.0  # seconds (exponential backoff: 1, 2, 4)
 
     def __init__(self, app_key: str, app_secret: str, is_paper_trading: bool = False):
         """
@@ -133,12 +134,8 @@ class KISAPIClient:
             except requests.exceptions.RequestException as e:
                 last_error = e
                 if attempt < self.MAX_RETRIES - 1:
-                    # Longer delay for 500 errors (server overload)
-                    is_server_error = hasattr(e, 'response') and e.response is not None and e.response.status_code >= 500
-                    if is_server_error:
-                        delay = self.RETRY_DELAY_BASE * (3 ** attempt)  # More aggressive backoff for 500
-                    else:
-                        delay = self.RETRY_DELAY_BASE * (2 ** attempt)
+                    # Exponential backoff: 1s, 2s, 4s (total ~7s max delay)
+                    delay = self.RETRY_DELAY_BASE * (2 ** attempt)
                     log.warning(f"Request failed (attempt {attempt + 1}), retrying in {delay:.1f}s: {e}")
                     time.sleep(delay)
 
@@ -200,8 +197,8 @@ class KISAPIClient:
                 except requests.exceptions.RequestException as e:
                     last_error = e
                     if attempt < self.MAX_RETRIES - 1:
-                        is_server_error = hasattr(e, 'response') and e.response is not None and e.response.status_code >= 500
-                        delay = self.RETRY_DELAY_BASE * (3 ** attempt) if is_server_error else self.RETRY_DELAY_BASE * (2 ** attempt)
+                        # Exponential backoff: 1s, 2s, 4s (total ~7s max delay)
+                        delay = self.RETRY_DELAY_BASE * (2 ** attempt)
                         log.warning(f"Paginated request failed (attempt {attempt + 1}), retrying in {delay:.1f}s: {e}")
                         time.sleep(delay)
 
