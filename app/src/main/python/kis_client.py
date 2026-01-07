@@ -16,12 +16,17 @@ import json
 import time
 import zipfile
 import io
+import threading
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple, Any
 import pandas as pd
 from core import get_logger
 
 log = get_logger("kis_client")
+
+# Global lock for rate limiting across all threads
+_rate_limit_lock = threading.Lock()
+_global_last_request_time: float = 0
 
 
 class KISAPIClient:
@@ -30,13 +35,14 @@ class KISAPIClient:
     BASE_URL = "https://openapi.koreainvestment.com:9443"
     TOKEN_EXPIRY_HOURS = 23
 
-    # Rate limiting: 20 requests per second
-    RATE_LIMIT_PER_SEC = 20
-    MIN_REQUEST_INTERVAL = 1.0 / RATE_LIMIT_PER_SEC  # 0.05 seconds
+    # Rate limiting: more conservative to avoid 500 errors
+    # KIS recommends 20/sec but we use 5/sec to be safe
+    RATE_LIMIT_PER_SEC = 5
+    MIN_REQUEST_INTERVAL = 1.0 / RATE_LIMIT_PER_SEC  # 0.2 seconds
 
     # Retry configuration
-    MAX_RETRIES = 3
-    RETRY_DELAY_BASE = 1.0  # seconds (exponential backoff: 1, 2, 4)
+    MAX_RETRIES = 4
+    RETRY_DELAY_BASE = 1.5  # seconds (exponential backoff: 1.5, 3, 6, 12)
 
     def __init__(self, app_key: str, app_secret: str):
         """
@@ -50,7 +56,6 @@ class KISAPIClient:
         self.app_secret = app_secret
         self._token: Optional[str] = None
         self._token_expiry: Optional[datetime] = None
-        self._last_request_time: float = 0
 
     def _get_token(self) -> str:
         """Get or refresh OAuth access token."""
@@ -76,11 +81,13 @@ class KISAPIClient:
         return self._token
 
     def _rate_limit(self):
-        """Enforce rate limiting (20 requests/second)."""
-        elapsed = time.time() - self._last_request_time
-        if elapsed < self.MIN_REQUEST_INTERVAL:
-            time.sleep(self.MIN_REQUEST_INTERVAL - elapsed)
-        self._last_request_time = time.time()
+        """Enforce rate limiting globally across all threads."""
+        global _global_last_request_time
+        with _rate_limit_lock:
+            elapsed = time.time() - _global_last_request_time
+            if elapsed < self.MIN_REQUEST_INTERVAL:
+                time.sleep(self.MIN_REQUEST_INTERVAL - elapsed)
+            _global_last_request_time = time.time()
 
     def _request(self, endpoint: str, tr_id: str, params: Dict) -> Dict:
         """
@@ -118,8 +125,13 @@ class KISAPIClient:
             except requests.exceptions.RequestException as e:
                 last_error = e
                 if attempt < self.MAX_RETRIES - 1:
-                    delay = self.RETRY_DELAY_BASE * (2 ** attempt)
-                    log.warning(f"Request failed (attempt {attempt + 1}), retrying in {delay}s: {e}")
+                    # Longer delay for 500 errors (server overload)
+                    is_server_error = hasattr(e, 'response') and e.response is not None and e.response.status_code >= 500
+                    if is_server_error:
+                        delay = self.RETRY_DELAY_BASE * (3 ** attempt)  # More aggressive backoff for 500
+                    else:
+                        delay = self.RETRY_DELAY_BASE * (2 ** attempt)
+                    log.warning(f"Request failed (attempt {attempt + 1}), retrying in {delay:.1f}s: {e}")
                     time.sleep(delay)
 
         raise last_error
@@ -168,9 +180,25 @@ class KISAPIClient:
                 "tr_cont": tr_cont
             }
 
-            self._rate_limit()
-            response = requests.get(url, headers=headers, params=params, timeout=30)
-            response.raise_for_status()
+            # Retry logic for paginated requests
+            last_error = None
+            response = None
+            for attempt in range(self.MAX_RETRIES):
+                try:
+                    self._rate_limit()
+                    response = requests.get(url, headers=headers, params=params, timeout=30)
+                    response.raise_for_status()
+                    break
+                except requests.exceptions.RequestException as e:
+                    last_error = e
+                    if attempt < self.MAX_RETRIES - 1:
+                        is_server_error = hasattr(e, 'response') and e.response is not None and e.response.status_code >= 500
+                        delay = self.RETRY_DELAY_BASE * (3 ** attempt) if is_server_error else self.RETRY_DELAY_BASE * (2 ** attempt)
+                        log.warning(f"Paginated request failed (attempt {attempt + 1}), retrying in {delay:.1f}s: {e}")
+                        time.sleep(delay)
+
+            if response is None:
+                raise last_error
 
             data = response.json()
 
