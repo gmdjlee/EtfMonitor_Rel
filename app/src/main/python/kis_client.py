@@ -424,38 +424,31 @@ class KISAPIClient:
         """
         Get all ETF list.
 
+        Uses stock master files and filters for ETF names.
+        Korean ETFs have names containing 'ETF' suffix.
+
         Returns:
             DataFrame with columns: ticker, name
         """
-        params = {
-            "fid_cond_mrkt_div_code": "J",
-            "fid_cond_scr_div_code": "13001",
-            "fid_input_iscd": "0000",
-            "fid_rank_sort_cls_code": "0",
-            "fid_div_cls_code": "0",
-            "fid_trgt_cls_code": "0",
-            "fid_trgt_exls_cls_code": "0",
-            "fid_input_price_1": "",
-            "fid_input_price_2": "",
-            "fid_vol_cnt": "",
-            "fid_input_date_1": ""
-        }
+        # Get all stocks from master files
+        try:
+            all_stocks = self.get_all_stocks()
+        except Exception as e:
+            log.error(f"Failed to get stock master: {e}")
+            return pd.DataFrame(columns=["ticker", "name"])
 
-        data = self._request(
-            "/uapi/domestic-stock/v1/quotations/inquire-search-stock-info",
-            "CTPF1002R",
-            params
-        )
+        if all_stocks.empty:
+            log.warning("Empty stock master data")
+            return pd.DataFrame(columns=["ticker", "name"])
 
-        if data.get("rt_cd") != "0":
-            raise ValueError(f"API error: {data.get('msg1')}")
+        # Filter for ETFs - Korean ETFs have names ending with 'ETF' or containing ETF patterns
+        # Common patterns: "KODEX 200 ETF", "TIGER ETF", "KOSEF ETF", etc.
+        etf_mask = all_stocks["name"].str.contains(r"ETF$|ETF\s|증권\s*상장지수|상장지수투자",
+                                                    case=False, na=False, regex=True)
+        etf_df = all_stocks[etf_mask][["ticker", "name"]].copy()
 
-        output = data.get("output", [])
-
-        return pd.DataFrame([{
-            "ticker": item.get("stck_shrn_iscd"),
-            "name": item.get("hts_kor_isnm", "")
-        } for item in output if item.get("stck_shrn_iscd")])
+        log.info(f"Found {len(etf_df)} ETFs from stock master")
+        return etf_df.reset_index(drop=True)
 
     # ========================================
     # Stock List (KOSPI/KOSDAQ master files)
