@@ -75,7 +75,7 @@ class OscillatorPyClient @Inject constructor(
 
     companion object {
         private val logger = AppLogger.getLogger("OscillatorPy")
-        private const val TIMEOUT_MS = 30_000L
+        private const val TIMEOUT_MS = 60_000L  // 60초로 증가 (Python 재시도 고려)
         private const val MARKET_OSCILLATOR_TIMEOUT_MS = 180_000L  // 3분 - 시장 전체 종목 분석에 필요
     }
 

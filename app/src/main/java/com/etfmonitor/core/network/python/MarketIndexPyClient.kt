@@ -32,7 +32,7 @@ class MarketIndexPyClient @Inject constructor(
 ) {
     companion object {
         private val logger = AppLogger.getLogger("MarketIndexPy")
-        private const val TIMEOUT_MS = 30_000L
+        private const val TIMEOUT_MS = 60_000L  // 60초로 증가 (Python 재시도 고려)
     }
 
     private val python = Python.getInstance()
