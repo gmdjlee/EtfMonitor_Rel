@@ -11,8 +11,11 @@ import com.etfmonitor.core.analysis.model.TrendSignalData
 import com.etfmonitor.core.common.util.DataParsingException
 import com.etfmonitor.core.common.util.PythonRuntimeException
 import com.etfmonitor.core.common.util.PythonTimeoutException
+import com.etfmonitor.core.network.ai.ApiKeyProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.SerialName
@@ -65,12 +68,86 @@ import javax.inject.Singleton
  * @see PyKrxClient ETF 데이터 수집
  */
 @Singleton
-class OscillatorPyClient @Inject constructor(private val python: Python) {
+class OscillatorPyClient @Inject constructor(
+    private val python: Python,
+    private val apiKeyProvider: ApiKeyProvider
+) {
 
     companion object {
         private val logger = AppLogger.getLogger("OscillatorPy")
         private const val TIMEOUT_MS = 30_000L
         private const val MARKET_OSCILLATOR_TIMEOUT_MS = 180_000L  // 3분 - 시장 전체 종목 분석에 필요
+    }
+
+    // Mutex to prevent concurrent KIS client initialization
+    private val kisInitMutex = Mutex()
+    // Flag to track if KIS client was initialized in this session
+    private var kisClientInitialized = false
+
+    private val kisModule by lazy { python.getModule("kis_client") }
+
+    /**
+     * KIS API 클라이언트 자동 초기화
+     *
+     * Python 호출 전에 KIS 클라이언트가 초기화되어 있는지 확인하고,
+     * 필요한 경우 ApiKeyProvider에서 자격 증명을 가져와 초기화합니다.
+     *
+     * @return 초기화 성공 여부
+     */
+    private suspend fun ensureKisClientInitialized(): Boolean {
+        // Fast path: already initialized in this session
+        if (kisClientInitialized) {
+            return true
+        }
+
+        return kisInitMutex.withLock {
+            // Double-check after acquiring lock
+            if (kisClientInitialized) {
+                return@withLock true
+            }
+
+            // Check if already initialized in Python
+            try {
+                val isInitialized = kisModule.callAttr("is_client_initialized").toBoolean()
+                if (isInitialized) {
+                    kisClientInitialized = true
+                    logger.d("KIS client already initialized in Python")
+                    return@withLock true
+                }
+            } catch (e: Exception) {
+                logger.w("Error checking KIS client status: ${e.message}")
+            }
+
+            // Check if credentials are configured
+            if (!apiKeyProvider.isKisApiConfigured()) {
+                logger.e("KIS API credentials not configured")
+                return@withLock false
+            }
+
+            val appKey = apiKeyProvider.getKisAppKey()
+            val appSecret = apiKeyProvider.getKisAppSecret()
+
+            if (appKey.isNullOrBlank() || appSecret.isNullOrBlank()) {
+                logger.e("KIS API credentials are empty")
+                return@withLock false
+            }
+
+            // Initialize KIS client
+            try {
+                withTimeout(TIMEOUT_MS) {
+                    kisModule.callAttr("init_kis_client", appKey, appSecret)
+                }
+                kisClientInitialized = true
+                logger.i("KIS API client auto-initialized successfully")
+                true
+            } catch (e: TimeoutCancellationException) {
+                logger.e("KIS client initialization timeout", e)
+                false
+            } catch (e: Exception) {
+                logger.e("Failed to initialize KIS client", e)
+                false
+            }
+        }
     }
 
     // kotlinx.serialization 설정
@@ -209,6 +286,12 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
      * 종목 검색
      */
     suspend fun searchStock(query: String): Pair<String, String>? = withContext(Dispatchers.IO) {
+        // Ensure KIS client is initialized before making Python calls
+        if (!ensureKisClientInitialized()) {
+            logger.e("KIS client not initialized, cannot search stock")
+            return@withContext null
+        }
+
         try {
             withTimeout(TIMEOUT_MS) {
                 logger.d( "searchStock: $query")
@@ -240,6 +323,12 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
      */
     suspend fun getStockAnalysis(ticker: String, days: Int = 180): StockData? =
         withContext(Dispatchers.IO) {
+            // Ensure KIS client is initialized before making Python calls
+            if (!ensureKisClientInitialized()) {
+                logger.e("KIS client not initialized, cannot get stock analysis")
+                return@withContext null
+            }
+
             try {
                 withTimeout(TIMEOUT_MS) {
                     logger.d( "getStockAnalysis: $ticker, $days days")
@@ -341,6 +430,17 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
      * @return Result containing list of (ticker, name) pairs or error
      */
     suspend fun getAllStocksList(): Result<List<Pair<String, String>>> = withContext(Dispatchers.IO) {
+        // Ensure KIS client is initialized before making Python calls
+        if (!ensureKisClientInitialized()) {
+            logger.e("KIS client not initialized, cannot get all stocks list")
+            return@withContext Result.failure(
+                com.etfmonitor.core.common.util.ApiConfigurationException(
+                    "KIS API",
+                    "KIS API 클라이언트가 초기화되지 않았습니다"
+                )
+            )
+        }
+
         try {
             withTimeout(TIMEOUT_MS) {
                 logger.d("getAllStocksList")
@@ -397,6 +497,12 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         days: Int = 180,
         interval: String = "d"
     ): StockOhlcvData? = withContext(Dispatchers.IO) {
+        // Ensure KIS client is initialized before making Python calls
+        if (!ensureKisClientInitialized()) {
+            logger.e("KIS client not initialized, cannot get stock OHLCV")
+            return@withContext null
+        }
+
         try {
             withTimeout(TIMEOUT_MS) {
                 logger.d("getStockOhlcv: $ticker, $days days, interval: $interval")
@@ -446,6 +552,12 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         startDate: String,
         endDate: String
     ): String = withContext(Dispatchers.IO) {
+        // Ensure KIS client is initialized before making Python calls
+        if (!ensureKisClientInitialized()) {
+            logger.e("KIS client not initialized, cannot get market oscillator")
+            return@withContext """{"error": "KIS API 클라이언트가 초기화되지 않았습니다", "error_type": "api_not_configured"}"""
+        }
+
         try {
             // 시장 오실레이터는 전체 구성종목 데이터를 수집해야 하므로 더 긴 타임아웃 사용
             withTimeout(MARKET_OSCILLATOR_TIMEOUT_MS) {
@@ -479,6 +591,12 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         days: Int = 365,
         interval: String = "w"
     ): TrendSignalData? = withContext(Dispatchers.IO) {
+        // Ensure KIS client is initialized before making Python calls
+        if (!ensureKisClientInitialized()) {
+            logger.e("KIS client not initialized, cannot get trend signal data")
+            return@withContext null
+        }
+
         try {
             withTimeout(TIMEOUT_MS) {
                 logger.d( "getTrendSignalData: $ticker, $days days, interval: $interval")
@@ -536,6 +654,12 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         days: Int = 365,
         interval: String = "w"
     ): ElderImpulseData? = withContext(Dispatchers.IO) {
+        // Ensure KIS client is initialized before making Python calls
+        if (!ensureKisClientInitialized()) {
+            logger.e("KIS client not initialized, cannot get Elder Impulse data")
+            return@withContext null
+        }
+
         try {
             withTimeout(TIMEOUT_MS) {
                 logger.d( "getElderImpulseData: $ticker, $days days, $interval")
@@ -588,6 +712,12 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         days: Int = 365,
         interval: String = "w"
     ): DemarkTDData? = withContext(Dispatchers.IO) {
+        // Ensure KIS client is initialized before making Python calls
+        if (!ensureKisClientInitialized()) {
+            logger.e("KIS client not initialized, cannot get DeMark TD data")
+            return@withContext null
+        }
+
         try {
             withTimeout(TIMEOUT_MS) {
                 logger.d( "getDemarkTDData: $ticker, $days days, interval: $interval")
