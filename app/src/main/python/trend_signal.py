@@ -5,6 +5,12 @@ Technical indicators: MA, CMF, Fear & Greed Index, DeMark TD Setup, Elder Impuls
 
 Requires KIS API credentials to be configured in Settings.
 Uses KIS Open API as the sole data source.
+
+Improvements in v2.1:
+- Pandas version compatibility (ME vs M for monthly)
+- Better NaN handling
+- Input validation
+- Consistent error responses
 """
 import json
 from datetime import datetime, timedelta
@@ -16,6 +22,14 @@ from core import get_logger, get_name, to_json, err_json, get_kis_client, is_kis
 
 log = get_logger(__name__)
 
+# Pandas 버전 호환성: 월간 리샘플링 offset
+# pandas >= 2.2: "ME" (Month End), pandas < 2.2: "M"
+try:
+    pd_version = tuple(int(x) for x in pd.__version__.split('.')[:2])
+    MONTH_END_OFFSET = "ME" if pd_version >= (2, 2) else "M"
+except:
+    MONTH_END_OFFSET = "M"  # 기본값
+
 
 def _ensure_kis_client():
     """Ensure KIS client is available, raise error if not."""
@@ -24,17 +38,40 @@ def _ensure_kis_client():
     return get_kis_client()
 
 
+def _validate_ticker(ticker: str) -> Optional[str]:
+    """Validate and normalize ticker."""
+    if not ticker or not isinstance(ticker, str):
+        return None
+    ticker = ticker.strip()
+    return ticker if ticker else None
+
+
+def _validate_interval(interval: str) -> str:
+    """Validate and normalize interval."""
+    interval = interval.lower() if interval else "w"
+    if interval not in ("d", "w", "m"):
+        return "w"
+    return interval
+
+
 # ============================================================
 # OHLCV Data Fetching with Monthly Resampling
 # ============================================================
 
 def _resample_monthly(df: pd.DataFrame) -> pd.DataFrame:
-    """월봉 리샘플링."""
+    """월봉 리샘플링 (pandas 버전 호환)."""
     if df.empty:
         return df
-    return df.resample("ME").agg({
-        "O": "first", "H": "max", "L": "min", "C": "last", "V": "sum"
-    }).dropna()
+    try:
+        return df.resample(MONTH_END_OFFSET).agg({
+            "O": "first", "H": "max", "L": "min", "C": "last", "V": "sum"
+        }).dropna()
+    except Exception as e:
+        log.warning(f"Monthly resample error, trying fallback: {e}")
+        # Fallback
+        return df.resample("M").agg({
+            "O": "first", "H": "max", "L": "min", "C": "last", "V": "sum"
+        }).dropna()
 
 
 # ============================================================
@@ -49,11 +86,23 @@ def _calc_td_setup(df: pd.DataFrame, col: str = "C") -> pd.DataFrame:
     """
     df = df.copy()
     n = len(df)
+
+    if n < 5:
+        df["TD_Sell"] = 0
+        df["TD_Buy"] = 0
+        return df
+
     sell = np.zeros(n)
     buy = np.zeros(n)
     prices = df[col].values
 
     for i in range(4, n):
+        # NaN 체크
+        if pd.isna(prices[i]) or pd.isna(prices[i - 4]):
+            sell[i] = 0
+            buy[i] = 0
+            continue
+
         if prices[i] > prices[i - 4]:
             sell[i] = sell[i - 1] + 1
         else:
@@ -123,6 +172,7 @@ def _get_ohlcv(ticker: str, days: int, interval: str = "d") -> Optional[pd.DataF
         df = client.get_stock_ohlcv(ticker, start.strftime("%Y%m%d"), end.strftime("%Y%m%d"))
 
         if df is None or df.empty:
+            log.warning(f"No OHLCV data for {ticker}")
             return None
 
         # Rename columns to standard format
@@ -166,7 +216,10 @@ def _get_market_cap(ticker: str, start: str, end: str, interval: str = "d") -> p
         if interval == "w":
             df = df.resample("W").last().dropna()
         elif interval == "m":
-            df = df.resample("ME").last().dropna()
+            try:
+                df = df.resample(MONTH_END_OFFSET).last().dropna()
+            except:
+                df = df.resample("M").last().dropna()
 
         return df[["market_cap"]] if "market_cap" in df.columns else pd.DataFrame()
 
@@ -180,13 +233,21 @@ def _calc_cmf(df: pd.DataFrame, period: int = 4) -> pd.Series:
     hl = (df["H"] - df["L"]).replace(0, np.nan)
     mfm = ((df["C"] - df["L"]) - (df["H"] - df["C"])) / hl
     mfv = mfm * df["V"]
-    return mfv.rolling(period).sum() / df["V"].rolling(period).sum()
+
+    vol_sum = df["V"].rolling(period).sum()
+    # Zero division protection
+    vol_sum = vol_sum.replace(0, np.nan)
+
+    return mfv.rolling(period).sum() / vol_sum
 
 
 def _calc_fg(df: pd.DataFrame, mom_period: int = 5, pos_period: int = 52) -> pd.Series:
-    """Calculate Fear & Greed Index (-1 to +1)."""
+    """Calculate Fear & Greed Index (-1 to +1) with NaN protection."""
     # Momentum (45%)
-    log_ret = np.log(df["C"] / df["C"].shift(mom_period))
+    prev_close = df["C"].shift(mom_period)
+    # Zero division protection
+    safe_prev = prev_close.replace(0, np.nan)
+    log_ret = np.log(df["C"] / safe_prev)
     mom = (log_ret / 0.1).clip(-1, 1)
 
     # Position in 52-week range (45%)
@@ -197,21 +258,27 @@ def _calc_fg(df: pd.DataFrame, mom_period: int = 5, pos_period: int = 52) -> pd.
 
     # Volume spike (5%)
     vol_ma = df["V"].rolling(20, min_periods=5).mean()
-    vol_score = (df["V"] / vol_ma - 1).clip(-1, 1)
+    vol_ma_safe = vol_ma.replace(0, np.nan)
+    vol_score = (df["V"] / vol_ma_safe - 1).clip(-1, 1)
 
     # Volatility (5%, inverted)
     ret = df["C"].pct_change()
     vol_recent = ret.rolling(5, min_periods=3).std()
     vol_avg = ret.rolling(20, min_periods=10).std()
-    vol_spike = (vol_recent / vol_avg.replace(0, np.nan) - 1).clip(-1, 1) * -1
+    vol_avg_safe = vol_avg.replace(0, np.nan)
+    vol_spike = (vol_recent / vol_avg_safe - 1).clip(-1, 1) * -1
 
-    return mom * 0.45 + pos * 0.45 + vol_score * 0.05 + vol_spike * 0.05
+    # 가중치 적용
+    fg = mom * 0.45 + pos * 0.45 + vol_score * 0.05 + vol_spike * 0.05
+
+    # NaN을 0으로 대체하지 않고 유지 (dropna에서 처리)
+    return fg
 
 
 def _gen_signals(df: pd.DataFrame, ma_period: int, cmf_period: int) -> pd.DataFrame:
     """Generate buy/sell signals."""
     r = df.copy()
-    r["MA"] = r["C"].rolling(ma_period).mean()
+    r["MA"] = r["C"].rolling(ma_period, min_periods=1).mean()
     r["CMF"] = _calc_cmf(r, cmf_period)
     r["FG"] = _calc_fg(r)
     r["PH"] = r["H"].shift(1)
@@ -238,7 +305,7 @@ def _gen_signals(df: pd.DataFrame, ma_period: int, cmf_period: int) -> pd.DataFr
 
 
 def get_trend_signal_analysis(ticker: str, days: int = 180, interval: str = "w",
-                               ma_period: int = 20, cmf_period: int = 4) -> str:
+                              ma_period: int = 20, cmf_period: int = 4) -> str:
     """
     Analyze trend signals for a stock.
 
@@ -250,27 +317,40 @@ def get_trend_signal_analysis(ticker: str, days: int = 180, interval: str = "w",
         cmf_period: CMF period
 
     Returns: JSON with OHLCV, MA, CMF, Fear&Greed, signals
+             or {"error": true, "message": "..."} on error
     """
-    if not ticker or not ticker.strip():
-        return err_json("종목 코드가 필요합니다")
+    # 입력 검증
+    ticker = _validate_ticker(ticker)
+    if not ticker:
+        return err_json("종목 코드가 필요합니다", "validation_error")
 
-    if days <= 0 or days > 3650:
-        return err_json("유효하지 않은 기간입니다 (1-3650일)")
+    if not isinstance(days, int) or days <= 0 or days > 3650:
+        return err_json("유효하지 않은 기간입니다 (1-3650일)", "validation_error")
+
+    interval = _validate_interval(interval)
+    if interval == "m":
+        interval = "w"  # 트렌드 시그널은 월봉 미지원
 
     log.info("Trend analysis: %s, %d days, %s", ticker, days, interval)
 
     try:
         df = _get_ohlcv(ticker, days, interval)
         if df is None:
-            return err_json("데이터를 가져올 수 없습니다")
+            return err_json("데이터를 가져올 수 없습니다", "no_data")
 
-        r = _gen_signals(df, ma_period, cmf_period).dropna()
+        r = _gen_signals(df, ma_period, cmf_period)
+
+        # NaN이 있는 행 제거
+        required_cols = ["MA", "CMF", "FG"]
+        r = r.dropna(subset=[c for c in required_cols if c in r.columns])
+
         if r.empty:
-            return err_json("지표 계산 후 데이터가 없습니다")
+            return err_json("지표 계산 후 데이터가 없습니다", "calculation_error")
 
         name = get_name(ticker) or ticker
 
         data = {
+            "error": False,
             "ticker": ticker,
             "name": name,
             "interval": interval,
@@ -281,8 +361,8 @@ def get_trend_signal_analysis(ticker: str, days: int = 180, interval: str = "w",
             "close": r["C"].tolist(),
             "volume": [int(v) for v in r["V"]],
             "ma": r["MA"].tolist(),
-            "cmf": r["CMF"].tolist(),
-            "fear_greed": r["FG"].tolist(),
+            "cmf": [float(v) if pd.notna(v) else 0.0 for v in r["CMF"]],
+            "fear_greed": [float(v) if pd.notna(v) else 0.0 for v in r["FG"]],
             "buy_signal": r["Buy"].tolist(),
             "aux_buy_signal": r["AuxBuy"].tolist(),
             "sell_signal": r["Sell"].tolist(),
@@ -293,9 +373,8 @@ def get_trend_signal_analysis(ticker: str, days: int = 180, interval: str = "w",
         return to_json(data)
 
     except RuntimeError as e:
-        # KIS API not configured
         log.error("KIS API error: %s", e)
-        return err_json(str(e))
+        return err_json(str(e), "api_not_configured")
     except Exception as e:
         log.error("Trend analysis error: %s", e)
         return err_json(str(e))
@@ -315,13 +394,16 @@ def get_elder_impulse_analysis(ticker: str, days: int = 365, interval: str = "w"
         interval: "d" (daily) or "w" (weekly, default)
 
     Returns: JSON with market cap, EMA13, MACD, impulse signals
+             or {"error": true, "message": "..."} on error
     """
-    if not ticker or not ticker.strip():
-        return err_json("종목 코드가 필요합니다")
+    # 입력 검증
+    ticker = _validate_ticker(ticker)
+    if not ticker:
+        return err_json("종목 코드가 필요합니다", "validation_error")
 
-    # 인터벌 검증
-    if interval not in ("d", "w"):
-        interval = "w"
+    interval = _validate_interval(interval)
+    if interval == "m":
+        interval = "w"  # Elder Impulse는 월봉 미지원
 
     log.info("Elder Impulse analysis: %s, %d days, %s", ticker, days, interval)
 
@@ -329,7 +411,7 @@ def get_elder_impulse_analysis(ticker: str, days: int = 365, interval: str = "w"
         # 데이터 가져오기 (선택된 인터벌)
         df = _get_ohlcv(ticker, days, interval)
         if df is None:
-            return err_json("데이터를 가져올 수 없습니다")
+            return err_json("데이터를 가져올 수 없습니다", "no_data")
 
         # 시가총액 데이터 가져오기
         end = datetime.now()
@@ -345,7 +427,7 @@ def get_elder_impulse_analysis(ticker: str, days: int = 365, interval: str = "w"
 
         if not cap_df.empty:
             df = df.join(cap_df, how="left")
-            df["MarketCap"] = df["market_cap"].ffill()
+            df["MarketCap"] = df["market_cap"].ffill().fillna(0)
         else:
             df["MarketCap"] = 0
 
@@ -354,11 +436,12 @@ def get_elder_impulse_analysis(ticker: str, days: int = 365, interval: str = "w"
         r = df.dropna(subset=["EMA", "MACD", "Impulse"])
 
         if r.empty:
-            return err_json("지표 계산 후 데이터가 없습니다")
+            return err_json("지표 계산 후 데이터가 없습니다", "calculation_error")
 
         name = get_name(ticker) or ticker
 
         data = {
+            "error": False,
             "ticker": ticker,
             "name": name,
             "interval": interval,
@@ -376,9 +459,8 @@ def get_elder_impulse_analysis(ticker: str, days: int = 365, interval: str = "w"
         return to_json(data)
 
     except RuntimeError as e:
-        # KIS API not configured
         log.error("KIS API error: %s", e)
-        return err_json(str(e))
+        return err_json(str(e), "api_not_configured")
     except Exception as e:
         log.error("Elder Impulse error: %s", e)
         return err_json(str(e))
@@ -398,19 +480,21 @@ def get_demark_td_analysis(ticker: str, days: int = 365, interval: str = "w") ->
         interval: "d" (daily), "w" (weekly), "m" (monthly)
 
     Returns: JSON with market cap, close prices, TD_Buy, TD_Sell counts
+             or {"error": true, "message": "..."} on error
     """
-    if not ticker or not ticker.strip():
-        return err_json("종목 코드가 필요합니다")
+    # 입력 검증
+    ticker = _validate_ticker(ticker)
+    if not ticker:
+        return err_json("종목 코드가 필요합니다", "validation_error")
 
-    if interval not in ("d", "w", "m"):
-        return err_json("interval은 'd', 'w', 'm' 중 하나여야 합니다")
+    interval = _validate_interval(interval)
 
     log.info("DeMark TD analysis: %s, %d days, %s", ticker, days, interval)
 
     try:
         df = _get_ohlcv(ticker, days, interval)
         if df is None:
-            return err_json("데이터를 가져올 수 없습니다")
+            return err_json("데이터를 가져올 수 없습니다", "no_data")
 
         # 시가총액 데이터 가져오기
         end = datetime.now()
@@ -426,7 +510,7 @@ def get_demark_td_analysis(ticker: str, days: int = 365, interval: str = "w") ->
 
         if not cap_df.empty:
             df = df.join(cap_df, how="left")
-            df["MarketCap"] = df["market_cap"].ffill()
+            df["MarketCap"] = df["market_cap"].ffill().fillna(0)
         else:
             df["MarketCap"] = 0
 
@@ -434,13 +518,14 @@ def get_demark_td_analysis(ticker: str, days: int = 365, interval: str = "w") ->
         df = _calc_td_setup(df)
 
         if len(df) < 5:
-            return err_json("데이터가 부족합니다 (최소 5개 필요)")
+            return err_json("데이터가 부족합니다 (최소 5개 필요)", "insufficient_data")
 
         name = get_name(ticker) or ticker
 
         interval_name = {"d": "일봉", "w": "주봉", "m": "월봉"}.get(interval, interval)
 
         data = {
+            "error": False,
             "ticker": ticker,
             "name": name,
             "interval": interval,
@@ -456,9 +541,8 @@ def get_demark_td_analysis(ticker: str, days: int = 365, interval: str = "w") ->
         return to_json(data)
 
     except RuntimeError as e:
-        # KIS API not configured
         log.error("KIS API error: %s", e)
-        return err_json(str(e))
+        return err_json(str(e), "api_not_configured")
     except Exception as e:
         log.error("DeMark TD error: %s", e)
         return err_json(str(e))
