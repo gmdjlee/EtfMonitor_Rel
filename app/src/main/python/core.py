@@ -159,6 +159,31 @@ def days_ago(n: int) -> str:
     return (datetime.now() - timedelta(days=n)).strftime("%Y%m%d")
 
 
+# Cache for business days to avoid repeated API calls
+_business_days_cache: Dict[str, List[str]] = {}
+
+
+def _fetch_business_days_from_ohlcv(start: str, end: str) -> List[str]:
+    """
+    Fetch business days by getting OHLCV data for a date range.
+    This is more efficient than checking each date individually.
+    """
+    if not is_kis_available():
+        return []
+
+    try:
+        client = get_kis_client()
+        # Fetch stock data for the entire range (will only have data for trading days)
+        df = client.get_stock_ohlcv(REF_TICKER, start, end)
+        if df is not None and not df.empty:
+            # Extract dates from the index (which are the actual trading days)
+            return [d.strftime("%Y%m%d") for d in df.index]
+    except Exception as e:
+        get_logger("core").warning(f"Failed to fetch business days via OHLCV: {e}")
+
+    return []
+
+
 def market_date() -> str:
     """Get latest market date (most recent business day).
 
@@ -168,35 +193,53 @@ def market_date() -> str:
         # If KIS not available, return yesterday as fallback
         return days_ago(1)
 
-    client = get_kis_client()
+    # Try to get OHLCV data for the past 7 days
+    start = days_ago(7)
+    end = today()
 
-    # Try up to 7 days back to find a valid market date
-    for i in range(7):
-        d = days_ago(i)
-        try:
-            # Try to get stock data for reference ticker
-            df = client.get_stock_ohlcv(REF_TICKER, d, d)
-            if df is not None and not df.empty:
-                return d
-        except Exception:
-            continue
+    try:
+        days = _fetch_business_days_from_ohlcv(start, end)
+        if days:
+            return days[-1]  # Return the most recent trading day
+    except Exception:
+        pass
 
     # Fallback to yesterday if nothing found
     return days_ago(1)
 
 
 def is_business_day(date_str: str) -> bool:
-    """Check if date is a business day using KIS API."""
+    """Check if date is a business day using cached data."""
+    # Check cache first
+    for cache_key, days in _business_days_cache.items():
+        if date_str in days:
+            return True
+
     if not is_kis_available():
-        # Cannot determine without KIS API
+        # Cannot determine without KIS API, assume weekdays are business days
+        dt = parse_date(date_str)
+        if dt:
+            return dt.weekday() < 5  # Monday-Friday
         return True
 
-    try:
-        client = get_kis_client()
-        df = client.get_stock_ohlcv(REF_TICKER, date_str, date_str)
-        return df is not None and not df.empty
-    except Exception:
+    # Fetch a small range around the date to cache nearby dates
+    dt = parse_date(date_str)
+    if not dt:
         return False
+
+    start = (dt - timedelta(days=7)).strftime("%Y%m%d")
+    end = (dt + timedelta(days=7)).strftime("%Y%m%d")
+
+    try:
+        days = _fetch_business_days_from_ohlcv(start, end)
+        if days:
+            cache_key = f"{start}-{end}"
+            _business_days_cache[cache_key] = days
+            return date_str in days
+    except Exception:
+        pass
+
+    return False
 
 
 def get_business_days(start: str, end: str) -> str:
@@ -206,14 +249,27 @@ def get_business_days(start: str, end: str) -> str:
         if not s or not e or s > e:
             return to_json([])
 
+        start_str = s.strftime("%Y%m%d")
+        end_str = e.strftime("%Y%m%d")
+
+        # Try to get business days efficiently via OHLCV data
+        if is_kis_available():
+            days = _fetch_business_days_from_ohlcv(start_str, end_str)
+            if days:
+                # Cache for future use
+                cache_key = f"{start_str}-{end_str}"
+                _business_days_cache[cache_key] = days
+                return to_json(days)
+
+        # Fallback: return weekdays (Mon-Fri) - less accurate but works offline
         days = []
         cur = s
         while cur <= e:
-            d = cur.strftime("%Y%m%d")
-            if is_business_day(d):
-                days.append(d)
+            if cur.weekday() < 5:  # Monday=0, Sunday=6
+                days.append(cur.strftime("%Y%m%d"))
             cur += timedelta(days=1)
         return to_json(days)
+
     except Exception:
         return to_json([])
 

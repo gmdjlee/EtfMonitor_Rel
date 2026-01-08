@@ -6,7 +6,7 @@ Reference: https://github.com/koreainvestment/open-trading-api
 
 Phase 2 of KIS API Migration:
 - Token management with auto-refresh
-- Rate limiting (20 requests/second)
+- Rate limiting (20 requests/second for live, 2/sec for paper trading)
 - Retry logic with exponential backoff
 - ETF holdings, investor trading, OHLCV data
 - Stock master download from KIS server
@@ -16,12 +16,17 @@ import json
 import time
 import zipfile
 import io
+import threading
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple, Any
 import pandas as pd
 from core import get_logger
 
 log = get_logger("kis_client")
+
+# Global lock for rate limiting across all threads
+_rate_limit_lock = threading.Lock()
+_global_last_request_time: float = 0
 
 
 class KISAPIClient:
@@ -30,27 +35,36 @@ class KISAPIClient:
     BASE_URL = "https://openapi.koreainvestment.com:9443"
     TOKEN_EXPIRY_HOURS = 23
 
-    # Rate limiting: 20 requests per second
-    RATE_LIMIT_PER_SEC = 20
-    MIN_REQUEST_INTERVAL = 1.0 / RATE_LIMIT_PER_SEC  # 0.05 seconds
+    # Rate limiting per KIS API official documentation (2024.08.02)
+    # - Live trading: 20 requests/second per account
+    # - Paper trading: 2 requests/second per account
+    RATE_LIMIT_LIVE = 20  # requests per second
+    RATE_LIMIT_PAPER = 2  # requests per second
 
     # Retry configuration
+    # Keep total retry time under 25 seconds to fit within Kotlin's 30s timeout
     MAX_RETRIES = 3
     RETRY_DELAY_BASE = 1.0  # seconds (exponential backoff: 1, 2, 4)
 
-    def __init__(self, app_key: str, app_secret: str):
+    def __init__(self, app_key: str, app_secret: str, is_paper_trading: bool = False):
         """
         Initialize KIS API client.
 
         Args:
             app_key: KIS Open API app key
             app_secret: KIS Open API app secret
+            is_paper_trading: True for paper trading (2 req/sec), False for live (20 req/sec)
         """
         self.app_key = app_key
         self.app_secret = app_secret
+        self.is_paper_trading = is_paper_trading
         self._token: Optional[str] = None
         self._token_expiry: Optional[datetime] = None
-        self._last_request_time: float = 0
+
+        # Set rate limit based on trading mode
+        rate_limit = self.RATE_LIMIT_PAPER if is_paper_trading else self.RATE_LIMIT_LIVE
+        self._min_request_interval = 1.0 / rate_limit
+        log.info(f"KIS API client initialized: {'paper' if is_paper_trading else 'live'} trading mode ({rate_limit} req/sec)")
 
     def _get_token(self) -> str:
         """Get or refresh OAuth access token."""
@@ -76,11 +90,13 @@ class KISAPIClient:
         return self._token
 
     def _rate_limit(self):
-        """Enforce rate limiting (20 requests/second)."""
-        elapsed = time.time() - self._last_request_time
-        if elapsed < self.MIN_REQUEST_INTERVAL:
-            time.sleep(self.MIN_REQUEST_INTERVAL - elapsed)
-        self._last_request_time = time.time()
+        """Enforce rate limiting globally across all threads."""
+        global _global_last_request_time
+        with _rate_limit_lock:
+            elapsed = time.time() - _global_last_request_time
+            if elapsed < self._min_request_interval:
+                time.sleep(self._min_request_interval - elapsed)
+            _global_last_request_time = time.time()
 
     def _request(self, endpoint: str, tr_id: str, params: Dict) -> Dict:
         """
@@ -118,8 +134,9 @@ class KISAPIClient:
             except requests.exceptions.RequestException as e:
                 last_error = e
                 if attempt < self.MAX_RETRIES - 1:
+                    # Exponential backoff: 1s, 2s, 4s (total ~7s max delay)
                     delay = self.RETRY_DELAY_BASE * (2 ** attempt)
-                    log.warning(f"Request failed (attempt {attempt + 1}), retrying in {delay}s: {e}")
+                    log.warning(f"Request failed (attempt {attempt + 1}), retrying in {delay:.1f}s: {e}")
                     time.sleep(delay)
 
         raise last_error
@@ -168,9 +185,25 @@ class KISAPIClient:
                 "tr_cont": tr_cont
             }
 
-            self._rate_limit()
-            response = requests.get(url, headers=headers, params=params, timeout=30)
-            response.raise_for_status()
+            # Retry logic for paginated requests
+            last_error = None
+            response = None
+            for attempt in range(self.MAX_RETRIES):
+                try:
+                    self._rate_limit()
+                    response = requests.get(url, headers=headers, params=params, timeout=30)
+                    response.raise_for_status()
+                    break
+                except requests.exceptions.RequestException as e:
+                    last_error = e
+                    if attempt < self.MAX_RETRIES - 1:
+                        # Exponential backoff: 1s, 2s, 4s (total ~7s max delay)
+                        delay = self.RETRY_DELAY_BASE * (2 ** attempt)
+                        log.warning(f"Paginated request failed (attempt {attempt + 1}), retrying in {delay:.1f}s: {e}")
+                        time.sleep(delay)
+
+            if response is None:
+                raise last_error
 
             data = response.json()
 
@@ -500,46 +533,63 @@ class KISAPIClient:
     # ETF List (replaces pykrx get_etf_ticker_list)
     # ========================================
 
+    # ETF identification keywords (Korean fund company prefixes and ETF indicator)
+    ETF_KEYWORDS = [
+        'ETF', 'KODEX', 'TIGER', 'ARIRANG', 'KOSEF', 'KINDEX',
+        'KBSTAR', 'HANARO', 'SOL', 'ACE', 'TIMEFOLIO', 'FOCUS',
+        'BNK', 'WOORI', 'PLUS', 'TREX', 'SMART', 'RISE', 'VITA'
+    ]
+
     def get_etf_list(self) -> pd.DataFrame:
         """
-        Get all ETF list.
+        Get all ETF list by downloading master files and filtering.
+
+        Korean ETFs are identified by their names containing:
+        - 'ETF' keyword
+        - Fund company prefixes like 'KODEX', 'TIGER', 'ARIRANG', etc.
 
         Returns:
             DataFrame with columns: ticker, name
         """
-        params = {
-            "fid_cond_mrkt_div_code": "J",
-            "fid_cond_scr_div_code": "13001",
-            "fid_input_iscd": "0000",
-            "fid_rank_sort_cls_code": "0",
-            "fid_div_cls_code": "0",
-            "fid_trgt_cls_code": "0",
-            "fid_trgt_exls_cls_code": "0",
-            "fid_input_price_1": "",
-            "fid_input_price_2": "",
-            "fid_vol_cnt": "",
-            "fid_input_date_1": ""
-        }
+        # Check cache first
+        if self._etf_list_cache is not None and not self._etf_list_cache.empty:
+            log.info(f"Using cached ETF list: {len(self._etf_list_cache)} ETFs")
+            return self._etf_list_cache
 
-        data = self._request(
-            "/uapi/domestic-stock/v1/quotations/inquire-search-stock-info",
-            "CTPF1002R",
-            params
-        )
+        try:
+            # Download all stocks (includes ETFs)
+            all_stocks = self.get_all_stocks()
 
-        if data.get("rt_cd") != "0":
-            raise ValueError(f"API error: {data.get('msg1')}")
+            if all_stocks.empty:
+                log.warning("No stocks from master file download")
+                return pd.DataFrame(columns=["ticker", "name"])
 
-        output = data.get("output", [])
+            # Filter for ETFs by name patterns
+            def is_etf(name: str) -> bool:
+                if not name:
+                    return False
+                name_upper = name.upper()
+                return any(kw.upper() in name_upper for kw in self.ETF_KEYWORDS)
 
-        return pd.DataFrame([{
-            "ticker": item.get("stck_shrn_iscd"),
-            "name": item.get("hts_kor_isnm", "")
-        } for item in output if item.get("stck_shrn_iscd")])
+            mask = all_stocks['name'].apply(is_etf)
+            etf_df = all_stocks[mask][['ticker', 'name']].copy().reset_index(drop=True)
+
+            # Cache the result
+            self._etf_list_cache = etf_df
+            log.info(f"ETF list from master files: {len(etf_df)} ETFs found (cached)")
+            return etf_df
+
+        except Exception as e:
+            log.error(f"Failed to get ETF list from master files: {e}")
+            return pd.DataFrame(columns=["ticker", "name"])
 
     # ========================================
     # Stock List (KOSPI/KOSDAQ master files)
     # ========================================
+
+    # Cache for master file downloads (avoid repeated network calls)
+    _master_cache: Dict[str, pd.DataFrame] = {}
+    _etf_list_cache: Optional[pd.DataFrame] = None
 
     def download_stock_master(self, market: str = "kospi") -> pd.DataFrame:
         """
@@ -552,6 +602,12 @@ class KISAPIClient:
             DataFrame with columns: ticker, name, market, listed_shares
             (listed_shares is in units of 1000)
         """
+        # Check cache first
+        cache_key = market.lower()
+        if cache_key in self._master_cache:
+            log.info(f"Using cached {cache_key} master data")
+            return self._master_cache[cache_key]
+
         if market.lower() == "kospi":
             url = "https://new.real.download.dws.co.kr/common/master/kospi_code.mst.zip"
         elif market.lower() == "kosdaq":
@@ -615,7 +671,11 @@ class KISAPIClient:
                 "listed_shares": listed_shares  # in units of 1000
             })
 
-        return pd.DataFrame(stocks)
+        df = pd.DataFrame(stocks)
+        # Cache the result
+        self._master_cache[cache_key] = df
+        log.info(f"Downloaded and cached {cache_key} master: {len(df)} stocks")
+        return df
 
     def get_all_stocks(self) -> pd.DataFrame:
         """Get all KOSPI and KOSDAQ stocks."""
@@ -755,20 +815,24 @@ class KISAPIClient:
 _client: Optional[KISAPIClient] = None
 
 
-def init_kis_client(app_key: str, app_secret: str):
+def init_kis_client(app_key: str, app_secret: str, is_paper_trading: bool = False):
     """
     Initialize global KIS API client.
+
+    Args:
+        app_key: KIS Open API app key
+        app_secret: KIS Open API app secret
+        is_paper_trading: True for paper trading (2 req/sec), False for live (20 req/sec)
 
     Also registers the client with core.py for use by other modules.
     """
     global _client
-    _client = KISAPIClient(app_key, app_secret)
+    _client = KISAPIClient(app_key, app_secret, is_paper_trading)
 
     # Register with core.py for other modules to use
     try:
         from core import set_kis_client
         set_kis_client(_client)
-        log.info("KIS API client initialized and registered with core")
     except ImportError:
         log.warning("Could not register KIS client with core module")
         log.info("KIS API client initialized")
