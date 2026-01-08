@@ -270,6 +270,9 @@ class KISAPIClient:
                 try:
                     data = response.json()
                 except json.JSONDecodeError:
+                    # Log actual response content for debugging
+                    response_preview = response.text[:500] if response.text else "(empty)"
+                    log.warning(f"Invalid JSON response (status={response.status_code}): {response_preview}")
                     last_error = "Invalid JSON response"
                     if attempt < self.MAX_RETRIES - 1:
                         delay = self.RETRY_DELAY_BASE * (2 ** attempt)
@@ -277,7 +280,7 @@ class KISAPIClient:
                         time.sleep(delay)
                         continue
                     self._circuit_breaker.record_failure()
-                    return APIResult.fail("JSON_ERROR", "Invalid JSON response")
+                    return APIResult.fail("JSON_ERROR", f"Invalid JSON response: {response_preview[:100]}")
 
                 # API 응답 코드 체크
                 rt_cd = data.get("rt_cd", "")
@@ -775,14 +778,182 @@ class KISAPIClient:
     # ETF List (replaces pykrx get_etf_ticker_list)
     # ========================================
 
-    def get_etf_list(self) -> pd.DataFrame:
+    def download_etf_master(self) -> pd.DataFrame:
         """
-        Get all ETF list.
+        Download ETF master list from KIS server.
 
         Returns:
             DataFrame with columns: ticker, name
             Empty DataFrame on error
         """
+        # Try multiple possible ETF master file URLs
+        urls = [
+            "https://new.real.download.dws.co.kr/common/master/etf_code.mst.zip",
+            "https://new.real.download.dws.co.kr/common/master/etn_code.mst.zip",
+        ]
+
+        for url in urls:
+            last_error = None
+            response = None
+
+            for attempt in range(self.MAX_RETRIES):
+                try:
+                    response = requests.get(url, timeout=60)
+                    response.raise_for_status()
+                    break
+                except requests.exceptions.RequestException as e:
+                    last_error = e
+                    if attempt < self.MAX_RETRIES - 1:
+                        delay = self.RETRY_DELAY_BASE * (2 ** attempt)
+                        log.debug(f"ETF master download failed (attempt {attempt + 1}): {e}")
+                        time.sleep(delay)
+                        continue
+                    response = None
+
+            if response is None:
+                log.debug(f"Could not download from {url}: {last_error}")
+                continue
+
+            try:
+                with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
+                    filename = zf.namelist()[0]
+                    with zf.open(filename) as f:
+                        content = f.read().decode("cp949")
+
+                # Parse master file - similar format to stock master
+                etfs = self._parse_master_content(content, "ETF")
+                if etfs:
+                    log.info(f"Downloaded {len(etfs)} ETFs from master file ({url})")
+                    # Reset circuit breaker since we got data successfully
+                    self._circuit_breaker.reset()
+                    return pd.DataFrame(etfs)
+
+            except Exception as e:
+                log.debug(f"Failed to parse {url}: {e}")
+                continue
+
+        log.warning("ETF master file download failed, using fallback method")
+        return pd.DataFrame()
+
+    def _parse_master_content(self, content: str, asset_type: str = "ETF") -> List[Dict]:
+        """
+        Parse master file content to extract ticker and name.
+
+        Args:
+            content: Raw content from master file
+            asset_type: Type of asset (ETF/ETN/Stock)
+
+        Returns:
+            List of {"ticker": ..., "name": ...}
+        """
+        items = []
+        for line in content.strip().split("\n"):
+            if len(line) < 20:
+                continue
+
+            # Try to extract ticker (first 9 chars contain ticker)
+            ticker_raw = line[0:9].strip()
+            if not ticker_raw:
+                continue
+
+            # Get 6-digit ticker
+            ticker = ticker_raw[:6] if len(ticker_raw) >= 6 else ticker_raw
+            if not ticker.isdigit():
+                continue
+
+            # Extract name from remaining content
+            # Name is typically after ticker, before numeric data
+            try:
+                # Find the part2 marker (228 bytes from end for stock format)
+                part2_start = len(line) - 228 if len(line) > 250 else len(line) // 2
+                name_part = line[9:part2_start] if part2_start > 9 else line[9:]
+                name = name_part.strip()
+
+                # Clean name - remove extra spaces and trailing data
+                if "  " in name:
+                    name = name.split("  ")[0].strip()
+
+                # Fallback: just take first meaningful chunk
+                if not name or len(name) < 2:
+                    parts = line[9:].split()
+                    name = parts[0] if parts else ""
+
+                if ticker and name and len(name) >= 2:
+                    items.append({"ticker": ticker, "name": name})
+
+            except Exception:
+                continue
+
+        return items
+
+    def get_etf_list_from_stocks(self) -> pd.DataFrame:
+        """
+        Get ETF list by filtering from stock master files.
+
+        ETFs in Korea typically have tickers in specific ranges.
+
+        Returns:
+            DataFrame with columns: ticker, name
+            Empty DataFrame on error
+        """
+        try:
+            all_stocks = self.get_all_stocks()
+            if all_stocks.empty:
+                return pd.DataFrame()
+
+            # Filter for ETF-like tickers
+            # Most Korean ETFs have tickers starting with specific patterns
+            # Common ETF prefixes: 069, 091, 102, 114, 117, 122, 130, 137, 139, etc.
+            # Also, ETF names usually contain "ETF" or specific keywords
+            etf_keywords = ["ETF", "KODEX", "TIGER", "KINDEX", "ARIRANG", "SOL",
+                          "HANARO", "KOSEF", "TREX", "KBSTAR", "ACE", "TIMEFOLIO"]
+
+            etfs = []
+            for _, row in all_stocks.iterrows():
+                name = row.get("name", "")
+                ticker = row.get("ticker", "")
+
+                # Check if name contains ETF keywords
+                if any(kw in name.upper() for kw in etf_keywords):
+                    etfs.append({"ticker": ticker, "name": name})
+
+            if etfs:
+                log.info(f"Found {len(etfs)} ETFs from stock master (keyword filter)")
+                # Reset circuit breaker since we got data successfully via alternative method
+                self._circuit_breaker.reset()
+            return pd.DataFrame(etfs)
+
+        except Exception as e:
+            log.error(f"Failed to get ETF list from stocks: {e}")
+            return pd.DataFrame()
+
+    def get_etf_list(self) -> pd.DataFrame:
+        """
+        Get all ETF list.
+
+        Tries multiple methods in order:
+        1. ETF master file download
+        2. Stock master filtering by ETF keywords
+        3. API endpoint (fallback)
+
+        Returns:
+            DataFrame with columns: ticker, name
+            Empty DataFrame on error
+        """
+        # Method 1: Try master file download first (most reliable)
+        df = self.download_etf_master()
+        if not df.empty:
+            return df
+
+        # Method 2: Try filtering from stock master
+        log.info("Trying ETF list from stock master...")
+        df = self.get_etf_list_from_stocks()
+        if not df.empty:
+            return df
+
+        log.warning("Stock master fallback failed, trying API endpoint...")
+
+        # Method 3: Fallback to API endpoint (least reliable)
         params = {
             "fid_cond_mrkt_div_code": "J",
             "fid_cond_scr_div_code": "13001",
@@ -804,7 +975,7 @@ class KISAPIClient:
         )
 
         if not result.success:
-            log.error(f"Failed to get ETF list: {result.error_message}")
+            log.error(f"Failed to get ETF list via API: {result.error_message}")
             return pd.DataFrame()
 
         output = result.data.get("output", [])
