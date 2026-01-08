@@ -11,6 +11,7 @@ import com.etfmonitor.feature.market.data.mapper.MarketMapper.toOscillatorDomain
 import com.etfmonitor.feature.market.domain.model.MarketOscillator
 import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -115,6 +116,7 @@ class MarketOscillatorRepositoryImpl @Inject constructor(
 
             // Python에서 데이터 수집
             onProgress?.invoke("$market 시장 지수 데이터 수집 중...", 30)
+            coroutineContext.ensureActive()  // 취소 상태 확인
             val jsonStr = pyClient.getMarketOscillator(market, startDateStr, endDateStr)
             val response = json.decodeFromString<MarketOscillatorResponse>(jsonStr)
 
@@ -176,6 +178,7 @@ class MarketOscillatorRepositoryImpl @Inject constructor(
             val endDateStr = endDate.format(formatter)
 
             // Python에서 데이터 수집
+            coroutineContext.ensureActive()  // 취소 상태 확인
             val jsonStr = pyClient.getMarketOscillator(market, startDateStr, endDateStr)
             val response = json.decodeFromString<MarketOscillatorResponse>(jsonStr)
 

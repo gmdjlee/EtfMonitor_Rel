@@ -4,29 +4,101 @@ Replaces pykrx for all Korean market data needs.
 
 Reference: https://github.com/koreainvestment/open-trading-api
 
-Phase 2 of KIS API Migration:
-- Token management with auto-refresh
-- Rate limiting (20 requests/second for live, 2/sec for paper trading)
-- Retry logic with exponential backoff
-- ETF holdings, investor trading, OHLCV data
-- Stock master download from KIS server
+Improvements in v2.1:
+- Circuit breaker pattern for continuous failures
+- HTTPError retry with exponential backoff
+- Token refresh error handling
+- Consistent error response parsing
+- Better logging for debugging
 """
 import requests
 import json
 import time
 import zipfile
 import io
-import threading
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Tuple, Any
+from typing import Optional, Dict, List, Tuple, Any, Union
+from dataclasses import dataclass
+from enum import Enum
 import pandas as pd
 from core import get_logger
 
 log = get_logger("kis_client")
 
-# Global lock for rate limiting across all threads
-_rate_limit_lock = threading.Lock()
-_global_last_request_time: float = 0
+
+class APIErrorCode(Enum):
+    """KIS API 에러 코드."""
+    SUCCESS = "0"
+    TOKEN_EXPIRED = "EGW00123"
+    RATE_LIMIT = "EGW00201"
+    INVALID_TOKEN = "EGW00121"
+    SERVICE_ERROR = "EGW00999"
+
+
+@dataclass
+class APIResult:
+    """API 호출 결과를 담는 데이터 클래스."""
+    success: bool
+    data: Optional[Dict] = None
+    error_code: Optional[str] = None
+    error_message: Optional[str] = None
+
+    @classmethod
+    def ok(cls, data: Dict) -> "APIResult":
+        return cls(success=True, data=data)
+
+    @classmethod
+    def fail(cls, code: str, message: str) -> "APIResult":
+        return cls(success=False, error_code=code, error_message=message)
+
+
+class CircuitBreaker:
+    """Circuit Breaker 패턴 구현."""
+
+    def __init__(self, failure_threshold: int = 5, recovery_timeout: int = 60):
+        """
+        Args:
+            failure_threshold: 연속 실패 횟수 임계값
+            recovery_timeout: 회로 차단 후 복구 대기 시간 (초)
+        """
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.failure_count = 0
+        self.last_failure_time: Optional[float] = None
+        self.is_open = False
+
+    def record_success(self):
+        """성공 기록 - 실패 카운트 리셋."""
+        self.failure_count = 0
+        self.is_open = False
+
+    def record_failure(self):
+        """실패 기록 - 임계값 초과 시 회로 차단."""
+        self.failure_count += 1
+        self.last_failure_time = time.time()
+
+        if self.failure_count >= self.failure_threshold:
+            self.is_open = True
+            log.warning(f"Circuit breaker OPEN after {self.failure_count} failures")
+
+    def can_execute(self) -> bool:
+        """실행 가능 여부 확인."""
+        if not self.is_open:
+            return True
+
+        # 복구 타임아웃 체크
+        if self.last_failure_time and \
+                (time.time() - self.last_failure_time) > self.recovery_timeout:
+            log.info("Circuit breaker attempting recovery (half-open)")
+            return True
+
+        return False
+
+    def reset(self):
+        """수동 리셋."""
+        self.failure_count = 0
+        self.is_open = False
+        self.last_failure_time = None
 
 
 class KISAPIClient:
@@ -35,41 +107,50 @@ class KISAPIClient:
     BASE_URL = "https://openapi.koreainvestment.com:9443"
     TOKEN_EXPIRY_HOURS = 23
 
-    # Rate limiting per KIS API official documentation (2024.08.02)
-    # - Live trading: 20 requests/second per account
-    # - Paper trading: 2 requests/second per account
-    RATE_LIMIT_LIVE = 20  # requests per second
-    RATE_LIMIT_PAPER = 2  # requests per second
+    # Rate limiting: 20 requests per second
+    RATE_LIMIT_PER_SEC = 20
+    MIN_REQUEST_INTERVAL = 1.0 / RATE_LIMIT_PER_SEC  # 0.05 seconds
 
     # Retry configuration
-    # Keep total retry time under 25 seconds to fit within Kotlin's 30s timeout
     MAX_RETRIES = 3
     RETRY_DELAY_BASE = 1.0  # seconds (exponential backoff: 1, 2, 4)
 
-    def __init__(self, app_key: str, app_secret: str, is_paper_trading: bool = False):
+    # HTTP status codes that should trigger retry
+    RETRYABLE_STATUS_CODES = {500, 502, 503, 504, 429}
+
+    def __init__(self, app_key: str, app_secret: str):
         """
         Initialize KIS API client.
 
         Args:
             app_key: KIS Open API app key
             app_secret: KIS Open API app secret
-            is_paper_trading: True for paper trading (2 req/sec), False for live (20 req/sec)
         """
         self.app_key = app_key
         self.app_secret = app_secret
-        self.is_paper_trading = is_paper_trading
         self._token: Optional[str] = None
         self._token_expiry: Optional[datetime] = None
+        self._last_request_time: float = 0
+        self._circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60)
+        self._listed_shares_cache: Dict[str, int] = {}
 
-        # Set rate limit based on trading mode
-        rate_limit = self.RATE_LIMIT_PAPER if is_paper_trading else self.RATE_LIMIT_LIVE
-        self._min_request_interval = 1.0 / rate_limit
-        log.info(f"KIS API client initialized: {'paper' if is_paper_trading else 'live'} trading mode ({rate_limit} req/sec)")
+    def _get_token(self, force_refresh: bool = False) -> str:
+        """
+        Get or refresh OAuth access token with error handling.
 
-    def _get_token(self) -> str:
-        """Get or refresh OAuth access token."""
-        if self._token and self._token_expiry and datetime.now() < self._token_expiry:
-            return self._token
+        Args:
+            force_refresh: 강제로 새 토큰 발급
+
+        Returns:
+            Access token string
+
+        Raises:
+            RuntimeError: 토큰 발급 실패 시
+        """
+        # 기존 토큰이 유효하고 강제 갱신이 아니면 재사용
+        if not force_refresh and self._token and self._token_expiry:
+            if datetime.now() < self._token_expiry:
+                return self._token
 
         url = f"{self.BASE_URL}/oauth2/tokenP"
         headers = {"content-type": "application/json"}
@@ -79,28 +160,70 @@ class KISAPIClient:
             "appsecret": self.app_secret
         }
 
-        response = requests.post(url, headers=headers, json=body, timeout=30)
-        response.raise_for_status()
+        last_error = None
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                response = requests.post(url, headers=headers, json=body, timeout=30)
 
-        data = response.json()
-        self._token = data["access_token"]
-        self._token_expiry = datetime.now() + timedelta(hours=self.TOKEN_EXPIRY_HOURS)
+                # 응답 파싱
+                try:
+                    data = response.json()
+                except json.JSONDecodeError:
+                    raise RuntimeError(f"Invalid JSON response from token endpoint: {response.text[:200]}")
 
-        log.info("KIS API token refreshed")
-        return self._token
+                # HTTP 에러 체크
+                if response.status_code != 200:
+                    error_msg = data.get("error_description", data.get("msg1", "Unknown error"))
+
+                    # 재시도 가능한 에러인지 확인
+                    if response.status_code in self.RETRYABLE_STATUS_CODES:
+                        if attempt < self.MAX_RETRIES - 1:
+                            delay = self.RETRY_DELAY_BASE * (2 ** attempt)
+                            log.warning(f"Token request failed (attempt {attempt + 1}), retrying in {delay}s: {error_msg}")
+                            time.sleep(delay)
+                            continue
+
+                    raise RuntimeError(f"Token request failed ({response.status_code}): {error_msg}")
+
+                # 토큰 추출
+                access_token = data.get("access_token")
+                if not access_token:
+                    raise RuntimeError(f"No access_token in response: {data}")
+
+                self._token = access_token
+                self._token_expiry = datetime.now() + timedelta(hours=self.TOKEN_EXPIRY_HOURS)
+
+                log.info("KIS API token refreshed successfully")
+                return self._token
+
+            except requests.exceptions.Timeout:
+                last_error = "Token request timeout"
+                if attempt < self.MAX_RETRIES - 1:
+                    delay = self.RETRY_DELAY_BASE * (2 ** attempt)
+                    log.warning(f"Token request timeout (attempt {attempt + 1}), retrying in {delay}s")
+                    time.sleep(delay)
+                    continue
+
+            except requests.exceptions.RequestException as e:
+                last_error = str(e)
+                if attempt < self.MAX_RETRIES - 1:
+                    delay = self.RETRY_DELAY_BASE * (2 ** attempt)
+                    log.warning(f"Token request error (attempt {attempt + 1}), retrying in {delay}s: {e}")
+                    time.sleep(delay)
+                    continue
+
+        raise RuntimeError(f"Failed to get token after {self.MAX_RETRIES} attempts: {last_error}")
 
     def _rate_limit(self):
-        """Enforce rate limiting globally across all threads."""
-        global _global_last_request_time
-        with _rate_limit_lock:
-            elapsed = time.time() - _global_last_request_time
-            if elapsed < self._min_request_interval:
-                time.sleep(self._min_request_interval - elapsed)
-            _global_last_request_time = time.time()
+        """Enforce rate limiting (20 requests/second)."""
+        elapsed = time.time() - self._last_request_time
+        if elapsed < self.MIN_REQUEST_INTERVAL:
+            time.sleep(self.MIN_REQUEST_INTERVAL - elapsed)
+        self._last_request_time = time.time()
 
-    def _request(self, endpoint: str, tr_id: str, params: Dict) -> Dict:
+    def _request(self, endpoint: str, tr_id: str, params: Dict) -> APIResult:
         """
-        Make authenticated API request with rate limiting and retry.
+        Make authenticated API request with rate limiting, retry, and circuit breaker.
 
         Args:
             endpoint: API endpoint path
@@ -108,47 +231,108 @@ class KISAPIClient:
             params: Query parameters
 
         Returns:
-            JSON response as dictionary
-
-        Raises:
-            requests.exceptions.RequestException: If all retries fail
+            APIResult with success status and data or error info
         """
-        token = self._get_token()
+        # Circuit breaker 체크
+        if not self._circuit_breaker.can_execute():
+            return APIResult.fail("CIRCUIT_OPEN", "Circuit breaker is open. Too many recent failures.")
+
         url = f"{self.BASE_URL}{endpoint}"
-
-        headers = {
-            "content-type": "application/json; charset=utf-8",
-            "authorization": f"Bearer {token}",
-            "appkey": self.app_key,
-            "appsecret": self.app_secret,
-            "tr_id": tr_id
-        }
-
         last_error = None
+
         for attempt in range(self.MAX_RETRIES):
             try:
+                token = self._get_token()
+
+                headers = {
+                    "content-type": "application/json; charset=utf-8",
+                    "authorization": f"Bearer {token}",
+                    "appkey": self.app_key,
+                    "appsecret": self.app_secret,
+                    "tr_id": tr_id
+                }
+
                 self._rate_limit()
                 response = requests.get(url, headers=headers, params=params, timeout=30)
-                response.raise_for_status()
-                return response.json()
-            except requests.exceptions.RequestException as e:
-                last_error = e
-                if attempt < self.MAX_RETRIES - 1:
-                    # Exponential backoff: 1s, 2s, 4s (total ~7s max delay)
-                    delay = self.RETRY_DELAY_BASE * (2 ** attempt)
-                    log.warning(f"Request failed (attempt {attempt + 1}), retrying in {delay:.1f}s: {e}")
-                    time.sleep(delay)
 
-        raise last_error
+                # HTTP 상태 코드 체크
+                if response.status_code in self.RETRYABLE_STATUS_CODES:
+                    last_error = f"HTTP {response.status_code}"
+                    if attempt < self.MAX_RETRIES - 1:
+                        delay = self.RETRY_DELAY_BASE * (2 ** attempt)
+                        log.warning(f"Request failed with {response.status_code} (attempt {attempt + 1}), retrying in {delay}s")
+                        time.sleep(delay)
+                        continue
+                    self._circuit_breaker.record_failure()
+                    return APIResult.fail(str(response.status_code), f"HTTP error after {self.MAX_RETRIES} retries")
+
+                # 응답 파싱
+                try:
+                    data = response.json()
+                except json.JSONDecodeError:
+                    last_error = "Invalid JSON response"
+                    if attempt < self.MAX_RETRIES - 1:
+                        delay = self.RETRY_DELAY_BASE * (2 ** attempt)
+                        log.warning(f"Invalid JSON response (attempt {attempt + 1}), retrying in {delay}s")
+                        time.sleep(delay)
+                        continue
+                    self._circuit_breaker.record_failure()
+                    return APIResult.fail("JSON_ERROR", "Invalid JSON response")
+
+                # API 응답 코드 체크
+                rt_cd = data.get("rt_cd", "")
+                msg1 = data.get("msg1", "Unknown error")
+
+                if rt_cd != "0":
+                    # 토큰 만료 시 갱신 후 재시도
+                    if rt_cd in [APIErrorCode.TOKEN_EXPIRED.value, APIErrorCode.INVALID_TOKEN.value]:
+                        log.info("Token expired, refreshing...")
+                        self._get_token(force_refresh=True)
+                        if attempt < self.MAX_RETRIES - 1:
+                            continue
+
+                    # Rate limit 시 대기 후 재시도
+                    if rt_cd == APIErrorCode.RATE_LIMIT.value:
+                        if attempt < self.MAX_RETRIES - 1:
+                            delay = self.RETRY_DELAY_BASE * (2 ** attempt) * 2  # 더 긴 대기
+                            log.warning(f"Rate limited, waiting {delay}s before retry")
+                            time.sleep(delay)
+                            continue
+
+                    log.warning(f"API error: [{rt_cd}] {msg1}")
+                    return APIResult.fail(rt_cd, msg1)
+
+                # 성공
+                self._circuit_breaker.record_success()
+                return APIResult.ok(data)
+
+            except requests.exceptions.Timeout:
+                last_error = "Request timeout"
+                if attempt < self.MAX_RETRIES - 1:
+                    delay = self.RETRY_DELAY_BASE * (2 ** attempt)
+                    log.warning(f"Request timeout (attempt {attempt + 1}), retrying in {delay}s")
+                    time.sleep(delay)
+                    continue
+
+            except requests.exceptions.RequestException as e:
+                last_error = str(e)
+                if attempt < self.MAX_RETRIES - 1:
+                    delay = self.RETRY_DELAY_BASE * (2 ** attempt)
+                    log.warning(f"Request error (attempt {attempt + 1}), retrying in {delay}s: {e}")
+                    time.sleep(delay)
+                    continue
+
+        self._circuit_breaker.record_failure()
+        return APIResult.fail("REQUEST_FAILED", f"Request failed after {self.MAX_RETRIES} attempts: {last_error}")
 
     def _request_paginated(
-        self,
-        endpoint: str,
-        tr_id: str,
-        params: Dict,
-        output_keys: List[str] = None,
-        max_pages: int = 10
-    ) -> Dict[str, List]:
+            self,
+            endpoint: str,
+            tr_id: str,
+            params: Dict,
+            output_keys: List[str] = None,
+            max_pages: int = 10
+    ) -> APIResult:
         """
         Make paginated API request following KIS API pagination pattern.
 
@@ -164,7 +348,7 @@ class KISAPIClient:
             max_pages: Maximum number of pages to fetch
 
         Returns:
-            Dict with collected data for each output key
+            APIResult with collected data for each output key
         """
         if output_keys is None:
             output_keys = ["output"]
@@ -173,7 +357,15 @@ class KISAPIClient:
         tr_cont = ""
 
         for page in range(max_pages):
-            token = self._get_token()
+            # Circuit breaker 체크
+            if not self._circuit_breaker.can_execute():
+                return APIResult.fail("CIRCUIT_OPEN", "Circuit breaker is open")
+
+            try:
+                token = self._get_token()
+            except RuntimeError as e:
+                return APIResult.fail("TOKEN_ERROR", str(e))
+
             url = f"{self.BASE_URL}{endpoint}"
 
             headers = {
@@ -185,31 +377,25 @@ class KISAPIClient:
                 "tr_cont": tr_cont
             }
 
-            # Retry logic for paginated requests
-            last_error = None
-            response = None
-            for attempt in range(self.MAX_RETRIES):
-                try:
-                    self._rate_limit()
-                    response = requests.get(url, headers=headers, params=params, timeout=30)
-                    response.raise_for_status()
-                    break
-                except requests.exceptions.RequestException as e:
-                    last_error = e
-                    if attempt < self.MAX_RETRIES - 1:
-                        # Exponential backoff: 1s, 2s, 4s (total ~7s max delay)
-                        delay = self.RETRY_DELAY_BASE * (2 ** attempt)
-                        log.warning(f"Paginated request failed (attempt {attempt + 1}), retrying in {delay:.1f}s: {e}")
-                        time.sleep(delay)
+            try:
+                self._rate_limit()
+                response = requests.get(url, headers=headers, params=params, timeout=30)
 
-            if response is None:
-                raise last_error
+                if response.status_code in self.RETRYABLE_STATUS_CODES:
+                    self._circuit_breaker.record_failure()
+                    return APIResult.fail(str(response.status_code), f"HTTP error: {response.status_code}")
 
-            data = response.json()
+                data = response.json()
+
+            except requests.exceptions.RequestException as e:
+                self._circuit_breaker.record_failure()
+                return APIResult.fail("REQUEST_ERROR", str(e))
+            except json.JSONDecodeError:
+                return APIResult.fail("JSON_ERROR", "Invalid JSON response")
 
             if data.get("rt_cd") != "0":
                 if page == 0:
-                    raise ValueError(f"API error: {data.get('msg1')}")
+                    return APIResult.fail(data.get("rt_cd", "UNKNOWN"), data.get("msg1", "Unknown error"))
                 break
 
             # Collect data from each output key
@@ -225,14 +411,18 @@ class KISAPIClient:
 
             if resp_tr_cont in ["M", "F"]:
                 tr_cont = "N"  # Request next page
-                log.info(f"Fetching page {page + 2}...")
+                log.debug(f"Fetching page {page + 2}...")
                 time.sleep(0.1)  # Small delay between pages
             else:
                 if page > 0:
                     log.info(f"Pagination complete. Total pages: {page + 1}")
                 break
+        else:
+            # max_pages에 도달
+            log.warning(f"Reached max_pages limit ({max_pages}). Data may be incomplete.")
 
-        return results
+        self._circuit_breaker.record_success()
+        return APIResult.ok(results)
 
     # ========================================
     # ETF Holdings (replaces pykrx get_etf_portfolio_deposit_file)
@@ -247,6 +437,7 @@ class KISAPIClient:
 
         Returns:
             DataFrame with columns: ticker, name, weight, amount, quantity
+            Empty DataFrame on error
         """
         params = {
             "fid_cond_mrkt_div_code": "J",
@@ -254,33 +445,34 @@ class KISAPIClient:
             "fid_cond_scr_div_code": "11216"
         }
 
-        data = self._request(
+        result = self._request(
             "/uapi/etfetn/v1/quotations/inquire-component-stock-price",
             "FHKST121600C0",
             params
         )
 
-        if data.get("rt_cd") != "0":
-            raise ValueError(f"API error: {data.get('msg1')}")
+        if not result.success:
+            log.error(f"Failed to get ETF holdings for {etf_ticker}: {result.error_message}")
+            return pd.DataFrame()
 
-        output2 = data.get("output2", [])
+        output2 = result.data.get("output2", [])
 
         return pd.DataFrame([{
             "ticker": item.get("stck_shrn_iscd"),
             "name": item.get("stck_prpr_name"),
-            "weight": float(item.get("hldg_wght", 0)),
-            "amount": float(item.get("evlu_amt", 0)),
-            "quantity": int(item.get("hldg_qty", 0))
-        } for item in output2])
+            "weight": float(item.get("hldg_wght", 0) or 0),
+            "amount": float(item.get("evlu_amt", 0) or 0),
+            "quantity": int(item.get("hldg_qty", 0) or 0)
+        } for item in output2 if item.get("stck_shrn_iscd")])
 
     # ========================================
     # Investor Trading (replaces pykrx get_market_trading_value_by_date)
     # ========================================
 
     def get_investor_trading(
-        self,
-        ticker: str,
-        start_date: str
+            self,
+            ticker: str,
+            start_date: str
     ) -> pd.DataFrame:
         """
         Get daily investor trading data with pagination support.
@@ -291,6 +483,7 @@ class KISAPIClient:
 
         Returns:
             DataFrame with columns: date, foreign_net, institution_net, etc.
+            Empty DataFrame on error
         """
         params = {
             "fid_cond_mrkt_div_code": "J",
@@ -300,39 +493,39 @@ class KISAPIClient:
             "fid_etc_cls_code": ""
         }
 
-        results = self._request_paginated(
+        result = self._request_paginated(
             "/uapi/domestic-stock/v1/quotations/investor-trade-by-stock-daily",
             "FHPTJ04160001",
             params,
             output_keys=["output2"]
         )
 
-        output2 = results.get("output2", [])
+        if not result.success:
+            log.error(f"Failed to get investor trading for {ticker}: {result.error_message}")
+            return pd.DataFrame()
+
+        output2 = result.data.get("output2", [])
 
         return pd.DataFrame([{
             "date": item.get("stck_bsop_date"),
-            "foreign_net": int(item.get("frgn_ntby_qty", 0)),
-            "institution_net": int(item.get("orgn_ntby_qty", 0)),
-            "individual_net": int(item.get("prsn_ntby_qty", 0)),
-            "pension_net": int(item.get("pnsn_fnd_ntby_qty", 0))
-        } for item in output2])
+            "foreign_net": int(item.get("frgn_ntby_qty", 0) or 0),
+            "institution_net": int(item.get("orgn_ntby_qty", 0) or 0),
+            "individual_net": int(item.get("prsn_ntby_qty", 0) or 0),
+            "pension_net": int(item.get("pnsn_fnd_ntby_qty", 0) or 0)
+        } for item in output2 if item.get("stck_bsop_date")])
 
     # ========================================
     # Stock OHLCV (replaces pykrx get_market_ohlcv)
     # ========================================
 
     def get_stock_ohlcv(
-        self,
-        ticker: str,
-        start_date: str,
-        end_date: str
+            self,
+            ticker: str,
+            start_date: str,
+            end_date: str
     ) -> pd.DataFrame:
         """
-        Get stock daily OHLCV data.
-
-        Uses inquire_daily_itemchartprice API which supports date range.
-        Note: Maximum 100 records per call. For longer periods,
-        the data is automatically paginated.
+        Get stock daily OHLCV data with pagination for long periods.
 
         Args:
             ticker: Stock ticker (e.g., "005930")
@@ -341,39 +534,72 @@ class KISAPIClient:
 
         Returns:
             DataFrame with OHLCV columns indexed by date
+            Empty DataFrame on error
         """
-        params = {
-            "fid_cond_mrkt_div_code": "J",
-            "fid_input_iscd": ticker,
-            "fid_input_date_1": start_date,
-            "fid_input_date_2": end_date,
-            "fid_period_div_code": "D",
-            "fid_org_adj_prc": "0"
-        }
+        all_data = []
+        current_end = end_date
 
-        data = self._request(
-            "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
-            "FHKST03010100",
-            params
-        )
+        # 최대 100건씩 페이지네이션
+        for _ in range(50):  # 최대 5000일 (약 20년)
+            params = {
+                "fid_cond_mrkt_div_code": "J",
+                "fid_input_iscd": ticker,
+                "fid_input_date_1": start_date,
+                "fid_input_date_2": current_end,
+                "fid_period_div_code": "D",
+                "fid_org_adj_prc": "0"
+            }
 
-        if data.get("rt_cd") != "0":
-            raise ValueError(f"API error: {data.get('msg1')}")
+            result = self._request(
+                "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
+                "FHKST03010100",
+                params
+            )
 
-        # output2 contains daily OHLCV data for itemchartprice API
-        output2 = data.get("output2", [])
+            if not result.success:
+                log.error(f"Failed to get OHLCV for {ticker}: {result.error_message}")
+                break
+
+            output2 = result.data.get("output2", [])
+            if not output2:
+                break
+
+            all_data.extend(output2)
+
+            # 100건 미만이면 더 이상 데이터 없음
+            if len(output2) < 100:
+                break
+
+            # 다음 페이지를 위해 end_date 조정 (가장 오래된 날짜 - 1일)
+            oldest_date = min(item.get("stck_bsop_date", "99999999") for item in output2)
+            if oldest_date <= start_date:
+                break
+
+            # 하루 전으로 설정
+            from datetime import datetime, timedelta
+            try:
+                oldest_dt = datetime.strptime(oldest_date, "%Y%m%d")
+                current_end = (oldest_dt - timedelta(days=1)).strftime("%Y%m%d")
+            except ValueError:
+                break
+
+            time.sleep(0.1)  # API 부하 방지
+
+        if not all_data:
+            return pd.DataFrame()
 
         df = pd.DataFrame([{
             "date": item.get("stck_bsop_date"),
-            "open": int(item.get("stck_oprc", 0)),
-            "high": int(item.get("stck_hgpr", 0)),
-            "low": int(item.get("stck_lwpr", 0)),
-            "close": int(item.get("stck_clpr", 0)),
-            "volume": int(item.get("acml_vol", 0))
-        } for item in output2])
+            "open": int(item.get("stck_oprc", 0) or 0),
+            "high": int(item.get("stck_hgpr", 0) or 0),
+            "low": int(item.get("stck_lwpr", 0) or 0),
+            "close": int(item.get("stck_clpr", 0) or 0),
+            "volume": int(item.get("acml_vol", 0) or 0)
+        } for item in all_data if item.get("stck_bsop_date")])
 
         if not df.empty:
             df["date"] = pd.to_datetime(df["date"])
+            df = df.drop_duplicates(subset=["date"])
             df.set_index("date", inplace=True)
             return df.sort_index()
         return df
@@ -383,9 +609,10 @@ class KISAPIClient:
     # ========================================
 
     def get_index_ohlcv(
-        self,
-        index_code: str,
-        start_date: str
+            self,
+            index_code: str,
+            start_date: str,
+            end_date: str = None
     ) -> pd.DataFrame:
         """
         Get index daily OHLCV data with pagination support.
@@ -393,9 +620,11 @@ class KISAPIClient:
         Args:
             index_code: Index code (e.g., "0001" for KOSPI, "1001" for KOSDAQ)
             start_date: Start date (YYYYMMDD)
+            end_date: End date (YYYYMMDD, optional)
 
         Returns:
             DataFrame with columns: date, open, high, low, close, volume
+            Empty DataFrame on error
         """
         params = {
             "fid_period_div_code": "D",
@@ -404,27 +633,37 @@ class KISAPIClient:
             "fid_input_date_1": start_date
         }
 
-        results = self._request_paginated(
+        result = self._request_paginated(
             "/uapi/domestic-stock/v1/quotations/inquire-index-daily-price",
             "FHPUP02120000",
             params,
             output_keys=["output2"]
         )
 
-        output2 = results.get("output2", [])
+        if not result.success:
+            log.error(f"Failed to get index OHLCV for {index_code}: {result.error_message}")
+            return pd.DataFrame()
+
+        output2 = result.data.get("output2", [])
 
         df = pd.DataFrame([{
             "date": item.get("stck_bsop_date"),
-            "open": float(item.get("bstp_nmix_oprc", 0)),
-            "high": float(item.get("bstp_nmix_hgpr", 0)),
-            "low": float(item.get("bstp_nmix_lwpr", 0)),
-            "close": float(item.get("bstp_nmix_prpr", 0)),
-            "volume": int(item.get("acml_vol", 0))
-        } for item in output2])
+            "open": float(item.get("bstp_nmix_oprc", 0) or 0),
+            "high": float(item.get("bstp_nmix_hgpr", 0) or 0),
+            "low": float(item.get("bstp_nmix_lwpr", 0) or 0),
+            "close": float(item.get("bstp_nmix_prpr", 0) or 0),
+            "volume": int(item.get("acml_vol", 0) or 0)
+        } for item in output2 if item.get("stck_bsop_date")])
 
         if not df.empty:
             df["date"] = pd.to_datetime(df["date"])
             df.set_index("date", inplace=True)
+
+            # end_date 필터링
+            if end_date:
+                end_dt = pd.to_datetime(end_date)
+                df = df[df.index <= end_dt]
+
             return df.sort_index()
         return df
 
@@ -432,7 +671,7 @@ class KISAPIClient:
     # Stock Info (replaces pykrx get_market_ticker_name)
     # ========================================
 
-    def get_stock_info(self, ticker: str) -> Dict:
+    def get_stock_info(self, ticker: str) -> Optional[Dict]:
         """
         Get current stock info including name and price.
 
@@ -441,50 +680,48 @@ class KISAPIClient:
 
         Returns:
             Dict with keys: ticker, name, price, market_cap, etc.
+            None on error
         """
         params = {
             "fid_cond_mrkt_div_code": "J",
             "fid_input_iscd": ticker
         }
 
-        data = self._request(
+        result = self._request(
             "/uapi/domestic-stock/v1/quotations/inquire-price",
             "FHKST01010100",
             params
         )
 
-        if data.get("rt_cd") != "0":
-            raise ValueError(f"API error: {data.get('msg1')}")
+        if not result.success:
+            log.warning(f"Failed to get stock info for {ticker}: {result.error_message}")
+            return None
 
-        output = data.get("output", {})
+        output = result.data.get("output", {})
 
         return {
             "ticker": ticker,
             "name": output.get("hts_kor_isnm", ""),
-            "price": int(output.get("stck_prpr", 0)),
-            "market_cap": int(output.get("hts_avls", 0)) * 100000000,  # 억원 → 원
-            "volume": int(output.get("acml_vol", 0)),
+            "price": int(output.get("stck_prpr", 0) or 0),
+            "market_cap": int(output.get("hts_avls", 0) or 0) * 100000000,  # 억원 → 원
+            "volume": int(output.get("acml_vol", 0) or 0),
             "per": float(output.get("per", 0) or 0),
             "pbr": float(output.get("pbr", 0) or 0)
         }
 
     def get_stock_name(self, ticker: str) -> str:
         """Get stock name by ticker."""
-        try:
-            info = self.get_stock_info(ticker)
-            return info.get("name", "")
-        except Exception as e:
-            log.warning(f"Failed to get stock name for {ticker}: {e}")
-            return ""
+        info = self.get_stock_info(ticker)
+        return info.get("name", "") if info else ""
 
     # ========================================
     # Market Cap Ranking (replaces pykrx get_market_cap)
     # ========================================
 
     def get_market_cap_ranking(
-        self,
-        market: str = "0000",
-        limit: int = 100
+            self,
+            market: str = "0000",
+            limit: int = 100
     ) -> pd.DataFrame:
         """
         Get market capitalization ranking with pagination support.
@@ -495,6 +732,7 @@ class KISAPIClient:
 
         Returns:
             DataFrame with columns: rank, ticker, name, price, market_cap
+            Empty DataFrame on error
         """
         params = {
             "fid_input_price_2": "",
@@ -511,7 +749,7 @@ class KISAPIClient:
         # Calculate max pages needed (assuming ~30 items per page)
         max_pages = (limit // 30) + 2
 
-        results = self._request_paginated(
+        result = self._request_paginated(
             "/uapi/domestic-stock/v1/ranking/market-cap",
             "FHPST01740000",
             params,
@@ -519,113 +757,113 @@ class KISAPIClient:
             max_pages=max_pages
         )
 
-        output = results.get("output", [])[:limit]
+        if not result.success:
+            log.error(f"Failed to get market cap ranking: {result.error_message}")
+            return pd.DataFrame()
+
+        output = result.data.get("output", [])[:limit]
 
         return pd.DataFrame([{
-            "rank": int(item.get("data_rank", 0)),
+            "rank": int(item.get("data_rank", 0) or 0),
             "ticker": item.get("stck_shrn_iscd"),
             "name": item.get("hts_kor_isnm"),
-            "price": int(item.get("stck_prpr", 0)),
-            "market_cap": int(item.get("stck_avls", 0)) * 100000000
-        } for item in output])
+            "price": int(item.get("stck_prpr", 0) or 0),
+            "market_cap": int(item.get("stck_avls", 0) or 0) * 100000000
+        } for item in output if item.get("stck_shrn_iscd")])
 
     # ========================================
     # ETF List (replaces pykrx get_etf_ticker_list)
     # ========================================
 
-    # ETF identification keywords (Korean fund company prefixes and ETF indicator)
-    ETF_KEYWORDS = [
-        'ETF', 'KODEX', 'TIGER', 'ARIRANG', 'KOSEF', 'KINDEX',
-        'KBSTAR', 'HANARO', 'SOL', 'ACE', 'TIMEFOLIO', 'FOCUS',
-        'BNK', 'WOORI', 'PLUS', 'TREX', 'SMART', 'RISE', 'VITA'
-    ]
-
     def get_etf_list(self) -> pd.DataFrame:
         """
-        Get all ETF list by downloading master files and filtering.
-
-        Korean ETFs are identified by their names containing:
-        - 'ETF' keyword
-        - Fund company prefixes like 'KODEX', 'TIGER', 'ARIRANG', etc.
+        Get all ETF list.
 
         Returns:
             DataFrame with columns: ticker, name
+            Empty DataFrame on error
         """
-        # Check cache first
-        if self._etf_list_cache is not None and not self._etf_list_cache.empty:
-            log.info(f"Using cached ETF list: {len(self._etf_list_cache)} ETFs")
-            return self._etf_list_cache
+        params = {
+            "fid_cond_mrkt_div_code": "J",
+            "fid_cond_scr_div_code": "13001",
+            "fid_input_iscd": "0000",
+            "fid_rank_sort_cls_code": "0",
+            "fid_div_cls_code": "0",
+            "fid_trgt_cls_code": "0",
+            "fid_trgt_exls_cls_code": "0",
+            "fid_input_price_1": "",
+            "fid_input_price_2": "",
+            "fid_vol_cnt": "",
+            "fid_input_date_1": ""
+        }
 
-        try:
-            # Download all stocks (includes ETFs)
-            all_stocks = self.get_all_stocks()
+        result = self._request(
+            "/uapi/domestic-stock/v1/quotations/inquire-search-stock-info",
+            "CTPF1002R",
+            params
+        )
 
-            if all_stocks.empty:
-                log.warning("No stocks from master file download")
-                return pd.DataFrame(columns=["ticker", "name"])
+        if not result.success:
+            log.error(f"Failed to get ETF list: {result.error_message}")
+            return pd.DataFrame()
 
-            # Filter for ETFs by name patterns
-            def is_etf(name: str) -> bool:
-                if not name:
-                    return False
-                name_upper = name.upper()
-                return any(kw.upper() in name_upper for kw in self.ETF_KEYWORDS)
+        output = result.data.get("output", [])
 
-            mask = all_stocks['name'].apply(is_etf)
-            etf_df = all_stocks[mask][['ticker', 'name']].copy().reset_index(drop=True)
-
-            # Cache the result
-            self._etf_list_cache = etf_df
-            log.info(f"ETF list from master files: {len(etf_df)} ETFs found (cached)")
-            return etf_df
-
-        except Exception as e:
-            log.error(f"Failed to get ETF list from master files: {e}")
-            return pd.DataFrame(columns=["ticker", "name"])
+        return pd.DataFrame([{
+            "ticker": item.get("stck_shrn_iscd"),
+            "name": item.get("hts_kor_isnm", "")
+        } for item in output if item.get("stck_shrn_iscd")])
 
     # ========================================
     # Stock List (KOSPI/KOSDAQ master files)
     # ========================================
 
-    # Cache for master file downloads (avoid repeated network calls)
-    _master_cache: Dict[str, pd.DataFrame] = {}
-    _etf_list_cache: Optional[pd.DataFrame] = None
-
     def download_stock_master(self, market: str = "kospi") -> pd.DataFrame:
         """
-        Download stock master list from KIS server.
+        Download stock master list from KIS server with retry.
 
         Args:
             market: "kospi" or "kosdaq"
 
         Returns:
             DataFrame with columns: ticker, name, market, listed_shares
-            (listed_shares is in units of 1000)
+            Empty DataFrame on error
         """
-        # Check cache first
-        cache_key = market.lower()
-        if cache_key in self._master_cache:
-            log.info(f"Using cached {cache_key} master data")
-            return self._master_cache[cache_key]
-
         if market.lower() == "kospi":
             url = "https://new.real.download.dws.co.kr/common/master/kospi_code.mst.zip"
         elif market.lower() == "kosdaq":
             url = "https://new.real.download.dws.co.kr/common/master/kosdaq_code.mst.zip"
         else:
-            raise ValueError(f"Unknown market: {market}")
+            log.error(f"Unknown market: {market}")
+            return pd.DataFrame()
 
-        response = requests.get(url, timeout=60)
-        response.raise_for_status()
+        last_error = None
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                response = requests.get(url, timeout=60)
+                response.raise_for_status()
+                break
+            except requests.exceptions.RequestException as e:
+                last_error = e
+                if attempt < self.MAX_RETRIES - 1:
+                    delay = self.RETRY_DELAY_BASE * (2 ** attempt)
+                    log.warning(f"Master download failed (attempt {attempt + 1}), retrying in {delay}s: {e}")
+                    time.sleep(delay)
+                    continue
+        else:
+            log.error(f"Failed to download stock master after {self.MAX_RETRIES} attempts: {last_error}")
+            return pd.DataFrame()
 
-        with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
-            filename = zf.namelist()[0]
-            with zf.open(filename) as f:
-                content = f.read().decode("cp949")
+        try:
+            with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
+                filename = zf.namelist()[0]
+                with zf.open(filename) as f:
+                    content = f.read().decode("cp949")
+        except Exception as e:
+            log.error(f"Failed to parse stock master file: {e}")
+            return pd.DataFrame()
 
-        # Parse using fixed-width format based on official KIS spec
-        # Part 2 field specs (last 228 bytes of each record)
-        # Reference: https://github.com/koreainvestment/open-trading-api/blob/main/stocks_info/kis_kospi_code_mst.py
+        # Parse using fixed-width format
         field_specs = [
             2, 1, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -633,33 +871,25 @@ class KISAPIClient:
             1, 3, 12, 12, 8, 15, 21, 2, 7, 1, 1, 1, 1, 1, 9,
             9, 9, 5, 9, 8, 9, 3, 1, 1, 1
         ]
-        # Index 50 is listed_shares (lstn_stcn), 15 bytes
-        # Calculate offset: sum of specs[0:50]
-        listed_shares_offset = sum(field_specs[:50])  # 108
-        listed_shares_len = field_specs[50]  # 15
+        listed_shares_offset = sum(field_specs[:50])
+        listed_shares_len = field_specs[50]
 
         stocks = []
         for line in content.strip().split("\n"):
             if len(line) < 228:
                 continue
 
-            # Part 1: ticker (9 bytes) + standard code (12 bytes) + name (variable)
             ticker = line[0:9].strip()
-
-            # Skip if not a valid 6-digit ticker
             if not ticker or len(ticker) != 6 or not ticker.isdigit():
                 continue
 
-            # Name is between position 21 and the last 228 bytes
             part2_start = len(line) - 228
             name = line[21:part2_start].strip()
 
-            # Part 2: Extract listed shares from fixed position
             part2 = line[part2_start:]
             listed_shares_str = part2[listed_shares_offset:listed_shares_offset + listed_shares_len].strip()
 
             try:
-                # listed_shares is in units of 1000 (천)
                 listed_shares = int(listed_shares_str) if listed_shares_str else 0
             except ValueError:
                 listed_shares = 0
@@ -668,14 +898,11 @@ class KISAPIClient:
                 "ticker": ticker,
                 "name": name,
                 "market": market.upper(),
-                "listed_shares": listed_shares  # in units of 1000
+                "listed_shares": listed_shares
             })
 
-        df = pd.DataFrame(stocks)
-        # Cache the result
-        self._master_cache[cache_key] = df
-        log.info(f"Downloaded and cached {cache_key} master: {len(df)} stocks")
-        return df
+        log.info(f"Downloaded {len(stocks)} stocks from {market.upper()} master")
+        return pd.DataFrame(stocks)
 
     def get_all_stocks(self) -> pd.DataFrame:
         """Get all KOSPI and KOSDAQ stocks."""
@@ -684,7 +911,7 @@ class KISAPIClient:
         return pd.concat([kospi, kosdaq], ignore_index=True)
 
     # ========================================
-    # Market Ticker List (replaces pykrx get_market_ticker_list)
+    # Market Ticker List
     # ========================================
 
     def get_market_ticker_list(self, market: str = "ALL") -> List[str]:
@@ -704,15 +931,14 @@ class KISAPIClient:
         elif market.upper() == "KOSDAQ":
             df = self.download_stock_master("kosdaq")
         else:
-            raise ValueError(f"Unknown market: {market}")
+            log.error(f"Unknown market: {market}")
+            return []
 
-        return df["ticker"].tolist()
+        return df["ticker"].tolist() if not df.empty else []
 
     # ========================================
-    # Listed Shares Cache (for market cap calculation)
+    # Listed Shares (for market cap calculation)
     # ========================================
-
-    _listed_shares_cache: Dict[str, int] = {}
 
     def get_listed_shares(self, ticker: str) -> int:
         """
@@ -724,11 +950,9 @@ class KISAPIClient:
         Returns:
             Listed shares in units of 1000 (multiply by 1000 for actual shares)
         """
-        # Check cache first
         if ticker in self._listed_shares_cache:
             return self._listed_shares_cache[ticker]
 
-        # Load from master file if cache is empty
         if not self._listed_shares_cache:
             try:
                 df = self.get_all_stocks()
@@ -741,17 +965,12 @@ class KISAPIClient:
         return self._listed_shares_cache.get(ticker, 0)
 
     # ========================================
-    # Index Components (replaces pykrx get_index_portfolio_deposit_file)
+    # Index Components
     # ========================================
 
     def get_index_components(self, market: str = "KOSPI", limit: int = 200) -> List[str]:
         """
         Get top N stocks by market cap as index components.
-
-        This replaces pykrx.get_index_portfolio_deposit_file() with a better approach:
-        - Gets the most liquid and impactful stocks
-        - Automatically updates with market changes
-        - No static list maintenance required
 
         Args:
             market: "KOSPI" or "KOSDAQ"
@@ -759,23 +978,20 @@ class KISAPIClient:
 
         Returns:
             List of ticker strings
-
-        Raises:
-            ValueError: If API returns error
         """
         market_code = "0001" if market.upper() == "KOSPI" else "1001"
         df = self.get_market_cap_ranking(market=market_code, limit=limit)
-        return df["ticker"].tolist()
+        return df["ticker"].tolist() if not df.empty else []
 
     # ========================================
     # Stock OHLCV with Market Cap
     # ========================================
 
     def get_stock_ohlcv_with_market_cap(
-        self,
-        ticker: str,
-        start_date: str,
-        end_date: str
+            self,
+            ticker: str,
+            start_date: str,
+            end_date: str
     ) -> pd.DataFrame:
         """
         Get stock daily OHLCV data with calculated market cap.
@@ -789,23 +1005,64 @@ class KISAPIClient:
 
         Returns:
             DataFrame with OHLCV columns + market_cap, indexed by date
+            Empty DataFrame on error
         """
-        # Get OHLCV data
         df = self.get_stock_ohlcv(ticker, start_date, end_date)
 
         if df.empty:
             return df
 
-        # Get listed shares (in units of 1000)
         listed_shares = self.get_listed_shares(ticker)
 
         if listed_shares > 0:
-            # Calculate market cap: close * listed_shares * 1000
             df["market_cap"] = df["close"] * listed_shares * 1000
         else:
             df["market_cap"] = 0
 
         return df
+
+    # ========================================
+    # Health Check
+    # ========================================
+
+    def health_check(self) -> Dict[str, Any]:
+        """
+        API 연결 상태 확인.
+
+        Returns:
+            Dict with health status information
+        """
+        result = {
+            "status": "unknown",
+            "token_valid": False,
+            "circuit_breaker_open": self._circuit_breaker.is_open,
+            "failure_count": self._circuit_breaker.failure_count,
+            "timestamp": datetime.now().isoformat()
+        }
+
+        try:
+            # 토큰 테스트
+            self._get_token()
+            result["token_valid"] = True
+
+            # 간단한 API 호출 테스트
+            test_result = self._request(
+                "/uapi/domestic-stock/v1/quotations/inquire-price",
+                "FHKST01010100",
+                {"fid_cond_mrkt_div_code": "J", "fid_input_iscd": "005930"}
+            )
+
+            if test_result.success:
+                result["status"] = "healthy"
+            else:
+                result["status"] = "degraded"
+                result["error"] = test_result.error_message
+
+        except Exception as e:
+            result["status"] = "unhealthy"
+            result["error"] = str(e)
+
+        return result
 
 
 # ========================================
@@ -815,27 +1072,27 @@ class KISAPIClient:
 _client: Optional[KISAPIClient] = None
 
 
-def init_kis_client(app_key: str, app_secret: str, is_paper_trading: bool = False):
+def init_kis_client(app_key: str, app_secret: str) -> KISAPIClient:
     """
     Initialize global KIS API client.
 
-    Args:
-        app_key: KIS Open API app key
-        app_secret: KIS Open API app secret
-        is_paper_trading: True for paper trading (2 req/sec), False for live (20 req/sec)
-
     Also registers the client with core.py for use by other modules.
+
+    Returns:
+        Initialized KISAPIClient instance
     """
     global _client
-    _client = KISAPIClient(app_key, app_secret, is_paper_trading)
+    _client = KISAPIClient(app_key, app_secret)
 
-    # Register with core.py for other modules to use
     try:
         from core import set_kis_client
         set_kis_client(_client)
+        log.info("KIS API client initialized and registered with core")
     except ImportError:
         log.warning("Could not register KIS client with core module")
         log.info("KIS API client initialized")
+
+    return _client
 
 
 def get_client() -> KISAPIClient:
@@ -851,42 +1108,28 @@ def is_client_initialized() -> bool:
 
 
 # ========================================
-# Convenience functions (for direct use without client instance)
+# Convenience functions
 # ========================================
 
 def get_etf_holdings(etf_ticker: str) -> str:
-    """
-    Get ETF holdings as JSON string.
-
-    Args:
-        etf_ticker: ETF ticker (e.g., "069500")
-
-    Returns:
-        JSON string with holdings data or error
-    """
+    """Get ETF holdings as JSON string."""
     try:
         client = get_client()
         df = client.get_etf_holdings(etf_ticker)
+        if df.empty:
+            return json.dumps({"error": "No data"}, ensure_ascii=False)
         return df.to_json(orient="records", force_ascii=False)
     except Exception as e:
         return json.dumps({"error": str(e)}, ensure_ascii=False)
 
 
 def get_stock_ohlcv(ticker: str, start_date: str, end_date: str) -> str:
-    """
-    Get stock OHLCV data as JSON string.
-
-    Args:
-        ticker: Stock ticker
-        start_date: Start date (YYYYMMDD)
-        end_date: End date (YYYYMMDD)
-
-    Returns:
-        JSON string with OHLCV data or error
-    """
+    """Get stock OHLCV data as JSON string."""
     try:
         client = get_client()
         df = client.get_stock_ohlcv(ticker, start_date, end_date)
+        if df.empty:
+            return json.dumps({"error": "No data"}, ensure_ascii=False)
         df = df.reset_index()
         df["date"] = df["date"].dt.strftime("%Y-%m-%d")
         return df.to_json(orient="records", force_ascii=False)
@@ -895,19 +1138,12 @@ def get_stock_ohlcv(ticker: str, start_date: str, end_date: str) -> str:
 
 
 def get_investor_trading_data(ticker: str, start_date: str) -> str:
-    """
-    Get investor trading data as JSON string.
-
-    Args:
-        ticker: Stock ticker
-        start_date: Start date (YYYYMMDD)
-
-    Returns:
-        JSON string with investor trading data or error
-    """
+    """Get investor trading data as JSON string."""
     try:
         client = get_client()
         df = client.get_investor_trading(ticker, start_date)
+        if df.empty:
+            return json.dumps({"error": "No data"}, ensure_ascii=False)
         return df.to_json(orient="records", force_ascii=False)
     except Exception as e:
         return json.dumps({"error": str(e)}, ensure_ascii=False)

@@ -752,12 +752,12 @@ private fun HubStockIndicatorCorrelationContent(
                     )
                 }
             }
+        }
 
-            // AI 해석 결과
-            stockIndicatorCorrelationResult.aiInterpretation?.let { aiResult ->
-                item {
-                    StockIndicatorAIInterpretationCard(interpretation = aiResult)
-                }
+        // AI 해석 결과 (히스토리에서 로드 시에도 표시)
+        stockIndicatorCorrelationResult?.aiInterpretation?.let { aiResult ->
+            item {
+                StockIndicatorAIInterpretationCard(interpretation = aiResult)
             }
 
             // 채팅 시작 버튼
@@ -769,7 +769,7 @@ private fun HubStockIndicatorCorrelationContent(
                 ) {
                     Icon(Icons.Default.Chat, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("상관관계 분석 결과로 대화하기")
+                    Text("분석 결과로 대화하기")
                 }
             }
         }
