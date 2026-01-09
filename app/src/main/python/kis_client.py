@@ -107,9 +107,9 @@ class KISAPIClient:
     BASE_URL = "https://openapi.koreainvestment.com:9443"
     TOKEN_EXPIRY_HOURS = 23
 
-    # Rate limiting: 20 requests per second
-    RATE_LIMIT_PER_SEC = 20
-    MIN_REQUEST_INTERVAL = 1.0 / RATE_LIMIT_PER_SEC  # 0.05 seconds
+    # Rate limiting: 10 requests per second (100ms interval for stability)
+    RATE_LIMIT_PER_SEC = 10
+    MIN_REQUEST_INTERVAL = 0.1  # 100ms - API 안정성을 위해 증가
 
     # Retry configuration
     MAX_RETRIES = 3

@@ -68,7 +68,7 @@ class PyKrxClient @Inject constructor(
 
     companion object {
         private val logger = AppLogger.getLogger("PyKrxClient")
-        private const val TIMEOUT_MS = 30_000L
+        private const val TIMEOUT_MS = 60_000L  // 60초로 증가 (Python 재시도 고려)
         private const val MAX_RETRIES = 2
     }
 
@@ -76,6 +76,9 @@ class PyKrxClient @Inject constructor(
     private val kisInitMutex = Mutex()
     // Flag to track if KIS client was initialized in this session
     private var kisClientInitialized = false
+
+    // 종목명 캐시 - API 호출 최소화
+    private val stockNameCache = mutableMapOf<String, String>()
 
     /**
      * kotlinx.serialization 설정
@@ -99,6 +102,7 @@ class PyKrxClient @Inject constructor(
     @Serializable
     private data class HoldingJson(
         val ticker: String,
+        val name: String = "",  // KIS API에서 이미 제공 - 불필요한 API 호출 제거
         val weight: Double,
         val amount: Double
     )
@@ -390,12 +394,22 @@ class PyKrxClient @Inject constructor(
     /**
      * ETF 보유 종목 조회
      * kotlinx.serialization으로 JSON 파싱 - 성능 최적화
+     *
+     * ## 성능 개선 (v2.2)
+     * - KIS API에서 이미 종목명을 제공하므로 추가 API 호출 불필요
+     * - 종목명이 비어있는 경우에만 캐시에서 조회
      */
     suspend fun getHoldings(etfTicker: String, date: String): List<Holding> =
         withContext(Dispatchers.IO) {
             // Ensure KIS client is initialized before making Python calls
             if (!ensureKisClientInitialized()) {
                 logger.e("KIS client not initialized, cannot get holdings")
+                return@withContext emptyList()
+            }
+
+            // Circuit Breaker 상태 확인
+            if (isCircuitBreakerOpen()) {
+                logger.w("Circuit breaker is open, skipping holdings request for $etfTicker")
                 return@withContext emptyList()
             }
 
@@ -416,8 +430,20 @@ class PyKrxClient @Inject constructor(
                     // kotlinx.serialization으로 파싱
                     val holdingJsonList = json.decodeFromString<List<HoldingJson>>(jsonStr)
 
+                    // KIS API가 이미 종목명을 제공 - 불필요한 API 호출 제거
                     val holdings = holdingJsonList.map { holdingJson ->
-                        val stockName = getStockName(holdingJson.ticker)
+                        // 종목명이 비어있거나 None인 경우에만 캐시에서 조회
+                        val stockName = if (holdingJson.name.isNotBlank() && holdingJson.name != "None") {
+                            holdingJson.name
+                        } else {
+                            // 캐시된 이름 사용 (API 호출 없음)
+                            stockNameCache[holdingJson.ticker] ?: holdingJson.ticker
+                        }
+
+                        // 캐시에 저장
+                        if (stockName != holdingJson.ticker) {
+                            stockNameCache[holdingJson.ticker] = stockName
+                        }
 
                         // 최적화된 형식으로 생성 (DAILY 스냅샷)
                         Holding.create(
@@ -431,9 +457,10 @@ class PyKrxClient @Inject constructor(
                         )
                     }
 
+                    logger.d("Holdings for $etfTicker: ${holdings.size} items (no additional API calls)")
                     holdings
                 } catch (e: Exception) {
-                    logger.e( "getHoldings error for $etfTicker", e)
+                    logger.e("getHoldings error for $etfTicker", e)
                     throw e
                 }
             } ?: emptyList()
@@ -504,15 +531,107 @@ class PyKrxClient @Inject constructor(
     }
 
     private suspend fun getStockName(ticker: String): String = withContext(Dispatchers.IO) {
+        // 캐시 우선 확인
+        stockNameCache[ticker]?.let { return@withContext it }
+
         try {
             val name = withTimeout(TIMEOUT_MS) {
                 stockModule.callAttr("get_stock_name", ticker).toString()
             }
-            if (name == "None" || name.isEmpty()) ticker else name
+            val result = if (name == "None" || name.isEmpty()) ticker else name
+            if (result != ticker) {
+                stockNameCache[ticker] = result
+            }
+            result
         } catch (e: Exception) {
-            logger.e( "Error getting stock name for $ticker: ${e.message}")
+            logger.e("Error getting stock name for $ticker: ${e.message}")
             ticker
         }
+    }
+
+    /**
+     * Python Circuit Breaker 상태 확인
+     *
+     * KIS API 클라이언트의 Circuit Breaker가 열려있는지 확인합니다.
+     * Circuit Breaker가 열려있으면 API 호출을 건너뛰어 불필요한 대기를 방지합니다.
+     */
+    private suspend fun isCircuitBreakerOpen(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            if (!kisClientInitialized) return@withContext false
+
+            val healthJson = withTimeout(5_000L) {
+                kisModule.callAttr("get_client").callAttr("health_check").toString()
+            }
+
+            // JSON 파싱하여 circuit_breaker_open 확인
+            val isOpen = healthJson.contains("\"circuit_breaker_open\": true") ||
+                         healthJson.contains("'circuit_breaker_open': True")
+
+            if (isOpen) {
+                logger.w("Circuit breaker is open - KIS API may be experiencing issues")
+            }
+            isOpen
+        } catch (e: Exception) {
+            logger.w("Failed to check circuit breaker status: ${e.message}")
+            false // 확인 실패 시 열려있지 않은 것으로 간주
+        }
+    }
+
+    /**
+     * 종목명 캐시 사전 로드
+     *
+     * 마스터 파일에서 모든 종목명을 미리 로드하여
+     * 이후 개별 API 호출을 최소화합니다.
+     *
+     * @return 캐시된 종목 수
+     */
+    suspend fun preloadStockNameCache(): Int = withContext(Dispatchers.IO) {
+        try {
+            if (!ensureKisClientInitialized()) {
+                logger.e("KIS client not initialized, cannot preload cache")
+                return@withContext 0
+            }
+
+            logger.d("Preloading stock name cache from master files...")
+
+            val jsonStr = withTimeout(TIMEOUT_MS) {
+                stockModule.callAttr("get_all_stocks").toString()
+            }
+
+            // 에러 응답 확인
+            if (jsonStr.contains("\"error\":") || jsonStr.contains("\"error\": true")) {
+                logger.w("Error response from get_all_stocks: ${jsonStr.take(200)}")
+                return@withContext 0
+            }
+
+            // JSON 파싱
+            val stockList = json.decodeFromString<List<EtfJson>>(jsonStr)
+
+            stockList.forEach { stock ->
+                if (stock.name.isNotBlank() && stock.name != "None") {
+                    stockNameCache[stock.ticker] = stock.name
+                }
+            }
+
+            logger.i("Preloaded ${stockNameCache.size} stock names into cache")
+            stockNameCache.size
+        } catch (e: Exception) {
+            logger.e("Failed to preload stock name cache", e)
+            0
+        }
+    }
+
+    /**
+     * 캐시된 종목 수 반환
+     */
+    fun getCacheSize(): Int = stockNameCache.size
+
+    /**
+     * 캐시 초기화
+     */
+    fun clearCache() {
+        stockNameCache.clear()
+        logger.d("Stock name cache cleared")
     }
 
     private fun formatDate(date: String): String = DateFormatter.formatFromYYYYMMDD(date)
