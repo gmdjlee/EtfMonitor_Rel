@@ -350,7 +350,6 @@ def get_trend_signal_analysis(ticker: str, days: int = 180, interval: str = "w",
         name = get_name(ticker) or ticker
 
         data = {
-            "error": False,
             "ticker": ticker,
             "name": name,
             "interval": interval,
@@ -441,7 +440,6 @@ def get_elder_impulse_analysis(ticker: str, days: int = 365, interval: str = "w"
         name = get_name(ticker) or ticker
 
         data = {
-            "error": False,
             "ticker": ticker,
             "name": name,
             "interval": interval,
@@ -525,7 +523,6 @@ def get_demark_td_analysis(ticker: str, days: int = 365, interval: str = "w") ->
         interval_name = {"d": "일봉", "w": "주봉", "m": "월봉"}.get(interval, interval)
 
         data = {
-            "error": False,
             "ticker": ticker,
             "name": name,
             "interval": interval,

@@ -106,7 +106,7 @@ fun MarketCapOscillatorChart(
                             // labelCount and valueFormatter are set in update block
                         }
 
-                        // 왼쪽 Y축 (시가총액)
+                        // 왼쪽 Y축 (시가총액) - 값이 이미 억원 단위로 변환되어 있음
                         axisLeft.apply {
                             setDrawGridLines(true)
                             gridLineWidth = 1f
@@ -116,7 +116,8 @@ fun MarketCapOscillatorChart(
                             setPosition(YAxis.YAxisLabelPosition.OUTSIDE_CHART)
                             valueFormatter = object : ValueFormatter() {
                                 override fun getFormattedValue(value: Float): String {
-                                    val billions = (value / 100_000_000).toInt()
+                                    // value는 이미 억원 단위
+                                    val billions = value.toLong()
                                     return when {
                                         billions >= 10000 -> "${billions / 10000}조"
                                         billions >= 1000 -> String.format("%.1f조", billions / 10000f)
@@ -164,9 +165,11 @@ fun MarketCapOscillatorChart(
                         }
                     }
 
-                    // 시가총액 라인
+                    // 시가총액 라인 (억원 단위로 변환하여 Float overflow 방지)
+                    // Long → Float 변환 시 큰 값은 overflow 발생 (Float 정밀도 ~2^24)
+                    // 300조원 = 3e14 > Float max precision, so divide by 억(1e8) first
                     val marketCapEntries = marketCap.mapIndexed { index, value ->
-                        Entry(index.toFloat(), value.toFloat())
+                        Entry(index.toFloat(), (value / 100_000_000.0).toFloat())
                     }
                     val marketCapDataSet = LineDataSet(marketCapEntries, "시가총액").apply {
                         axisDependency = YAxis.AxisDependency.LEFT
