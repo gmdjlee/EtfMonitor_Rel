@@ -1244,8 +1244,14 @@ class KISAPIClient:
 
         if listed_shares > 0:
             df["market_cap"] = df["close"] * listed_shares * 1000
+            # Debug: log sample market cap calculation
+            if not df.empty:
+                sample_close = df["close"].iloc[-1]
+                sample_mcap = df["market_cap"].iloc[-1]
+                log.debug(f"Market cap for {ticker}: close={sample_close}, listed_shares={listed_shares} (in 1000s), market_cap={sample_mcap/1e12:.2f}T")
         else:
             df["market_cap"] = 0
+            log.warning(f"No listed shares found for {ticker}, market cap set to 0")
 
         return df
 

@@ -613,8 +613,9 @@ class OscillatorPyClient @Inject constructor(
 
                 val response = json.decodeFromString<TrendSignalResponse>(jsonStr)
 
-                if (response.error != null) {
-                    logger.e( "Trend signal error: ${response.error}")
+                // Check for error response (handle both string and coerced boolean)
+                if (response.error != null && response.error.isNotBlank() && response.error != "false") {
+                    logger.e("Trend signal error: ${response.error}")
                     return@withTimeout null
                 }
 
@@ -676,8 +677,9 @@ class OscillatorPyClient @Inject constructor(
 
                 val response = json.decodeFromString<ElderImpulseResponse>(jsonStr)
 
-                if (response.error != null) {
-                    logger.e( "Elder Impulse error: ${response.error}")
+                // Check for error response (handle both string and coerced boolean)
+                if (response.error != null && response.error.isNotBlank() && response.error != "false") {
+                    logger.e("Elder Impulse error: ${response.error}")
                     return@withTimeout null
                 }
 
@@ -734,8 +736,9 @@ class OscillatorPyClient @Inject constructor(
 
                 val response = json.decodeFromString<DemarkTDResponse>(jsonStr)
 
-                if (response.error != null) {
-                    logger.e( "DeMark TD error: ${response.error}")
+                // Check for error response (handle both string and coerced boolean)
+                if (response.error != null && response.error.isNotBlank() && response.error != "false") {
+                    logger.e("DeMark TD error: ${response.error}")
                     return@withTimeout null
                 }
 
