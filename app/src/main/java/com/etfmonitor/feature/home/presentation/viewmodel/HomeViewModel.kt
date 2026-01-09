@@ -23,7 +23,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -123,16 +125,26 @@ class HomeViewModel @Inject constructor(
 
     /**
      * KIS API 자격 증명 저장
+     *
+     * EncryptedSharedPreferences는 AES-256-GCM 암호화를 수행하므로
+     * IO 디스패처에서 실행하여 메인 스레드 블로킹을 방지합니다.
      */
     fun saveKisCredentials(appKey: String, appSecret: String) {
-        apiKeyProvider.setKisAppKey(appKey)
-        apiKeyProvider.setKisAppSecret(appSecret)
-        _showKisApiDialog.value = false
+        viewModelScope.launch {
+            // 암호화 작업은 IO 스레드에서 실행
+            withContext(Dispatchers.IO) {
+                apiKeyProvider.setKisAppKey(appKey)
+                apiKeyProvider.setKisAppSecret(appSecret)
+            }
 
-        // KIS API 설정 후 첫 실행이면 UnifiedInitDialog 표시
-        if (pendingFirstRun) {
-            pendingFirstRun = false
-            _showUnifiedInitDialog.value = true
+            // UI 상태 업데이트는 메인 스레드에서 실행
+            _showKisApiDialog.value = false
+
+            // KIS API 설정 후 첫 실행이면 UnifiedInitDialog 표시
+            if (pendingFirstRun) {
+                pendingFirstRun = false
+                _showUnifiedInitDialog.value = true
+            }
         }
     }
 
