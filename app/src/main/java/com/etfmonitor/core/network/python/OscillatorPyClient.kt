@@ -173,7 +173,9 @@ class OscillatorPyClient @Inject constructor(
         @SerialName("market_cap") val marketCap: List<Double> = emptyList(),
         @SerialName("foreign_5d") val foreign5d: List<Double> = emptyList(),
         @SerialName("institution_5d") val institution5d: List<Double> = emptyList(),
-        val error: String? = null
+        val error: String? = null,
+        val message: String? = null,  // Backward compatibility with err_json
+        @SerialName("error_type") val errorType: String? = null
     )
 
     @Serializable
@@ -335,8 +337,10 @@ class OscillatorPyClient @Inject constructor(
                     val jsonStr = stocksModule.callAttr("get_stock_analysis", ticker, days).toString()
                     val response = json.decodeFromString<StockAnalysisResponse>(jsonStr)
 
-                    if (response.error != null) {
-                        logger.e( "Analysis error: ${response.error}")
+                    // Check for error response (error field contains error message)
+                    val errorMsg = response.error ?: response.message
+                    if (errorMsg != null && errorMsg.isNotBlank() && errorMsg != "false") {
+                        logger.e("Analysis error: $errorMsg (type: ${response.errorType})")
                         return@withTimeout null
                     }
 

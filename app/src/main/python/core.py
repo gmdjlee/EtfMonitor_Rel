@@ -537,8 +537,19 @@ def to_json(data: Any, **kwargs) -> str:
 
 
 def err_json(msg: str, error_type: str = "error") -> str:
-    """Create error JSON response with type."""
-    return to_json({"error": True, "message": msg, "error_type": error_type})
+    """
+    Create error JSON response with type.
+
+    Returns format compatible with Kotlin's nullable String parsing:
+    - error: error message string (not boolean)
+    - message: same error message for backward compatibility
+    - error_type: error category
+    """
+    return to_json({
+        "error": msg,  # String for Kotlin compatibility
+        "message": msg,  # Also include message for clarity
+        "error_type": error_type
+    })
 
 
 def success_json(data: Any, message: str = "") -> str:

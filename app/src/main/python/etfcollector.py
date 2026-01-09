@@ -139,13 +139,22 @@ def _get_etf_list_internal(date: str) -> List[Dict[str, str]]:
         return []
 
     result = []
+    active_count = 0
     for _, row in df.iterrows():
         ticker = row.get("ticker")
         name = row.get("name", "")
         if ticker:
             result.append({"ticker": ticker, "name": name})
+            if '액티브' in name:
+                active_count += 1
 
-    log.info("Using KIS API for ETF list: %d ETFs", len(result))
+    log.info("Using KIS API for ETF list: %d total ETFs, %d with '액티브' keyword", len(result), active_count)
+
+    # Log sample ETFs for debugging
+    if result:
+        samples = result[:5]
+        log.debug("Sample ETFs: %s", [f"{e['ticker']}:{e['name'][:20]}" for e in samples])
+
     return result
 
 
@@ -259,7 +268,6 @@ def get_etf_info(ticker: str) -> str:
         if info is None:
             return err_json(f"ETF 정보를 찾을 수 없습니다: {ticker}", "no_data")
 
-        info["error"] = False
         return to_json(info)
 
     except RuntimeError as e:

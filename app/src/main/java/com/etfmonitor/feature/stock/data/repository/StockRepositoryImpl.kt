@@ -49,8 +49,38 @@ class StockRepositoryImpl @Inject constructor(
 
     override fun searchStocks(query: String): Flow<List<Stock>> =
         localDataSource.searchStocks(query)
-            .map { entities -> entities.map { it.toDomain() } }
+            .map { entities ->
+                if (entities.isEmpty() && query.isNotBlank()) {
+                    // Fallback to Python search when DB is empty
+                    logger.d("DB search returned empty, trying Python search for: $query")
+                    searchStockFromPython(query)?.let { listOf(it) } ?: emptyList()
+                } else {
+                    entities.map { it.toDomain() }
+                }
+            }
             .flowOn(Dispatchers.IO)
+
+    /**
+     * Python을 통해 종목 검색 (DB가 비어있을 때 fallback)
+     */
+    private suspend fun searchStockFromPython(query: String): Stock? {
+        return try {
+            val result = pyClient.searchStock(query)
+            if (result != null) {
+                val (ticker, name) = result
+                logger.d("Python search found: $ticker - $name")
+                // Cache the result in local DB
+                val market = Stock.inferMarket(ticker)
+                localDataSource.upsertFromHolding(ticker, name, market, System.currentTimeMillis())
+                Stock(ticker = ticker, name = name, market = market, isEtfHolding = false)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            logger.e("Python search failed for: $query", e)
+            null
+        }
+    }
 
     override fun getEtfHoldingStocks(): Flow<List<Stock>> =
         localDataSource.getEtfHoldingStocks()

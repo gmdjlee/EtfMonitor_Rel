@@ -460,13 +460,70 @@ class KISAPIClient:
 
         output2 = result.data.get("output2", [])
 
-        return pd.DataFrame([{
-            "ticker": item.get("stck_shrn_iscd"),
-            "name": item.get("stck_prpr_name"),
-            "weight": float(item.get("hldg_wght", 0) or 0),
-            "amount": float(item.get("evlu_amt", 0) or 0),
-            "quantity": int(item.get("hldg_qty", 0) or 0)
-        } for item in output2 if item.get("stck_shrn_iscd")])
+        if output2:
+            # Debug: log sample response to identify correct field names
+            sample = output2[0] if output2 else {}
+            log.debug(f"ETF holdings sample response keys: {list(sample.keys())}")
+            log.debug(f"ETF holdings sample response: {sample}")
+
+        holdings = []
+        for item in output2:
+            ticker = item.get("stck_shrn_iscd") or item.get("shrn_iscd") or ""
+            if not ticker:
+                continue
+
+            # Try multiple possible field names for name
+            name = (
+                item.get("stck_prpr_name") or
+                item.get("hts_kor_isnm") or
+                item.get("prdt_name") or
+                ""
+            ).strip()
+
+            # If name is still empty, try to get it from stock info API
+            if not name or name.lower() == "none":
+                try:
+                    name = self.get_stock_name(ticker)
+                except Exception:
+                    pass
+                if not name:
+                    name = ticker  # Fallback to ticker as last resort
+
+            # Try multiple possible field names for weight (percentage)
+            # hldg_wght: 보유비중, mktc_wt: 시가총액비중
+            weight_str = item.get("hldg_wght") or item.get("mktc_wt") or "0"
+            try:
+                weight = float(weight_str) if weight_str else 0.0
+            except (ValueError, TypeError):
+                weight = 0.0
+
+            # Try multiple possible field names for amount
+            # evlu_amt: 평가금액
+            amount_str = item.get("evlu_amt") or item.get("evlu_pfls_amt") or "0"
+            try:
+                amount = float(amount_str) if amount_str else 0.0
+            except (ValueError, TypeError):
+                amount = 0.0
+
+            # Quantity
+            qty_str = item.get("hldg_qty") or item.get("cblc_qty") or "0"
+            try:
+                quantity = int(qty_str) if qty_str else 0
+            except (ValueError, TypeError):
+                quantity = 0
+
+            holdings.append({
+                "ticker": ticker,
+                "name": name,
+                "weight": weight,
+                "amount": amount,
+                "quantity": quantity
+            })
+
+        if holdings:
+            log.debug(f"ETF {etf_ticker}: {len(holdings)} holdings, sample: {holdings[0]}")
+
+        return pd.DataFrame(holdings)
 
     # ========================================
     # Investor Trading (replaces pykrx get_market_trading_value_by_date)
