@@ -28,7 +28,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
@@ -280,14 +282,21 @@ class SettingsViewModel @Inject constructor(
 
     // ==================== Helper Functions ====================
 
-    /** 공통 설정 저장 패턴 - 코드 중복 제거 */
+    /**
+     * 공통 설정 저장 패턴 - 코드 중복 제거
+     *
+     * EncryptedSharedPreferences 및 Room 데이터베이스 작업은 IO 디스패처에서 실행하여
+     * 메인 스레드 블로킹을 방지합니다.
+     */
     private inline fun saveSetting(
         successMessage: String,
         crossinline action: suspend () -> Unit
     ) {
         viewModelScope.launch {
             try {
-                action()
+                withContext(Dispatchers.IO) {
+                    action()
+                }
                 _message.value = successMessage
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
@@ -1159,20 +1168,47 @@ class SettingsViewModel @Inject constructor(
 
     // ==================== AI API Key Management ====================
 
+    /**
+     * API 키 상태 확인
+     * EncryptedSharedPreferences 읽기는 IO 디스패처에서 실행합니다.
+     */
     private fun checkApiKeyStatus() {
         viewModelScope.launch {
-            _selectedProvider.value = apiKeyProvider.getSelectedProvider()
-            _isClaudeApiKeyConfigured.value = apiKeyProvider.hasApiKey(AIProvider.CLAUDE)
-            _isGeminiApiKeyConfigured.value = apiKeyProvider.hasApiKey(AIProvider.GEMINI)
-            // Check FRED API key
-            val fredKey = etfDao.getSetting(Keys.FRED_API_KEY)
+            // EncryptedSharedPreferences 및 Room 읽기는 IO 디스패처에서 실행
+            val (selectedProvider, hasClaudeKey, hasGeminiKey, fredKey, isKisConfigured, kisAccount, isVirtual) =
+                withContext(Dispatchers.IO) {
+                    ApiKeyStatusResult(
+                        selectedProvider = apiKeyProvider.getSelectedProvider(),
+                        hasClaudeKey = apiKeyProvider.hasApiKey(AIProvider.CLAUDE),
+                        hasGeminiKey = apiKeyProvider.hasApiKey(AIProvider.GEMINI),
+                        fredKey = etfDao.getSetting(Keys.FRED_API_KEY),
+                        isKisConfigured = apiKeyProvider.isKisApiConfigured(),
+                        kisAccountNumber = apiKeyProvider.getKisAccountNumber(),
+                        isVirtualMode = apiKeyProvider.isKisVirtualMode()
+                    )
+                }
+
+            // UI 상태 업데이트는 메인 스레드에서 실행
+            _selectedProvider.value = selectedProvider
+            _isClaudeApiKeyConfigured.value = hasClaudeKey
+            _isGeminiApiKeyConfigured.value = hasGeminiKey
             _isFredApiKeyConfigured.value = !fredKey.isNullOrBlank()
-            // Check KIS API key
-            _isKisApiConfigured.value = apiKeyProvider.isKisApiConfigured()
-            _kisAccountNumber.value = apiKeyProvider.getKisAccountNumber()
-            _isKisVirtualMode.value = apiKeyProvider.isKisVirtualMode()
+            _isKisApiConfigured.value = isKisConfigured
+            _kisAccountNumber.value = kisAccount
+            _isKisVirtualMode.value = isVirtual
         }
     }
+
+    /** API 키 상태 조회 결과를 담는 데이터 클래스 */
+    private data class ApiKeyStatusResult(
+        val selectedProvider: AIProvider,
+        val hasClaudeKey: Boolean,
+        val hasGeminiKey: Boolean,
+        val fredKey: String?,
+        val isKisConfigured: Boolean,
+        val kisAccountNumber: String?,
+        val isVirtualMode: Boolean
+    )
 
     fun setSelectedProvider(provider: AIProvider) = saveSetting("${provider.toDisplayName()}이(가) 선택되었습니다") {
         apiKeyProvider.setSelectedProvider(provider)
@@ -1321,15 +1357,17 @@ class SettingsViewModel @Inject constructor(
             try {
                 _kisApiTestState.value = ApiKeyTestState.Testing
 
-                val appKey = apiKeyProvider.getKisAppKey()
-                val appSecret = apiKeyProvider.getKisAppSecret()
+                // EncryptedSharedPreferences 읽기는 IO 디스패처에서 실행
+                val (appKey, appSecret) = withContext(Dispatchers.IO) {
+                    Pair(apiKeyProvider.getKisAppKey(), apiKeyProvider.getKisAppSecret())
+                }
 
                 if (appKey.isNullOrBlank() || appSecret.isNullOrBlank()) {
                     _kisApiTestState.value = ApiKeyTestState.Error("APP KEY 또는 APP SECRET이 설정되지 않았습니다")
                     return@launch
                 }
 
-                // KIS 클라이언트 초기화
+                // KIS 클라이언트 초기화 (이미 IO 디스패처에서 실행됨)
                 val initResult = pyKrxClient.initializeKisClient(appKey, appSecret)
                 if (!initResult) {
                     _kisApiTestState.value = ApiKeyTestState.Error("KIS API 클라이언트 초기화 실패")
@@ -1361,11 +1399,12 @@ class SettingsViewModel @Inject constructor(
      * KIS API 클라이언트 초기화 (앱 시작 시 호출)
      *
      * 저장된 자격 증명이 있으면 Python KIS 클라이언트를 자동으로 초기화합니다.
+     * EncryptedSharedPreferences 읽기는 IO 디스패처에서 실행됩니다.
      */
-    suspend fun initializeKisClientIfConfigured(): Boolean {
-        return if (apiKeyProvider.isKisApiConfigured()) {
-            val appKey = apiKeyProvider.getKisAppKey() ?: return false
-            val appSecret = apiKeyProvider.getKisAppSecret() ?: return false
+    suspend fun initializeKisClientIfConfigured(): Boolean = withContext(Dispatchers.IO) {
+        if (apiKeyProvider.isKisApiConfigured()) {
+            val appKey = apiKeyProvider.getKisAppKey() ?: return@withContext false
+            val appSecret = apiKeyProvider.getKisAppSecret() ?: return@withContext false
             pyKrxClient.initializeKisClient(appKey, appSecret)
         } else {
             false
