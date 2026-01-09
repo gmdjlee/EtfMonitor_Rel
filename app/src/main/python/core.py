@@ -107,7 +107,7 @@ def get_logger(name: str) -> logging.Logger:
 TIMEOUT = 15
 MAX_RETRIES = 3
 RETRY_DELAY = 2
-REQ_DELAY = 0.5
+REQ_DELAY = 1.0  # Increased from 0.5 for API rate limit compliance
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 CASH_TICKER = "010010"  # 원화예금
 REF_TICKER = "005930"   # 삼성전자 (영업일 판단용)
