@@ -55,11 +55,11 @@ class APIResult:
 class CircuitBreaker:
     """Circuit Breaker 패턴 구현."""
 
-    def __init__(self, failure_threshold: int = 5, recovery_timeout: int = 60):
+    def __init__(self, failure_threshold: int = 5, recovery_timeout: int = 120):
         """
         Args:
             failure_threshold: 연속 실패 횟수 임계값
-            recovery_timeout: 회로 차단 후 복구 대기 시간 (초)
+            recovery_timeout: 회로 차단 후 복구 대기 시간 (초) - 증가됨 (60→120)
         """
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
@@ -107,13 +107,14 @@ class KISAPIClient:
     BASE_URL = "https://openapi.koreainvestment.com:9443"
     TOKEN_EXPIRY_HOURS = 23
 
-    # Rate limiting: 10 requests per second (100ms interval for stability)
-    RATE_LIMIT_PER_SEC = 10
-    MIN_REQUEST_INTERVAL = 0.1  # 100ms - API 안정성을 위해 증가
+    # Rate limiting: 5 requests per second (200ms interval for stability)
+    # KIS API has stricter rate limits - reduced from 10 to 5 requests/sec
+    RATE_LIMIT_PER_SEC = 5
+    MIN_REQUEST_INTERVAL = 0.2  # 200ms - increased for API stability (was 100ms)
 
-    # Retry configuration
+    # Retry configuration - increased delays for rate limit recovery
     MAX_RETRIES = 3
-    RETRY_DELAY_BASE = 1.0  # seconds (exponential backoff: 1, 2, 4)
+    RETRY_DELAY_BASE = 2.0  # seconds (exponential backoff: 2, 4, 8) - was 1.0
 
     # HTTP status codes that should trigger retry
     RETRYABLE_STATUS_CODES = {500, 502, 503, 504, 429}
@@ -131,7 +132,7 @@ class KISAPIClient:
         self._token: Optional[str] = None
         self._token_expiry: Optional[datetime] = None
         self._last_request_time: float = 0
-        self._circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60)
+        self._circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=120)
         self._listed_shares_cache: Dict[str, int] = {}
 
     def _get_token(self, force_refresh: bool = False) -> str:
@@ -415,7 +416,7 @@ class KISAPIClient:
             if resp_tr_cont in ["M", "F"]:
                 tr_cont = "N"  # Request next page
                 log.debug(f"Fetching page {page + 2}...")
-                time.sleep(0.1)  # Small delay between pages
+                time.sleep(0.3)  # Delay between pages (increased for rate limit)
             else:
                 if page > 0:
                     log.info(f"Pagination complete. Total pages: {page + 1}")
@@ -643,7 +644,7 @@ class KISAPIClient:
             except ValueError:
                 break
 
-            time.sleep(0.1)  # API 부하 방지
+            time.sleep(0.3)  # API 부하 방지 (increased for rate limit)
 
         if not all_data:
             return pd.DataFrame()

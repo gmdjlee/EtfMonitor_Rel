@@ -60,10 +60,12 @@ class EtfRepositoryImpl @Inject constructor(
         private val logger = AppLogger.getLogger("EtfRepositoryImpl")
         // Holding weight change threshold for status determination (in percentage points)
         private const val WEIGHT_CHANGE_THRESHOLD = 0.01f
-        // 병렬 처리 제한 - API 과부하 방지를 위해 2개로 제한
-        private const val PARALLEL_LIMIT = 2
+        // 병렬 처리 제한 - API 과부하 방지를 위해 1개로 제한 (500 에러 방지)
+        private const val PARALLEL_LIMIT = 1
         // Basis points threshold for statistics (1% = 100 bps)
         private const val WEIGHT_CHANGE_THRESHOLD_BPS = 100
+        // 청크 간 딜레이 (ms) - rate limit 회복 시간
+        private const val CHUNK_DELAY_MS = 500L
     }
 
     // ========== ETF List ==========
@@ -684,9 +686,9 @@ class EtfRepositoryImpl @Inject constructor(
         logger.d("Processing ${etfs.size} ETFs with PARALLEL_LIMIT=$PARALLEL_LIMIT")
 
         val results = etfs.chunked(PARALLEL_LIMIT).flatMapIndexed { chunkIndex, chunk ->
-            // 청크 간 딜레이 (첫 번째 청크 제외)
+            // 청크 간 딜레이 (첫 번째 청크 제외) - 500 에러 방지를 위해 증가
             if (chunkIndex > 0) {
-                delay(200)  // API 안정성을 위한 청크 간 딜레이
+                delay(CHUNK_DELAY_MS)  // API 안정성을 위한 청크 간 딜레이 (500ms)
             }
 
             chunk.map { etf ->

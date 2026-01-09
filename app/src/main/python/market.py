@@ -291,14 +291,22 @@ class Oscillator:
                             close_dict[col] = aligned["close"]
                             vol_dict[col] = aligned["volume"].fillna(0)
                             success_count += 1
-                        time.sleep(REQ_DELAY * 0.5)  # 속도 개선: 0.25초
+                        time.sleep(REQ_DELAY)  # Rate limit compliance: 1.0초 (was 0.25초)
                     except Exception as e:
                         error_count += 1
                         log.warning(f"Error fetching {t}: {e}")
+                        # Rate limit 에러 시 추가 대기
+                        if "500" in str(e) or "429" in str(e) or "rate" in str(e).lower():
+                            log.info(f"Rate limit detected, waiting 3 seconds...")
+                            time.sleep(3)
                         continue
 
                 batch_elapsed = time.time() - batch_start_time
                 log.info(f"Batch {i//BATCH_SIZE + 1}: {len(batch)} tickers in {batch_elapsed:.1f}s")
+
+                # 배치 간 추가 딜레이 (rate limit 회복)
+                if i + BATCH_SIZE < len(tickers):
+                    time.sleep(2.0)  # 배치 간 2초 대기
 
             if error_count > 0:
                 log.warning(f"{market}: {error_count} errors, {success_count} successes")
