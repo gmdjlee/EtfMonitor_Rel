@@ -1,5 +1,5 @@
 # EtfMonitor UI Code Extraction
-# Generated: Sat Jan 10 11:58:44 UTC 2026
+# Generated: Sat Jan 10 13:48:16 UTC 2026
 
 // ====== CORE UI COMPONENTS ======
 
@@ -4437,12 +4437,23 @@ fun NewAIAnalysisScreen(
     }
 
     // FAB 표시 조건: 종목-지표 탭에서 종목이 선택되고 분석 결과가 있을 때
-    val showFab = quickChartAnalysisEnabled &&
-            onNavigateToOscillator != null &&
-            selectedTab == AnalysisTab.STOCK_INDICATOR &&
-            selectedStock != null &&
-            stockIndicatorCorrelationResult?.correlationResult != null &&
-            currentSession == null
+    val showFab by remember(
+        quickChartAnalysisEnabled,
+        onNavigateToOscillator,
+        selectedTab,
+        selectedStock,
+        stockIndicatorCorrelationResult,
+        currentSession
+    ) {
+        derivedStateOf {
+            quickChartAnalysisEnabled &&
+                    onNavigateToOscillator != null &&
+                    selectedTab == AnalysisTab.STOCK_INDICATOR &&
+                    selectedStock != null &&
+                    stockIndicatorCorrelationResult?.correlationResult != null &&
+                    currentSession == null
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -6377,7 +6388,7 @@ private fun BackupContentWithFab(
                     EmptyBackupsCard()
                 }
             } else {
-                items(localBackups) { backup ->
+                items(localBackups, key = { it.id }) { backup ->
                     BackupCard(
                         backupInfo = backup,
                         onClick = { onBackupClick(backup) },
@@ -6458,7 +6469,7 @@ private fun BackupContent(
                 EmptyBackupsCard()
             }
         } else {
-            items(localBackups) { backup ->
+            items(localBackups, key = { it.id }) { backup ->
                 BackupCard(
                     backupInfo = backup,
                     onClick = { onBackupClick(backup) },
@@ -7850,6 +7861,7 @@ private fun StatusBadge(status: HoldingStatus) {
 
 @Composable
 private fun WeightInfo(label: String, weight: Float, modifier: Modifier = Modifier) {
+    val formattedWeight = remember(weight) { String.format("%.2f%%", weight) }
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -7860,7 +7872,7 @@ private fun WeightInfo(label: String, weight: Float, modifier: Modifier = Modifi
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
-            String.format("%.2f%%", weight),
+            formattedWeight,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface
         )
@@ -7869,6 +7881,12 @@ private fun WeightInfo(label: String, weight: Float, modifier: Modifier = Modifi
 
 @Composable
 private fun ChangeInfo(change: Float, modifier: Modifier = Modifier) {
+    val formattedChange = remember(change) { String.format("%+.2f%%", change) }
+    val changeColor = when {
+        change > 0.01f -> MaterialTheme.colorScheme.tertiary
+        change < -0.01f -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurface
+    }
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -7879,13 +7897,9 @@ private fun ChangeInfo(change: Float, modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
-            String.format("%+.2f%%", change),
+            formattedChange,
             style = MaterialTheme.typography.bodyMedium,
-            color = when {
-                change > 0.01f -> MaterialTheme.colorScheme.tertiary
-                change < -0.01f -> MaterialTheme.colorScheme.error
-                else -> MaterialTheme.colorScheme.onSurface
-            }
+            color = changeColor
         )
     }
 }
@@ -14132,9 +14146,13 @@ fun OscillatorScreen(
     val currentTicker by viewModel.currentTicker.collectAsState()
 
     // FAB 표시 조건: 설정이 활성화되어 있고, Success 상태일 때
-    val showFab = quickChartAnalysisEnabled &&
-            onNavigateToStatistics != null &&
-            state is OscillatorState.Success
+    val showFab by remember(quickChartAnalysisEnabled, onNavigateToStatistics, state) {
+        derivedStateOf {
+            quickChartAnalysisEnabled &&
+                    onNavigateToStatistics != null &&
+                    state is OscillatorState.Success
+        }
+    }
 
     // Auto-analyze if initialTicker is provided
     LaunchedEffect(initialTicker) {
@@ -17584,7 +17602,10 @@ fun ColorPickerDialog(
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(chartDefaultColors.size) { index ->
+                    items(
+                        count = chartDefaultColors.size,
+                        key = { index -> chartDefaultColors[index].toArgb() }
+                    ) { index ->
                         val color = chartDefaultColors[index]
                         val isSelected = color.toArgb() == selectedColor
                         Box(
