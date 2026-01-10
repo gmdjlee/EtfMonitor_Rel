@@ -8,7 +8,6 @@ import com.etfmonitor.feature.market.data.mapper.MarketMapper.toIndexDomainList
 import com.etfmonitor.feature.market.domain.model.MarketIndex
 import com.etfmonitor.feature.market.domain.repository.MarketIndexRepository
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -105,7 +104,6 @@ class MarketIndexRepositoryImpl @Inject constructor(
                 val endStr = endDate.format(formatter)
 
                 // Python으로 데이터 수집
-                coroutineContext.ensureActive()  // 취소 상태 확인
                 val indices = pyClient.fetchMarketIndices(startStr, endStr)
 
                 if (indices.isEmpty()) {
@@ -138,7 +136,6 @@ class MarketIndexRepositoryImpl @Inject constructor(
                 logger.d("Updating market index data for recent $days days")
 
                 // 최근 데이터 수집
-                coroutineContext.ensureActive()  // 취소 상태 확인
                 val indices = pyClient.fetchRecentDays(days)
 
                 if (indices.isEmpty()) {

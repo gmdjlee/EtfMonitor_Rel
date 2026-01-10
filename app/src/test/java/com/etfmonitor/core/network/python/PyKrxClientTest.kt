@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlin.test.assertFalse
 
 /**
  * PyKrxClient 테스트
@@ -26,7 +25,6 @@ import kotlin.test.assertFalse
  * - 타임아웃 처리
  * - 에러 핸들링
  * - 재시도 로직
- * - KIS API 클라이언트 초기화 및 연결 테스트 (Phase 6)
  *
  * 주의: 실제 Python 통합 테스트는 Android 환경에서 진행 필요
  * 이 테스트는 Python 응답을 모킹하여 Kotlin 로직을 검증
@@ -40,7 +38,6 @@ class PyKrxClientTest {
     private lateinit var etfModule: PyObject
     private lateinit var stockModule: PyObject
     private lateinit var coreModule: PyObject
-    private lateinit var kisModule: PyObject
 
     private lateinit var client: PyKrxClient
 
@@ -50,12 +47,10 @@ class PyKrxClientTest {
         etfModule = mockk(relaxed = true)
         stockModule = mockk(relaxed = true)
         coreModule = mockk(relaxed = true)
-        kisModule = mockk(relaxed = true)
 
         every { python.getModule("etfcollector") } returns etfModule
         every { python.getModule("stocks") } returns stockModule
         every { python.getModule("core") } returns coreModule
-        every { python.getModule("kis_client") } returns kisModule
 
         client = PyKrxClient(python)
     }
@@ -447,254 +442,6 @@ class PyKrxClientTest {
             assertEquals(2, result.size)
             assertTrue(result.any { it.name.contains("반도체") })
             assertTrue(result.any { it.name.contains("2차전지") })
-        }
-    }
-
-    // ==================== Phase 6: KIS API Integration Tests ====================
-
-    @Nested
-    @DisplayName("KIS API 클라이언트 초기화 테스트")
-    inner class KisClientInitializationTests {
-
-        @Test
-        @DisplayName("KIS 클라이언트 초기화 성공")
-        fun initializeKisClient_success() = runTest {
-            // Given
-            val appKey = "test_app_key"
-            val appSecret = "test_app_secret"
-
-            every {
-                kisModule.callAttr("init_kis_client", appKey, appSecret)
-            } returns mockk(relaxed = true)
-
-            // When
-            val result = client.initializeKisClient(appKey, appSecret)
-
-            // Then
-            assertTrue(result)
-            verify(exactly = 1) {
-                kisModule.callAttr("init_kis_client", appKey, appSecret)
-            }
-        }
-
-        @Test
-        @DisplayName("KIS 클라이언트 초기화 실패 - Python 예외")
-        fun initializeKisClient_pythonException_returnsFalse() = runTest {
-            // Given
-            every {
-                kisModule.callAttr("init_kis_client", any<String>(), any<String>())
-            } throws RuntimeException("Invalid credentials")
-
-            // When
-            val result = client.initializeKisClient("invalid_key", "invalid_secret")
-
-            // Then
-            assertFalse(result)
-        }
-
-        @Test
-        @DisplayName("KIS 클라이언트 초기화 상태 확인 - 초기화됨")
-        fun isKisClientInitialized_initialized_returnsTrue() = runTest {
-            // Given
-            val pyResult = mockk<PyObject>()
-            every { pyResult.toBoolean() } returns true
-            every { kisModule.callAttr("is_client_initialized") } returns pyResult
-
-            // When
-            val result = client.isKisClientInitialized()
-
-            // Then
-            assertTrue(result)
-        }
-
-        @Test
-        @DisplayName("KIS 클라이언트 초기화 상태 확인 - 초기화 안됨")
-        fun isKisClientInitialized_notInitialized_returnsFalse() = runTest {
-            // Given
-            val pyResult = mockk<PyObject>()
-            every { pyResult.toBoolean() } returns false
-            every { kisModule.callAttr("is_client_initialized") } returns pyResult
-
-            // When
-            val result = client.isKisClientInitialized()
-
-            // Then
-            assertFalse(result)
-        }
-
-        @Test
-        @DisplayName("KIS 클라이언트 초기화 상태 확인 - 예외 발생")
-        fun isKisClientInitialized_exception_returnsFalse() = runTest {
-            // Given
-            every { kisModule.callAttr("is_client_initialized") } throws RuntimeException("Module error")
-
-            // When
-            val result = client.isKisClientInitialized()
-
-            // Then
-            assertFalse(result)
-        }
-    }
-
-    @Nested
-    @DisplayName("KIS API 연결 테스트")
-    inner class KisApiConnectionTests {
-
-        @Test
-        @DisplayName("KIS API 연결 테스트 성공")
-        fun testKisApiConnection_success() = runTest {
-            // Given
-            val kisClient = mockk<PyObject>()
-            val nameResult = mockk<PyObject>()
-
-            every { kisModule.callAttr("get_client") } returns kisClient
-            every { nameResult.toString() } returns "삼성전자"
-            every { kisClient.callAttr("get_stock_name", "005930") } returns nameResult
-
-            // When
-            val result = client.testKisApiConnection()
-
-            // Then
-            assertTrue(result)
-            verify(exactly = 1) { kisClient.callAttr("get_stock_name", "005930") }
-        }
-
-        @Test
-        @DisplayName("KIS API 연결 테스트 실패 - 빈 응답")
-        fun testKisApiConnection_emptyResponse_returnsFalse() = runTest {
-            // Given
-            val kisClient = mockk<PyObject>()
-            val nameResult = mockk<PyObject>()
-
-            every { kisModule.callAttr("get_client") } returns kisClient
-            every { nameResult.toString() } returns ""
-            every { kisClient.callAttr("get_stock_name", "005930") } returns nameResult
-
-            // When
-            val result = client.testKisApiConnection()
-
-            // Then
-            assertFalse(result)
-        }
-
-        @Test
-        @DisplayName("KIS API 연결 테스트 실패 - None 응답")
-        fun testKisApiConnection_noneResponse_returnsFalse() = runTest {
-            // Given
-            val kisClient = mockk<PyObject>()
-            val nameResult = mockk<PyObject>()
-
-            every { kisModule.callAttr("get_client") } returns kisClient
-            every { nameResult.toString() } returns "None"
-            every { kisClient.callAttr("get_stock_name", "005930") } returns nameResult
-
-            // When
-            val result = client.testKisApiConnection()
-
-            // Then
-            assertFalse(result)
-        }
-
-        @Test
-        @DisplayName("KIS API 연결 테스트 실패 - 예외 발생")
-        fun testKisApiConnection_exception_returnsFalse() = runTest {
-            // Given
-            every { kisModule.callAttr("get_client") } throws RuntimeException("Client not initialized")
-
-            // When
-            val result = client.testKisApiConnection()
-
-            // Then
-            assertFalse(result)
-        }
-    }
-
-    @Nested
-    @DisplayName("KIS API 데이터 검증 테스트")
-    inner class KisApiDataValidationTests {
-
-        @Test
-        @DisplayName("ETF 보유 종목 데이터 검증 - 유효한 비중과 금액")
-        fun getHoldings_validWeightAndAmount() = runTest {
-            // Given
-            val holdingsJson = """[
-                {"ticker": "005930", "weight": 0.2534, "amount": 50000000000.0},
-                {"ticker": "000660", "weight": 0.1521, "amount": 30000000000.0}
-            ]"""
-
-            val pyResult = mockk<PyObject>()
-            every { pyResult.toString() } returns holdingsJson
-            every { etfModule.callAttr("get_etf_holdings", any<String>(), any<String>()) } returns pyResult
-
-            val stockNameResult = mockk<PyObject>()
-            every { stockNameResult.toString() } returns "삼성전자"
-            every { stockModule.callAttr("get_stock_name", any<String>()) } returns stockNameResult
-
-            // When
-            val result = client.getHoldings("069500", "20250115")
-
-            // Then
-            assertEquals(2, result.size)
-            // 비중 합계가 1 미만인지 확인 (샘플 데이터)
-            val totalWeight = result.sumOf { it.weight.toDouble() }
-            assertTrue(totalWeight <= 1.0)
-            // 금액이 양수인지 확인
-            assertTrue(result.all { it.amountMillion > 0 })
-        }
-
-        @Test
-        @DisplayName("ETF 목록 필터링 - 키워드 포함/제외 검증")
-        fun getFilteredEtfList_keywordFiltering() = runTest {
-            // Given - 반도체 포함, 인버스 제외된 결과
-            val jsonResponse = """[
-                {"ticker": "091160", "name": "KODEX 반도체"},
-                {"ticker": "091170", "name": "KODEX 반도체 TOP10"}
-            ]"""
-
-            val pyResult = mockk<PyObject>()
-            every { pyResult.toString() } returns jsonResponse
-            every {
-                etfModule.callAttr(
-                    "get_etf_list_with_names",
-                    any<String>(),
-                    any<String>(),
-                    any<String>()
-                )
-            } returns pyResult
-
-            // When
-            val result = client.getFilteredEtfList(
-                date = "20250115",
-                includeKeywords = listOf("반도체"),
-                excludeKeywords = listOf("인버스")
-            )
-
-            // Then
-            assertEquals(2, result.size)
-            assertTrue(result.all { it.name.contains("반도체") })
-            assertFalse(result.any { it.name.contains("인버스") })
-        }
-
-        @Test
-        @DisplayName("영업일 데이터 형식 검증 - YYYY-MM-DD")
-        fun getBusinessDays_dateFormat() = runTest {
-            // Given
-            val businessDaysJson = """["20250110", "20250113", "20250114", "20250115"]"""
-
-            val pyResult = mockk<PyObject>()
-            every { pyResult.toString() } returns businessDaysJson
-            every { coreModule.callAttr("get_business_days", any<String>(), any<String>()) } returns pyResult
-
-            // When
-            val result = client.getBusinessDays(4)
-
-            // Then
-            assertEquals(4, result.size)
-            // 모든 날짜가 YYYY-MM-DD 형식인지 확인
-            val datePattern = Regex("\\d{4}-\\d{2}-\\d{2}")
-            assertTrue(result.all { it.matches(datePattern) })
-            // 날짜가 정렬되어 있는지 확인
-            assertEquals(result, result.sorted())
         }
     }
 }

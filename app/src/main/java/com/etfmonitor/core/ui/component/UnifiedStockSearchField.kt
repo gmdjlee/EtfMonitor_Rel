@@ -171,7 +171,6 @@ fun UnifiedStockSearchField(
                                 )
                             },
                             modifier = Modifier.clickable {
-                                keyboardController?.hide()
                                 textFieldValue = result.name
                                 onSearchQueryChange("")
                                 onSelectStock(result.ticker, result.name)

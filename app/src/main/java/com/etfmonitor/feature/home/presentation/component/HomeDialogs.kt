@@ -3,183 +3,26 @@ package com.etfmonitor.feature.home.presentation.component
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.etfmonitor.R
 import com.etfmonitor.core.ui.theme.*
 
 /**
  * Home Screen Dialogs
- * - KisApiSetupDialog: 초기 실행 시 KIS API 설정
  * - DaysSelectionDialog: ETF 데이터 수집 기간 선택
  * - MarketDepositPagesSelectionDialog: 증시 자금 동향 페이지 수 선택
  * - FearGreedPeriodSelectionDialog: Fear & Greed 기간 선택
  * - MarketOscillatorPeriodSelectionDialog: 과매수/과매도 기간 선택
  * - UnifiedInitializationDialog: 통합 초기화 다이얼로그
  */
-
-/**
- * KIS API 설정 다이얼로그
- * 앱 첫 실행 시 KIS API 자격 증명을 입력받습니다.
- * 데이터 수집 다이얼로그 전에 표시됩니다.
- */
-@Composable
-internal fun KisApiSetupDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (appKey: String, appSecret: String) -> Unit,
-    onSkip: () -> Unit
-) {
-    var appKey by remember { mutableStateOf("") }
-    var appSecret by remember { mutableStateOf("") }
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val scrollState = rememberScrollState()
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                Icons.Default.AccountBalance,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(48.dp)
-            )
-        },
-        title = {
-            Text(
-                stringResource(R.string.dialog_kis_api_setup_title),
-                style = MaterialTheme.typography.headlineSmall
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(scrollState),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // 설명
-                Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                    shape = MaterialTheme.extendedShapes.card
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            stringResource(R.string.dialog_kis_api_setup_desc),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
-
-                // APP KEY 입력
-                OutlinedTextField(
-                    value = appKey,
-                    onValueChange = { appKey = it },
-                    label = { Text("APP KEY *") },
-                    placeholder = { Text("PSxxxxxxxx...") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
-                )
-
-                // APP SECRET 입력
-                OutlinedTextField(
-                    value = appSecret,
-                    onValueChange = { appSecret = it },
-                    label = { Text("APP SECRET *") },
-                    placeholder = { Text("xxxxxxxxxx...") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() })
-                )
-
-                // 안내 문구
-                Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = MaterialTheme.extendedShapes.card
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            stringResource(R.string.settings_kis_api_url_label),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                        Text(
-                            "https://apiportal.koreainvestment.com",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            stringResource(R.string.settings_api_key_secure),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-                        )
-                    }
-                }
-
-                // 경고 문구
-                Surface(
-                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
-                    shape = MaterialTheme.extendedShapes.card
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Warning,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            stringResource(R.string.dialog_kis_api_required_warning),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            FilledTonalButton(
-                onClick = { onConfirm(appKey, appSecret) },
-                enabled = appKey.isNotBlank() && appSecret.isNotBlank(),
-                shape = MaterialTheme.extendedShapes.button
-            ) {
-                Text(stringResource(R.string.settings_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onSkip) {
-                Text(stringResource(R.string.action_skip))
-            }
-        },
-        shape = MaterialTheme.extendedShapes.cardLarge
-    )
-}
 
 internal data class DaysOption(
     val days: Int,

@@ -469,9 +469,10 @@ class BackupViewModel @Inject constructor(
         return googleDriveHelper.getSignInIntent()
     }
 
-    fun handleGoogleSignInResult(account: GoogleSignInAccount?) {
+    fun handleGoogleSignInResult(account: GoogleSignInAccount?, statusCode: Int?) {
         if (account == null) {
-            _googleDriveState.value = GoogleDriveState.Error("로그인 취소됨")
+            val errorMessage = getSignInErrorMessage(statusCode)
+            _googleDriveState.value = GoogleDriveState.Error(errorMessage)
             return
         }
 
@@ -489,6 +490,18 @@ class BackupViewModel @Inject constructor(
                         error.message ?: "Google Drive 초기화 실패"
                     )
                 }
+        }
+    }
+
+    private fun getSignInErrorMessage(statusCode: Int?): String {
+        return when (statusCode) {
+            null -> "로그인 취소됨"
+            7 -> "네트워크 연결을 확인해주세요"
+            10 -> "앱 설정 오류: Google Cloud Console에서 SHA-1 인증서를 확인해주세요"
+            12500 -> "로그인 실패. 다시 시도해주세요"
+            12501 -> "로그인이 취소되었습니다"
+            12502 -> "로그인이 이미 진행 중입니다"
+            else -> "로그인 실패 (오류 코드: $statusCode)"
         }
     }
 

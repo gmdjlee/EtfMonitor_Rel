@@ -22,15 +22,12 @@ import com.etfmonitor.core.ui.theme.SingleChartColorSettings
 import com.etfmonitor.core.ui.theme.ThemeManager
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.worker.WorkManagerHelper
-import com.etfmonitor.core.network.python.PyKrxClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
@@ -133,7 +130,6 @@ class SettingsViewModel @Inject constructor(
     private val bloodIndicatorRepository: BloodIndicatorRepository,
     private val aiAnalysisRepository: AIAnalysisRepository,
     private val apiKeyProvider: ApiKeyProvider,
-    private val pyKrxClient: PyKrxClient,
     private val etfDao: EtfDao,
     private val themeManager: ThemeManager,
     @ApplicationContext private val context: Context
@@ -239,19 +235,6 @@ class SettingsViewModel @Inject constructor(
     private val _isFredApiKeyConfigured = MutableStateFlow(false)
     val isFredApiKeyConfigured: StateFlow<Boolean> = _isFredApiKeyConfigured.asStateFlow()
 
-    // KIS Open API 관련 상태
-    private val _isKisApiConfigured = MutableStateFlow(false)
-    val isKisApiConfigured: StateFlow<Boolean> = _isKisApiConfigured.asStateFlow()
-
-    private val _kisAccountNumber = MutableStateFlow<String?>(null)
-    val kisAccountNumber: StateFlow<String?> = _kisAccountNumber.asStateFlow()
-
-    private val _isKisVirtualMode = MutableStateFlow(false)
-    val isKisVirtualMode: StateFlow<Boolean> = _isKisVirtualMode.asStateFlow()
-
-    private val _kisApiTestState = MutableStateFlow<ApiKeyTestState>(ApiKeyTestState.Idle)
-    val kisApiTestState: StateFlow<ApiKeyTestState> = _kisApiTestState.asStateFlow()
-
     private val _apiKeyTestState = MutableStateFlow<ApiKeyTestState>(ApiKeyTestState.Idle)
     val apiKeyTestState: StateFlow<ApiKeyTestState> = _apiKeyTestState.asStateFlow()
 
@@ -282,21 +265,14 @@ class SettingsViewModel @Inject constructor(
 
     // ==================== Helper Functions ====================
 
-    /**
-     * 공통 설정 저장 패턴 - 코드 중복 제거
-     *
-     * EncryptedSharedPreferences 및 Room 데이터베이스 작업은 IO 디스패처에서 실행하여
-     * 메인 스레드 블로킹을 방지합니다.
-     */
+    /** 공통 설정 저장 패턴 - 코드 중복 제거 */
     private inline fun saveSetting(
         successMessage: String,
         crossinline action: suspend () -> Unit
     ) {
         viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) {
-                    action()
-                }
+                action()
                 _message.value = successMessage
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
@@ -1168,47 +1144,16 @@ class SettingsViewModel @Inject constructor(
 
     // ==================== AI API Key Management ====================
 
-    /**
-     * API 키 상태 확인
-     * EncryptedSharedPreferences 읽기는 IO 디스패처에서 실행합니다.
-     */
     private fun checkApiKeyStatus() {
         viewModelScope.launch {
-            // EncryptedSharedPreferences 및 Room 읽기는 IO 디스패처에서 실행
-            val (selectedProvider, hasClaudeKey, hasGeminiKey, fredKey, isKisConfigured, kisAccount, isVirtual) =
-                withContext(Dispatchers.IO) {
-                    ApiKeyStatusResult(
-                        selectedProvider = apiKeyProvider.getSelectedProvider(),
-                        hasClaudeKey = apiKeyProvider.hasApiKey(AIProvider.CLAUDE),
-                        hasGeminiKey = apiKeyProvider.hasApiKey(AIProvider.GEMINI),
-                        fredKey = etfDao.getSetting(Keys.FRED_API_KEY),
-                        isKisConfigured = apiKeyProvider.isKisApiConfigured(),
-                        kisAccountNumber = apiKeyProvider.getKisAccountNumber(),
-                        isVirtualMode = apiKeyProvider.isKisVirtualMode()
-                    )
-                }
-
-            // UI 상태 업데이트는 메인 스레드에서 실행
-            _selectedProvider.value = selectedProvider
-            _isClaudeApiKeyConfigured.value = hasClaudeKey
-            _isGeminiApiKeyConfigured.value = hasGeminiKey
+            _selectedProvider.value = apiKeyProvider.getSelectedProvider()
+            _isClaudeApiKeyConfigured.value = apiKeyProvider.hasApiKey(AIProvider.CLAUDE)
+            _isGeminiApiKeyConfigured.value = apiKeyProvider.hasApiKey(AIProvider.GEMINI)
+            // Check FRED API key
+            val fredKey = etfDao.getSetting(Keys.FRED_API_KEY)
             _isFredApiKeyConfigured.value = !fredKey.isNullOrBlank()
-            _isKisApiConfigured.value = isKisConfigured
-            _kisAccountNumber.value = kisAccount
-            _isKisVirtualMode.value = isVirtual
         }
     }
-
-    /** API 키 상태 조회 결과를 담는 데이터 클래스 */
-    private data class ApiKeyStatusResult(
-        val selectedProvider: AIProvider,
-        val hasClaudeKey: Boolean,
-        val hasGeminiKey: Boolean,
-        val fredKey: String?,
-        val isKisConfigured: Boolean,
-        val kisAccountNumber: String?,
-        val isVirtualMode: Boolean
-    )
 
     fun setSelectedProvider(provider: AIProvider) = saveSetting("${provider.toDisplayName()}이(가) 선택되었습니다") {
         apiKeyProvider.setSelectedProvider(provider)
@@ -1271,144 +1216,6 @@ class SettingsViewModel @Inject constructor(
      */
     suspend fun getFredApiKey(): String? {
         return etfDao.getSetting(Keys.FRED_API_KEY)?.takeIf { it.isNotBlank() }
-    }
-
-    // ==================== KIS Open API Key Management ====================
-
-    /**
-     * KIS Open API APP KEY 설정
-     */
-    fun setKisAppKey(appKey: String) {
-        if (appKey.isBlank()) { _message.value = "APP KEY를 입력해주세요"; return }
-        saveSetting("KIS APP KEY가 저장되었습니다") {
-            apiKeyProvider.setKisAppKey(appKey)
-            _isKisApiConfigured.value = apiKeyProvider.isKisApiConfigured()
-        }
-    }
-
-    /**
-     * KIS Open API APP SECRET 설정
-     */
-    fun setKisAppSecret(appSecret: String) {
-        if (appSecret.isBlank()) { _message.value = "APP SECRET을 입력해주세요"; return }
-        saveSetting("KIS APP SECRET이 저장되었습니다") {
-            apiKeyProvider.setKisAppSecret(appSecret)
-            _isKisApiConfigured.value = apiKeyProvider.isKisApiConfigured()
-        }
-    }
-
-    /**
-     * KIS Open API 자격 증명 일괄 설정
-     */
-    fun setKisCredentials(appKey: String, appSecret: String, accountNumber: String?) {
-        if (appKey.isBlank()) { _message.value = "APP KEY를 입력해주세요"; return }
-        if (appSecret.isBlank()) { _message.value = "APP SECRET을 입력해주세요"; return }
-        saveSetting("KIS Open API 자격 증명이 저장되었습니다") {
-            apiKeyProvider.setKisAppKey(appKey)
-            apiKeyProvider.setKisAppSecret(appSecret)
-            if (!accountNumber.isNullOrBlank()) {
-                apiKeyProvider.setKisAccountNumber(accountNumber)
-                _kisAccountNumber.value = accountNumber
-            }
-            _isKisApiConfigured.value = apiKeyProvider.isKisApiConfigured()
-        }
-    }
-
-    /**
-     * KIS Open API 자격 증명 삭제
-     */
-    fun clearKisCredentials() = saveSetting("KIS Open API 자격 증명이 삭제되었습니다") {
-        apiKeyProvider.removeKisCredentials()
-        _isKisApiConfigured.value = false
-        _kisAccountNumber.value = null
-        _isKisVirtualMode.value = false
-    }
-
-    /**
-     * KIS Open API 계좌번호 설정
-     */
-    fun setKisAccountNumber(accountNumber: String) {
-        if (accountNumber.isBlank()) { _message.value = "계좌번호를 입력해주세요"; return }
-        saveSetting("KIS 계좌번호가 저장되었습니다") {
-            apiKeyProvider.setKisAccountNumber(accountNumber)
-            _kisAccountNumber.value = accountNumber
-        }
-    }
-
-    /**
-     * KIS Open API 모의투자 모드 설정
-     */
-    fun setKisVirtualMode(isVirtual: Boolean) = saveSetting(
-        if (isVirtual) "모의투자 모드로 전환되었습니다"
-        else "실전투자 모드로 전환되었습니다"
-    ) {
-        apiKeyProvider.setKisVirtualMode(isVirtual)
-        _isKisVirtualMode.value = isVirtual
-    }
-
-    /**
-     * KIS Open API 연결 테스트
-     *
-     * 저장된 자격 증명으로 KIS API 클라이언트를 초기화하고
-     * 삼성전자 종목명 조회를 통해 연결 상태를 확인합니다.
-     */
-    fun testKisApiConnection() {
-        viewModelScope.launch {
-            try {
-                _kisApiTestState.value = ApiKeyTestState.Testing
-
-                // EncryptedSharedPreferences 읽기는 IO 디스패처에서 실행
-                val (appKey, appSecret) = withContext(Dispatchers.IO) {
-                    Pair(apiKeyProvider.getKisAppKey(), apiKeyProvider.getKisAppSecret())
-                }
-
-                if (appKey.isNullOrBlank() || appSecret.isNullOrBlank()) {
-                    _kisApiTestState.value = ApiKeyTestState.Error("APP KEY 또는 APP SECRET이 설정되지 않았습니다")
-                    return@launch
-                }
-
-                // KIS 클라이언트 초기화 (이미 IO 디스패처에서 실행됨)
-                val initResult = pyKrxClient.initializeKisClient(appKey, appSecret)
-                if (!initResult) {
-                    _kisApiTestState.value = ApiKeyTestState.Error("KIS API 클라이언트 초기화 실패")
-                    return@launch
-                }
-
-                // 연결 테스트
-                val testResult = pyKrxClient.testKisApiConnection()
-                if (testResult) {
-                    _kisApiTestState.value = ApiKeyTestState.Success
-                    _message.value = "KIS Open API 연결 성공!"
-                } else {
-                    _kisApiTestState.value = ApiKeyTestState.Error("API 연결 테스트 실패")
-                }
-            } catch (e: Exception) {
-                _kisApiTestState.value = ApiKeyTestState.Error(e.message ?: "알 수 없는 오류")
-            }
-        }
-    }
-
-    /**
-     * KIS API 테스트 상태 초기화
-     */
-    fun clearKisApiTestState() {
-        _kisApiTestState.value = ApiKeyTestState.Idle
-    }
-
-    /**
-     * KIS API 클라이언트 초기화 (앱 시작 시 호출)
-     *
-     * 저장된 자격 증명이 있으면 Python KIS 클라이언트를 자동으로 초기화합니다.
-     * EncryptedSharedPreferences 읽기는 IO 디스패처에서 실행됩니다.
-     */
-    suspend fun initializeKisClientIfConfigured(): Boolean = withContext(Dispatchers.IO) {
-        if (apiKeyProvider.isKisApiConfigured()) {
-            val appKey = apiKeyProvider.getKisAppKey() ?: return@withContext false
-            val appSecret = apiKeyProvider.getKisAppSecret() ?: return@withContext false
-            pyKrxClient.initializeKisClient(appKey, appSecret)
-        } else {
-            false
-        }
     }
 
     fun testApiConnection() {

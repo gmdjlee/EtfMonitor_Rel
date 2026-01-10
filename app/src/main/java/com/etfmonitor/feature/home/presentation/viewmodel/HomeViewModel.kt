@@ -3,7 +3,6 @@ package com.etfmonitor.feature.home.presentation.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.etfmonitor.core.network.ai.ApiKeyProvider
 import com.etfmonitor.core.service.CollectionState
 import com.etfmonitor.core.service.DataCollectionService
 import com.etfmonitor.feature.home.domain.model.HomeState
@@ -23,9 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -71,7 +68,6 @@ class HomeViewModel @Inject constructor(
     private val fearGreedRepository: FearGreedRepository,
     private val marketOscillatorRepository: MarketOscillatorRepository,
     private val marketDepositRepository: MarketDepositRepository,
-    private val apiKeyProvider: ApiKeyProvider,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -94,13 +90,6 @@ class HomeViewModel @Inject constructor(
     private val _showUnifiedInitDialog = MutableStateFlow(false)
     val showUnifiedInitDialog: StateFlow<Boolean> = _showUnifiedInitDialog.asStateFlow()
 
-    // KIS API 설정 다이얼로그 상태 (첫 실행 시 데이터 수집 다이얼로그 전에 표시)
-    private val _showKisApiDialog = MutableStateFlow(false)
-    val showKisApiDialog: StateFlow<Boolean> = _showKisApiDialog.asStateFlow()
-
-    // 첫 실행 여부 캐시 (KIS API 설정 후 UnifiedInitDialog를 표시하기 위함)
-    private var pendingFirstRun = false
-
     init {
         checkData()
         observeCollectionState()
@@ -111,62 +100,9 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val shouldShow = checkFirstRunUseCase()
             if (shouldShow) {
-                // 첫 실행 시 KIS API가 설정되어 있지 않으면 먼저 KIS API 다이얼로그 표시
-                if (!apiKeyProvider.isKisApiConfigured()) {
-                    pendingFirstRun = true
-                    _showKisApiDialog.value = true
-                } else {
-                    // KIS API가 이미 설정되어 있으면 바로 UnifiedInitDialog 표시
-                    _showUnifiedInitDialog.value = true
-                }
-            }
-        }
-    }
-
-    /**
-     * KIS API 자격 증명 저장
-     *
-     * EncryptedSharedPreferences는 AES-256-GCM 암호화를 수행하므로
-     * IO 디스패처에서 실행하여 메인 스레드 블로킹을 방지합니다.
-     */
-    fun saveKisCredentials(appKey: String, appSecret: String) {
-        viewModelScope.launch {
-            // 암호화 작업은 IO 스레드에서 실행
-            withContext(Dispatchers.IO) {
-                apiKeyProvider.setKisAppKey(appKey)
-                apiKeyProvider.setKisAppSecret(appSecret)
-            }
-
-            // UI 상태 업데이트는 메인 스레드에서 실행
-            _showKisApiDialog.value = false
-
-            // KIS API 설정 후 첫 실행이면 UnifiedInitDialog 표시
-            if (pendingFirstRun) {
-                pendingFirstRun = false
                 _showUnifiedInitDialog.value = true
             }
         }
-    }
-
-    /**
-     * KIS API 다이얼로그 건너뛰기
-     */
-    fun onKisApiDialogSkip() {
-        _showKisApiDialog.value = false
-
-        // 건너뛰더라도 첫 실행이면 UnifiedInitDialog 표시 (데이터 수집은 실패하겠지만)
-        if (pendingFirstRun) {
-            pendingFirstRun = false
-            _showUnifiedInitDialog.value = true
-        }
-    }
-
-    /**
-     * KIS API 다이얼로그 닫기 (외부 탭으로 닫기)
-     */
-    fun onKisApiDialogDismiss() {
-        // dismiss는 skip과 동일하게 처리
-        onKisApiDialogSkip()
     }
 
     fun onFirstRunDialogShown() {
