@@ -335,7 +335,10 @@ fun ColorPickerDialog(
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(chartDefaultColors.size) { index ->
+                    items(
+                        count = chartDefaultColors.size,
+                        key = { index -> chartDefaultColors[index].toArgb() }
+                    ) { index ->
                         val color = chartDefaultColors[index]
                         val isSelected = color.toArgb() == selectedColor
                         Box(

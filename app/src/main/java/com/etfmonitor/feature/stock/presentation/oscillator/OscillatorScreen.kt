@@ -69,9 +69,13 @@ fun OscillatorScreen(
     val currentTicker by viewModel.currentTicker.collectAsState()
 
     // FAB 표시 조건: 설정이 활성화되어 있고, Success 상태일 때
-    val showFab = quickChartAnalysisEnabled &&
-            onNavigateToStatistics != null &&
-            state is OscillatorState.Success
+    val showFab by remember(quickChartAnalysisEnabled, onNavigateToStatistics, state) {
+        derivedStateOf {
+            quickChartAnalysisEnabled &&
+                    onNavigateToStatistics != null &&
+                    state is OscillatorState.Success
+        }
+    }
 
     // Auto-analyze if initialTicker is provided
     LaunchedEffect(initialTicker) {

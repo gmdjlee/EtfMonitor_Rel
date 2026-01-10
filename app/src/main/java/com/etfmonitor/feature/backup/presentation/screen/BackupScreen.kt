@@ -437,7 +437,7 @@ private fun BackupContentWithFab(
                     EmptyBackupsCard()
                 }
             } else {
-                items(localBackups) { backup ->
+                items(localBackups, key = { it.id }) { backup ->
                     BackupCard(
                         backupInfo = backup,
                         onClick = { onBackupClick(backup) },
@@ -518,7 +518,7 @@ private fun BackupContent(
                 EmptyBackupsCard()
             }
         } else {
-            items(localBackups) { backup ->
+            items(localBackups, key = { it.id }) { backup ->
                 BackupCard(
                     backupInfo = backup,
                     onClick = { onBackupClick(backup) },

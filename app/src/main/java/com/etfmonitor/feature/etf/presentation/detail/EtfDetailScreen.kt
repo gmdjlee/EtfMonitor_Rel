@@ -282,6 +282,7 @@ private fun StatusBadge(status: HoldingStatus) {
 
 @Composable
 private fun WeightInfo(label: String, weight: Float, modifier: Modifier = Modifier) {
+    val formattedWeight = remember(weight) { String.format("%.2f%%", weight) }
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -292,7 +293,7 @@ private fun WeightInfo(label: String, weight: Float, modifier: Modifier = Modifi
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
-            String.format("%.2f%%", weight),
+            formattedWeight,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface
         )
@@ -301,6 +302,12 @@ private fun WeightInfo(label: String, weight: Float, modifier: Modifier = Modifi
 
 @Composable
 private fun ChangeInfo(change: Float, modifier: Modifier = Modifier) {
+    val formattedChange = remember(change) { String.format("%+.2f%%", change) }
+    val changeColor = when {
+        change > 0.01f -> MaterialTheme.colorScheme.tertiary
+        change < -0.01f -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurface
+    }
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -311,13 +318,9 @@ private fun ChangeInfo(change: Float, modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
-            String.format("%+.2f%%", change),
+            formattedChange,
             style = MaterialTheme.typography.bodyMedium,
-            color = when {
-                change > 0.01f -> MaterialTheme.colorScheme.tertiary
-                change < -0.01f -> MaterialTheme.colorScheme.error
-                else -> MaterialTheme.colorScheme.onSurface
-            }
+            color = changeColor
         )
     }
 }
