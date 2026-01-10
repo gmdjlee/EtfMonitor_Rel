@@ -60,12 +60,9 @@ class EtfRepositoryImpl @Inject constructor(
         private val logger = AppLogger.getLogger("EtfRepositoryImpl")
         // Holding weight change threshold for status determination (in percentage points)
         private const val WEIGHT_CHANGE_THRESHOLD = 0.01f
-        // 병렬 처리 제한 - API 과부하 방지를 위해 1개로 제한 (500 에러 방지)
-        private const val PARALLEL_LIMIT = 1
+        private const val PARALLEL_LIMIT = 5
         // Basis points threshold for statistics (1% = 100 bps)
         private const val WEIGHT_CHANGE_THRESHOLD_BPS = 100
-        // 청크 간 딜레이 (ms) - rate limit 회복 시간
-        private const val CHUNK_DELAY_MS = 500L
     }
 
     // ========== ETF List ==========
@@ -663,19 +660,6 @@ class EtfRepositoryImpl @Inject constructor(
 
     // ========== Private Helpers ==========
 
-    /**
-     * ETF 병렬 처리
-     *
-     * ## API 요청량 최적화 (v2.2)
-     * - 병렬 처리 제한: 2개 (PARALLEL_LIMIT)
-     * - 청크 간 딜레이: 200ms
-     * - KIS API가 종목명을 제공하므로 추가 API 호출 불필요
-     *
-     * ## 예상 API 호출량
-     * - ETF 5개 × 1회 = 5회 (보유종목 조회)
-     * - 종목명 조회: 0회 (KIS API에서 제공)
-     * - 총: 5회/일 (기존 350+회에서 대폭 감소)
-     */
     private suspend fun processEtfsInParallel(
         etfs: List<com.etfmonitor.core.database.entities.Etf>,
         dateYYYYMMDD: String,
@@ -683,14 +667,7 @@ class EtfRepositoryImpl @Inject constructor(
     ): List<EtfProcessResult> = coroutineScope {
         val allStocksToSync = mutableListOf<Pair<String, String>>()
 
-        logger.d("Processing ${etfs.size} ETFs with PARALLEL_LIMIT=$PARALLEL_LIMIT")
-
-        val results = etfs.chunked(PARALLEL_LIMIT).flatMapIndexed { chunkIndex, chunk ->
-            // 청크 간 딜레이 (첫 번째 청크 제외) - 500 에러 방지를 위해 증가
-            if (chunkIndex > 0) {
-                delay(CHUNK_DELAY_MS)  // API 안정성을 위한 청크 간 딜레이 (500ms)
-            }
-
+        val results = etfs.chunked(PARALLEL_LIMIT).flatMap { chunk ->
             chunk.map { etf ->
                 async {
                     try {

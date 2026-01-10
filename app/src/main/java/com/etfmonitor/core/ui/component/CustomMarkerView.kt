@@ -128,19 +128,25 @@ class MarketCapMarkerView(
 
     /**
      * 화폐 값 포맷팅
-     * Note: 시가총액 값은 이미 억원 단위로 변환되어 있음 (Float overflow 방지)
      */
     private fun formatCurrency(value: Float): String {
         return try {
-            // value는 이미 억원 단위
-            val billions = value.toLong()
+            val absValue = kotlin.math.abs(value.toDouble())
             when {
-                billions >= 10000 -> {
-                    // 10000억 이상 = 1조 이상
-                    String.format("%.2f조원", billions / 10000.0)
+                absValue >= 1_000_000_000_000 -> {
+                    val trillion = value / 1_000_000_000_000
+                    String.format("%.2f조원", trillion)
+                }
+                absValue >= 100_000_000 -> {
+                    val hundredMillion = value / 100_000_000
+                    String.format("%.2f억원", hundredMillion)
+                }
+                absValue >= 10_000 -> {
+                    val tenThousand = value / 10_000
+                    String.format("%.2f만원", tenThousand)
                 }
                 else -> {
-                    String.format("%,d억원", billions)
+                    String.format("%.0f원", value)
                 }
             }
         } catch (e: Exception) {

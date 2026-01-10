@@ -49,38 +49,8 @@ class StockRepositoryImpl @Inject constructor(
 
     override fun searchStocks(query: String): Flow<List<Stock>> =
         localDataSource.searchStocks(query)
-            .map { entities ->
-                if (entities.isEmpty() && query.isNotBlank()) {
-                    // Fallback to Python search when DB is empty
-                    logger.d("DB search returned empty, trying Python search for: $query")
-                    searchStockFromPython(query)?.let { listOf(it) } ?: emptyList()
-                } else {
-                    entities.map { it.toDomain() }
-                }
-            }
+            .map { entities -> entities.map { it.toDomain() } }
             .flowOn(Dispatchers.IO)
-
-    /**
-     * Python을 통해 종목 검색 (DB가 비어있을 때 fallback)
-     */
-    private suspend fun searchStockFromPython(query: String): Stock? {
-        return try {
-            val result = pyClient.searchStock(query)
-            if (result != null) {
-                val (ticker, name) = result
-                logger.d("Python search found: $ticker - $name")
-                // Cache the result in local DB
-                val market = Stock.inferMarket(ticker)
-                localDataSource.upsertFromHolding(ticker, name, market, System.currentTimeMillis())
-                Stock(ticker = ticker, name = name, market = market, isEtfHolding = false)
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            logger.e("Python search failed for: $query", e)
-            null
-        }
-    }
 
     override fun getEtfHoldingStocks(): Flow<List<Stock>> =
         localDataSource.getEtfHoldingStocks()
@@ -139,19 +109,10 @@ class StockRepositoryImpl @Inject constructor(
         try {
             logger.d("Initializing stock data from Python...")
 
-            val stockListResult = pyClient.getAllStocksList()
-
-            // Handle error from Python client
-            if (stockListResult.isFailure) {
-                val exception = stockListResult.exceptionOrNull()
-                logger.e("Failed to get stocks list from Python: ${exception?.message}")
-                return@withContext Result.failure(exception ?: NetworkException("알 수 없는 오류가 발생했습니다."))
-            }
-
-            val stockList = stockListResult.getOrNull() ?: emptyList()
+            val stockList = pyClient.getAllStocksList()
 
             if (stockList.isEmpty()) {
-                logger.e("Failed to get stocks list from Python (empty result)")
+                logger.e("Failed to get stocks list from Python (empty result - possible network issue)")
                 return@withContext Result.failure(
                     NetworkException("종목 데이터를 가져올 수 없습니다. 네트워크 연결을 확인해 주세요.")
                 )

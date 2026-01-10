@@ -210,19 +210,6 @@ class ApiAuthenticationException(
 ) : ApiException("$apiName $reason", 401, apiName)
 
 /**
- * API 설정 미완료 예외
- *
- * API 키가 설정되지 않은 경우 사용됩니다.
- *
- * @param apiName API 이름
- * @param configurationMessage 설정 안내 메시지
- */
-class ApiConfigurationException(
-    apiName: String,
-    configurationMessage: String = "API 설정이 필요합니다. 설정 화면에서 API 키를 입력해주세요."
-) : ApiException("$apiName $configurationMessage", null, apiName)
-
-/**
  * API 요청 횟수 제한 초과 예외
  *
  * @param apiName API 이름

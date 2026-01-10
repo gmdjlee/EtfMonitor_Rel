@@ -112,61 +112,6 @@ class SharedPreferencesApiKeyProvider @Inject constructor(
         }
     }
 
-    // ==================== KIS API Methods ====================
-
-    override fun getKisAppKey(): String? {
-        return sharedPreferences.getString(KEY_KIS_APP_KEY, null)
-    }
-
-    override fun getKisAppSecret(): String? {
-        return sharedPreferences.getString(KEY_KIS_APP_SECRET, null)
-    }
-
-    override fun setKisAppKey(appKey: String) {
-        sharedPreferences.edit()
-            .putString(KEY_KIS_APP_KEY, appKey)
-            .apply()
-    }
-
-    override fun setKisAppSecret(appSecret: String) {
-        sharedPreferences.edit()
-            .putString(KEY_KIS_APP_SECRET, appSecret)
-            .apply()
-    }
-
-    override fun removeKisCredentials() {
-        sharedPreferences.edit()
-            .remove(KEY_KIS_APP_KEY)
-            .remove(KEY_KIS_APP_SECRET)
-            .remove(KEY_KIS_ACCOUNT_NUMBER)
-            .remove(KEY_KIS_VIRTUAL_MODE)
-            .apply()
-    }
-
-    override fun isKisApiConfigured(): Boolean {
-        return !getKisAppKey().isNullOrBlank() && !getKisAppSecret().isNullOrBlank()
-    }
-
-    override fun getKisAccountNumber(): String? {
-        return sharedPreferences.getString(KEY_KIS_ACCOUNT_NUMBER, null)
-    }
-
-    override fun setKisAccountNumber(accountNumber: String) {
-        sharedPreferences.edit()
-            .putString(KEY_KIS_ACCOUNT_NUMBER, accountNumber)
-            .apply()
-    }
-
-    override fun isKisVirtualMode(): Boolean {
-        return sharedPreferences.getBoolean(KEY_KIS_VIRTUAL_MODE, false)
-    }
-
-    override fun setKisVirtualMode(isVirtual: Boolean) {
-        sharedPreferences.edit()
-            .putBoolean(KEY_KIS_VIRTUAL_MODE, isVirtual)
-            .apply()
-    }
-
     companion object {
         private const val PREFS_NAME = "ai_api_prefs"
         private const val KEY_API_KEY_CLAUDE = "api_key_claude"
@@ -174,11 +119,5 @@ class SharedPreferencesApiKeyProvider @Inject constructor(
         private const val KEY_SELECTED_PROVIDER = "selected_provider"
         private const val KEY_MODEL_CLAUDE = "model_claude"
         private const val KEY_MODEL_GEMINI = "model_gemini"
-
-        // KIS Open API Keys
-        private const val KEY_KIS_APP_KEY = "kis_app_key"
-        private const val KEY_KIS_APP_SECRET = "kis_app_secret"
-        private const val KEY_KIS_ACCOUNT_NUMBER = "kis_account_number"
-        private const val KEY_KIS_VIRTUAL_MODE = "kis_virtual_mode"
     }
 }

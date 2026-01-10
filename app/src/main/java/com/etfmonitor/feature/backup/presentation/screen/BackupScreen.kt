@@ -1,6 +1,5 @@
 package com.etfmonitor.feature.backup.presentation.screen
 
-import android.app.Activity
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -58,16 +57,12 @@ fun BackupTabContent(
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            try {
-                val account = task.getResult(ApiException::class.java)
-                viewModel.handleGoogleSignInResult(account)
-            } catch (e: ApiException) {
-                viewModel.handleGoogleSignInResult(null)
-            }
-        } else {
-            viewModel.handleGoogleSignInResult(null)
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            viewModel.handleGoogleSignInResult(account, null)
+        } catch (e: ApiException) {
+            viewModel.handleGoogleSignInResult(null, e.statusCode)
         }
     }
 
@@ -203,16 +198,12 @@ fun BackupScreen(
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            try {
-                val account = task.getResult(ApiException::class.java)
-                viewModel.handleGoogleSignInResult(account)
-            } catch (e: ApiException) {
-                viewModel.handleGoogleSignInResult(null)
-            }
-        } else {
-            viewModel.handleGoogleSignInResult(null)
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            viewModel.handleGoogleSignInResult(account, null)
+        } catch (e: ApiException) {
+            viewModel.handleGoogleSignInResult(null, e.statusCode)
         }
     }
 

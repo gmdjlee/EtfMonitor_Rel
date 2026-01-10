@@ -22,10 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.etfmonitor.core.database.EtfDao
-import com.etfmonitor.core.common.util.ApiConfigurationException
 import com.etfmonitor.core.common.util.NetworkException
-import com.etfmonitor.core.network.ai.ApiKeyProvider
-import com.etfmonitor.core.network.python.PyKrxClient
 import com.etfmonitor.feature.stock.domain.repository.StockRepository
 import com.etfmonitor.navigation.Navigation
 import com.etfmonitor.core.ui.theme.ChartColorSettings
@@ -67,19 +64,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var themeManager: ThemeManager
 
-    @Inject
-    lateinit var apiKeyProvider: ApiKeyProvider
-
-    @Inject
-    lateinit var pyKrxClient: PyKrxClient
-
     // 네트워크 에러 다이얼로그 상태
     private val showNetworkErrorDialog = mutableStateOf(false)
     private val networkErrorMessage = mutableStateOf("")
-
-    // API 설정 필요 다이얼로그 상태
-    private val showApiConfigDialog = mutableStateOf(false)
-    private val apiConfigMessage = mutableStateOf("")
 
     // ✅ 알림 권한 요청 (Android 13+)
     private val requestPermissionLauncher = registerForActivityResult(
@@ -113,8 +100,6 @@ class MainActivity : ComponentActivity() {
             initializeStockDatabase()
             // 테마 설정 로드
             loadThemeSetting()
-            // KIS API 클라이언트 초기화 (자격 증명이 설정된 경우)
-            initializeKisApiIfConfigured()
         }
 
         setContent {
@@ -172,24 +157,6 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
-
-                    // API 설정 필요 다이얼로그
-                    if (showApiConfigDialog.value) {
-                        AlertDialog(
-                            onDismissRequest = { showApiConfigDialog.value = false },
-                            title = { Text("API 설정 필요") },
-                            text = { Text(apiConfigMessage.value) },
-                            confirmButton = {
-                                TextButton(
-                                    onClick = {
-                                        showApiConfigDialog.value = false
-                                    }
-                                ) {
-                                    Text("확인")
-                                }
-                            }
-                        )
-                    }
                 }
             }
         }
@@ -209,31 +176,13 @@ class MainActivity : ComponentActivity() {
                 } else {
                     val exception = result.exceptionOrNull()
                     logger.e("Failed to initialize stock database: ${exception?.message}")
-                    handleStockInitializationError(exception)
+                    if (exception is NetworkException) {
+                        networkErrorMessage.value = exception.message ?: "네트워크 연결을 확인해 주세요."
+                        showNetworkErrorDialog.value = true
+                    }
                 }
             } catch (e: Exception) {
                 logger.e("Error retrying stock initialization", e)
-            }
-        }
-    }
-
-    /**
-     * 종목 데이터 초기화 에러 처리
-     */
-    private fun handleStockInitializationError(exception: Throwable?) {
-        when (exception) {
-            is ApiConfigurationException -> {
-                apiConfigMessage.value = exception.message ?: "KIS API 설정이 필요합니다. 설정 화면에서 API 키를 입력해주세요."
-                showApiConfigDialog.value = true
-            }
-            is NetworkException -> {
-                networkErrorMessage.value = exception.message ?: "네트워크 연결을 확인해 주세요."
-                showNetworkErrorDialog.value = true
-            }
-            else -> {
-                // 기타 오류는 네트워크 오류로 표시
-                networkErrorMessage.value = exception?.message ?: "데이터를 가져오는 중 오류가 발생했습니다."
-                showNetworkErrorDialog.value = true
             }
         }
     }
@@ -289,7 +238,11 @@ class MainActivity : ComponentActivity() {
                     } else {
                         val exception = result.exceptionOrNull()
                         logger.e("Failed to initialize stock database: ${exception?.message}")
-                        handleStockInitializationError(exception)
+                        // 네트워크 에러인 경우 다이얼로그 표시
+                        if (exception is NetworkException) {
+                            networkErrorMessage.value = exception.message ?: "네트워크 연결을 확인해 주세요."
+                            showNetworkErrorDialog.value = true
+                        }
                     }
                 } else {
                     logger.d("Stock database already has $stockCount stocks")
@@ -320,36 +273,6 @@ class MainActivity : ComponentActivity() {
             } catch (e: Exception) {
                 logger.e("Error initializing stock database", e)
             }
-        }
-    }
-
-    /**
-     * KIS Open API 클라이언트 자동 초기화
-     *
-     * 저장된 자격 증명이 있으면 앱 시작 시 자동으로 Python KIS 클라이언트를 초기화합니다.
-     * 이를 통해 다른 Python 모듈들이 KIS API를 사용할 수 있게 됩니다.
-     */
-    private fun initializeKisApiIfConfigured() {
-        if (apiKeyProvider.isKisApiConfigured()) {
-            lifecycleScope.launch {
-                try {
-                    val appKey = apiKeyProvider.getKisAppKey()
-                    val appSecret = apiKeyProvider.getKisAppSecret()
-
-                    if (!appKey.isNullOrBlank() && !appSecret.isNullOrBlank()) {
-                        val success = pyKrxClient.initializeKisClient(appKey, appSecret)
-                        if (success) {
-                            logger.i("KIS API client initialized on app start")
-                        } else {
-                            logger.w("Failed to initialize KIS API client on app start")
-                        }
-                    }
-                } catch (e: Exception) {
-                    logger.e("Error initializing KIS API client", e)
-                }
-            }
-        } else {
-            logger.d("KIS API not configured, skipping initialization")
         }
     }
 

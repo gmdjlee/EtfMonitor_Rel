@@ -423,28 +423,24 @@ fun observeData() {
 
 ### Python Integration
 **Embedded Python** via Chaquopy includes:
-- `kis_client`: KIS Open API client (primary data source)
+- `pykrx`: Korean stock market API
 - `pandas`: Data manipulation
 - `scikit-learn`: Machine learning (stock predictions)
 - `beautifulsoup4`: Web scraping
 - `numpy`: Numerical computing
 - `requests`: HTTP client
 
-> **Note:** KIS API credentials (APP_KEY, APP_SECRET) must be configured in Settings for data collection to work.
-
 #### Python Scripts (app/src/main/python/)
 | Script | Exposed Functions | Return Format | Notes |
 |--------|------------------|---------------|-------|
-| **kis_client.py** | `get_etf_list()`, `get_etf_holdings()`, `get_stock_ohlcv()`, `get_investor_trading()` | JSON object | KIS Open API client (primary data source) |
-| **etfcollector.py** | `get_etf_list_with_names()`, `get_etf_list()`, `get_etf_holdings()` | JSON array | Uses KIS API, filters by keywords |
+| **etfcollector.py** | `get_etf_list_with_names()`, `get_etf_list()`, `get_etf_holdings()` | JSON array | Uses pykrx, filters by keywords |
 | **stocks.py** | `search_stock()`, `get_stock_data()`, `get_stock_ohlcv()`, `get_all_stocks_list()` | JSON object | 5-day rolling sums for investor data |
 | **market.py** | `fetch_all_markets()`, `fetch_recent_days()`, `get_market_oscillator()` | JSON object | Oscillator collects 200+ component stocks |
-| **core.py** | `get_business_days()`, date/number utilities | Various | Shared utilities, uses KIS API |
+| **core.py** | `get_business_days()`, date/number utilities | Various | Shared utilities, not directly called |
 | **feargreed.py** | `run_analysis()`, `combine()`, `analyze()` | DataFrame tuple | 5 indicators @ 20% each (Mom, PCR, VIX, Spread, RSI) |
 | **deposit_scraper.py** | `scrape_deposit_data()`, `get_market_deposit_data()` | JSON string | Scrapes Naver Finance |
-| **blood_indicator.py** | `get_blood_indicator_json()`, `get_latest_blood_value()`, `get_blood_summary()` | JSON | Blood Indicator (US03MY/HY Spread) risk signal |
+| **stock_predictor_v2.py** | `train_and_predict_v2()`, `get_model_status_v2()`, `clear_model_cache_v2()` | JSON | 28 features, ensemble (XGBoost/LightGBM/RF/GB), SMOTE |
 | **trend_signal.py** | `get_trend_signal_analysis()`, `get_elder_impulse_analysis()`, `get_demark_td_analysis()` | JSON | Technical indicators with buy/sell signals |
-| **logger.py** | `log` | Logger instance | Shared logging utility |
 
 #### Python JSON Return Patterns
 ```python
@@ -458,14 +454,14 @@ fun observeData() {
   "institution_5d": [300, 400]   # 5-day cumulative
 }
 
-# blood_indicator.py - get_blood_indicator_json()
+# stock_predictor_v2.py - train_and_predict_v2()
 {
   "success": true,
-  "data": [
-    {"date": "2025-01-06", "blood": 1.23, "sma": 1.15, "signal": "risk_on"},
-    {"date": "2025-01-05", "blood": 1.21, "sma": 1.15, "signal": "risk_on"}
-  ],
-  "latest": {"blood": 1.23, "signal": "risk_on"}
+  "cv_accuracy": 0.85,
+  "cv_f1": 0.82,
+  "feature_count": 28,
+  "model_type": "voting",
+  "predictions": [{"ticker": "...", "confidence": 0.92, "risk_score": 0.3, ...}]
 }
 ```
 
@@ -1529,7 +1525,7 @@ dependencies {
 - **Room**: https://developer.android.com/training/data-storage/room
 - **Coroutines**: https://kotlinlang.org/docs/coroutines-overview.html
 - **Chaquopy**: https://chaquo.com/chaquopy/
-- **KIS Open API**: https://apiportal.koreainvestment.com/
+- **PyKrx**: https://github.com/sharebook-kr/pykrx
 
 ---
 
@@ -1670,7 +1666,7 @@ Before submitting changes, verify:
 
 ---
 
-**Last Updated**: 2026-01-06
+**Last Updated**: 2025-12-27
 **Codebase Version**: Schema v17, ~255 Kotlin files
 **Maintainer**: gmdjlee
 
@@ -1789,26 +1785,3 @@ com/etfmonitor/
 - Updated migration count: 13 → 16
 - Added Testing Guide section with test structure and patterns
 - Created CHANGELOG.md for version tracking
-
-### 2026-01-06 - KIS API Migration Complete & Python Scripts Update
-
-**pykrx → KIS API Migration (Complete)**
-- All Python modules now use KIS Open API as the sole data source
-- Removed `pykrx` from Chaquopy dependencies in `build.gradle.kts`
-- Created `kis_client.py` with full KIS API integration:
-  - `get_etf_list()`, `get_etf_holdings()`, `get_stock_ohlcv()`, `get_investor_trading()`
-  - OAuth2 token management, rate limiting, retry logic
-- Updated all dependent Python modules (`etfcollector.py`, `stocks.py`, `market.py`, `trend_signal.py`, `core.py`)
-- KIS API credentials (APP_KEY, APP_SECRET) must be configured in Settings
-
-**Python Scripts Changes**:
-- Removed `stock_predictor_v2.py` (ML predictions migrated to Kotlin)
-- Added `blood_indicator.py` for Blood Indicator (US03MY/HY Spread) risk signal
-- Added `logger.py` for shared logging utility
-- Updated Python Scripts table in documentation
-
-**Files Affected**:
-- `app/src/main/python/kis_client.py` - New KIS API client
-- `app/src/main/python/blood_indicator.py` - New Blood Indicator module
-- `app/build.gradle.kts` - Removed pykrx dependency
-- `CLAUDE.md` - Updated Python documentation

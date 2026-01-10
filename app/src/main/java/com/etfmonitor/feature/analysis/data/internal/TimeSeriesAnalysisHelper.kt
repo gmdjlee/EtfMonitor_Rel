@@ -697,7 +697,7 @@ class TimeSeriesAnalysisHelper @Inject constructor(
      * 전체 종목 리스트 가져오기
      */
     suspend fun getAllStocksList(): List<Pair<String, String>> = withContext(Dispatchers.IO) {
-        oscillatorPyClient.getAllStocksList().getOrElse { emptyList() }
+        oscillatorPyClient.getAllStocksList()
     }
 
     /**
