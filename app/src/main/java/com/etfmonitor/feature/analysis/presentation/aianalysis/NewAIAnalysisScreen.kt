@@ -71,12 +71,23 @@ fun NewAIAnalysisScreen(
     }
 
     // FAB 표시 조건: 종목-지표 탭에서 종목이 선택되고 분석 결과가 있을 때
-    val showFab = quickChartAnalysisEnabled &&
-            onNavigateToOscillator != null &&
-            selectedTab == AnalysisTab.STOCK_INDICATOR &&
-            selectedStock != null &&
-            stockIndicatorCorrelationResult?.correlationResult != null &&
-            currentSession == null
+    val showFab by remember(
+        quickChartAnalysisEnabled,
+        onNavigateToOscillator,
+        selectedTab,
+        selectedStock,
+        stockIndicatorCorrelationResult,
+        currentSession
+    ) {
+        derivedStateOf {
+            quickChartAnalysisEnabled &&
+                    onNavigateToOscillator != null &&
+                    selectedTab == AnalysisTab.STOCK_INDICATOR &&
+                    selectedStock != null &&
+                    stockIndicatorCorrelationResult?.correlationResult != null &&
+                    currentSession == null
+        }
+    }
 
     Scaffold(
         topBar = {
