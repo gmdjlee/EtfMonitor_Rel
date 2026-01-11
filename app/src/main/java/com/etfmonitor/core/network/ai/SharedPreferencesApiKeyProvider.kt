@@ -92,6 +92,57 @@ class SharedPreferencesApiKeyProvider @Inject constructor(
             .apply()
     }
 
+    // ==================== KIS API Implementation ====================
+
+    override fun getKisAppKey(): String? {
+        return sharedPreferences.getString(KEY_KIS_APP_KEY, null)
+    }
+
+    override fun setKisAppKey(appKey: String) {
+        sharedPreferences.edit()
+            .putString(KEY_KIS_APP_KEY, appKey)
+            .apply()
+    }
+
+    override fun getKisAppSecret(): String? {
+        return sharedPreferences.getString(KEY_KIS_APP_SECRET, null)
+    }
+
+    override fun setKisAppSecret(appSecret: String) {
+        sharedPreferences.edit()
+            .putString(KEY_KIS_APP_SECRET, appSecret)
+            .apply()
+    }
+
+    override fun getKisAccountNumber(): String? {
+        return sharedPreferences.getString(KEY_KIS_ACCOUNT_NUMBER, null)
+    }
+
+    override fun setKisAccountNumber(accountNumber: String) {
+        sharedPreferences.edit()
+            .putString(KEY_KIS_ACCOUNT_NUMBER, accountNumber)
+            .apply()
+    }
+
+    override fun isKisVirtualMode(): Boolean {
+        return sharedPreferences.getBoolean(KEY_KIS_VIRTUAL_MODE, false)
+    }
+
+    override fun setKisVirtualMode(enabled: Boolean) {
+        sharedPreferences.edit()
+            .putBoolean(KEY_KIS_VIRTUAL_MODE, enabled)
+            .apply()
+    }
+
+    override fun removeKisCredentials() {
+        sharedPreferences.edit()
+            .remove(KEY_KIS_APP_KEY)
+            .remove(KEY_KIS_APP_SECRET)
+            .remove(KEY_KIS_ACCOUNT_NUMBER)
+            .remove(KEY_KIS_VIRTUAL_MODE)
+            .apply()
+    }
+
     /**
      * AI 제공자별 API 키 이름 생성
      */
@@ -119,5 +170,10 @@ class SharedPreferencesApiKeyProvider @Inject constructor(
         private const val KEY_SELECTED_PROVIDER = "selected_provider"
         private const val KEY_MODEL_CLAUDE = "model_claude"
         private const val KEY_MODEL_GEMINI = "model_gemini"
+        // KIS API Keys
+        private const val KEY_KIS_APP_KEY = "kis_app_key"
+        private const val KEY_KIS_APP_SECRET = "kis_app_secret"
+        private const val KEY_KIS_ACCOUNT_NUMBER = "kis_account_number"
+        private const val KEY_KIS_VIRTUAL_MODE = "kis_virtual_mode"
     }
 }

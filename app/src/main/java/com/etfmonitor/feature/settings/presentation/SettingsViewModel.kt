@@ -235,6 +235,13 @@ class SettingsViewModel @Inject constructor(
     private val _isFredApiKeyConfigured = MutableStateFlow(false)
     val isFredApiKeyConfigured: StateFlow<Boolean> = _isFredApiKeyConfigured.asStateFlow()
 
+    // KIS API
+    private val _isKisApiConfigured = MutableStateFlow(false)
+    val isKisApiConfigured: StateFlow<Boolean> = _isKisApiConfigured.asStateFlow()
+
+    private val _kisVirtualMode = MutableStateFlow(false)
+    val kisVirtualMode: StateFlow<Boolean> = _kisVirtualMode.asStateFlow()
+
     private val _apiKeyTestState = MutableStateFlow<ApiKeyTestState>(ApiKeyTestState.Idle)
     val apiKeyTestState: StateFlow<ApiKeyTestState> = _apiKeyTestState.asStateFlow()
 
@@ -1152,6 +1159,9 @@ class SettingsViewModel @Inject constructor(
             // Check FRED API key
             val fredKey = etfDao.getSetting(Keys.FRED_API_KEY)
             _isFredApiKeyConfigured.value = !fredKey.isNullOrBlank()
+            // Check KIS API keys
+            _isKisApiConfigured.value = apiKeyProvider.isKisApiConfigured()
+            _kisVirtualMode.value = apiKeyProvider.isKisVirtualMode()
         }
     }
 
@@ -1217,6 +1227,71 @@ class SettingsViewModel @Inject constructor(
     suspend fun getFredApiKey(): String? {
         return etfDao.getSetting(Keys.FRED_API_KEY)?.takeIf { it.isNotBlank() }
     }
+
+    // ==================== KIS API Management ====================
+
+    /**
+     * Set KIS APP KEY
+     * Get from: https://apiportal.koreainvestment.com/
+     */
+    fun setKisAppKey(appKey: String) {
+        if (appKey.isBlank()) { _message.value = "KIS APP KEY를 입력해주세요"; return }
+        saveSetting("KIS APP KEY가 저장되었습니다") {
+            apiKeyProvider.setKisAppKey(appKey)
+            _isKisApiConfigured.value = apiKeyProvider.isKisApiConfigured()
+        }
+    }
+
+    /**
+     * Set KIS APP SECRET
+     */
+    fun setKisAppSecret(appSecret: String) {
+        if (appSecret.isBlank()) { _message.value = "KIS APP SECRET를 입력해주세요"; return }
+        saveSetting("KIS APP SECRET가 저장되었습니다") {
+            apiKeyProvider.setKisAppSecret(appSecret)
+            _isKisApiConfigured.value = apiKeyProvider.isKisApiConfigured()
+        }
+    }
+
+    /**
+     * Set KIS Account Number
+     */
+    fun setKisAccountNumber(accountNumber: String) {
+        if (accountNumber.isBlank()) { _message.value = "KIS 계좌번호를 입력해주세요"; return }
+        saveSetting("KIS 계좌번호가 저장되었습니다") {
+            apiKeyProvider.setKisAccountNumber(accountNumber)
+        }
+    }
+
+    /**
+     * Set KIS Virtual (모의투자) Mode
+     */
+    fun setKisVirtualMode(enabled: Boolean) = saveSetting(
+        if (enabled) "KIS 모의투자 모드가 활성화되었습니다"
+        else "KIS 실전투자 모드가 활성화되었습니다"
+    ) {
+        apiKeyProvider.setKisVirtualMode(enabled)
+        _kisVirtualMode.value = enabled
+    }
+
+    /**
+     * Clear KIS credentials
+     */
+    fun clearKisCredentials() = saveSetting("KIS API 자격 증명이 삭제되었습니다") {
+        apiKeyProvider.removeKisCredentials()
+        _isKisApiConfigured.value = false
+        _kisVirtualMode.value = false
+    }
+
+    /**
+     * Get KIS APP KEY (for initialization)
+     */
+    fun getKisAppKey(): String? = apiKeyProvider.getKisAppKey()
+
+    /**
+     * Get KIS APP SECRET (for initialization)
+     */
+    fun getKisAppSecret(): String? = apiKeyProvider.getKisAppSecret()
 
     fun testApiConnection() {
         viewModelScope.launch {
