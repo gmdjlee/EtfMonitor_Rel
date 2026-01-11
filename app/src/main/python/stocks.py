@@ -2,7 +2,7 @@
 Stock data collection and analysis module.
 Unified module merging stockcollector, stock_data_fetcher, and stock_analyzer.
 
-Version: 2.1 - Added fallback for stock list without KIS API key
+Version: 2.2 - Added pykrx fallback for stock analysis when KIS API key not configured
 """
 import json
 import logging
@@ -16,6 +16,13 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 
 from kis_client import get_client, is_client_initialized
+
+# Try to import pykrx for fallback
+try:
+    from pykrx import stock as pykrx_stock
+    PYKRX_AVAILABLE = True
+except ImportError:
+    PYKRX_AVAILABLE = False
 
 # ========================================
 # Logger setup (standalone)
@@ -130,6 +137,159 @@ def _get_all_stocks_standalone() -> pd.DataFrame:
     kospi = _download_stock_master_standalone("kospi")
     kosdaq = _download_stock_master_standalone("kosdaq")
     return pd.concat([kospi, kosdaq], ignore_index=True)
+
+
+# ========================================
+# pykrx Fallback Functions
+# ========================================
+
+def _get_stock_name_pykrx(ticker: str) -> str:
+    """Get stock name using pykrx."""
+    if not PYKRX_AVAILABLE:
+        return ticker
+    try:
+        return pykrx_stock.get_market_ticker_name(ticker) or ticker
+    except Exception:
+        return ticker
+
+
+def _get_stock_data_pykrx(ticker: str, days: int = 180) -> Optional[Dict]:
+    """
+    Get stock data using pykrx as fallback.
+
+    Args:
+        ticker: Stock code
+        days: Number of days
+
+    Returns:
+        Dict with stock data or None on error
+    """
+    if not PYKRX_AVAILABLE:
+        return None
+
+    try:
+        end = datetime.now()
+        start = end - timedelta(days=days)
+        s = start.strftime("%Y%m%d")
+        e = end.strftime("%Y%m%d")
+
+        # Get market cap data
+        mcap = pykrx_stock.get_market_cap_by_date(s, e, ticker)
+        if mcap.empty:
+            log.warning(f"pykrx: No market cap data for {ticker}")
+            return None
+
+        # Get investor trading data
+        inv = pykrx_stock.get_market_trading_value_by_date(s, e, ticker)
+        if inv.empty:
+            log.warning(f"pykrx: No investor data for {ticker}")
+            return None
+
+        # Calculate 5-day rolling sum
+        f5d = inv["외국인합계"].rolling(5).sum()
+        i5d = inv["기관합계"].rolling(5).sum()
+
+        # Merge data
+        df = pd.DataFrame({
+            "market_cap": mcap["시가총액"],
+            "foreign_5d": f5d,
+            "institution_5d": i5d
+        }).dropna()
+
+        if df.empty:
+            return None
+
+        # Get stock name
+        name = _get_stock_name_pykrx(ticker)
+
+        result = {
+            "ticker": ticker,
+            "name": name,
+            "dates": df.index.strftime("%Y-%m-%d").tolist(),
+            "market_cap": df["market_cap"].tolist(),
+            "foreign_5d": df["foreign_5d"].tolist(),
+            "institution_5d": df["institution_5d"].tolist()
+        }
+
+        log.info(f"pykrx fallback: Stock data {ticker}: {len(result['dates'])} records")
+        return result
+
+    except Exception as e:
+        log.error(f"pykrx fallback error for {ticker}: {e}")
+        return None
+
+
+def _get_stock_ohlcv_pykrx(ticker: str, days: int = 180, interval: str = "d") -> Optional[Dict]:
+    """
+    Get stock OHLCV data using pykrx as fallback.
+
+    Args:
+        ticker: Stock code
+        days: Number of days
+        interval: "d" (daily) or "w" (weekly)
+
+    Returns:
+        Dict with OHLCV data or None on error
+    """
+    if not PYKRX_AVAILABLE:
+        return None
+
+    try:
+        # For weekly data, fetch extra days
+        extra = days * 2 if interval == "w" else days
+        end = datetime.now()
+        start = end - timedelta(days=extra)
+        s = start.strftime("%Y%m%d")
+        e = end.strftime("%Y%m%d")
+
+        # Get OHLCV data
+        df = pykrx_stock.get_market_ohlcv_by_date(s, e, ticker)
+
+        if df.empty:
+            return None
+
+        # Rename columns to English
+        df = df.rename(columns={
+            "시가": "open",
+            "고가": "high",
+            "저가": "low",
+            "종가": "close",
+            "거래량": "volume"
+        })
+
+        # Weekly resample if requested
+        if interval == "w":
+            df = df.resample("W").agg({
+                "open": "first",
+                "high": "max",
+                "low": "min",
+                "close": "last",
+                "volume": "sum"
+            }).dropna()
+
+        if df.empty:
+            return None
+
+        # Get stock name
+        name = _get_stock_name_pykrx(ticker)
+
+        result = {
+            "ticker": ticker,
+            "name": name,
+            "dates": df.index.strftime("%Y-%m-%d").tolist(),
+            "open": df["open"].tolist(),
+            "high": df["high"].tolist(),
+            "low": df["low"].tolist(),
+            "close": df["close"].tolist(),
+            "volume": [int(v) for v in df["volume"]]
+        }
+
+        log.info(f"pykrx fallback: OHLCV {ticker} ({interval}): {len(result['dates'])} records")
+        return result
+
+    except Exception as e:
+        log.error(f"pykrx OHLCV fallback error for {ticker}: {e}")
+        return None
 
 
 def to_json(data: Any) -> str:
@@ -326,56 +486,65 @@ def get_stock_data(ticker: str, days: int = 180) -> str:
         return err_json("유효하지 않은 기간입니다 (1-3650일)")
 
     try:
-        if not is_client_initialized():
-            return err_json("KIS API 클라이언트가 초기화되지 않았습니다")
+        # Try KIS client first, fallback to pykrx
+        if is_client_initialized():
+            client = get_client()
 
-        client = get_client()
+            end = datetime.now()
+            start = end - timedelta(days=days)
+            s = start.strftime("%Y%m%d")
+            e = end.strftime("%Y%m%d")
 
-        end = datetime.now()
-        start = end - timedelta(days=days)
-        s = start.strftime("%Y%m%d")
-        e = end.strftime("%Y%m%d")
+            # Get market cap data
+            mcap = client.get_market_cap_daily(ticker, s, e)
 
-        # Get market cap data
-        mcap = client.get_market_cap_daily(ticker, s, e)
+            # Get investor trading data
+            inv = client.get_investor_trading(ticker, s)
 
-        # Get investor trading data
-        inv = client.get_investor_trading(ticker, s)
+            if mcap.empty:
+                return err_json("시가총액 데이터를 가져올 수 없습니다")
+            if inv.empty:
+                return err_json("투자자 매매동향 데이터를 가져올 수 없습니다")
 
-        if mcap.empty:
-            return err_json("시가총액 데이터를 가져올 수 없습니다")
-        if inv.empty:
-            return err_json("투자자 매매동향 데이터를 가져올 수 없습니다")
+            # Calculate 5-day rolling sum for investor data
+            # Use pykrx compatible column names
+            f5d = inv["외국인합계"].rolling(5).sum()
+            i5d = inv["기관합계"].rolling(5).sum()
 
-        # Calculate 5-day rolling sum for investor data
-        # Use pykrx compatible column names
-        f5d = inv["외국인합계"].rolling(5).sum()
-        i5d = inv["기관합계"].rolling(5).sum()
+            # Merge data
+            df = pd.DataFrame({
+                "market_cap": mcap["시가총액"],
+                "foreign_5d": f5d,
+                "institution_5d": i5d
+            }).dropna()
 
-        # Merge data
-        df = pd.DataFrame({
-            "market_cap": mcap["시가총액"],
-            "foreign_5d": f5d,
-            "institution_5d": i5d
-        }).dropna()
+            if df.empty:
+                return err_json("데이터 처리 후 결과가 없습니다")
 
-        if df.empty:
-            return err_json("데이터 처리 후 결과가 없습니다")
+            # Get stock name
+            name = client.get_stock_name(ticker) or ticker
 
-        # Get stock name
-        name = client.get_stock_name(ticker) or ticker
+            result = {
+                "ticker": ticker,
+                "name": name,
+                "dates": df.index.strftime("%Y-%m-%d").tolist(),
+                "market_cap": df["market_cap"].tolist(),
+                "foreign_5d": df["foreign_5d"].tolist(),
+                "institution_5d": df["institution_5d"].tolist()
+            }
 
-        result = {
-            "ticker": ticker,
-            "name": name,
-            "dates": df.index.strftime("%Y-%m-%d").tolist(),
-            "market_cap": df["market_cap"].tolist(),
-            "foreign_5d": df["foreign_5d"].tolist(),
-            "institution_5d": df["institution_5d"].tolist()
-        }
-
-        log.info("Stock data %s: %d records", ticker, len(result["dates"]))
-        return to_json(result)
+            log.info("Stock data %s: %d records", ticker, len(result["dates"]))
+            return to_json(result)
+        else:
+            # Fallback to pykrx
+            log.info("KIS client not initialized, using pykrx fallback for stock data")
+            result = _get_stock_data_pykrx(ticker, days)
+            if result:
+                return to_json(result)
+            else:
+                if not PYKRX_AVAILABLE:
+                    return err_json("KIS API 키가 설정되지 않았습니다. 설정 > KIS API 설정에서 API 키를 입력해주세요.")
+                return err_json("데이터를 가져올 수 없습니다")
 
     except RuntimeError as e:
         log.error("KIS client error (%s): %s", ticker, e)
@@ -410,56 +579,65 @@ def get_stock_ohlcv(ticker: str, days: int = 180, interval: str = "d") -> str:
         return err_json("종목 코드가 필요합니다")
 
     try:
-        if not is_client_initialized():
-            return err_json("KIS API 클라이언트가 초기화되지 않았습니다")
+        # Try KIS client first, fallback to pykrx
+        if is_client_initialized():
+            client = get_client()
 
-        client = get_client()
+            # For weekly data, fetch extra days
+            extra = days * 2 if interval == "w" else days
+            end = datetime.now()
+            start = end - timedelta(days=extra)
+            s = start.strftime("%Y%m%d")
+            e = end.strftime("%Y%m%d")
 
-        # For weekly data, fetch extra days
-        extra = days * 2 if interval == "w" else days
-        end = datetime.now()
-        start = end - timedelta(days=extra)
-        s = start.strftime("%Y%m%d")
-        e = end.strftime("%Y%m%d")
+            # Get OHLCV data from KIS API
+            df = client.get_stock_ohlcv(ticker, s, e)
 
-        # Get OHLCV data from KIS API
-        df = client.get_stock_ohlcv(ticker, s, e)
+            if df.empty:
+                return err_json("데이터가 없습니다")
 
-        if df.empty:
-            return err_json("데이터가 없습니다")
+            # KIS API already returns English column names: open, high, low, close, volume
+            # No need to rename columns
 
-        # KIS API already returns English column names: open, high, low, close, volume
-        # No need to rename columns
+            # Weekly resample if requested
+            if interval == "w":
+                df = df.resample("W").agg({
+                    "open": "first",
+                    "high": "max",
+                    "low": "min",
+                    "close": "last",
+                    "volume": "sum"
+                }).dropna()
 
-        # Weekly resample if requested
-        if interval == "w":
-            df = df.resample("W").agg({
-                "open": "first",
-                "high": "max",
-                "low": "min",
-                "close": "last",
-                "volume": "sum"
-            }).dropna()
+            if df.empty:
+                return err_json("리샘플링 후 데이터가 없습니다")
 
-        if df.empty:
-            return err_json("리샘플링 후 데이터가 없습니다")
+            # Get stock name
+            name = client.get_stock_name(ticker) or ticker
 
-        # Get stock name
-        name = client.get_stock_name(ticker) or ticker
+            result = {
+                "ticker": ticker,
+                "name": name,
+                "dates": df.index.strftime("%Y-%m-%d").tolist(),
+                "open": df["open"].tolist(),
+                "high": df["high"].tolist(),
+                "low": df["low"].tolist(),
+                "close": df["close"].tolist(),
+                "volume": [int(v) for v in df["volume"]]
+            }
 
-        result = {
-            "ticker": ticker,
-            "name": name,
-            "dates": df.index.strftime("%Y-%m-%d").tolist(),
-            "open": df["open"].tolist(),
-            "high": df["high"].tolist(),
-            "low": df["low"].tolist(),
-            "close": df["close"].tolist(),
-            "volume": [int(v) for v in df["volume"]]
-        }
-
-        log.info("OHLCV %s (%s): %d records", ticker, interval, len(result["dates"]))
-        return to_json(result)
+            log.info("OHLCV %s (%s): %d records", ticker, interval, len(result["dates"]))
+            return to_json(result)
+        else:
+            # Fallback to pykrx
+            log.info("KIS client not initialized, using pykrx fallback for OHLCV")
+            result = _get_stock_ohlcv_pykrx(ticker, days, interval)
+            if result:
+                return to_json(result)
+            else:
+                if not PYKRX_AVAILABLE:
+                    return err_json("KIS API 키가 설정되지 않았습니다. 설정 > KIS API 설정에서 API 키를 입력해주세요.")
+                return err_json("데이터를 가져올 수 없습니다")
 
     except RuntimeError as e:
         log.error("KIS client error (%s): %s", ticker, e)
@@ -476,12 +654,14 @@ def get_stock_ohlcv(ticker: str, days: int = 180, interval: str = "d") -> str:
 def get_stock_name(ticker: str) -> str:
     """Get stock name (for backward compatibility)."""
     try:
-        if not is_client_initialized():
-            return ""
-        client = get_client()
-        return client.get_stock_name(ticker)
+        if is_client_initialized():
+            client = get_client()
+            return client.get_stock_name(ticker)
+        else:
+            # Fallback to pykrx
+            return _get_stock_name_pykrx(ticker)
     except Exception:
-        return ""
+        return _get_stock_name_pykrx(ticker)
 
 
 def get_all_stocks_list() -> str:
