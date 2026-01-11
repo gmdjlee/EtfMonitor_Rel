@@ -2,7 +2,7 @@
 Stock data collection and analysis module.
 Unified module merging stockcollector, stock_data_fetcher, and stock_analyzer.
 
-Version: 2.2 - Improved error messages for KIS API configuration
+Version: 2.3 - Fixed data merge issue in get_stock_data by normalizing index
 """
 import json
 import logging
@@ -347,19 +347,26 @@ def get_stock_data(ticker: str, days: int = 180) -> str:
         if inv.empty:
             return err_json("투자자 매매동향 데이터를 가져올 수 없습니다")
 
+        # Normalize index to date only (remove time component)
+        mcap.index = pd.to_datetime(mcap.index).normalize()
+        inv.index = pd.to_datetime(inv.index).normalize()
+
         # Calculate 5-day rolling sum for investor data
         # Use pykrx compatible column names
-        f5d = inv["외국인합계"].rolling(5).sum()
-        i5d = inv["기관합계"].rolling(5).sum()
+        f5d = inv["외국인합계"].rolling(5, min_periods=1).sum()
+        i5d = inv["기관합계"].rolling(5, min_periods=1).sum()
 
-        # Merge data
-        df = pd.DataFrame({
-            "market_cap": mcap["시가총액"],
-            "foreign_5d": f5d,
-            "institution_5d": i5d
-        }).dropna()
+        # Merge data using index join
+        df = mcap[["시가총액"]].join(
+            pd.DataFrame({"foreign_5d": f5d, "institution_5d": i5d}),
+            how="inner"
+        )
+
+        # Rename column
+        df = df.rename(columns={"시가총액": "market_cap"})
 
         if df.empty:
+            log.warning(f"No matching data after join for {ticker}. mcap: {len(mcap)}, inv: {len(inv)}")
             return err_json("데이터 처리 후 결과가 없습니다")
 
         # Get stock name
