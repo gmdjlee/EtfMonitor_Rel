@@ -306,6 +306,21 @@
     <string name="settings_fred_api_delete">FRED API 키 삭제</string>
     <string name="settings_fred_api_delete_confirm">FRED API 키를 삭제하시겠습니까? Blood Indicator 데이터 수집에 API 키가 필요합니다.</string>
 
+    <!-- Settings - KIS API -->
+    <string name="settings_kis_api_title">KIS API 설정 (한국투자증권)</string>
+    <string name="settings_kis_api_desc">종목 데이터 수집에 한국투자증권 Open API가 필요합니다. 무료로 발급받을 수 있습니다.</string>
+    <string name="settings_kis_api_set">KIS API 설정됨</string>
+    <string name="settings_kis_api_not_set">KIS API 미설정</string>
+    <string name="settings_kis_api_url_label">KIS API 발급:</string>
+    <string name="settings_kis_app_key">APP KEY</string>
+    <string name="settings_kis_app_secret">APP SECRET</string>
+    <string name="settings_kis_app_key_dialog">APP KEY 설정</string>
+    <string name="settings_kis_app_secret_dialog">APP SECRET 설정</string>
+    <string name="settings_kis_api_delete">KIS API 삭제</string>
+    <string name="settings_kis_api_delete_confirm">KIS API 자격 증명을 삭제하시겠습니까? 종목 데이터 수집에 API가 필요합니다.</string>
+    <string name="settings_kis_virtual_mode">모의투자 모드</string>
+    <string name="settings_kis_virtual_mode_desc">모의투자 환경 사용 (실제 거래 없음)</string>
+
     <!-- Backup Settings -->
     <string name="settings_backup_title">백업 및 복구</string>
     <string name="settings_backup_desc">데이터 백업, 복구 및 관리</string>
