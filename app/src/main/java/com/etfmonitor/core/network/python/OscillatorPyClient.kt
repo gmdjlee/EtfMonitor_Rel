@@ -80,33 +80,35 @@ class OscillatorPyClient @Inject constructor(
     private val kisModule by lazy { python.getModule("kis_client") }
 
     /**
-     * KIS 클라이언트가 초기화되어 있는지 확인하고, 필요시 초기화
+     * KIS 클라이언트를 현재 저장된 자격 증명으로 초기화
+     *
+     * 자격 증명이 업데이트될 수 있으므로 항상 현재 자격 증명으로 초기화합니다.
+     * 이전에 캐시된 자격 증명 대신 SharedPreferences의 최신 값을 사용합니다.
      */
     private suspend fun ensureKisClientInitialized(): Boolean = withContext(Dispatchers.IO) {
         try {
-            // 이미 초기화되어 있으면 true
-            if (kisModule.callAttr("is_client_initialized").toBoolean()) {
-                return@withContext true
+            // API 키가 설정되어 있는지 확인
+            if (!apiKeyProvider.isKisApiConfigured()) {
+                logger.w("KIS API credentials not configured")
+                return@withContext false
             }
 
-            // API 키가 설정되어 있으면 초기화
-            if (apiKeyProvider.isKisApiConfigured()) {
-                val appKey = apiKeyProvider.getKisAppKey()
-                val appSecret = apiKeyProvider.getKisAppSecret()
-                if (appKey != null && appSecret != null) {
-                    logger.i("Initializing KIS client for stock analysis...")
-                    val result = kisModule.callAttr("init_kis_client", appKey, appSecret).toBoolean()
-                    if (result) {
-                        logger.i("KIS client initialized successfully")
-                    } else {
-                        logger.e("KIS client initialization failed")
-                    }
-                    return@withContext result
-                }
+            val appKey = apiKeyProvider.getKisAppKey()
+            val appSecret = apiKeyProvider.getKisAppSecret()
+            if (appKey == null || appSecret == null) {
+                logger.w("KIS API credentials are null")
+                return@withContext false
             }
 
-            logger.w("KIS API credentials not configured")
-            false
+            // 항상 현재 자격 증명으로 (재)초기화 - 자격 증명 업데이트를 반영
+            logger.i("Initializing KIS client with current credentials...")
+            val result = kisModule.callAttr("init_kis_client", appKey, appSecret).toBoolean()
+            if (result) {
+                logger.i("KIS client initialized successfully")
+            } else {
+                logger.e("KIS client initialization failed")
+            }
+            return@withContext result
         } catch (e: Exception) {
             logger.e("Error initializing KIS client: ${e.message}")
             false

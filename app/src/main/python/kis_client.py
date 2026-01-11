@@ -1417,6 +1417,9 @@ def init_kis_client(app_key: str, app_secret: str) -> bool:
     """
     Initialize global KIS API client.
 
+    If credentials haven't changed, reuses the existing client.
+    If credentials have changed, creates a new client with fresh token.
+
     Args:
         app_key: KIS Open API app key
         app_secret: KIS Open API app secret
@@ -1428,7 +1431,16 @@ def init_kis_client(app_key: str, app_secret: str) -> bool:
     if not app_key or not app_secret:
         log.error("KIS API key or secret is empty")
         return False
+
     try:
+        # Check if client exists with same credentials - reuse if unchanged
+        if _client is not None:
+            if _client.app_key == app_key and _client.app_secret == app_secret:
+                log.debug("KIS client already initialized with same credentials")
+                return True
+            else:
+                log.info("KIS credentials changed, re-initializing client...")
+
         _client = KISAPIClient(app_key, app_secret)
         log.info("KIS API client initialized successfully")
         return True
