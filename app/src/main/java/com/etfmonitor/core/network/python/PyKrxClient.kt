@@ -325,4 +325,97 @@ class PyKrxClient @Inject constructor(
     }
 
     private fun formatDate(date: String): String = DateFormatter.formatFromYYYYMMDD(date)
+
+    // ==================== KIS API Integration ====================
+
+    private val kisModule by lazy { python.getModule("kis_client") }
+
+    /**
+     * Initialize KIS API client with credentials.
+     * Must be called before using stocks.py functions.
+     *
+     * @param appKey KIS Open API app key
+     * @param appSecret KIS Open API app secret
+     * @return true if initialization successful
+     */
+    suspend fun initializeKisClient(appKey: String, appSecret: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            logger.i("Initializing KIS client...")
+            val result = withTimeout(TIMEOUT_MS) {
+                kisModule.callAttr("init_kis_client", appKey, appSecret).toBoolean()
+            }
+            if (result) {
+                logger.i("KIS client initialized successfully")
+            } else {
+                logger.e("KIS client initialization returned false")
+            }
+            result
+        } catch (e: TimeoutCancellationException) {
+            logger.e("KIS client initialization timeout")
+            false
+        } catch (e: Exception) {
+            logger.e("KIS client initialization failed: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Check if KIS client is initialized.
+     *
+     * @return true if client is ready to use
+     */
+    suspend fun isKisClientInitialized(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            kisModule.callAttr("is_client_initialized").toBoolean()
+        } catch (e: Exception) {
+            logger.e("Error checking KIS client status: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Test KIS API connection by fetching stock master.
+     *
+     * @return true if connection successful
+     */
+    suspend fun testKisApiConnection(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            if (!isKisClientInitialized()) {
+                logger.w("KIS client not initialized")
+                return@withContext false
+            }
+
+            logger.i("Testing KIS API connection...")
+            val result = withTimeout(TIMEOUT_MS) {
+                val client = kisModule.callAttr("get_client")
+                // Test by getting a stock info
+                val info = client.callAttr("get_stock_info", "005930") // Samsung
+                info != null && info.toString() != "None"
+            }
+            if (result) {
+                logger.i("KIS API connection test successful")
+            } else {
+                logger.w("KIS API connection test failed")
+            }
+            result
+        } catch (e: TimeoutCancellationException) {
+            logger.e("KIS API connection test timeout")
+            false
+        } catch (e: Exception) {
+            logger.e("KIS API connection test failed: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Reset KIS client (for re-initialization with new credentials).
+     */
+    suspend fun resetKisClient(): Unit = withContext(Dispatchers.IO) {
+        try {
+            kisModule.callAttr("reset_client")
+            logger.i("KIS client reset")
+        } catch (e: Exception) {
+            logger.e("Error resetting KIS client: ${e.message}")
+        }
+    }
 }

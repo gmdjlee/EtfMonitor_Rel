@@ -68,6 +68,67 @@ interface ApiKeyProvider {
      */
     fun removeSelectedModel(provider: AIProvider)
 
+    // ==================== KIS API Methods ====================
+
+    /**
+     * KIS API 설정 완료 여부 확인
+     * @return APP KEY와 APP SECRET이 모두 설정되어 있으면 true
+     */
+    fun isKisApiConfigured(): Boolean = getKisAppKey() != null && getKisAppSecret() != null
+
+    /**
+     * KIS APP KEY 조회
+     * @return APP KEY 또는 null
+     */
+    fun getKisAppKey(): String?
+
+    /**
+     * KIS APP KEY 저장
+     * @param appKey APP KEY
+     */
+    fun setKisAppKey(appKey: String)
+
+    /**
+     * KIS APP SECRET 조회
+     * @return APP SECRET 또는 null
+     */
+    fun getKisAppSecret(): String?
+
+    /**
+     * KIS APP SECRET 저장
+     * @param appSecret APP SECRET
+     */
+    fun setKisAppSecret(appSecret: String)
+
+    /**
+     * KIS 계좌번호 조회
+     * @return 계좌번호 또는 null
+     */
+    fun getKisAccountNumber(): String?
+
+    /**
+     * KIS 계좌번호 저장
+     * @param accountNumber 계좌번호 (예: "50123456-01")
+     */
+    fun setKisAccountNumber(accountNumber: String)
+
+    /**
+     * KIS 모의투자 모드 여부
+     * @return 모의투자 모드면 true
+     */
+    fun isKisVirtualMode(): Boolean
+
+    /**
+     * KIS 모의투자 모드 설정
+     * @param enabled 모의투자 모드 활성화 여부
+     */
+    fun setKisVirtualMode(enabled: Boolean)
+
+    /**
+     * KIS 자격 증명 삭제
+     */
+    fun removeKisCredentials()
+
     // 하위 호환성을 위한 기본 메서드 (deprecated)
     @Deprecated("Use getApiKey(AIProvider) instead", ReplaceWith("getApiKey(AIProvider.CLAUDE)"))
     fun getApiKey(): String? = getApiKey(AIProvider.CLAUDE)

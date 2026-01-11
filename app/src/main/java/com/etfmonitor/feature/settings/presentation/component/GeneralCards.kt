@@ -803,6 +803,244 @@ fun FredApiKeyCard(
     }
 }
 
+/**
+ * KIS API 설정 카드
+ * 한국투자증권 Open API 키 설정
+ */
+@Composable
+fun KisApiKeyCard(
+    isConfigured: Boolean,
+    isVirtualMode: Boolean,
+    onSetAppKey: (String) -> Unit,
+    onSetAppSecret: (String) -> Unit,
+    onSetVirtualMode: (Boolean) -> Unit,
+    onClearCredentials: () -> Unit
+) {
+    var showAppKeyDialog by remember { mutableStateOf(false) }
+    var showAppSecretDialog by remember { mutableStateOf(false) }
+    var showClearConfirmDialog by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Key,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    stringResource(R.string.settings_kis_api_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            HorizontalDivider()
+
+            Text(
+                stringResource(R.string.settings_kis_api_desc),
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            // API 키 상태 표시
+            Surface(
+                color = if (isConfigured)
+                    MaterialTheme.colorScheme.primaryContainer
+                else
+                    MaterialTheme.colorScheme.errorContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            if (isConfigured) Icons.Default.CheckCircle else Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = if (isConfigured)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            if (isConfigured) stringResource(R.string.settings_kis_api_set)
+                            else stringResource(R.string.settings_kis_api_not_set),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isConfigured)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+
+            // APP KEY 버튼
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { showAppKeyDialog = true },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        Icons.Default.Key,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.settings_kis_app_key))
+                }
+
+                Button(
+                    onClick = { showAppSecretDialog = true },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        Icons.Default.Lock,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.settings_kis_app_secret))
+                }
+            }
+
+            // 모의투자 모드 스위치
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSetVirtualMode(!isVirtualMode) }
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_kis_virtual_mode),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        stringResource(R.string.settings_kis_virtual_mode_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = isVirtualMode,
+                    onCheckedChange = onSetVirtualMode
+                )
+            }
+
+            // 삭제 버튼
+            if (isConfigured) {
+                OutlinedButton(
+                    onClick = { showClearConfirmDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.settings_kis_api_delete))
+                }
+            }
+
+            // 안내 문구
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Text(
+                        stringResource(R.string.settings_kis_api_url_label),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "https://apiportal.koreainvestment.com/",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+
+    // APP KEY 입력 다이얼로그
+    if (showAppKeyDialog) {
+        ApiKeyInputDialog(
+            title = stringResource(R.string.settings_kis_app_key_dialog),
+            placeholder = "PSXXXXXXXXXX",
+            onDismiss = { showAppKeyDialog = false },
+            onConfirm = { key ->
+                onSetAppKey(key)
+                showAppKeyDialog = false
+            }
+        )
+    }
+
+    // APP SECRET 입력 다이얼로그
+    if (showAppSecretDialog) {
+        ApiKeyInputDialog(
+            title = stringResource(R.string.settings_kis_app_secret_dialog),
+            placeholder = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            onDismiss = { showAppSecretDialog = false },
+            onConfirm = { secret ->
+                onSetAppSecret(secret)
+                showAppSecretDialog = false
+            }
+        )
+    }
+
+    // 삭제 확인 다이얼로그
+    if (showClearConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmDialog = false },
+            icon = { Icon(Icons.Default.Warning, null) },
+            title = { Text(stringResource(R.string.settings_kis_api_delete)) },
+            text = { Text(stringResource(R.string.settings_kis_api_delete_confirm)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onClearCredentials()
+                        showClearConfirmDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text(stringResource(R.string.settings_action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirmDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+}
+
 @Composable
 fun ApiKeyInputDialog(
     title: String,

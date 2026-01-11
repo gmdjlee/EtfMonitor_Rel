@@ -4,26 +4,42 @@ Replaces pykrx for all Korean market data needs.
 
 Reference: https://github.com/koreainvestment/open-trading-api
 
-Improvements in v2.1:
+Version: 3.0 - Standalone (no pykrx dependency)
 - Circuit breaker pattern for continuous failures
 - HTTPError retry with exponential backoff
 - Token refresh error handling
 - Consistent error response parsing
 - Better logging for debugging
+- Standalone logger (no core.py dependency)
 """
 import requests
 import json
 import time
 import zipfile
 import io
+import logging
+import sys
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple, Any, Union
 from dataclasses import dataclass
 from enum import Enum
 import pandas as pd
-from core import get_logger
 
-log = get_logger("kis_client")
+
+# Standalone logger setup (no dependency on core.py)
+def _get_logger(name: str) -> logging.Logger:
+    """Get or create logger."""
+    logger = logging.getLogger(name)
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stderr)
+        handler.setFormatter(logging.Formatter(
+            '[%(name)s] %(levelname)s: %(message)s'
+        ))
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+    return logger
+
+log = _get_logger("kis_client")
 
 
 class APIErrorCode(Enum):
@@ -567,13 +583,33 @@ class KISAPIClient:
 
         output2 = result.data.get("output2", [])
 
-        return pd.DataFrame([{
-            "date": item.get("stck_bsop_date"),
-            "foreign_net": int(item.get("frgn_ntby_qty", 0) or 0),
-            "institution_net": int(item.get("orgn_ntby_qty", 0) or 0),
-            "individual_net": int(item.get("prsn_ntby_qty", 0) or 0),
-            "pension_net": int(item.get("pnsn_fnd_ntby_qty", 0) or 0)
-        } for item in output2 if item.get("stck_bsop_date")])
+        records = []
+        for item in output2:
+            date_str = item.get("stck_bsop_date")
+            if not date_str:
+                continue
+
+            records.append({
+                "date": date_str,
+                # pykrx compatible column names (Korean)
+                "외국인합계": int(item.get("frgn_ntby_qty", 0) or 0),
+                "기관합계": int(item.get("orgn_ntby_qty", 0) or 0),
+                "개인": int(item.get("prsn_ntby_qty", 0) or 0),
+                # English column names (for convenience)
+                "foreign_net": int(item.get("frgn_ntby_qty", 0) or 0),
+                "institution_net": int(item.get("orgn_ntby_qty", 0) or 0),
+                "individual_net": int(item.get("prsn_ntby_qty", 0) or 0),
+                "pension_net": int(item.get("pnsn_fnd_ntby_qty", 0) or 0)
+            })
+
+        df = pd.DataFrame(records)
+        if not df.empty:
+            df["date"] = pd.to_datetime(df["date"])
+            df.set_index("date", inplace=True)
+            df = df.sort_index()
+
+        log.debug(f"Investor trading {ticker}: {len(df)} records")
+        return df
 
     # ========================================
     # Stock OHLCV (replaces pykrx get_market_ohlcv)
@@ -1256,6 +1292,46 @@ class KISAPIClient:
 
         return df
 
+    def get_market_cap_daily(
+            self,
+            ticker: str,
+            start_date: str,
+            end_date: str
+    ) -> pd.DataFrame:
+        """
+        Get daily market cap data (pykrx compatible format).
+
+        Calculation: close price × listed_shares × 1000
+
+        Args:
+            ticker: Stock ticker (e.g., "005930")
+            start_date: Start date (YYYYMMDD)
+            end_date: End date (YYYYMMDD)
+
+        Returns:
+            DataFrame with column: 시가총액 (for pykrx compatibility)
+            Index: DatetimeIndex
+        """
+        ohlcv = self.get_stock_ohlcv(ticker, start_date, end_date)
+        if ohlcv.empty:
+            return pd.DataFrame()
+
+        listed_shares = self.get_listed_shares(ticker)
+        if listed_shares == 0:
+            log.warning(f"No listed shares found for {ticker}, loading from master")
+            self.get_all_stocks()
+            listed_shares = self.get_listed_shares(ticker)
+
+        df = pd.DataFrame(index=ohlcv.index)
+        df["시가총액"] = ohlcv["close"] * listed_shares * 1000
+
+        if not df.empty:
+            log.debug(f"Market cap {ticker}: close={ohlcv['close'].iloc[-1]}, "
+                      f"listed_shares={listed_shares}k, "
+                      f"market_cap={df['시가총액'].iloc[-1]/1e12:.2f}T")
+
+        return df
+
     # ========================================
     # Health Check
     # ========================================
@@ -1307,27 +1383,34 @@ class KISAPIClient:
 _client: Optional[KISAPIClient] = None
 
 
-def init_kis_client(app_key: str, app_secret: str) -> KISAPIClient:
+def init_kis_client(app_key: str, app_secret: str) -> bool:
     """
     Initialize global KIS API client.
 
-    Also registers the client with core.py for use by other modules.
+    Args:
+        app_key: KIS Open API app key
+        app_secret: KIS Open API app secret
 
     Returns:
-        Initialized KISAPIClient instance
+        True if initialization successful, False otherwise
     """
     global _client
-    _client = KISAPIClient(app_key, app_secret)
-
+    if not app_key or not app_secret:
+        log.error("KIS API key or secret is empty")
+        return False
     try:
-        from core import set_kis_client
-        set_kis_client(_client)
-        log.info("KIS API client initialized and registered with core")
-    except ImportError:
-        log.warning("Could not register KIS client with core module")
-        log.info("KIS API client initialized")
+        _client = KISAPIClient(app_key, app_secret)
+        log.info("KIS API client initialized successfully")
+        return True
+    except Exception as e:
+        log.error(f"Failed to initialize KIS client: {e}")
+        return False
 
-    return _client
+
+def reset_client():
+    """Reset the global client (for re-initialization)."""
+    global _client
+    _client = None
 
 
 def get_client() -> KISAPIClient:
