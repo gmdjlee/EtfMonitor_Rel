@@ -549,7 +549,8 @@ class KISAPIClient:
     def get_investor_trading(
             self,
             ticker: str,
-            start_date: str
+            start_date: str,
+            end_date: str = None
     ) -> pd.DataFrame:
         """
         Get daily investor trading data with pagination support.
@@ -557,56 +558,85 @@ class KISAPIClient:
         Args:
             ticker: Stock ticker (e.g., "005930")
             start_date: Start date (YYYYMMDD)
+            end_date: End date (YYYYMMDD), defaults to today if not provided
 
         Returns:
             DataFrame with columns: date, foreign_net, institution_net, etc.
             Empty DataFrame on error
         """
-        params = {
-            "fid_cond_mrkt_div_code": "J",
-            "fid_input_iscd": ticker,
-            "fid_input_date_1": start_date,
-            "fid_org_adj_prc": "",
-            "fid_etc_cls_code": ""
-        }
+        from datetime import datetime, timedelta
 
-        result = self._request_paginated(
-            "/uapi/domestic-stock/v1/quotations/investor-trade-by-stock-daily",
-            "FHPTJ04160001",
-            params,
-            output_keys=["output2"]
-        )
+        if end_date is None:
+            end_date = datetime.now().strftime("%Y%m%d")
 
-        if not result.success:
-            log.error(f"Failed to get investor trading for {ticker}: {result.error_message}")
-            return pd.DataFrame()
+        all_records = []
+        current_end = end_date
 
-        output2 = result.data.get("output2", [])
+        # Paginate backwards from end_date to start_date (max 50 pages = ~5000 days)
+        for _ in range(50):
+            params = {
+                "fid_cond_mrkt_div_code": "J",
+                "fid_input_iscd": ticker,
+                "fid_input_date_1": start_date,
+                "fid_input_date_2": current_end,
+                "fid_org_adj_prc": "",
+                "fid_etc_cls_code": ""
+            }
 
-        records = []
-        for item in output2:
-            date_str = item.get("stck_bsop_date")
-            if not date_str:
-                continue
+            result = self._request(
+                "/uapi/domestic-stock/v1/quotations/investor-trade-by-stock-daily",
+                "FHPTJ04160001",
+                params
+            )
 
-            records.append({
-                "date": date_str,
-                # pykrx compatible column names (Korean)
-                "외국인합계": int(item.get("frgn_ntby_qty", 0) or 0),
-                "기관합계": int(item.get("orgn_ntby_qty", 0) or 0),
-                "개인": int(item.get("prsn_ntby_qty", 0) or 0),
-                # English column names (for convenience)
-                "foreign_net": int(item.get("frgn_ntby_qty", 0) or 0),
-                "institution_net": int(item.get("orgn_ntby_qty", 0) or 0),
-                "individual_net": int(item.get("prsn_ntby_qty", 0) or 0),
-                "pension_net": int(item.get("pnsn_fnd_ntby_qty", 0) or 0)
-            })
+            if not result.success:
+                log.error(f"Failed to get investor trading for {ticker}: {result.error_message}")
+                break
 
-        df = pd.DataFrame(records)
+            output2 = result.data.get("output2", [])
+            if not output2:
+                break
+
+            for item in output2:
+                date_str = item.get("stck_bsop_date")
+                if not date_str:
+                    continue
+
+                all_records.append({
+                    "date": date_str,
+                    # pykrx compatible column names (Korean)
+                    "외국인합계": int(item.get("frgn_ntby_qty", 0) or 0),
+                    "기관합계": int(item.get("orgn_ntby_qty", 0) or 0),
+                    "개인": int(item.get("prsn_ntby_qty", 0) or 0),
+                    # English column names (for convenience)
+                    "foreign_net": int(item.get("frgn_ntby_qty", 0) or 0),
+                    "institution_net": int(item.get("orgn_ntby_qty", 0) or 0),
+                    "individual_net": int(item.get("prsn_ntby_qty", 0) or 0),
+                    "pension_net": int(item.get("pnsn_fnd_ntby_qty", 0) or 0)
+                })
+
+            # If less than 100 records, no more data
+            if len(output2) < 100:
+                break
+
+            # Find oldest date and move backwards
+            oldest_date = min(item.get("stck_bsop_date", "99999999") for item in output2)
+            if oldest_date <= start_date:
+                break
+
+            try:
+                oldest_dt = datetime.strptime(oldest_date, "%Y%m%d")
+                current_end = (oldest_dt - timedelta(days=1)).strftime("%Y%m%d")
+            except ValueError:
+                break
+
+        df = pd.DataFrame(all_records)
         if not df.empty:
             df["date"] = pd.to_datetime(df["date"])
             df.set_index("date", inplace=True)
             df = df.sort_index()
+            # Remove duplicates (may occur from pagination overlap)
+            df = df[~df.index.duplicated(keep='first')]
 
         log.debug(f"Investor trading {ticker}: {len(df)} records")
         return df
@@ -1387,6 +1417,9 @@ def init_kis_client(app_key: str, app_secret: str) -> bool:
     """
     Initialize global KIS API client.
 
+    If credentials haven't changed, reuses the existing client.
+    If credentials have changed, creates a new client with fresh token.
+
     Args:
         app_key: KIS Open API app key
         app_secret: KIS Open API app secret
@@ -1398,7 +1431,16 @@ def init_kis_client(app_key: str, app_secret: str) -> bool:
     if not app_key or not app_secret:
         log.error("KIS API key or secret is empty")
         return False
+
     try:
+        # Check if client exists with same credentials - reuse if unchanged
+        if _client is not None:
+            if _client.app_key == app_key and _client.app_secret == app_secret:
+                log.debug("KIS client already initialized with same credentials")
+                return True
+            else:
+                log.info("KIS credentials changed, re-initializing client...")
+
         _client = KISAPIClient(app_key, app_secret)
         log.info("KIS API client initialized successfully")
         return True

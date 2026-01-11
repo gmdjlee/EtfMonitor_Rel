@@ -340,7 +340,7 @@ def get_stock_data(ticker: str, days: int = 180) -> str:
         mcap = client.get_market_cap_daily(ticker, s, e)
 
         # Get investor trading data
-        inv = client.get_investor_trading(ticker, s)
+        inv = client.get_investor_trading(ticker, s, e)
 
         if mcap.empty:
             return err_json("시가총액 데이터를 가져올 수 없습니다")
