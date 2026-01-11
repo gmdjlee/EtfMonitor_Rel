@@ -2,11 +2,15 @@
 Stock data collection and analysis module.
 Unified module merging stockcollector, stock_data_fetcher, and stock_analyzer.
 
-Version: 2.0 - Migrated from pykrx to KIS API
+Version: 2.3 - Fixed data merge issue in get_stock_data by normalizing index
 """
 import json
 import logging
 import sys
+import io
+import zipfile
+import requests
+import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 import pandas as pd
@@ -37,6 +41,95 @@ log = get_logger(__name__)
 
 # Constants
 MARKETS = ["KOSPI", "KOSDAQ", "ALL"]
+
+# Master file download configuration
+MAX_RETRIES = 3
+RETRY_DELAY_BASE = 2.0
+
+
+# ========================================
+# Standalone Master File Download
+# ========================================
+
+def _download_stock_master_standalone(market: str = "kospi") -> pd.DataFrame:
+    """
+    Download stock master list directly from KIS server without API key.
+    This is a fallback for when KIS API client is not initialized.
+
+    Args:
+        market: "kospi" or "kosdaq"
+
+    Returns:
+        DataFrame with columns: ticker, name, market
+        Empty DataFrame on error
+    """
+    if market.lower() == "kospi":
+        url = "https://new.real.download.dws.co.kr/common/master/kospi_code.mst.zip"
+    elif market.lower() == "kosdaq":
+        url = "https://new.real.download.dws.co.kr/common/master/kosdaq_code.mst.zip"
+    else:
+        log.error(f"Unknown market: {market}")
+        return pd.DataFrame()
+
+    last_error = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = requests.get(url, timeout=60)
+            response.raise_for_status()
+            break
+        except requests.exceptions.RequestException as e:
+            last_error = e
+            if attempt < MAX_RETRIES - 1:
+                delay = RETRY_DELAY_BASE * (2 ** attempt)
+                log.warning(f"Master download failed (attempt {attempt + 1}), retrying in {delay}s: {e}")
+                time.sleep(delay)
+                continue
+    else:
+        log.error(f"Failed to download stock master after {MAX_RETRIES} attempts: {last_error}")
+        return pd.DataFrame()
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
+            filename = zf.namelist()[0]
+            with zf.open(filename) as f:
+                content = f.read().decode("cp949")
+    except Exception as e:
+        log.error(f"Failed to parse stock master file: {e}")
+        return pd.DataFrame()
+
+    # Parse using fixed-width format
+    stocks = []
+    for line in content.strip().split("\n"):
+        if len(line) < 228:
+            continue
+
+        ticker = line[0:9].strip()
+        if not ticker or len(ticker) != 6 or not ticker.isdigit():
+            continue
+
+        part2_start = len(line) - 228
+        name = line[21:part2_start].strip()
+
+        stocks.append({
+            "ticker": ticker,
+            "name": name,
+            "market": market.upper()
+        })
+
+    log.info(f"Downloaded {len(stocks)} stocks from {market.upper()} master (standalone)")
+    return pd.DataFrame(stocks)
+
+
+def _get_all_stocks_standalone() -> pd.DataFrame:
+    """
+    Get all KOSPI and KOSDAQ stocks without KIS API client.
+
+    Returns:
+        DataFrame with columns: ticker, name, market
+    """
+    kospi = _download_stock_master_standalone("kospi")
+    kosdaq = _download_stock_master_standalone("kosdaq")
+    return pd.concat([kospi, kosdaq], ignore_index=True)
 
 
 def to_json(data: Any) -> str:
@@ -76,16 +169,21 @@ def get_stock_list(date: str, market: str = "KOSPI") -> str:
         if market not in MARKETS:
             return to_json([])
 
-        if not is_client_initialized():
-            return err_json("KIS API 클라이언트가 초기화되지 않았습니다")
-
-        client = get_client()
-
-        # Get stocks for market
-        if market == "ALL":
-            df = client.get_all_stocks()
+        # Try KIS client first, fallback to standalone download
+        if is_client_initialized():
+            client = get_client()
+            # Get stocks for market
+            if market == "ALL":
+                df = client.get_all_stocks()
+            else:
+                df = client.download_stock_master(market.lower())
         else:
-            df = client.download_stock_master(market.lower())
+            # Fallback: download master files directly (no API key needed)
+            log.info("KIS client not initialized, using standalone master download")
+            if market == "ALL":
+                df = _get_all_stocks_standalone()
+            else:
+                df = _download_stock_master_standalone(market.lower())
 
         if df.empty:
             return to_json([])
@@ -121,13 +219,14 @@ def get_all_stocks(date: Optional[str] = None) -> str:
         JSON [{"ticker": "...", "name": "..."}, ...]
     """
     try:
-        if not is_client_initialized():
-            return err_json("KIS API 클라이언트가 초기화되지 않았습니다")
-
-        client = get_client()
-
-        # Get all stocks from master
-        df = client.get_all_stocks()
+        # Try KIS client first, fallback to standalone download
+        if is_client_initialized():
+            client = get_client()
+            df = client.get_all_stocks()
+        else:
+            # Fallback: download master files directly (no API key needed)
+            log.info("KIS client not initialized, using standalone master download")
+            df = _get_all_stocks_standalone()
 
         if df.empty:
             return to_json([])
@@ -166,13 +265,14 @@ def search_stock(query: str) -> str:
         return err_json("검색어를 입력해주세요")
 
     try:
-        if not is_client_initialized():
-            return err_json("KIS API 클라이언트가 초기화되지 않았습니다")
-
-        client = get_client()
-
-        # Get all stocks
-        df = client.get_all_stocks()
+        # Try KIS client first, fallback to standalone download
+        if is_client_initialized():
+            client = get_client()
+            df = client.get_all_stocks()
+        else:
+            # Fallback: download master files directly (no API key needed)
+            log.info("KIS client not initialized, using standalone master download for search")
+            df = _get_all_stocks_standalone()
 
         if df.empty:
             return to_json([])
@@ -227,7 +327,7 @@ def get_stock_data(ticker: str, days: int = 180) -> str:
 
     try:
         if not is_client_initialized():
-            return err_json("KIS API 클라이언트가 초기화되지 않았습니다")
+            return err_json("KIS API 키가 설정되지 않았습니다. 설정 > KIS API 설정에서 API 키를 입력해주세요.")
 
         client = get_client()
 
@@ -247,19 +347,26 @@ def get_stock_data(ticker: str, days: int = 180) -> str:
         if inv.empty:
             return err_json("투자자 매매동향 데이터를 가져올 수 없습니다")
 
+        # Normalize index to date only (remove time component)
+        mcap.index = pd.to_datetime(mcap.index).normalize()
+        inv.index = pd.to_datetime(inv.index).normalize()
+
         # Calculate 5-day rolling sum for investor data
         # Use pykrx compatible column names
-        f5d = inv["외국인합계"].rolling(5).sum()
-        i5d = inv["기관합계"].rolling(5).sum()
+        f5d = inv["외국인합계"].rolling(5, min_periods=1).sum()
+        i5d = inv["기관합계"].rolling(5, min_periods=1).sum()
 
-        # Merge data
-        df = pd.DataFrame({
-            "market_cap": mcap["시가총액"],
-            "foreign_5d": f5d,
-            "institution_5d": i5d
-        }).dropna()
+        # Merge data using index join
+        df = mcap[["시가총액"]].join(
+            pd.DataFrame({"foreign_5d": f5d, "institution_5d": i5d}),
+            how="inner"
+        )
+
+        # Rename column
+        df = df.rename(columns={"시가총액": "market_cap"})
 
         if df.empty:
+            log.warning(f"No matching data after join for {ticker}. mcap: {len(mcap)}, inv: {len(inv)}")
             return err_json("데이터 처리 후 결과가 없습니다")
 
         # Get stock name
@@ -311,7 +418,7 @@ def get_stock_ohlcv(ticker: str, days: int = 180, interval: str = "d") -> str:
 
     try:
         if not is_client_initialized():
-            return err_json("KIS API 클라이언트가 초기화되지 않았습니다")
+            return err_json("KIS API 키가 설정되지 않았습니다. 설정 > KIS API 설정에서 API 키를 입력해주세요.")
 
         client = get_client()
 

@@ -65,12 +65,52 @@ import javax.inject.Singleton
  * @see PyKrxClient ETF 데이터 수집
  */
 @Singleton
-class OscillatorPyClient @Inject constructor(private val python: Python) {
+class OscillatorPyClient @Inject constructor(
+    private val python: Python,
+    private val apiKeyProvider: com.etfmonitor.core.network.ai.ApiKeyProvider
+) {
 
     companion object {
         private val logger = AppLogger.getLogger("OscillatorPy")
         private const val TIMEOUT_MS = 30_000L
         private const val MARKET_OSCILLATOR_TIMEOUT_MS = 180_000L  // 3분 - 시장 전체 종목 분석에 필요
+    }
+
+    // KIS API 모듈
+    private val kisModule by lazy { python.getModule("kis_client") }
+
+    /**
+     * KIS 클라이언트가 초기화되어 있는지 확인하고, 필요시 초기화
+     */
+    private suspend fun ensureKisClientInitialized(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // 이미 초기화되어 있으면 true
+            if (kisModule.callAttr("is_client_initialized").toBoolean()) {
+                return@withContext true
+            }
+
+            // API 키가 설정되어 있으면 초기화
+            if (apiKeyProvider.isKisApiConfigured()) {
+                val appKey = apiKeyProvider.getKisAppKey()
+                val appSecret = apiKeyProvider.getKisAppSecret()
+                if (appKey != null && appSecret != null) {
+                    logger.i("Initializing KIS client for stock analysis...")
+                    val result = kisModule.callAttr("init_kis_client", appKey, appSecret).toBoolean()
+                    if (result) {
+                        logger.i("KIS client initialized successfully")
+                    } else {
+                        logger.e("KIS client initialization failed")
+                    }
+                    return@withContext result
+                }
+            }
+
+            logger.w("KIS API credentials not configured")
+            false
+        } catch (e: Exception) {
+            logger.e("Error initializing KIS client: ${e.message}")
+            false
+        }
     }
 
     // kotlinx.serialization 설정
@@ -235,6 +275,9 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
     suspend fun getStockAnalysis(ticker: String, days: Int = 180): StockData? =
         withContext(Dispatchers.IO) {
             try {
+                // KIS 클라이언트 초기화 확인
+                ensureKisClientInitialized()
+
                 withTimeout(TIMEOUT_MS) {
                     logger.d( "getStockAnalysis: $ticker, $days days")
                     val jsonStr = stocksModule.callAttr("get_stock_analysis", ticker, days).toString()
@@ -366,6 +409,9 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         interval: String = "d"
     ): StockOhlcvData? = withContext(Dispatchers.IO) {
         try {
+            // KIS 클라이언트 초기화 확인
+            ensureKisClientInitialized()
+
             withTimeout(TIMEOUT_MS) {
                 logger.d("getStockOhlcv: $ticker, $days days, interval: $interval")
                 val jsonStr = stocksModule.callAttr("get_stock_ohlcv", ticker, days, interval).toString()
