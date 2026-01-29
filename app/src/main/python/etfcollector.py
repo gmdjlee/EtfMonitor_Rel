@@ -91,6 +91,25 @@ def get_etf_name(ticker: str) -> str:
     return core_get_etf_name(ticker) if ticker else ""
 
 
+def get_etf_isin(ticker: str) -> str:
+    """
+    Get ETF ISIN code by ticker.
+
+    ISIN (International Securities Identification Number) is a 12-character
+    alphanumeric code that uniquely identifies a security.
+
+    Returns: ISIN code string or empty string if not found
+    """
+    if not ticker:
+        return ""
+    try:
+        isin = stock.get_etf_isin(ticker)
+        return str(isin).strip() if isin else ""
+    except (AttributeError, Exception) as e:
+        log.warning("get_etf_isin error (%s): %s", ticker, e)
+        return ""
+
+
 def get_etf_holdings(ticker: str, date: str) -> str:
     """
     Get ETF portfolio holdings.
