@@ -423,20 +423,26 @@ fun observeData() {
 
 ### Python Integration
 **Embedded Python** via Chaquopy includes:
-- `pykrx`: Korean stock market API
+- `pykrx==1.1.1`: Korean stock market API (pinned for stability, Jan 2026 release)
 - `pandas`: Data manipulation
 - `scikit-learn`: Machine learning (stock predictions)
 - `beautifulsoup4`: Web scraping
 - `numpy`: Numerical computing
 - `requests`: HTTP client
 
+#### pykrx v1.1.1 Key Features
+- **HTTPS upgrade**: ETF info retrieval URL upgraded for security
+- **Referer header fix**: Resolved KRX login blocking issues
+- **New APIs**: `get_nearest_business_day_in_a_week()`, `get_market_sector_classifications()`, `get_etf_isin()`
+- **Gold price support**: `get_item_gold_price()`, `get_item_gold_ticker()` (available but not used)
+
 #### Python Scripts (app/src/main/python/)
 | Script | Exposed Functions | Return Format | Notes |
 |--------|------------------|---------------|-------|
-| **etfcollector.py** | `get_etf_list_with_names()`, `get_etf_list()`, `get_etf_holdings()` | JSON array | Uses pykrx, filters by keywords |
+| **etfcollector.py** | `get_etf_list_with_names()`, `get_etf_list()`, `get_etf_holdings()`, `get_etf_isin()` | JSON array | Uses pykrx, filters by keywords |
 | **stocks.py** | `search_stock()`, `get_stock_data()`, `get_stock_ohlcv()`, `get_all_stocks_list()` | JSON object | 5-day rolling sums for investor data |
 | **market.py** | `fetch_all_markets()`, `fetch_recent_days()`, `get_market_oscillator()` | JSON object | Oscillator collects 200+ component stocks |
-| **core.py** | `get_business_days()`, date/number utilities | Various | Shared utilities, not directly called |
+| **core.py** | `get_business_days()`, `market_date()`, `get_sector_classifications()`, `get_sector_list()` | Various | Shared utilities, uses pykrx 1.1.1 APIs |
 | **feargreed.py** | `run_analysis()`, `combine()`, `analyze()` | DataFrame tuple | 5 indicators @ 20% each (Mom, PCR, VIX, Spread, RSI) |
 | **deposit_scraper.py** | `scrape_deposit_data()`, `get_market_deposit_data()` | JSON string | Scrapes Naver Finance |
 | **stock_predictor_v2.py** | `train_and_predict_v2()`, `get_model_status_v2()`, `clear_model_cache_v2()` | JSON | 28 features, ensemble (XGBoost/LightGBM/RF/GB), SMOTE |
@@ -1666,8 +1672,8 @@ Before submitting changes, verify:
 
 ---
 
-**Last Updated**: 2025-12-27
-**Codebase Version**: Schema v17, ~255 Kotlin files
+**Last Updated**: 2026-01-29
+**Codebase Version**: Schema v17, ~255 Kotlin files, pykrx v1.1.1
 **Maintainer**: gmdjlee
 
 ---
@@ -1785,3 +1791,25 @@ com/etfmonitor/
 - Updated migration count: 13 → 16
 - Added Testing Guide section with test structure and patterns
 - Created CHANGELOG.md for version tracking
+
+### 2026-01-29 - pykrx Library Update to v1.1.1
+
+**Version Pinning**:
+- Pinned pykrx to v1.1.1 in `build.gradle.kts` for stability
+- Previous: unpinned (latest), New: `pykrx==1.1.1`
+
+**New Features Integrated**:
+- **core.py**: Updated `market_date()` to use `get_nearest_business_day_in_a_week()` API
+- **core.py**: Added `get_sector_classifications()` and `get_sector_list()` for sector data
+- **etfcollector.py**: Added `get_etf_isin()` function for ISIN code retrieval
+
+**pykrx v1.1.1 Highlights** (Jan 24, 2026):
+- HTTPS upgrade for ETF info retrieval (security improvement)
+- Fixed KRX login blocking via Referer header modification
+- New APIs: business day lookup, sector classifications, ETF ISIN
+- Gold price APIs available (not integrated: `get_item_gold_price`, `get_item_gold_ticker`)
+
+**Documentation**:
+- Updated Python Integration section with pykrx v1.1.1 features
+- Added pykrx Key Features subsection
+- Updated Python Scripts table with new functions

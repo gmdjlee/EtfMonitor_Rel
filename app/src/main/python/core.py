@@ -136,8 +136,20 @@ def days_ago(n: int) -> str:
 
 
 def market_date() -> str:
-    """Get latest market date (most recent business day)."""
-    # Try up to 7 days back to find a valid market date
+    """Get latest market date (most recent business day).
+
+    Uses pykrx's get_nearest_business_day_in_a_week for efficient lookup.
+    Falls back to manual search if the new API is unavailable.
+    """
+    try:
+        # Use pykrx's built-in business day function (v1.1.1+)
+        result = stock.get_nearest_business_day_in_a_week(prev=True)
+        if result:
+            return result
+    except (AttributeError, Exception):
+        pass
+
+    # Fallback: Try up to 7 days back to find a valid market date
     for i in range(7):
         d = days_ago(i)
         try:
@@ -223,6 +235,43 @@ def get_etf_name(ticker: str) -> str:
         return str(name).strip() if name else ""
     except Exception:
         return ""
+
+
+# Sector classification (pykrx 1.1.1+)
+def get_sector_classifications(date: Optional[str] = None, market: str = "KOSPI") -> Dict[str, str]:
+    """
+    Get sector classifications for stocks.
+
+    Args:
+        date: Date in YYYYMMDD format (default: latest market date)
+        market: "KOSPI" or "KOSDAQ"
+
+    Returns: Dict mapping ticker to sector name
+    """
+    d = date or market_date()
+    try:
+        df = stock.get_market_sector_classifications(d, market)
+        if df is None or df.empty:
+            return {}
+        # DataFrame index is ticker, columns include sector info
+        return {str(ticker): str(row.get("업종명", "")) for ticker, row in df.iterrows()}
+    except (AttributeError, Exception) as e:
+        get_logger(__name__).warning("get_sector_classifications error: %s", e)
+        return {}
+
+
+def get_sector_list(date: Optional[str] = None, market: str = "KOSPI") -> List[str]:
+    """
+    Get unique sector names for a market.
+
+    Args:
+        date: Date in YYYYMMDD format (default: latest market date)
+        market: "KOSPI" or "KOSDAQ"
+
+    Returns: List of unique sector names
+    """
+    classifications = get_sector_classifications(date, market)
+    return list(set(classifications.values())) if classifications else []
 
 
 # JSON helpers
