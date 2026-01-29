@@ -92,7 +92,7 @@ chaquopy {
 
             // Core packages
             install("pandas")
-            install("pykrx==1.1.1")  // Pinned for stability (Jan 2026 release)
+            install("pykrx==1.0.51")  // Latest stable version
             install("setuptools")
             install("wheel")
             install("requests")
