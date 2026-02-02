@@ -86,7 +86,7 @@ android {
 
 chaquopy {
     defaultConfig {
-        buildPython("/usr/bin/python3")
+        buildPython("C:/Python313/python.exe")
         pip {
 //            options("--no-cache-dir")
 //            options("--timeout", "300")
