@@ -404,6 +404,7 @@ class AdvancedDashboardViewModel @Inject constructor(
                     return@launch
                 }
 
+                if (dates.isEmpty()) return@launch
                 val currentDate = dates.first()
                 val previousDate = dates[1]
                 logger.d("Analyzing dates: current=$currentDate, previous=$previousDate")
@@ -565,6 +566,7 @@ class AdvancedDashboardViewModel @Inject constructor(
                     return@launch
                 }
 
+                if (dates.isEmpty()) return@launch
                 val currentDate = dates.first()
                 val previousDate = dates[1]
 
@@ -614,6 +616,7 @@ class AdvancedDashboardViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val dates = etfDao.getAllDistinctDates()
+                if (dates.isEmpty()) return@launch
                 if (dates.size < 2) return@launch
 
                 val currentDate = dates.first()
@@ -658,6 +661,7 @@ class AdvancedDashboardViewModel @Inject constructor(
                 _isCalculatingCorrelation.value = true
 
                 val dates = etfDao.getAllDistinctDates()
+                if (dates.isEmpty()) return@launch
                 if (dates.size < 2) {
                     logger.w("Insufficient date data for ETF correlation")
                     return@launch

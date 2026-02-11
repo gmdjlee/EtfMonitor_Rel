@@ -65,6 +65,7 @@ class AdvancedAnalysisWorker @AssistedInject constructor(
                 )
             }
 
+            if (dates.isEmpty()) return@withContext Result.success()
             val currentDate = dates.first()
             val previousDate = dates[1]
             logger.d("Analyzing dates: current=$currentDate, previous=$previousDate")

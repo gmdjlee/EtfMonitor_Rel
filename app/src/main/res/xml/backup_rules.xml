@@ -20,10 +20,10 @@
     -->
 
     <!-- Include database for user convenience on restore -->
-    <include domain="database" path="etf_db" />
+    <include domain="database" path="etf_monitor.db" />
 
     <!-- Exclude database journals -->
-    <exclude domain="database" path="etf_db-journal" />
-    <exclude domain="database" path="etf_db-shm" />
-    <exclude domain="database" path="etf_db-wal" />
+    <exclude domain="database" path="etf_monitor.db-journal" />
+    <exclude domain="database" path="etf_monitor.db-shm" />
+    <exclude domain="database" path="etf_monitor.db-wal" />
 </full-backup-content>

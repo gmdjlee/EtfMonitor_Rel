@@ -23,7 +23,7 @@ import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepositor
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
@@ -57,7 +57,7 @@ class DataCollectionService : Service() {
     @Inject
     lateinit var bloodIndicatorRepository: BloodIndicatorRepository
 
-    private val serviceScope = CoroutineScope(Dispatchers.Default + Job())
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val notificationManager by lazy {
         getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     }

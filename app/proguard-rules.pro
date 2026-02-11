@@ -88,8 +88,8 @@
 # --------------------------------------------
 # AI API Client Models
 # --------------------------------------------
--keep class com.etfmonitor.ai.** { *; }
--keepclassmembers class com.etfmonitor.ai.** { *; }
+-keep class com.etfmonitor.core.network.ai.** { *; }
+-keepclassmembers class com.etfmonitor.core.network.ai.** { *; }
 
 # --------------------------------------------
 # OkHttp
@@ -128,19 +128,17 @@
 -keep class androidx.work.** { *; }
 
 # --------------------------------------------
-# Repository and ViewModel Classes
+# Feature ViewModel Classes
 # --------------------------------------------
--keep class com.etfmonitor.repository.** { *; }
--keep class com.etfmonitor.ui.screens.**ViewModel { *; }
--keepclassmembers class com.etfmonitor.ui.screens.**ViewModel {
+-keep class com.etfmonitor.feature.**ViewModel { *; }
+-keepclassmembers class com.etfmonitor.feature.**ViewModel {
     <init>(...);
 }
 
 # --------------------------------------------
 # Data Classes and Models
 # --------------------------------------------
--keep class com.etfmonitor.analysis.** { *; }
--keep class com.etfmonitor.oscillator.** { *; }
+-keep class com.etfmonitor.core.analysis.** { *; }
 
 # --------------------------------------------
 # Enum Classes

@@ -69,6 +69,11 @@ class StockStatisticsRepositoryImpl @Inject constructor(
         val allDates = localDataSource.getAllDistinctDates(500)
         val datesInRange = allDates.filter { it in startDate..endDate }
 
+        if (datesInRange.isEmpty()) {
+            logger.d("getStatisticsDatesInRange: No dates in range")
+            return@withContext null
+        }
+
         if (datesInRange.size < 2) {
             logger.d("getStatisticsDatesInRange: Not enough dates in range (${datesInRange.size})")
             // 범위 내 날짜가 1개만 있으면 그 날짜를 양쪽에 사용

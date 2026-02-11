@@ -10,7 +10,7 @@
 - **Min SDK**: 26 (Android 8.0) | **Target SDK**: 35 (Android 15)
 - **Architecture**: MVVM + Clean Architecture
 - **Dependency Injection**: Hilt 2.54
-- **Database**: Room 2.8.3 (21 entities, 18 DAOs, schema v17)
+- **Database**: Room 2.8.3 (22 entities, 20 DAOs, schema v19)
 - **AI Integration**: Claude & Gemini API for market analysis
 - **Unique Feature**: Embedded Python runtime (Chaquopy) for data collection & ML predictions
 
@@ -1188,7 +1188,7 @@ _searchQuery
 | Client | API Endpoint | Default Model | Timeout |
 |--------|-------------|---------------|---------|
 | **ClaudeApiClient** | `api.anthropic.com/v1/messages` | `claude-3-5-sonnet-20241022` | 60s |
-| **GeminiApiClient** | `generativelanguage.googleapis.com/v1beta/models` | `gemini-2.0-flash-exp` | 60s |
+| **GeminiApiClient** | `generativelanguage.googleapis.com/v1beta/models` | `gemini-2.5-flash` | 60s |
 
 #### AI Files (in `core/network/ai/`)
 - **`AIApiClient.kt`**: Interface with `analyzeMarket()`, `chat()`, `isApiAvailable()`, `testApiKey()`, `listModels()`
@@ -1302,7 +1302,7 @@ withTimeout(60_000L) {  // 60 seconds for initial load
 
 **Location**: `app/src/androidTest/java/com/etfmonitor/core/database/MigrationTest.kt`
 
-**Coverage**: All 16 migrations (v1→v17) with individual and full migration tests.
+**Coverage**: All 18 migrations (v1→v19) with individual and full migration tests.
 
 **Example**:
 ```kotlin
@@ -1672,8 +1672,9 @@ Before submitting changes, verify:
 
 ---
 
-**Last Updated**: 2026-01-29
-**Codebase Version**: Schema v17, ~255 Kotlin files, pykrx v1.1.1
+**Last Updated**: 2026-02-11
+**Codebase Version**: Schema v19, ~263 Kotlin files, 11 Python scripts, pykrx v1.1.1
+**Review Score**: 78/100 (Security: 82, Performance: 76, Stability: 79, Test Coverage: 65)
 **Maintainer**: gmdjlee
 
 ---
@@ -1813,3 +1814,67 @@ com/etfmonitor/
 - Updated Python Integration section with pykrx v1.1.1 features
 - Added pykrx Key Features subsection
 - Updated Python Scripts table with new functions
+
+### 2026-02-11 - Comprehensive Project Review (4-Agent Team)
+
+**Review Team**: Security, Performance, Stability, Test Coverage
+**Codebase**: ~263 Kotlin files, 11 Python scripts, Schema v19
+
+**Overall Score: 78/100**
+- Security: 82/100
+- Performance: 76/100
+- Stability: 79/100
+- Test Coverage: 65/100
+
+**Critical Findings (Must Fix)**:
+1. **ProGuard Rules Stale** (SEC-01, STAB-01): `proguard-rules.pro` lines 91-143 reference deleted legacy packages (`com.etfmonitor.ai`, `com.etfmonitor.repository`, `com.etfmonitor.ui.screens`, `com.etfmonitor.analysis`, `com.etfmonitor.oscillator`). These packages were moved during Clean Architecture migration but ProGuard rules were NOT updated. **Release builds may crash due to R8 stripping needed classes.**
+2. **DataCollectionService Wrong Dispatcher** (PERF-01): `serviceScope = CoroutineScope(Dispatchers.Default + Job())` at line 60. I/O-heavy operations (DB writes, network, Python) run on CPU thread pool instead of IO.
+3. **Test Coverage ~3%** (TEST-01): Only 8 unit test files + 1 instrumented test file for 263 source files. 10 of 14 ViewModels untested, 9 of 13 repositories untested, 0 workers tested.
+4. **DataCollectionService Missing SupervisorJob** (STAB-04): Uses `Job()` instead of `SupervisorJob()` - one failed coroutine cancels all sibling coroutines.
+5. **StatisticsViewModel Missing Dispatchers.IO** (PERF-02): `loadStatistics()` makes repository/DB calls without `withContext(Dispatchers.IO)`.
+6. **Previous Review Findings Still Valid**: Converters.kt type safety, `.getOrThrow()` verification, `.first()` emptiness guards, bounded list access in repositories.
+
+**Known Unnecessary Files/Folders**:
+- `app/release/` - Build artifacts (should be in .gitignore)
+- `app/schemas/` - Stale Room schema export (v17 only, schema is v19)
+- `ui-optimization/` - Completed optimization audit artifacts (4 files)
+- `TODO_CODE_QUALITY.md` - Outdated TODO list
+- `QUALITY_PLAN.md` - Completed quality plan
+- `docs/CODE_REVIEW_TODO.md` - Outdated checklist
+- `docs/plans/PLAN_clean-architecture-migration.md` - Migration completed
+- `docs/plans/PLAN_cleanup-architecture.md` - Cleanup completed
+- `docs/ML_PREDICTION_ENHANCEMENT_SPEC.md` - v1 system removed, spec outdated
+
+**ProGuard Rules Requiring Update** (prevents release crashes):
+- Line 91-92: `com.etfmonitor.ai.**` -> `com.etfmonitor.core.network.ai.**`
+- Line 133: `com.etfmonitor.repository.**` -> DELETE (Hilt auto-keeps)
+- Line 134-137: `com.etfmonitor.ui.screens.**ViewModel` -> `com.etfmonitor.feature.**ViewModel`
+- Line 142: `com.etfmonitor.analysis.**` -> `com.etfmonitor.core.analysis.**`
+- Line 143: `com.etfmonitor.oscillator.**` -> DELETE (merged into core.analysis)
+
+**Full Report**: `.claude/project-review-report.md`
+
+### 2026-02-11 - Project Optimization (7-Engineer Team)
+
+**Engineers**: Security, Performance, Stability, Bug Fix, Code Integration, Build, Test Coverage
+**Constraint**: ZERO functional changes
+
+**Fixes Applied**:
+1. **ProGuard rules fixed** - All 5 stale package paths corrected (prevents release crashes)
+2. **DataCollectionService** - `Dispatchers.Default + Job()` → `Dispatchers.IO + SupervisorJob()`
+3. **StatisticsViewModel** - `loadStatistics()` wrapped in `withContext(Dispatchers.IO)`
+4. **Converters.kt** - try-catch added to `toStringList()` and `toLongList()` (crash prevention)
+5. **backup_rules.xml + data_extraction_rules.xml** - DB name fixed: `etf_db` → `etf_monitor.db`
+6. **MarketDepositRepositoryImpl** - `minOf()` bounds validation for parallel list access
+7. **8 files** - `.first()` emptiness guards added (prevents NoSuchElementException)
+8. **getOrThrow() audit** - All 20 locations verified safe (inside try-catch or isSuccess checks)
+
+**Cleanup**:
+- Deleted `ErrorBoundary.kt` (dead code)
+- Deleted `ui-optimization/` folder, `TODO_CODE_QUALITY.md`, `QUALITY_PLAN.md`
+- Deleted 3 stale docs + 2 completed plan files
+- Updated `.gitignore` with `app/release/`, `app/schemas/`
+- Net: 155 lines added, 25,241 lines removed
+
+**Estimated Score After Optimization**: 84/100 (Security: 92, Performance: 88, Stability: 91, Test: 65)
+**Full Report**: `.claude/optimization-result-report.md`

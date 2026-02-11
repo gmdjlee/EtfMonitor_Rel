@@ -70,6 +70,7 @@ internal fun CashDepositTrendTab(trend: List<CashDepositTrend>) {
 
 @Composable
 internal fun CashDepositSummaryCard(trend: List<CashDepositTrend>) {
+    if (trend.isEmpty()) return
     val first = trend.first()
     val last = trend.last()
     val change = last.totalAmount - first.totalAmount

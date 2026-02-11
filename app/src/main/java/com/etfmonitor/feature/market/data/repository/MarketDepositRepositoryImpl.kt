@@ -95,7 +95,15 @@ class MarketDepositRepositoryImpl @Inject constructor(
             onProgress?.invoke("데이터 처리 중...", 70)
 
             // MarketDepositData를 MarketDeposit 엔티티 리스트로 변환
-            val deposits = marketData.dates.mapIndexed { index, date ->
+            // Bounds validation: Python may return mismatched array lengths
+            val safeSize = minOf(
+                marketData.dates.size,
+                marketData.depositAmounts.size,
+                marketData.depositChanges.size,
+                marketData.creditAmounts.size,
+                marketData.creditChanges.size
+            )
+            val deposits = marketData.dates.take(safeSize).mapIndexed { index, date ->
                 MarketDepositEntity(
                     date = date,
                     depositAmount = marketData.depositAmounts[index],
@@ -180,7 +188,15 @@ class MarketDepositRepositoryImpl @Inject constructor(
                 }
 
                 // 3. 새 데이터를 DB에 저장 (기존 데이터 유지하면서 병합)
-                val newDeposits = latestMarketData.dates.mapIndexed { index, date ->
+                // Bounds validation: Python may return mismatched array lengths
+                val latestSafeSize = minOf(
+                    latestMarketData.dates.size,
+                    latestMarketData.depositAmounts.size,
+                    latestMarketData.depositChanges.size,
+                    latestMarketData.creditAmounts.size,
+                    latestMarketData.creditChanges.size
+                )
+                val newDeposits = latestMarketData.dates.take(latestSafeSize).mapIndexed { index, date ->
                     MarketDepositEntity(
                         date = date,
                         depositAmount = latestMarketData.depositAmounts[index],

@@ -25,7 +25,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -161,41 +163,43 @@ class StatisticsViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // 선택된 기간에 따른 날짜 범위 계산
-                val (startDate, endDate) = ChartLabelCalculator.calculateDateRange(
-                    option = _selectedRange.value,
-                    endDate = LocalDate.now()
-                )
+                withContext(Dispatchers.IO) {
+                    // 선택된 기간에 따른 날짜 범위 계산
+                    val (startDate, endDate) = ChartLabelCalculator.calculateDateRange(
+                        option = _selectedRange.value,
+                        endDate = LocalDate.now()
+                    )
 
-                logger.d("Loading statistics for range: $startDate ~ $endDate")
+                    logger.d("Loading statistics for range: $startDate ~ $endDate")
 
-                // 날짜 범위 내 통계 날짜 조회
-                val datesInRange = repository.getStatisticsDatesInRange(startDate, endDate)
-                _dates.value = datesInRange
+                    // 날짜 범위 내 통계 날짜 조회
+                    val datesInRange = repository.getStatisticsDatesInRange(startDate, endDate)
+                    _dates.value = datesInRange
 
-                if (datesInRange != null) {
-                    val currentDate = datesInRange.first
-                    val previousDate = datesInRange.second
+                    if (datesInRange != null) {
+                        val currentDate = datesInRange.first
+                        val previousDate = datesInRange.second
 
-                    val ranking = repository.getStockAmountRankingInRange(currentDate, previousDate)
-                    originalAmountRanking = ranking
-                    _amountRanking.value = ranking
-                    _newStocks.value = repository.getAllNewStocksInRange(currentDate, previousDate)
-                    _removedStocks.value = repository.getAllRemovedStocksInRange(currentDate, previousDate)
-                    _increasedStocks.value = repository.getAllIncreasedStocksInRange(currentDate, previousDate)
-                    _decreasedStocks.value = repository.getAllDecreasedStocksInRange(currentDate, previousDate)
-                } else {
-                    // 범위 내 데이터가 없으면 빈 목록
-                    originalAmountRanking = emptyList()
-                    _amountRanking.value = emptyList()
-                    _newStocks.value = emptyList()
-                    _removedStocks.value = emptyList()
-                    _increasedStocks.value = emptyList()
-                    _decreasedStocks.value = emptyList()
+                        val ranking = repository.getStockAmountRankingInRange(currentDate, previousDate)
+                        originalAmountRanking = ranking
+                        _amountRanking.value = ranking
+                        _newStocks.value = repository.getAllNewStocksInRange(currentDate, previousDate)
+                        _removedStocks.value = repository.getAllRemovedStocksInRange(currentDate, previousDate)
+                        _increasedStocks.value = repository.getAllIncreasedStocksInRange(currentDate, previousDate)
+                        _decreasedStocks.value = repository.getAllDecreasedStocksInRange(currentDate, previousDate)
+                    } else {
+                        // 범위 내 데이터가 없으면 빈 목록
+                        originalAmountRanking = emptyList()
+                        _amountRanking.value = emptyList()
+                        _newStocks.value = emptyList()
+                        _removedStocks.value = emptyList()
+                        _increasedStocks.value = emptyList()
+                        _decreasedStocks.value = emptyList()
+                    }
+
+                    // 원화예금 추이는 전체 기간 표시
+                    _cashDepositTrend.value = repository.getCashDepositTrend()
                 }
-
-                // 원화예금 추이는 전체 기간 표시
-                _cashDepositTrend.value = repository.getCashDepositTrend()
             } finally {
                 _isLoading.value = false
             }

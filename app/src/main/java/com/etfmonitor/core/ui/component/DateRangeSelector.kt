@@ -142,6 +142,7 @@ object ChartLabelCalculator {
      */
     fun extractDateRange(dates: List<String>): Pair<String, String>? {
         if (dates.isEmpty()) return null
+        // Safety: first() and last() are safe here due to isEmpty() check above
         return Pair(dates.first(), dates.last())
     }
 
