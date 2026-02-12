@@ -19,3 +19,7 @@ local.properties
 app/release/
 app/schemas/
 krxkt/build/
+
+# Claude Code local files
+.claude/settings.local.json
+.claude/*.local.md

@@ -58,7 +58,7 @@ Cross-agent commands: `.claude/commands/*.md`
 - `app/src/main/java/com/etfmonitor/core/network/`
 - `app/src/main/java/com/etfmonitor/core/di/`
 - `app/src/main/java/com/etfmonitor/feature/*/di/`
-- `app/src/main/python/`
+- `krxkt/` (KRX data library module)
 ### Forbidden: `feature/*/presentation/**`
 ### Read-Only: `feature/*/domain/**` (interfaces to implement)
 ### Rules:
