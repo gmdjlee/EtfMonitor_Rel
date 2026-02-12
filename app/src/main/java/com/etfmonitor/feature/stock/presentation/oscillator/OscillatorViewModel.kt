@@ -11,7 +11,8 @@ import com.etfmonitor.core.analysis.TrendSignalCalculator
 import com.etfmonitor.core.analysis.model.*
 import com.etfmonitor.core.analysis.model.ElderImpulseData
 import com.etfmonitor.core.analysis.model.DemarkTDData
-import com.etfmonitor.core.network.python.OscillatorPyClient
+import com.etfmonitor.core.network.krx.StockDataClient
+import com.etfmonitor.core.analysis.TrendSignalNativeCalculator
 import com.etfmonitor.core.ui.component.DateRangeOption
 import com.etfmonitor.feature.stock.domain.model.Stock
 import com.etfmonitor.feature.stock.domain.repository.StockAnalysisRepository
@@ -60,7 +61,8 @@ sealed class OscillatorState {
  */
 @HiltViewModel
 class OscillatorViewModel @Inject constructor(
-    private val pyClient: OscillatorPyClient,
+    private val stockDataClient: StockDataClient,
+    private val trendSignalCalc: TrendSignalNativeCalculator,
     private val stockRepository: StockRepository,
     private val stockAnalysisRepository: StockAnalysisRepository,
     private val searchHistoryDao: SearchHistoryDao,
@@ -231,7 +233,7 @@ class OscillatorViewModel @Inject constructor(
                 _state.value = OscillatorState.Loading
 
                 // 1. 종목 검색
-                val searchResult = pyClient.searchStock(query)
+                val searchResult = stockDataClient.searchStock(query)
                 if (searchResult == null) {
                     _state.value = OscillatorState.Error("종목을 찾을 수 없습니다")
                     return@launch
@@ -275,7 +277,7 @@ class OscillatorViewModel @Inject constructor(
 
                 // 6. 추세 시그널 데이터 수집 (선택된 인터벌)
                 val trendSignalData = try {
-                    pyClient.getTrendSignalData(ticker, days = 365, interval = _trendSignalInterval.value)
+                    trendSignalCalc.calculateTrendSignal(ticker, days = 365, interval = _trendSignalInterval.value)
                 } catch (e: Exception) {
                     android.util.Log.e("OscillatorViewModel", "Trend signal error", e)
                     null
@@ -288,7 +290,7 @@ class OscillatorViewModel @Inject constructor(
 
                 // 8. Elder Impulse 데이터 수집 (선택된 인터벌)
                 val elderImpulseData = try {
-                    pyClient.getElderImpulseData(ticker, interval = _elderImpulseInterval.value)
+                    trendSignalCalc.calculateElderImpulse(ticker, interval = _elderImpulseInterval.value)
                 } catch (e: Exception) {
                     android.util.Log.e("OscillatorViewModel", "Elder Impulse error", e)
                     null
@@ -296,7 +298,7 @@ class OscillatorViewModel @Inject constructor(
 
                 // 9. DeMark TD 데이터 수집 (현재 선택된 인터벌)
                 val demarkTDData = try {
-                    pyClient.getDemarkTDData(ticker, interval = _demarkTDInterval.value)
+                    trendSignalCalc.calculateDemarkTD(ticker, interval = _demarkTDInterval.value)
                 } catch (e: Exception) {
                     android.util.Log.e("OscillatorViewModel", "DeMark TD error", e)
                     null
@@ -366,7 +368,7 @@ class OscillatorViewModel @Inject constructor(
 
                 // 추세 시그널 데이터 수집 (선택된 인터벌)
                 val trendSignalData = try {
-                    pyClient.getTrendSignalData(ticker, days = 365, interval = _trendSignalInterval.value)
+                    trendSignalCalc.calculateTrendSignal(ticker, days = 365, interval = _trendSignalInterval.value)
                 } catch (e: Exception) {
                     android.util.Log.e("OscillatorViewModel", "Trend signal error", e)
                     null
@@ -379,7 +381,7 @@ class OscillatorViewModel @Inject constructor(
 
                 // Elder Impulse 데이터 수집 (선택된 인터벌)
                 val elderImpulseData = try {
-                    pyClient.getElderImpulseData(ticker, interval = _elderImpulseInterval.value)
+                    trendSignalCalc.calculateElderImpulse(ticker, interval = _elderImpulseInterval.value)
                 } catch (e: Exception) {
                     android.util.Log.e("OscillatorViewModel", "Elder Impulse error", e)
                     null
@@ -387,7 +389,7 @@ class OscillatorViewModel @Inject constructor(
 
                 // DeMark TD 데이터 수집 (현재 선택된 인터벌)
                 val demarkTDData = try {
-                    pyClient.getDemarkTDData(ticker, interval = _demarkTDInterval.value)
+                    trendSignalCalc.calculateDemarkTD(ticker, interval = _demarkTDInterval.value)
                 } catch (e: Exception) {
                     android.util.Log.e("OscillatorViewModel", "DeMark TD error", e)
                     null
@@ -422,7 +424,7 @@ class OscillatorViewModel @Inject constructor(
 
         viewModelScope.launch {
             val trendSignalData = try {
-                pyClient.getTrendSignalData(ticker, days = 365, interval = interval)
+                trendSignalCalc.calculateTrendSignal(ticker, days = 365, interval = interval)
             } catch (e: Exception) {
                 android.util.Log.e("OscillatorViewModel", "Trend signal error", e)
                 null
@@ -456,7 +458,7 @@ class OscillatorViewModel @Inject constructor(
 
         viewModelScope.launch {
             val elderImpulseData = try {
-                pyClient.getElderImpulseData(ticker, interval = interval)
+                trendSignalCalc.calculateElderImpulse(ticker, interval = interval)
             } catch (e: Exception) {
                 android.util.Log.e("OscillatorViewModel", "Elder Impulse error", e)
                 null
@@ -483,7 +485,7 @@ class OscillatorViewModel @Inject constructor(
 
         viewModelScope.launch {
             val demarkTDData = try {
-                pyClient.getDemarkTDData(ticker, interval = interval)
+                trendSignalCalc.calculateDemarkTD(ticker, interval = interval)
             } catch (e: Exception) {
                 android.util.Log.e("OscillatorViewModel", "DeMark TD error", e)
                 null

@@ -3,7 +3,7 @@ package com.etfmonitor.feature.stock.di
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.StockAnalysisDao
 import com.etfmonitor.core.database.StockDao
-import com.etfmonitor.core.network.python.OscillatorPyClient
+import com.etfmonitor.core.network.krx.StockDataClient
 import com.etfmonitor.feature.stock.data.datasource.StockAnalysisLocalDataSource
 import com.etfmonitor.feature.stock.data.datasource.StockLocalDataSource
 import com.etfmonitor.feature.stock.data.datasource.StockStatisticsLocalDataSource
@@ -70,19 +70,19 @@ object StockModule {
     @Singleton
     fun provideStockRepository(
         localDataSource: StockLocalDataSource,
-        pyClient: OscillatorPyClient
-    ): StockRepository = StockRepositoryImpl(localDataSource, pyClient)
+        stockDataClient: StockDataClient
+    ): StockRepository = StockRepositoryImpl(localDataSource, stockDataClient)
 
     @Provides
     @Singleton
     fun provideStockAnalysisRepository(
         analysisLocalDataSource: StockAnalysisLocalDataSource,
         stockLocalDataSource: StockLocalDataSource,
-        pyClient: OscillatorPyClient
+        stockDataClient: StockDataClient
     ): StockAnalysisRepository = StockAnalysisRepositoryImpl(
         analysisLocalDataSource,
         stockLocalDataSource,
-        pyClient
+        stockDataClient
     )
 
     @Provides

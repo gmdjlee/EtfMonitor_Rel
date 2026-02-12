@@ -5,6 +5,7 @@ import app.cash.turbine.test
 import com.etfmonitor.MainDispatcherExtension
 import com.etfmonitor.feature.home.domain.model.HomeState
 import com.etfmonitor.feature.home.domain.model.HomeSummary
+import com.etfmonitor.feature.home.domain.model.DataStatus
 import com.etfmonitor.feature.home.domain.usecase.CheckDataStatusUseCase
 import com.etfmonitor.feature.home.domain.usecase.CheckEtfDataUseCase
 import com.etfmonitor.feature.home.domain.usecase.CheckFirstRunUseCase
@@ -218,7 +219,8 @@ class HomeViewModelTest {
             // Given
             coEvery { checkEtfDataUseCase() } returns Pair(false, null)
             coEvery { fearGreedRepository.initializeFearGreed(any(), any()) } returns Result.success(30)
-            coEvery { checkDataStatusUseCase() } returns CheckDataStatusUseCase.DataStatus(
+            coEvery { checkDataStatusUseCase() } returns DataStatus(
+                hasEtfData = false,
                 hasDepositData = true,
                 hasFearGreedData = true,
                 hasOscillatorData = true
@@ -280,7 +282,8 @@ class HomeViewModelTest {
             // Given
             coEvery { checkEtfDataUseCase() } returns Pair(false, null)
             coEvery { marketDepositRepository.initializeDeposits(any(), any()) } returns Result.success(10)
-            coEvery { checkDataStatusUseCase() } returns CheckDataStatusUseCase.DataStatus(
+            coEvery { checkDataStatusUseCase() } returns DataStatus(
+                hasEtfData = false,
                 hasDepositData = true,
                 hasFearGreedData = false,
                 hasOscillatorData = false

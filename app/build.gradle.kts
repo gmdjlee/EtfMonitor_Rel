@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
-    alias(libs.plugins.chaquopy)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.google.devtools.ksp)
     alias(libs.plugins.hilt.android)
@@ -84,31 +83,6 @@ android {
     }
 }
 
-chaquopy {
-    defaultConfig {
-        buildPython("C:/Python313/python.exe")
-        version = "3.13"
-        pip {
-//            options("--no-cache-dir")
-//            options("--timeout", "300")
-
-            // Core packages
-            install("pandas")
-            install("pykrx==1.1.1")  // Pinned for stability (Jan 2026 release)
-            install("setuptools")
-            install("wheel")
-            install("requests")
-            install("beautifulsoup4")
-            install("scikit-learn")
-
-            // Enhanced ML prediction packages (v2)
-            // Note: imbalanced-learn removed due to scipy version conflict with Chaquopy
-            // SMOTE functionality is optional and handled via try-except in Python
-            install("joblib==1.3.2")     // Model serialization
-        }
-    }
-}
-
 dependencies {
     // Core
     implementation(libs.androidx.core.ktx)
@@ -162,6 +136,12 @@ dependencies {
     // OkHttp for Claude API
     implementation(libs.okhttp)
 
+    // Jsoup for HTML parsing (deposit scraper)
+    implementation(libs.jsoup)
+
+    // krxkt - Native KRX data API (internal module)
+    implementation(project(":krxkt"))
+
     // Security - Encrypted SharedPreferences for API key storage
     implementation(libs.androidx.security.crypto)
 
@@ -179,6 +159,7 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
 
     // Testing - Unit Tests
+    testImplementation(kotlin("test"))
     testImplementation(libs.junit)
     testImplementation(libs.junit5.api)
     testRuntimeOnly(libs.junit5.engine)

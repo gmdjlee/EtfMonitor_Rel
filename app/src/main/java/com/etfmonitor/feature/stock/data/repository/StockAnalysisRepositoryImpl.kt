@@ -5,7 +5,7 @@ import com.etfmonitor.feature.stock.data.datasource.StockLocalDataSource
 import com.etfmonitor.feature.stock.domain.model.Stock
 import com.etfmonitor.feature.stock.domain.repository.StockAnalysisRepository
 import com.etfmonitor.core.analysis.model.StockData
-import com.etfmonitor.core.network.python.OscillatorPyClient
+import com.etfmonitor.core.network.krx.StockDataClient
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.common.util.DateFormatter
 import com.etfmonitor.core.database.entities.StockAnalysisData
@@ -22,7 +22,7 @@ import javax.inject.Singleton
  *
  * ## 주요 기능
  * - 종목 분석 데이터 조회 (24시간 캐싱)
- * - Python에서 새 데이터 수집
+ * - KRX에서 새 데이터 수집
  * - stocks 테이블과 JOIN하여 종목명 조회
  *
  * ## 캐싱 정책
@@ -37,7 +37,7 @@ import javax.inject.Singleton
 class StockAnalysisRepositoryImpl @Inject constructor(
     private val analysisLocalDataSource: StockAnalysisLocalDataSource,
     private val stockLocalDataSource: StockLocalDataSource,
-    private val pyClient: OscillatorPyClient
+    private val stockDataClient: StockDataClient
 ) : StockAnalysisRepository {
 
     companion object {
@@ -58,12 +58,12 @@ class StockAnalysisRepositoryImpl @Inject constructor(
                 return@withContext cachedData.toStockData()
             }
 
-            // 2. Python에서 새 데이터 가져오기
+            // 2. KRX에서 새 데이터 가져오기
             logger.d("Fetching new data for $ticker (days: $days)")
-            val stockData = pyClient.getStockAnalysis(ticker, days)
+            val stockData = stockDataClient.getStockAnalysis(ticker, days)
 
             if (stockData == null) {
-                logger.e("Failed to fetch data from Python for $ticker")
+                logger.e("Failed to fetch data from KRX for $ticker")
                 return@withContext cachedData?.toStockData()
             }
 

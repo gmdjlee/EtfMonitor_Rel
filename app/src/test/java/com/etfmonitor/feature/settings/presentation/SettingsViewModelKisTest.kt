@@ -1,18 +1,13 @@
 package com.etfmonitor.feature.settings.presentation
 
-import app.cash.turbine.test
 import com.etfmonitor.MainDispatcherExtension
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.network.ai.ApiKeyProvider
-import com.etfmonitor.core.network.python.PyKrxClient
-import com.etfmonitor.feature.settings.domain.repository.SettingsRepository
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -37,16 +32,12 @@ import kotlin.test.assertTrue
 class SettingsViewModelKisTest {
 
     // Mocks
-    private lateinit var settingsRepository: SettingsRepository
     private lateinit var apiKeyProvider: ApiKeyProvider
-    private lateinit var pyKrxClient: PyKrxClient
     private lateinit var etfDao: EtfDao
 
     @BeforeEach
     fun setup() {
-        settingsRepository = mockk(relaxed = true)
         apiKeyProvider = mockk(relaxed = true)
-        pyKrxClient = mockk(relaxed = true)
         etfDao = mockk(relaxed = true)
 
         // Default mocks
@@ -148,65 +139,6 @@ class SettingsViewModelKisTest {
     inner class KisApiConnectionTests {
 
         @Test
-        @DisplayName("연결 테스트 성공")
-        fun testKisApiConnection_success() = runTest {
-            // Given
-            val appKey = "valid_app_key"
-            val appSecret = "valid_app_secret"
-            every { apiKeyProvider.getKisAppKey() } returns appKey
-            every { apiKeyProvider.getKisAppSecret() } returns appSecret
-            coEvery { pyKrxClient.initializeKisClient(appKey, appSecret) } returns true
-            coEvery { pyKrxClient.testKisApiConnection() } returns true
-
-            // When
-            val initResult = pyKrxClient.initializeKisClient(appKey, appSecret)
-            val testResult = pyKrxClient.testKisApiConnection()
-
-            // Then
-            assertTrue(initResult)
-            assertTrue(testResult)
-            coVerify { pyKrxClient.initializeKisClient(appKey, appSecret) }
-            coVerify { pyKrxClient.testKisApiConnection() }
-        }
-
-        @Test
-        @DisplayName("연결 테스트 실패 - 초기화 실패")
-        fun testKisApiConnection_initFails() = runTest {
-            // Given
-            val appKey = "invalid_app_key"
-            val appSecret = "invalid_app_secret"
-            every { apiKeyProvider.getKisAppKey() } returns appKey
-            every { apiKeyProvider.getKisAppSecret() } returns appSecret
-            coEvery { pyKrxClient.initializeKisClient(appKey, appSecret) } returns false
-
-            // When
-            val initResult = pyKrxClient.initializeKisClient(appKey, appSecret)
-
-            // Then
-            assertFalse(initResult)
-        }
-
-        @Test
-        @DisplayName("연결 테스트 실패 - API 연결 실패")
-        fun testKisApiConnection_connectionFails() = runTest {
-            // Given
-            val appKey = "valid_app_key"
-            val appSecret = "valid_app_secret"
-            every { apiKeyProvider.getKisAppKey() } returns appKey
-            every { apiKeyProvider.getKisAppSecret() } returns appSecret
-            coEvery { pyKrxClient.initializeKisClient(appKey, appSecret) } returns true
-            coEvery { pyKrxClient.testKisApiConnection() } returns false
-
-            // When
-            val initResult = pyKrxClient.initializeKisClient(appKey, appSecret)
-            val testResult = pyKrxClient.testKisApiConnection()
-
-            // Then
-            assertTrue(initResult)
-            assertFalse(testResult)
-        }
-
-        @Test
         @DisplayName("자격 증명 미설정 시 연결 테스트 불가")
         fun testKisApiConnection_noCredentials() = runTest {
             // Given
@@ -219,52 +151,6 @@ class SettingsViewModelKisTest {
 
             // Then
             assertFalse(isConfigured)
-        }
-    }
-
-    @Nested
-    @DisplayName("KIS 클라이언트 자동 초기화 테스트")
-    inner class KisClientAutoInitializationTests {
-
-        @Test
-        @DisplayName("앱 시작 시 저장된 자격 증명으로 초기화")
-        fun initializeKisClientIfConfigured_credentialsExist_initializes() = runTest {
-            // Given
-            val appKey = "stored_app_key"
-            val appSecret = "stored_app_secret"
-            every { apiKeyProvider.isKisApiConfigured() } returns true
-            every { apiKeyProvider.getKisAppKey() } returns appKey
-            every { apiKeyProvider.getKisAppSecret() } returns appSecret
-            coEvery { pyKrxClient.initializeKisClient(appKey, appSecret) } returns true
-
-            // When
-            val shouldInitialize = apiKeyProvider.isKisApiConfigured()
-            var initResult = false
-            if (shouldInitialize) {
-                val key = apiKeyProvider.getKisAppKey()
-                val secret = apiKeyProvider.getKisAppSecret()
-                if (key != null && secret != null) {
-                    initResult = pyKrxClient.initializeKisClient(key, secret)
-                }
-            }
-
-            // Then
-            assertTrue(initResult)
-            coVerify { pyKrxClient.initializeKisClient(appKey, appSecret) }
-        }
-
-        @Test
-        @DisplayName("자격 증명 없으면 초기화 건너뜀")
-        fun initializeKisClientIfConfigured_noCredentials_skips() = runTest {
-            // Given
-            every { apiKeyProvider.isKisApiConfigured() } returns false
-
-            // When
-            val shouldInitialize = apiKeyProvider.isKisApiConfigured()
-
-            // Then
-            assertFalse(shouldInitialize)
-            coVerify(exactly = 0) { pyKrxClient.initializeKisClient(any(), any()) }
         }
     }
 

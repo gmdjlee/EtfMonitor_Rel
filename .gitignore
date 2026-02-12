@@ -18,3 +18,4 @@ local.properties
 # Build artifacts
 app/release/
 app/schemas/
+krxkt/build/

@@ -112,6 +112,17 @@ object OscillatorCalculator {
         val recentSignal = result.signal.takeLast(5)
         val recentHisto = result.histogram.takeLast(5)
 
+        if (recentMACD.size < 2 || recentSignal.size < 2) {
+            return SignalAnalysis(
+                signal = TradeSignal.NEUTRAL,
+                score = 0.0,
+                trend = "데이터 부족",
+                foreignTrend = "알 수 없음",
+                institutionTrend = "알 수 없음",
+                recommendation = "데이터를 확인해주세요"
+            )
+        }
+
         // 점수 계산 (-100 ~ +100)
         var score = 0.0
 
@@ -197,6 +208,8 @@ object OscillatorCalculator {
 
         val recentDeposit = data.depositAmounts.takeLast(5)
         val recentCredit = data.creditAmounts.takeLast(5)
+
+        if (recentDeposit.isEmpty() || recentCredit.isEmpty()) return "데이터 없음"
 
         val depositTrend = recentDeposit.last() - recentDeposit.first()
         val creditTrend = recentCredit.last() - recentCredit.first()

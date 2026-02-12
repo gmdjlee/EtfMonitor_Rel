@@ -3,7 +3,7 @@ package com.etfmonitor.feature.etf.di
 import com.etfmonitor.core.database.DailyEtfStatisticsDao
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.StockDao
-import com.etfmonitor.core.network.python.PyKrxClient
+import com.etfmonitor.core.network.krx.KrxDataClient
 import com.etfmonitor.feature.etf.data.datasource.EtfLocalDataSource
 import com.etfmonitor.feature.etf.data.repository.EtfRepositoryImpl
 import com.etfmonitor.feature.etf.domain.repository.EtfRepository
@@ -53,13 +53,13 @@ object EtfModule {
         etfDao: EtfDao,
         dailyEtfStatisticsDao: DailyEtfStatisticsDao,
         stockDao: StockDao,
-        pyKrxClient: PyKrxClient
+        krxDataClient: KrxDataClient
     ): EtfRepository = EtfRepositoryImpl(
         localDataSource,
         etfDao,
         dailyEtfStatisticsDao,
         stockDao,
-        pyKrxClient
+        krxDataClient
     )
 
     // ========== Use Cases ==========

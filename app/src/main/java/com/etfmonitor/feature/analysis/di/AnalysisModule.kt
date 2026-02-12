@@ -3,7 +3,6 @@ package com.etfmonitor.feature.analysis.di
 import com.etfmonitor.core.analysis.CorrelationAnalyzer
 import com.etfmonitor.core.database.*
 import com.etfmonitor.core.network.ai.AIApiClientFactory
-import com.etfmonitor.core.network.python.OscillatorPyClient
 import com.etfmonitor.feature.analysis.data.internal.TimeSeriesAnalysisHelper
 import com.etfmonitor.feature.analysis.data.repository.*
 import com.etfmonitor.feature.analysis.domain.repository.*

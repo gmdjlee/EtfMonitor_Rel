@@ -5,7 +5,7 @@ import com.etfmonitor.feature.stock.data.mapper.StockMapper.toDomain
 import com.etfmonitor.core.common.util.NetworkException
 import com.etfmonitor.feature.stock.domain.model.Stock
 import com.etfmonitor.feature.stock.domain.repository.StockRepository
-import com.etfmonitor.core.network.python.OscillatorPyClient
+import com.etfmonitor.core.network.krx.StockDataClient
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.database.entities.Stock as StockEntity
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +24,7 @@ import javax.inject.Singleton
  * ## 주요 기능
  * - 전체 종목 조회/검색
  * - ETF 보유 종목 자동 동기화
- * - 종목 데이터 초기화 (Python에서 가져오기)
+ * - 종목 데이터 초기화 (KRX에서 가져오기)
  *
  * ## 스레드 안전성
  * - 모든 Flow는 flowOn(Dispatchers.IO)로 실행
@@ -33,7 +33,7 @@ import javax.inject.Singleton
 @Singleton
 class StockRepositoryImpl @Inject constructor(
     private val localDataSource: StockLocalDataSource,
-    private val pyClient: OscillatorPyClient
+    private val stockDataClient: StockDataClient
 ) : StockRepository {
 
     companion object {
@@ -107,12 +107,12 @@ class StockRepositoryImpl @Inject constructor(
 
     override suspend fun initializeStocks(): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            logger.d("Initializing stock data from Python...")
+            logger.d("Initializing stock data from KRX...")
 
-            val stockList = pyClient.getAllStocksList()
+            val stockList = stockDataClient.getAllStocksList()
 
             if (stockList.isEmpty()) {
-                logger.e("Failed to get stocks list from Python (empty result - possible network issue)")
+                logger.e("Failed to get stocks list from KRX (empty result - possible network issue)")
                 return@withContext Result.failure(
                     NetworkException("종목 데이터를 가져올 수 없습니다. 네트워크 연결을 확인해 주세요.")
                 )

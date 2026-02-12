@@ -5,7 +5,7 @@ import com.etfmonitor.core.analysis.*
 import com.etfmonitor.core.database.*
 import com.etfmonitor.core.database.entities.*
 import com.etfmonitor.core.analysis.model.StockOhlcvData
-import com.etfmonitor.core.network.python.OscillatorPyClient
+import com.etfmonitor.core.network.krx.StockDataClient
 import com.etfmonitor.core.common.util.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -34,7 +34,7 @@ class TimeSeriesAnalysisHelper @Inject constructor(
     private val marketDepositDao: MarketDepositDao,
     private val dailyEtfStatisticsDao: DailyEtfStatisticsDao,
     private val aiApiClientFactory: AIApiClientFactory,
-    private val oscillatorPyClient: OscillatorPyClient,
+    private val stockDataClient: StockDataClient,
     private val etfDao: EtfDao,
     private val stockIndicatorAIResultDao: StockIndicatorAIResultDao
 ) {
@@ -690,14 +690,14 @@ class TimeSeriesAnalysisHelper @Inject constructor(
      * 종목 검색
      */
     suspend fun searchStock(query: String): Pair<String, String>? = withContext(Dispatchers.IO) {
-        oscillatorPyClient.searchStock(query)
+        stockDataClient.searchStock(query)
     }
 
     /**
      * 전체 종목 리스트 가져오기
      */
     suspend fun getAllStocksList(): List<Pair<String, String>> = withContext(Dispatchers.IO) {
-        oscillatorPyClient.getAllStocksList()
+        stockDataClient.getAllStocksList()
     }
 
     /**
@@ -710,7 +710,7 @@ class TimeSeriesAnalysisHelper @Inject constructor(
         try {
             logger.d("Collecting stock time series data for $ticker, $periodDays days")
 
-            val ohlcvData = oscillatorPyClient.getStockOhlcv(ticker, periodDays, "d")
+            val ohlcvData = stockDataClient.getStockOhlcv(ticker, periodDays, "d")
 
             if (ohlcvData == null || ohlcvData.dates.isEmpty()) {
                 return@withContext Result.failure(Exception("종목 데이터를 가져올 수 없습니다: $ticker"))
@@ -1117,7 +1117,7 @@ class TimeSeriesAnalysisHelper @Inject constructor(
             val endDateStr = endDate.format(dateFormatter)
 
             // 1. 종목 주가 데이터 수집
-            val stockData = oscillatorPyClient.getStockOhlcv(request.ticker, request.periodDays, "d")
+            val stockData = stockDataClient.getStockOhlcv(request.ticker, request.periodDays, "d")
             if (stockData == null || stockData.dates.isEmpty()) {
                 return@withContext Result.failure(Exception("종목 주가 데이터를 가져올 수 없습니다: ${request.ticker}"))
             }

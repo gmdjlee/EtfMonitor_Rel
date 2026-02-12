@@ -17,7 +17,7 @@ import com.etfmonitor.core.database.StockDao
 import com.etfmonitor.core.database.entities.DailyEtfStatistics
 import com.etfmonitor.core.database.entities.Holding
 import com.etfmonitor.core.database.entities.Setting
-import com.etfmonitor.core.network.python.PyKrxClient
+import com.etfmonitor.core.network.krx.KrxDataClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -53,7 +53,7 @@ class EtfRepositoryImpl @Inject constructor(
     private val etfDao: EtfDao,
     private val dailyEtfStatisticsDao: DailyEtfStatisticsDao,
     private val stockDao: StockDao,
-    private val pyKrx: PyKrxClient
+    private val krxDataClient: KrxDataClient
 ) : EtfRepository {
 
     companion object {
@@ -389,7 +389,7 @@ class EtfRepositoryImpl @Inject constructor(
             initializeDefaultSettings()
 
             emit(DataProgress.Loading("영업일 계산 중", 5))
-            val businessDays = pyKrx.getBusinessDays(days)
+            val businessDays = krxDataClient.getBusinessDays(days)
             logger.d("Business days found: ${businessDays.size}")
 
             if (businessDays.isEmpty()) {
@@ -425,7 +425,7 @@ class EtfRepositoryImpl @Inject constructor(
 
                 val dateYYYYMMDD = date.replace("-", "")
 
-                val validEtfs = pyKrx.getFilteredEtfList(
+                val validEtfs = krxDataClient.getFilteredEtfList(
                     date = dateYYYYMMDD,
                     includeKeywords = includeKeywords,
                     excludeKeywords = exclusions
@@ -492,7 +492,7 @@ class EtfRepositoryImpl @Inject constructor(
 
             emit(DataProgress.Loading("마지막 수집일: $lastDate", 10))
 
-            val businessDays = pyKrx.getBusinessDays(10)
+            val businessDays = krxDataClient.getBusinessDays(10)
             val newDays = businessDays.filter { it > lastDate }
 
             if (newDays.isEmpty()) {
@@ -525,7 +525,7 @@ class EtfRepositoryImpl @Inject constructor(
 
                 val dateYYYYMMDD = date.replace("-", "")
 
-                val validEtfs = pyKrx.getFilteredEtfList(
+                val validEtfs = krxDataClient.getFilteredEtfList(
                     date = dateYYYYMMDD,
                     includeKeywords = includeKeywords,
                     excludeKeywords = exclusions
@@ -678,7 +678,7 @@ class EtfRepositoryImpl @Inject constructor(
                         }
 
                         etfDao.insertEtf(etf)
-                        val holdings = pyKrx.getHoldings(etf.ticker, dateYYYYMMDD)
+                        val holdings = krxDataClient.getHoldings(etf.ticker, dateYYYYMMDD)
 
                         if (holdings.isNotEmpty()) {
                             etfDao.insertHoldings(holdings)

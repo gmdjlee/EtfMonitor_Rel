@@ -4,7 +4,7 @@ import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.common.util.DateFormatter
 import com.etfmonitor.core.database.MarketDepositDao
 import com.etfmonitor.core.database.entities.MarketDeposit as MarketDepositEntity
-import com.etfmonitor.core.network.python.OscillatorPyClient
+import com.etfmonitor.core.network.krx.DepositScraper
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toDomain
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toDepositDomainList
 import com.etfmonitor.feature.market.domain.model.MarketDeposit
@@ -29,7 +29,7 @@ import javax.inject.Singleton
 @Singleton
 class MarketDepositRepositoryImpl @Inject constructor(
     private val marketDepositDao: MarketDepositDao,
-    private val pyClient: OscillatorPyClient
+    private val depositScraper: DepositScraper
 ) : MarketDepositRepository {
 
     companion object {
@@ -81,7 +81,7 @@ class MarketDepositRepositoryImpl @Inject constructor(
             // Python에서 증시 자금 데이터 가져오기
             onProgress?.invoke("증시 자금 동향 데이터 수집 중...", 30)
             val marketData = try {
-                pyClient.getMarketDepositData(numPages)
+                depositScraper.getMarketDepositData(numPages)
             } catch (e: Exception) {
                 logger.e("Python call failed", e)
                 return@withContext Result.failure(Exception("Python 모듈 호출 실패: ${e.message}", e))
@@ -164,7 +164,7 @@ class MarketDepositRepositoryImpl @Inject constructor(
                 // 2. 업데이트 필요 - 최신 데이터만 가져오기
                 logger.d("Fetching latest market deposit data from Python...")
                 val latestMarketData = try {
-                    pyClient.getLatestMarketData()
+                    depositScraper.getLatestMarketData()
                 } catch (e: Exception) {
                     logger.e("Python call failed", e)
                     // Python 실패 시 캐시된 데이터라도 반환

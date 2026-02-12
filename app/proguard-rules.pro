@@ -27,13 +27,18 @@
 -keep class com.etfmonitor.core.database.entities.** { *; }
 
 # --------------------------------------------
-# Python/Chaquopy Integration
+# kotlin_krx Native KRX Library
 # --------------------------------------------
--keep class com.chaquo.python.** { *; }
--keep class com.chaquo.python.PyObject { *; }
--keepclassmembers class * {
-    @com.chaquo.python.** *;
-}
+-keep class com.krxkt.** { *; }
+-dontwarn com.krxkt.**
+
+# Gson (used by kotlin_krx internally)
+-keep class com.google.gson.** { *; }
+-dontwarn com.google.gson.**
+
+# Jsoup (HTML parser for deposit scraper)
+-keep class org.jsoup.** { *; }
+-dontwarn org.jsoup.**
 
 # --------------------------------------------
 # Kotlinx Serialization

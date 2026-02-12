@@ -1,11 +1,11 @@
 package com.etfmonitor.feature.market.data.repository
 
 import com.etfmonitor.core.common.util.AppLogger
+import com.etfmonitor.core.analysis.MarketOscillatorCalculator
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.MarketOscillatorDao
 import com.etfmonitor.core.database.entities.MarketOscillatorData as MarketOscillatorEntity
 import com.etfmonitor.core.database.entities.Setting
-import com.etfmonitor.core.network.python.OscillatorPyClient
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toDomain
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toOscillatorDomainList
 import com.etfmonitor.feature.market.domain.model.MarketOscillator
@@ -15,8 +15,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -26,6 +24,7 @@ import javax.inject.Singleton
  * Market Oscillator Repository Implementation
  *
  * Clean Architecture 패턴을 따르는 직접 구현:
+ * - MarketOscillatorCalculator를 사용한 네이티브 Kotlin 계산
  * - 180초 timeout으로 200+ 주식 데이터 수집
  * - KOSPI/KOSDAQ 과매수/과매도 지표 관리
  */
@@ -33,7 +32,7 @@ import javax.inject.Singleton
 class MarketOscillatorRepositoryImpl @Inject constructor(
     private val dao: MarketOscillatorDao,
     private val etfDao: EtfDao,
-    private val pyClient: OscillatorPyClient
+    private val oscillatorCalculator: MarketOscillatorCalculator
 ) : MarketOscillatorRepository {
 
     companion object {
@@ -41,19 +40,6 @@ class MarketOscillatorRepositoryImpl @Inject constructor(
         private const val DEFAULT_KEEP_DAYS = 365
         private const val KEY_DIALOG_DISMISSED = "market_oscillator_dialog_dismissed"
     }
-
-    private val json = Json {
-        ignoreUnknownKeys = true
-        coerceInputValues = true
-    }
-
-    @Serializable
-    private data class MarketOscillatorResponse(
-        val dates: List<String> = emptyList(),
-        val index: List<Double> = emptyList(),
-        val oscillator: List<Double> = emptyList(),
-        val error: String? = null
-    )
 
     override fun getMarketData(market: String): Flow<List<MarketOscillator>> =
         dao.getMarketData(market)
@@ -113,36 +99,32 @@ class MarketOscillatorRepositoryImpl @Inject constructor(
             val startDateStr = startDate.format(formatter)
             val endDateStr = endDate.format(formatter)
 
-            // Python에서 데이터 수집
+            // 네이티브 Kotlin 오실레이터 계산
             onProgress?.invoke("$market 시장 지수 데이터 수집 중...", 30)
-            val jsonStr = pyClient.getMarketOscillator(market, startDateStr, endDateStr)
-            val response = json.decodeFromString<MarketOscillatorResponse>(jsonStr)
+            val result = oscillatorCalculator.analyze(market, startDateStr, endDateStr)
 
-            if (response.error != null) {
-                logger.e("Error fetching market data: ${response.error}")
-                return@withContext Result.failure(Exception(response.error))
+            if (result == null) {
+                logger.e("Oscillator calculation returned null for $market")
+                return@withContext Result.failure(Exception("데이터를 가져오지 못했습니다"))
             }
 
             onProgress?.invoke("$market 데이터 처리 중...", 70)
 
             // 데이터 검증
-            if (response.dates.isEmpty() || response.index.isEmpty() || response.oscillator.isEmpty()) {
-                logger.e("Empty data received from Python")
+            if (result.dates.isEmpty() || result.indexValues.isEmpty() || result.oscillator.isEmpty()) {
+                logger.e("Empty data received from oscillator calculator")
                 return@withContext Result.failure(Exception("데이터를 가져오지 못했습니다"))
             }
 
-            val dates = response.dates
-            val indexValues = response.index
-            val oscillators = response.oscillator
-
-            // Entity 리스트 생성
-            val dataList = dates.indices.map { i ->
+            // Entity 리스트 생성 (병렬 리스트 길이 안전 검증)
+            val safeSize = minOf(result.dates.size, result.indexValues.size, result.oscillator.size)
+            val dataList = (0 until safeSize).map { i ->
                 MarketOscillatorEntity(
-                    id = "${market}-${dates[i]}",
+                    id = "${market}-${result.dates[i]}",
                     market = market,
-                    date = dates[i],
-                    indexValue = indexValues[i],
-                    oscillator = oscillators[i]
+                    date = result.dates[i],
+                    indexValue = result.indexValues[i],
+                    oscillator = result.oscillator[i]
                 )
             }
 
@@ -175,33 +157,29 @@ class MarketOscillatorRepositoryImpl @Inject constructor(
             val startDateStr = startDate.format(formatter)
             val endDateStr = endDate.format(formatter)
 
-            // Python에서 데이터 수집
-            val jsonStr = pyClient.getMarketOscillator(market, startDateStr, endDateStr)
-            val response = json.decodeFromString<MarketOscillatorResponse>(jsonStr)
+            // 네이티브 Kotlin 오실레이터 계산
+            val result = oscillatorCalculator.analyze(market, startDateStr, endDateStr)
 
-            if (response.error != null) {
-                logger.e("Error updating market data: ${response.error}")
-                return@withContext Result.failure(Exception(response.error))
-            }
-
-            // 데이터 검증
-            if (response.dates.isEmpty() || response.index.isEmpty() || response.oscillator.isEmpty()) {
-                logger.e("Empty data received from Python")
+            if (result == null) {
+                logger.e("Oscillator calculation returned null for $market update")
                 return@withContext Result.failure(Exception("데이터를 가져오지 못했습니다"))
             }
 
-            val dates = response.dates
-            val indexValues = response.index
-            val oscillators = response.oscillator
+            // 데이터 검증
+            if (result.dates.isEmpty() || result.indexValues.isEmpty() || result.oscillator.isEmpty()) {
+                logger.e("Empty data received from oscillator calculator")
+                return@withContext Result.failure(Exception("데이터를 가져오지 못했습니다"))
+            }
 
-            // Entity 리스트 생성
-            val dataList = dates.indices.map { i ->
+            // Entity 리스트 생성 (병렬 리스트 길이 안전 검증)
+            val safeSize = minOf(result.dates.size, result.indexValues.size, result.oscillator.size)
+            val dataList = (0 until safeSize).map { i ->
                 MarketOscillatorEntity(
-                    id = "${market}-${dates[i]}",
+                    id = "${market}-${result.dates[i]}",
                     market = market,
-                    date = dates[i],
-                    indexValue = indexValues[i],
-                    oscillator = oscillators[i]
+                    date = result.dates[i],
+                    indexValue = result.indexValues[i],
+                    oscillator = result.oscillator[i]
                 )
             }
 

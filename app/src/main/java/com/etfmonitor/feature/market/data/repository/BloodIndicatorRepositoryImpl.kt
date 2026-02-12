@@ -4,7 +4,7 @@ import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.database.BloodIndicatorDao
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.entities.Setting
-import com.etfmonitor.core.network.python.BloodIndicatorPyClient
+import com.etfmonitor.core.network.krx.BloodIndicatorClient
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toBloodDomainList
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toDomain
 import com.etfmonitor.feature.market.domain.model.BloodIndicator
@@ -32,7 +32,7 @@ import javax.inject.Singleton
 class BloodIndicatorRepositoryImpl @Inject constructor(
     private val bloodIndicatorDao: BloodIndicatorDao,
     private val etfDao: EtfDao,
-    private val pyClient: BloodIndicatorPyClient
+    private val bloodIndicatorClient: BloodIndicatorClient
 ) : BloodIndicatorRepository {
 
     companion object {
@@ -42,13 +42,13 @@ class BloodIndicatorRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Set FRED API key in Python client from stored settings.
+     * Set FRED API key in client from stored settings.
      * Should be called before fetching Blood Indicator data.
      */
     private suspend fun setFredApiKeyFromSettings() {
         val fredApiKey = etfDao.getSetting(KEY_FRED_API_KEY)
         if (!fredApiKey.isNullOrBlank()) {
-            pyClient.setFredApiKey(fredApiKey)
+            bloodIndicatorClient.setFredApiKey(fredApiKey)
             logger.d("FRED API key set from settings")
         } else {
             logger.w("FRED API key not configured. Blood Indicator data fetch may fail.")
@@ -126,7 +126,7 @@ class BloodIndicatorRepositoryImpl @Inject constructor(
             onProgress?.invoke("US 시장 데이터 수집 중 (Yahoo Finance + FRED)...", 20)
 
             // Fetch from Python
-            val data = pyClient.fetchBloodIndicator(startStr, endStr)
+            val data = bloodIndicatorClient.fetchBloodIndicator(startStr, endStr)
 
             if (data.isEmpty()) {
                 logger.e("No Blood Indicator data fetched")
@@ -167,7 +167,7 @@ class BloodIndicatorRepositoryImpl @Inject constructor(
             val startStr = startDate.format(formatter)
             val endStr = endDate.format(formatter)
 
-            val data = pyClient.fetchBloodIndicator(startStr, endStr)
+            val data = bloodIndicatorClient.fetchBloodIndicator(startStr, endStr)
 
             if (data.isEmpty()) {
                 logger.e("No Blood Indicator data fetched for update")

@@ -2,7 +2,7 @@ package com.etfmonitor.feature.market.data.repository
 
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.database.MarketIndexDao
-import com.etfmonitor.core.network.python.MarketIndexPyClient
+import com.etfmonitor.core.network.krx.MarketIndexClient
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toDomain
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toIndexDomainList
 import com.etfmonitor.feature.market.domain.model.MarketIndex
@@ -22,12 +22,12 @@ import javax.inject.Singleton
  *
  * Clean Architecture 패턴을 따르는 직접 구현:
  * - KOSPI/KOSDAQ 시장 지수 데이터 관리
- * - Python MarketIndexPyClient를 통한 데이터 수집
+ * - MarketIndexClient를 통한 KRX 데이터 수집
  */
 @Singleton
 class MarketIndexRepositoryImpl @Inject constructor(
     private val dao: MarketIndexDao,
-    private val pyClient: MarketIndexPyClient
+    private val marketIndexClient: MarketIndexClient
 ) : MarketIndexRepository {
 
     companion object {
@@ -104,7 +104,7 @@ class MarketIndexRepositoryImpl @Inject constructor(
                 val endStr = endDate.format(formatter)
 
                 // Python으로 데이터 수집
-                val indices = pyClient.fetchMarketIndices(startStr, endStr)
+                val indices = marketIndexClient.fetchMarketIndices(startStr, endStr)
 
                 if (indices.isEmpty()) {
                     logger.e("No market index data fetched")
@@ -136,7 +136,7 @@ class MarketIndexRepositoryImpl @Inject constructor(
                 logger.d("Updating market index data for recent $days days")
 
                 // 최근 데이터 수집
-                val indices = pyClient.fetchRecentDays(days)
+                val indices = marketIndexClient.fetchRecentDays(days)
 
                 if (indices.isEmpty()) {
                     logger.e("No market index data fetched for update")
