@@ -23,5 +23,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "EtfMonitor"
+rootProject.name = "MarketMonitor_rev2"
 include(":app")
