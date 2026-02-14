@@ -92,7 +92,7 @@ chaquopy {
 
             // Core packages
             install("pandas")
-            // pykrx REMOVED - fully migrated to kotlin_krx (Phase A complete)
+            install("pykrx")  // RESTORED - still needed by analysis feature (TimeSeriesAnalysisHelper)
             install("setuptools")
             install("wheel")
             install("requests")
