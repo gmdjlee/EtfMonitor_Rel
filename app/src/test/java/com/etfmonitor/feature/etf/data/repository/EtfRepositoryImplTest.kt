@@ -8,6 +8,8 @@ import com.etfmonitor.core.database.StockDao
 import com.etfmonitor.core.database.entities.Holding
 import com.etfmonitor.core.database.entities.Setting
 import com.etfmonitor.core.network.python.PyKrxClient
+import com.etfmonitor.core.domain.usecase.krx.GetKrxEtfHoldingsUseCase
+import com.etfmonitor.core.domain.usecase.krx.GetKrxEtfListUseCase
 import com.etfmonitor.feature.etf.data.datasource.EtfLocalDataSource
 import com.etfmonitor.feature.etf.domain.model.HoldingStatus
 import io.mockk.coEvery
@@ -48,6 +50,8 @@ class EtfRepositoryImplTest {
     private lateinit var dailyEtfStatisticsDao: DailyEtfStatisticsDao
     private lateinit var stockDao: StockDao
     private lateinit var pyKrxClient: PyKrxClient
+    private lateinit var getKrxEtfHoldingsUseCase: GetKrxEtfHoldingsUseCase
+    private lateinit var getKrxEtfListUseCase: GetKrxEtfListUseCase
 
     private lateinit var repository: EtfRepositoryImpl
 
@@ -58,13 +62,17 @@ class EtfRepositoryImplTest {
         dailyEtfStatisticsDao = mockk(relaxed = true)
         stockDao = mockk(relaxed = true)
         pyKrxClient = mockk(relaxed = true)
+        getKrxEtfHoldingsUseCase = mockk(relaxed = true)
+        getKrxEtfListUseCase = mockk(relaxed = true)
 
         repository = EtfRepositoryImpl(
             localDataSource = localDataSource,
             etfDao = etfDao,
             dailyEtfStatisticsDao = dailyEtfStatisticsDao,
             stockDao = stockDao,
-            pyKrx = pyKrxClient
+            pyKrx = pyKrxClient,
+            getKrxEtfHoldingsUseCase = getKrxEtfHoldingsUseCase,
+            getKrxEtfListUseCase = getKrxEtfListUseCase
         )
     }
 
