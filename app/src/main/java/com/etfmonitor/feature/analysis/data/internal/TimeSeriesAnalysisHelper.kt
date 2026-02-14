@@ -5,7 +5,7 @@ import com.etfmonitor.core.analysis.*
 import com.etfmonitor.core.database.*
 import com.etfmonitor.core.database.entities.*
 import com.etfmonitor.core.analysis.model.StockOhlcvData
-import com.etfmonitor.core.network.python.OscillatorPyClient
+import com.etfmonitor.core.domain.repository.StockDataRepository
 import com.etfmonitor.core.common.util.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -25,6 +25,10 @@ import kotlin.math.sqrt
 /**
  * 시계열 분석 Repository
  * 모든 수집된 데이터를 시계열로 통합하여 분석
+ *
+ * ## Migration (pykrx → kotlin_krx)
+ * - Replaced OscillatorPyClient with StockDataRepository
+ * - Uses kotlin_krx + TechnicalAnalysisEngine for stock data operations
  */
 @Singleton
 class TimeSeriesAnalysisHelper @Inject constructor(
@@ -34,7 +38,7 @@ class TimeSeriesAnalysisHelper @Inject constructor(
     private val marketDepositDao: MarketDepositDao,
     private val dailyEtfStatisticsDao: DailyEtfStatisticsDao,
     private val aiApiClientFactory: AIApiClientFactory,
-    private val oscillatorPyClient: OscillatorPyClient,
+    private val stockDataRepository: StockDataRepository,
     private val etfDao: EtfDao,
     private val stockIndicatorAIResultDao: StockIndicatorAIResultDao
 ) {
@@ -688,20 +692,46 @@ class TimeSeriesAnalysisHelper @Inject constructor(
 
     /**
      * 종목 검색
+     *
+     * Migration: OscillatorPyClient.searchStock() → StockDataRepository.getAllStocksList() + filter
      */
     suspend fun searchStock(query: String): Pair<String, String>? = withContext(Dispatchers.IO) {
-        oscillatorPyClient.searchStock(query)
+        try {
+            val allStocks = stockDataRepository.getAllStocksList()
+
+            // 6-digit ticker 직접 입력인 경우
+            if (query.matches(Regex("\\d{6}"))) {
+                return@withContext allStocks.find { it.first == query }
+            }
+
+            // 종목명으로 검색 (부분 일치)
+            return@withContext allStocks.find { (_, name) ->
+                name.contains(query, ignoreCase = true)
+            }
+        } catch (e: Exception) {
+            logger.e("searchStock error: ${e.message}", e)
+            null
+        }
     }
 
     /**
      * 전체 종목 리스트 가져오기
+     *
+     * Migration: OscillatorPyClient.getAllStocksList() → StockDataRepository.getAllStocksList()
      */
     suspend fun getAllStocksList(): List<Pair<String, String>> = withContext(Dispatchers.IO) {
-        oscillatorPyClient.getAllStocksList()
+        try {
+            stockDataRepository.getAllStocksList()
+        } catch (e: Exception) {
+            logger.e("getAllStocksList error: ${e.message}", e)
+            emptyList()
+        }
     }
 
     /**
      * 종목 OHLCV 시계열 데이터 수집
+     *
+     * Migration: OscillatorPyClient.getStockOhlcv() → StockDataRepository.getStockOhlcv()
      */
     suspend fun collectStockTimeSeriesData(
         ticker: String,
@@ -710,7 +740,7 @@ class TimeSeriesAnalysisHelper @Inject constructor(
         try {
             logger.d("Collecting stock time series data for $ticker, $periodDays days")
 
-            val ohlcvData = oscillatorPyClient.getStockOhlcv(ticker, periodDays, "d")
+            val ohlcvData = stockDataRepository.getStockOhlcv(ticker, periodDays, "d")
 
             if (ohlcvData == null || ohlcvData.dates.isEmpty()) {
                 return@withContext Result.failure(Exception("종목 데이터를 가져올 수 없습니다: $ticker"))
@@ -1116,8 +1146,8 @@ class TimeSeriesAnalysisHelper @Inject constructor(
             val startDateStr = startDate.format(dateFormatter)
             val endDateStr = endDate.format(dateFormatter)
 
-            // 1. 종목 주가 데이터 수집
-            val stockData = oscillatorPyClient.getStockOhlcv(request.ticker, request.periodDays, "d")
+            // 1. 종목 주가 데이터 수집 (Migration: StockDataRepository)
+            val stockData = stockDataRepository.getStockOhlcv(request.ticker, request.periodDays, "d")
             if (stockData == null || stockData.dates.isEmpty()) {
                 return@withContext Result.failure(Exception("종목 주가 데이터를 가져올 수 없습니다: ${request.ticker}"))
             }
