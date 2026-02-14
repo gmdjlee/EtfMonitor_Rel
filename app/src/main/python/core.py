@@ -9,7 +9,6 @@ import sys
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 import requests
-from pykrx import stock
 
 # Logger setup
 _loggers: Dict[str, logging.Logger] = {}
@@ -32,14 +31,6 @@ MAX_RETRIES = 3
 RETRY_DELAY = 2
 REQ_DELAY = 0.5
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-CASH_TICKER = "010010"  # 원화예금
-REF_TICKER = "005930"   # 삼성전자 (영업일 판단용)
-
-# Market config
-MARKETS = {
-    "KOSPI": {"idx": "1001", "comp": "1028", "name": "코스피"},
-    "KOSDAQ": {"idx": "2001", "comp": "2203", "name": "코스닥"}
-}
 
 
 class HttpClient:
@@ -133,96 +124,6 @@ def today() -> str:
 def days_ago(n: int) -> str:
     """Get date n days ago as YYYYMMDD."""
     return (datetime.now() - timedelta(days=n)).strftime("%Y%m%d")
-
-
-def market_date() -> str:
-    """Get latest market date (most recent business day)."""
-    # Try up to 7 days back to find a valid market date
-    for i in range(7):
-        d = days_ago(i)
-        try:
-            tickers = stock.get_market_ticker_list(d, market="KOSPI")
-            if tickers is not None and len(list(tickers)) > 0:
-                return d
-        except Exception:
-            continue
-    # Fallback to yesterday if nothing found
-    return days_ago(1)
-
-
-def is_business_day(date_str: str) -> bool:
-    """Check if date is a business day."""
-    try:
-        df = stock.get_market_ohlcv(date_str, date_str, REF_TICKER)
-        return not df.empty
-    except Exception:
-        return False
-
-
-def get_business_days(start: str, end: str) -> str:
-    """Get business days in range as JSON string."""
-    try:
-        s, e = parse_date(start), parse_date(end)
-        if not s or not e or s > e:
-            return to_json([])
-
-        days = []
-        cur = s
-        while cur <= e:
-            d = cur.strftime("%Y%m%d")
-            if is_business_day(d):
-                days.append(d)
-            cur += timedelta(days=1)
-        return to_json(days)
-    except Exception:
-        return to_json([])
-
-
-# Stock utilities
-def get_tickers(market: Optional[str] = None, date: Optional[str] = None) -> List[str]:
-    """Get stock tickers for market(s)."""
-    d = date or market_date()
-    try:
-        if market and market in MARKETS:
-            return list(stock.get_market_ticker_list(d, market=market))
-        # All markets
-        kospi = list(stock.get_market_ticker_list(d, market="KOSPI"))
-        kosdaq = list(stock.get_market_ticker_list(d, market="KOSDAQ"))
-        return kospi + kosdaq
-    except Exception:
-        return []
-
-
-def get_name(ticker: str) -> str:
-    """Get stock name by ticker."""
-    if not ticker:
-        return ""
-    if ticker == CASH_TICKER:
-        return "원화예금"
-    try:
-        name = stock.get_market_ticker_name(ticker)
-        return str(name).strip() if name else ""
-    except Exception:
-        return ""
-
-
-def get_etf_tickers(date: Optional[str] = None) -> List[str]:
-    """Get ETF tickers."""
-    d = date or market_date()
-    try:
-        tickers = stock.get_etf_ticker_list(d)
-        return [str(t) for t in tickers] if tickers else []
-    except Exception:
-        return []
-
-
-def get_etf_name(ticker: str) -> str:
-    """Get ETF name by ticker."""
-    try:
-        name = stock.get_etf_ticker_name(ticker)
-        return str(name).strip() if name else ""
-    except Exception:
-        return ""
 
 
 # JSON helpers

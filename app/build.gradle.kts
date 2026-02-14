@@ -92,7 +92,6 @@ chaquopy {
 
             // Core packages
             install("pandas")
-            install("pykrx")  // RESTORED - still needed by analysis feature (TimeSeriesAnalysisHelper)
             install("setuptools")
             install("wheel")
             install("requests")
