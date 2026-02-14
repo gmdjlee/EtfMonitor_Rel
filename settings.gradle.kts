@@ -25,3 +25,8 @@ dependencyResolutionManagement {
 
 rootProject.name = "MarketMonitor_rev2"
 include(":app")
+includeBuild("D:/android_2025/kotlin_krx") {
+    dependencySubstitution {
+        substitute(module("com.krxkt:kotlin-krx")).using(project(":"))
+    }
+}

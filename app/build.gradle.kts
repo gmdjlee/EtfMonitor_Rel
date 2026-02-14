@@ -108,6 +108,9 @@ chaquopy {
 }
 
 dependencies {
+    // kotlin_krx integration
+    implementation("com.krxkt:kotlin-krx")
+
     // Core
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

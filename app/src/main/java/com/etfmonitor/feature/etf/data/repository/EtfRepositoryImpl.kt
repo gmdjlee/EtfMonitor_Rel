@@ -17,6 +17,8 @@ import com.etfmonitor.core.database.StockDao
 import com.etfmonitor.core.database.entities.DailyEtfStatistics
 import com.etfmonitor.core.database.entities.Holding
 import com.etfmonitor.core.database.entities.Setting
+import com.etfmonitor.core.domain.usecase.krx.GetKrxEtfHoldingsUseCase
+import com.etfmonitor.core.domain.usecase.krx.GetKrxEtfListUseCase
 import com.etfmonitor.core.network.python.PyKrxClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -53,7 +55,9 @@ class EtfRepositoryImpl @Inject constructor(
     private val etfDao: EtfDao,
     private val dailyEtfStatisticsDao: DailyEtfStatisticsDao,
     private val stockDao: StockDao,
-    private val pyKrx: PyKrxClient
+    private val pyKrx: PyKrxClient,  // KEEP for getBusinessDays()
+    private val getKrxEtfHoldingsUseCase: GetKrxEtfHoldingsUseCase,
+    private val getKrxEtfListUseCase: GetKrxEtfListUseCase
 ) : EtfRepository {
 
     companion object {
@@ -425,11 +429,14 @@ class EtfRepositoryImpl @Inject constructor(
 
                 val dateYYYYMMDD = date.replace("-", "")
 
-                val validEtfs = pyKrx.getFilteredEtfList(
+                val validEtfs = getKrxEtfListUseCase(
                     date = dateYYYYMMDD,
                     includeKeywords = includeKeywords,
                     excludeKeywords = exclusions
-                )
+                ).getOrElse {
+                    logger.e("kotlin_krx ETF list failed for $dateYYYYMMDD")
+                    emptyList()
+                }
 
                 logger.d("Filtered ETFs for $date: ${validEtfs.size}")
 
@@ -525,11 +532,14 @@ class EtfRepositoryImpl @Inject constructor(
 
                 val dateYYYYMMDD = date.replace("-", "")
 
-                val validEtfs = pyKrx.getFilteredEtfList(
+                val validEtfs = getKrxEtfListUseCase(
                     date = dateYYYYMMDD,
                     includeKeywords = includeKeywords,
                     excludeKeywords = exclusions
-                )
+                ).getOrElse {
+                    logger.e("kotlin_krx ETF list failed for $dateYYYYMMDD")
+                    emptyList()
+                }
 
                 val results = processEtfsInParallel(validEtfs, dateYYYYMMDD, date)
                 totalEtfs += results.count { it.holdings.isNotEmpty() }
@@ -678,7 +688,8 @@ class EtfRepositoryImpl @Inject constructor(
                         }
 
                         etfDao.insertEtf(etf)
-                        val holdings = pyKrx.getHoldings(etf.ticker, dateYYYYMMDD)
+                        val holdings = getKrxEtfHoldingsUseCase(etf.ticker, dateYYYYMMDD)
+                            .getOrElse { emptyList() }
 
                         if (holdings.isNotEmpty()) {
                             etfDao.insertHoldings(holdings)

@@ -3,6 +3,8 @@ package com.etfmonitor.feature.etf.di
 import com.etfmonitor.core.database.DailyEtfStatisticsDao
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.StockDao
+import com.etfmonitor.core.domain.usecase.krx.GetKrxEtfHoldingsUseCase
+import com.etfmonitor.core.domain.usecase.krx.GetKrxEtfListUseCase
 import com.etfmonitor.core.network.python.PyKrxClient
 import com.etfmonitor.feature.etf.data.datasource.EtfLocalDataSource
 import com.etfmonitor.feature.etf.data.repository.EtfRepositoryImpl
@@ -53,13 +55,17 @@ object EtfModule {
         etfDao: EtfDao,
         dailyEtfStatisticsDao: DailyEtfStatisticsDao,
         stockDao: StockDao,
-        pyKrxClient: PyKrxClient
+        pyKrxClient: PyKrxClient,  // KEEP for getBusinessDays()
+        getKrxEtfHoldingsUseCase: GetKrxEtfHoldingsUseCase,
+        getKrxEtfListUseCase: GetKrxEtfListUseCase
     ): EtfRepository = EtfRepositoryImpl(
         localDataSource,
         etfDao,
         dailyEtfStatisticsDao,
         stockDao,
-        pyKrxClient
+        pyKrxClient,
+        getKrxEtfHoldingsUseCase,
+        getKrxEtfListUseCase
     )
 
     // ========== Use Cases ==========

@@ -5,4 +5,5 @@ plugins {
     alias(libs.plugins.google.devtools.ksp) apply false
     alias(libs.plugins.chaquopy) apply false
     alias(libs.plugins.compose.compiler) apply false
+    kotlin("jvm") version "2.1.0" apply false
 }
