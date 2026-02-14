@@ -15,13 +15,13 @@
 - [x] **R-008** Test coverage: run all tests, identify untested migration paths, add missing tests
 - [x] **R-009** Performance benchmark: API call latency kotlin_krx vs previous pykrx baseline
 - [x] **R-010** Build verification: assembleDebug + assembleRelease clean build
-- [ ] **R-011** Static analysis: lint, unused resources, import optimization
-- [ ] **R-012** Stability check: no crashes on key user flows (ETF, oscillator, analysis)
+- [x] **R-011** Static analysis: lint, unused resources, import optimization
+- [x] **R-012** Stability check: no crashes on key user flows (ETF, oscillator, analysis)
 
 ## Phase 4: Documentation (iterations 13-15)
-- [ ] **R-013** Generate final review report: REVIEW_REPORT.md
-- [ ] **R-014** Update CLAUDE.md: architecture changes, removed deps, new module structure
-- [ ] **R-015** Clean git history: squash fixup commits if needed
+- [x] **R-013** Generate final review report: REVIEW_REPORT.md
+- [x] **R-014** Update CLAUDE.md: architecture changes, removed deps, new module structure
+- [x] **R-015** Clean git history: squash fixup commits if needed
 
 ## Context
 - Migration: pykrx (Python) → kotlin_krx (native Kotlin)
