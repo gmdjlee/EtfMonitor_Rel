@@ -155,9 +155,9 @@ class CorrelationAnalyzerTest {
             // When & Then
             testCases.forEach { (x, y) ->
                 val result = calculatePearson(x, y)
-                assertTrue(result >= -1.0 && result <= 1.0) {
+                assertTrue(result >= -1.0 && result <= 1.0,
                     "Correlation $result should be between -1 and 1 for x=$x, y=$y"
-                }
+                )
             }
         }
 
