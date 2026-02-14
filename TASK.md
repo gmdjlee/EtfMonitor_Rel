@@ -14,7 +14,7 @@
 ## Phase 3: Quality Gate (iterations 8-12)
 - [x] **R-008** Test coverage: run all tests, identify untested migration paths, add missing tests
 - [x] **R-009** Performance benchmark: API call latency kotlin_krx vs previous pykrx baseline
-- [ ] **R-010** Build verification: assembleDebug + assembleRelease clean build
+- [x] **R-010** Build verification: assembleDebug + assembleRelease clean build
 - [ ] **R-011** Static analysis: lint, unused resources, import optimization
 - [ ] **R-012** Stability check: no crashes on key user flows (ETF, oscillator, analysis)
 
