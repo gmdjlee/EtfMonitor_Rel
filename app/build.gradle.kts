@@ -163,6 +163,9 @@ dependencies {
     // OkHttp for Claude API
     implementation(libs.okhttp)
 
+    // Jsoup for HTML parsing (Naver Finance scraping)
+    implementation("org.jsoup:jsoup:1.17.2")
+
     // Security - Encrypted SharedPreferences for API key storage
     implementation(libs.androidx.security.crypto)
 

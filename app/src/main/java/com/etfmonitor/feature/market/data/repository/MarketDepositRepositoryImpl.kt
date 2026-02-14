@@ -4,7 +4,7 @@ import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.common.util.DateFormatter
 import com.etfmonitor.core.database.MarketDepositDao
 import com.etfmonitor.core.database.entities.MarketDeposit as MarketDepositEntity
-import com.etfmonitor.core.network.python.OscillatorPyClient
+import com.etfmonitor.core.network.scraper.NaverFinanceScraper
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toDomain
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toDepositDomainList
 import com.etfmonitor.feature.market.domain.model.MarketDeposit
@@ -24,12 +24,13 @@ import javax.inject.Singleton
  *
  * Clean Architecture 패턴을 따르는 직접 구현:
  * - 12시간 캐싱 전략
- * - 스마트 업데이트 (캐시 확인 후 필요시 Python 호출)
+ * - 스마트 업데이트 (캐시 확인 후 필요시 Naver Finance 스크래핑)
+ * - NaverFinanceScraper를 통한 Kotlin 네이티브 웹 스크래핑
  */
 @Singleton
 class MarketDepositRepositoryImpl @Inject constructor(
     private val marketDepositDao: MarketDepositDao,
-    private val pyClient: OscillatorPyClient
+    private val naverFinanceScraper: NaverFinanceScraper
 ) : MarketDepositRepository {
 
     companion object {
@@ -68,28 +69,28 @@ class MarketDepositRepositoryImpl @Inject constructor(
         }
 
     /**
-     * 증시 자금 데이터 초기화 (Python에서 가져와서 DB에 저장)
+     * 증시 자금 데이터 초기화 (Naver Finance에서 스크래핑하여 DB에 저장)
      */
     override suspend fun initializeDeposits(
         numPages: Int,
         onProgress: ((String, Int) -> Unit)?
     ): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            logger.d("Initializing market deposit data from Python...")
+            logger.d("Initializing market deposit data from Naver Finance...")
             onProgress?.invoke("증시 자금 동향 데이터 수집 준비 중...", 0)
 
-            // Python에서 증시 자금 데이터 가져오기
+            // Naver Finance에서 증시 자금 데이터 스크래핑
             onProgress?.invoke("증시 자금 동향 데이터 수집 중...", 30)
             val marketData = try {
-                pyClient.getMarketDepositData(numPages)
+                naverFinanceScraper.scrapeDepositData(numPages)
             } catch (e: Exception) {
-                logger.e("Python call failed", e)
-                return@withContext Result.failure(Exception("Python 모듈 호출 실패: ${e.message}", e))
+                logger.e("Naver Finance scraping failed", e)
+                return@withContext Result.failure(Exception("Naver Finance 스크래핑 실패: ${e.message}", e))
             }
 
             if (marketData == null) {
-                logger.e("Failed to get market deposit data from Python")
-                return@withContext Result.failure(Exception("Python 모듈 호출 실패: null 반환"))
+                logger.e("Failed to get market deposit data from Naver Finance")
+                return@withContext Result.failure(Exception("Naver Finance 스크래핑 실패: null 반환"))
             }
 
             onProgress?.invoke("데이터 처리 중...", 70)
@@ -154,14 +155,14 @@ class MarketDepositRepositoryImpl @Inject constructor(
                 }
 
                 // 2. 업데이트 필요 - 최신 데이터만 가져오기
-                logger.d("Fetching latest market deposit data from Python...")
+                logger.d("Fetching latest market deposit data from Naver Finance...")
                 val latestMarketData = try {
-                    pyClient.getLatestMarketData()
+                    naverFinanceScraper.getLatestData()
                 } catch (e: Exception) {
-                    logger.e("Python call failed", e)
-                    // Python 실패 시 캐시된 데이터라도 반환
+                    logger.e("Naver Finance scraping failed", e)
+                    // 스크래핑 실패 시 캐시된 데이터라도 반환
                     return@withContext if (existingDeposits.isNotEmpty()) {
-                        logger.d("Returning cached market data due to Python error")
+                        logger.d("Returning cached market data due to scraping error")
                         convertToMarketDepositData(existingDeposits)
                     } else {
                         null
@@ -169,8 +170,8 @@ class MarketDepositRepositoryImpl @Inject constructor(
                 }
 
                 if (latestMarketData == null) {
-                    logger.e("Failed to fetch latest market data from Python")
-                    // Python 실패 시 캐시된 데이터라도 반환
+                    logger.e("Failed to fetch latest market data from Naver Finance")
+                    // 스크래핑 실패 시 캐시된 데이터라도 반환
                     return@withContext if (existingDeposits.isNotEmpty()) {
                         logger.d("Returning stale cached market data")
                         convertToMarketDepositData(existingDeposits)
