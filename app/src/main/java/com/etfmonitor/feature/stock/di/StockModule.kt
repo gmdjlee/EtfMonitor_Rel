@@ -3,7 +3,12 @@ package com.etfmonitor.feature.stock.di
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.StockAnalysisDao
 import com.etfmonitor.core.database.StockDao
-import com.etfmonitor.core.network.python.OscillatorPyClient
+import com.etfmonitor.core.data.repository.krx.KrxStockDataRepositoryImpl
+import com.etfmonitor.core.domain.repository.StockDataRepository
+import com.etfmonitor.core.domain.usecase.krx.GetDemarkTDDataUseCase
+import com.etfmonitor.core.domain.usecase.krx.GetElderImpulseDataUseCase
+import com.etfmonitor.core.domain.usecase.krx.GetStockOhlcvUseCase
+import com.etfmonitor.core.domain.usecase.krx.GetTrendSignalDataUseCase
 import com.etfmonitor.feature.stock.data.datasource.StockAnalysisLocalDataSource
 import com.etfmonitor.feature.stock.data.datasource.StockLocalDataSource
 import com.etfmonitor.feature.stock.data.datasource.StockStatisticsLocalDataSource
@@ -15,6 +20,7 @@ import com.etfmonitor.feature.stock.domain.repository.StockAnalysisRepository
 import com.etfmonitor.feature.stock.domain.repository.StockRepository
 import com.etfmonitor.feature.stock.domain.repository.StockStatisticsRepository
 import com.etfmonitor.feature.stock.domain.repository.StockTrendRepository
+import com.krxkt.KrxStock
 import com.etfmonitor.feature.stock.domain.usecase.AnalyzeStockUseCase
 import com.etfmonitor.feature.stock.domain.usecase.GetCashDepositTrendUseCase
 import com.etfmonitor.feature.stock.domain.usecase.GetStatisticsDatesUseCase
@@ -35,10 +41,15 @@ import javax.inject.Singleton
  *
  * Stock Feature에 필요한 의존성을 제공합니다.
  *
+ * ## T-012/T-013 MIGRATION (pykrx → kotlin_krx)
+ * - Added StockDataRepository (kotlin_krx + TechnicalAnalysisEngine)
+ * - Added 4 kotlin_krx UseCases
+ * - Replaced OscillatorPyClient with StockDataRepository in StockRepository/StockAnalysisRepository
+ *
  * ## 제공되는 의존성
  * - Data Sources: StockLocalDataSource, StockAnalysisLocalDataSource, StockStatisticsLocalDataSource
- * - Repositories: StockRepository, StockAnalysisRepository, StockTrendRepository, StockStatisticsRepository
- * - Use Cases: All stock-related use cases
+ * - Repositories: StockRepository, StockAnalysisRepository, StockTrendRepository, StockStatisticsRepository, StockDataRepository
+ * - Use Cases: All stock-related use cases + 4 kotlin_krx technical analysis UseCases
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -68,21 +79,27 @@ object StockModule {
 
     @Provides
     @Singleton
+    fun provideStockDataRepository(
+        krxStock: KrxStock
+    ): StockDataRepository = KrxStockDataRepositoryImpl(krxStock)
+
+    @Provides
+    @Singleton
     fun provideStockRepository(
         localDataSource: StockLocalDataSource,
-        pyClient: OscillatorPyClient
-    ): StockRepository = StockRepositoryImpl(localDataSource, pyClient)
+        stockDataRepository: StockDataRepository
+    ): StockRepository = StockRepositoryImpl(localDataSource, stockDataRepository)
 
     @Provides
     @Singleton
     fun provideStockAnalysisRepository(
         analysisLocalDataSource: StockAnalysisLocalDataSource,
         stockLocalDataSource: StockLocalDataSource,
-        pyClient: OscillatorPyClient
+        stockDataRepository: StockDataRepository
     ): StockAnalysisRepository = StockAnalysisRepositoryImpl(
         analysisLocalDataSource,
         stockLocalDataSource,
-        pyClient
+        stockDataRepository
     )
 
     @Provides
@@ -152,4 +169,30 @@ object StockModule {
     fun provideInitializeStocksUseCase(
         repository: StockRepository
     ): InitializeStocksUseCase = InitializeStocksUseCase(repository)
+
+    // ========== kotlin_krx Technical Analysis UseCases ==========
+
+    @Provides
+    @Singleton
+    fun provideGetTrendSignalDataUseCase(
+        stockDataRepository: StockDataRepository
+    ): GetTrendSignalDataUseCase = GetTrendSignalDataUseCase(stockDataRepository)
+
+    @Provides
+    @Singleton
+    fun provideGetElderImpulseDataUseCase(
+        stockDataRepository: StockDataRepository
+    ): GetElderImpulseDataUseCase = GetElderImpulseDataUseCase(stockDataRepository)
+
+    @Provides
+    @Singleton
+    fun provideGetDemarkTDDataUseCase(
+        stockDataRepository: StockDataRepository
+    ): GetDemarkTDDataUseCase = GetDemarkTDDataUseCase(stockDataRepository)
+
+    @Provides
+    @Singleton
+    fun provideGetStockOhlcvUseCase(
+        stockDataRepository: StockDataRepository
+    ): GetStockOhlcvUseCase = GetStockOhlcvUseCase(stockDataRepository)
 }

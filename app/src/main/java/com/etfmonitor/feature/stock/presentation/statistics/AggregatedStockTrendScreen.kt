@@ -479,12 +479,15 @@ private fun AggregatedDataTable(timeSeries: List<StockAggregatedTimePoint>) {
  * - @AssistedInject: 런타임 파라미터(stockTicker)와 Hilt 의존성(repository)을 모두 지원
  * - AssistedFactory: 타입 안전한 팩토리 패턴
  * - EtfMonitorApp.instance 제거: 메모리 누수 위험 제거
+ *
+ * T-012 MIGRATION (pykrx → kotlin_krx):
+ * - Removed unused OscillatorPyClient dependency
+ * - No pyClient method calls found in ViewModel or UI
  */
 class AggregatedStockTrendViewModel @AssistedInject constructor(
     @Assisted val stockTicker: String,
     private val stockStatisticsRepository: StockStatisticsRepository,
-    private val etfDao: com.etfmonitor.core.database.EtfDao,
-    val pyClient: com.etfmonitor.core.network.python.OscillatorPyClient
+    private val etfDao: com.etfmonitor.core.database.EtfDao
 ) : ViewModel() {
 
     @AssistedFactory

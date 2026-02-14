@@ -5,7 +5,7 @@ import com.etfmonitor.feature.stock.data.mapper.StockMapper.toDomain
 import com.etfmonitor.core.common.util.NetworkException
 import com.etfmonitor.feature.stock.domain.model.Stock
 import com.etfmonitor.feature.stock.domain.repository.StockRepository
-import com.etfmonitor.core.network.python.OscillatorPyClient
+import com.etfmonitor.core.domain.repository.StockDataRepository
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.database.entities.Stock as StockEntity
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +24,11 @@ import javax.inject.Singleton
  * ## 주요 기능
  * - 전체 종목 조회/검색
  * - ETF 보유 종목 자동 동기화
- * - 종목 데이터 초기화 (Python에서 가져오기)
+ * - 종목 데이터 초기화 (kotlin_krx에서 가져오기)
+ *
+ * ## T-012/T-013 MIGRATION
+ * - Replaced OscillatorPyClient with StockDataRepository
+ * - initializeStocks() now uses kotlin_krx KrxStock.getTickerList()
  *
  * ## 스레드 안전성
  * - 모든 Flow는 flowOn(Dispatchers.IO)로 실행
@@ -33,7 +37,7 @@ import javax.inject.Singleton
 @Singleton
 class StockRepositoryImpl @Inject constructor(
     private val localDataSource: StockLocalDataSource,
-    private val pyClient: OscillatorPyClient
+    private val stockDataRepository: StockDataRepository
 ) : StockRepository {
 
     companion object {
@@ -107,12 +111,12 @@ class StockRepositoryImpl @Inject constructor(
 
     override suspend fun initializeStocks(): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            logger.d("Initializing stock data from Python...")
+            logger.d("Initializing stock data from kotlin_krx...")
 
-            val stockList = pyClient.getAllStocksList()
+            val stockList = stockDataRepository.getAllStocksList()
 
             if (stockList.isEmpty()) {
-                logger.e("Failed to get stocks list from Python (empty result - possible network issue)")
+                logger.e("Failed to get stocks list from kotlin_krx (empty result - possible network issue)")
                 return@withContext Result.failure(
                     NetworkException("종목 데이터를 가져올 수 없습니다. 네트워크 연결을 확인해 주세요.")
                 )
@@ -130,7 +134,7 @@ class StockRepositoryImpl @Inject constructor(
             localDataSource.deleteAll()
             localDataSource.insertAll(stocks)
 
-            logger.d("Successfully initialized ${stocks.size} stocks")
+            logger.d("Successfully initialized ${stocks.size} stocks from kotlin_krx")
             Result.success(stocks.size)
         } catch (e: Exception) {
             logger.e("Error initializing stocks", e)

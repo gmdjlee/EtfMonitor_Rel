@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.core.database.EtfDao
-import com.etfmonitor.core.network.python.OscillatorPyClient
 import com.etfmonitor.core.ui.component.DateRangeOption
 import com.etfmonitor.feature.stock.domain.model.StockTrend
 import com.etfmonitor.feature.stock.domain.usecase.GetStockTrendUseCase
@@ -22,16 +21,18 @@ import javax.inject.Inject
  *
  * ETF 내 특정 종목의 시계열 추이를 표시하는 화면의 ViewModel입니다.
  *
+ * ## T-012 MIGRATION (pykrx → kotlin_krx)
+ * - Removed unused OscillatorPyClient dependency
+ * - No pyClient method calls found in ViewModel or UI
+ *
  * @property getStockTrendUseCase 종목 추이 조회 유스케이스
  * @property etfDao 설정 조회용 DAO
- * @property pyClient 차트 분석용 Python 클라이언트
  * @property savedStateHandle Navigation arguments
  */
 @HiltViewModel
 class StockTrendViewModel @Inject constructor(
     private val getStockTrendUseCase: GetStockTrendUseCase,
     private val etfDao: EtfDao,
-    val pyClient: OscillatorPyClient,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
