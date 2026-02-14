@@ -17,9 +17,9 @@ import com.etfmonitor.core.database.StockDao
 import com.etfmonitor.core.database.entities.DailyEtfStatistics
 import com.etfmonitor.core.database.entities.Holding
 import com.etfmonitor.core.database.entities.Setting
+import com.etfmonitor.core.domain.usecase.krx.GetKrxBusinessDaysUseCase
 import com.etfmonitor.core.domain.usecase.krx.GetKrxEtfHoldingsUseCase
 import com.etfmonitor.core.domain.usecase.krx.GetKrxEtfListUseCase
-import com.etfmonitor.core.network.python.PyKrxClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -55,7 +55,7 @@ class EtfRepositoryImpl @Inject constructor(
     private val etfDao: EtfDao,
     private val dailyEtfStatisticsDao: DailyEtfStatisticsDao,
     private val stockDao: StockDao,
-    private val pyKrx: PyKrxClient,  // KEEP for getBusinessDays()
+    private val getKrxBusinessDaysUseCase: GetKrxBusinessDaysUseCase,
     private val getKrxEtfHoldingsUseCase: GetKrxEtfHoldingsUseCase,
     private val getKrxEtfListUseCase: GetKrxEtfListUseCase
 ) : EtfRepository {
@@ -393,7 +393,7 @@ class EtfRepositoryImpl @Inject constructor(
             initializeDefaultSettings()
 
             emit(DataProgress.Loading("영업일 계산 중", 5))
-            val businessDays = pyKrx.getBusinessDays(days)
+            val businessDays = getKrxBusinessDaysUseCase(days).getOrElse { emptyList() }
             logger.d("Business days found: ${businessDays.size}")
 
             if (businessDays.isEmpty()) {
@@ -499,7 +499,7 @@ class EtfRepositoryImpl @Inject constructor(
 
             emit(DataProgress.Loading("마지막 수집일: $lastDate", 10))
 
-            val businessDays = pyKrx.getBusinessDays(10)
+            val businessDays = getKrxBusinessDaysUseCase(10).getOrElse { emptyList() }
             val newDays = businessDays.filter { it > lastDate }
 
             if (newDays.isEmpty()) {

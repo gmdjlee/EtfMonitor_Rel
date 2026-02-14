@@ -92,7 +92,7 @@ chaquopy {
 
             // Core packages
             install("pandas")
-            install("pykrx")
+            // pykrx REMOVED - fully migrated to kotlin_krx (Phase A complete)
             install("setuptools")
             install("wheel")
             install("requests")

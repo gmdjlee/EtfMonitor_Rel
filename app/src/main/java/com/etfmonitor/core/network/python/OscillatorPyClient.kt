@@ -61,8 +61,6 @@ import javax.inject.Singleton
  * - [PythonRuntimeException]: 기타 Python 실행 오류 시
  *
  * @property python Chaquopy Python 인스턴스
- *
- * @see PyKrxClient ETF 데이터 수집
  */
 @Singleton
 class OscillatorPyClient @Inject constructor(private val python: Python) {

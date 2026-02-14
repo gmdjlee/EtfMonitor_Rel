@@ -23,7 +23,14 @@
 - [x] **R-014** Update CLAUDE.md: architecture changes, removed deps, new module structure
 - [x] **R-015** Clean git history: squash fixup commits if needed
 
+## Phase 5: USER_MANUAL.md Coverage Verification (Ralph Loop)
+- [x] **R-016** Map all USER_MANUAL.md features to implementation (COVERAGE_MAP.md)
+- [x] **R-017** Verify function signatures match manual specifications
+- [x] **R-018** Validate edge cases documented in manual are handled
+- [x] **R-019** Generate COVERAGE_REVIEW_REPORT.md with findings
+
 ## Context
 - Migration: pykrx (Python) → kotlin_krx (native Kotlin)
 - Architecture: MVVM + Clean Architecture + Feature modules
 - Key requirement: 100% functional parity with pre-migration
+- New verification: USER_MANUAL.md coverage against MarketMonitor implementation

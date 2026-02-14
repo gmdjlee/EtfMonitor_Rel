@@ -2,6 +2,7 @@ package com.etfmonitor.core.analysis
 
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import kotlin.math.ln
 
@@ -95,7 +96,7 @@ object TechnicalAnalysisEngine {
 
         // Group by week (Monday = start of week)
         val grouped = rows.groupBy { row ->
-            val date = LocalDate.parse(row.date)
+            val date = LocalDate.parse(row.date, DateTimeFormatter.ofPattern("yyyyMMdd"))
             date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         }
 
@@ -133,7 +134,7 @@ object TechnicalAnalysisEngine {
 
         // Group by year-month
         val grouped = rows.groupBy { row ->
-            val date = LocalDate.parse(row.date)
+            val date = LocalDate.parse(row.date, DateTimeFormatter.ofPattern("yyyyMMdd"))
             "${date.year}-${date.monthValue.toString().padStart(2, '0')}"
         }
 

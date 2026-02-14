@@ -77,8 +77,8 @@ class KrxStockDataRepositoryImpl @Inject constructor(
             // Fetch OHLCV from kotlin_krx
             val result = krxCall(TIMEOUT_30S) {
                 krxStock.getOhlcvByTicker(
-                    startDate = start.toString(),
-                    endDate = end.toString(),
+                    startDate = DateAdapter.toKrxFormat(start),
+                    endDate = DateAdapter.toKrxFormat(end),
                     ticker = ticker
                 )
             }
@@ -160,7 +160,11 @@ class KrxStockDataRepositoryImpl @Inject constructor(
 
             // 1. Get OHLCV for close prices
             val ohlcvResult = krxCall(TIMEOUT_30S) {
-                krxStock.getOhlcvByTicker(start.toString(), end.toString(), ticker)
+                krxStock.getOhlcvByTicker(
+                    DateAdapter.toKrxFormat(start),
+                    DateAdapter.toKrxFormat(end),
+                    ticker
+                )
             }
 
             if (ohlcvResult.isFailure) {
@@ -179,7 +183,7 @@ class KrxStockDataRepositoryImpl @Inject constructor(
 
             // 2. Get latest market cap for shares outstanding
             val capResult = krxCall(TIMEOUT_30S) {
-                krxStock.getMarketCap(end.toString(), Market.ALL)
+                krxStock.getMarketCap(DateAdapter.toKrxFormat(end), Market.ALL)
             }
 
             val sharesOutstanding = if (capResult.isSuccess) {
@@ -347,7 +351,7 @@ class KrxStockDataRepositoryImpl @Inject constructor(
             // 2. Get market cap approximation
             val end = LocalDate.now()
             val capResult = krxCall(TIMEOUT_30S) {
-                krxStock.getMarketCap(end.toString(), Market.ALL)
+                krxStock.getMarketCap(DateAdapter.toKrxFormat(end), Market.ALL)
             }
 
             val sharesOutstanding = if (capResult.isSuccess) {
@@ -410,7 +414,7 @@ class KrxStockDataRepositoryImpl @Inject constructor(
             // 2. Get market cap approximation
             val end = LocalDate.now()
             val capResult = krxCall(TIMEOUT_30S) {
-                krxStock.getMarketCap(end.toString(), Market.ALL)
+                krxStock.getMarketCap(DateAdapter.toKrxFormat(end), Market.ALL)
             }
 
             val sharesOutstanding = if (capResult.isSuccess) {
