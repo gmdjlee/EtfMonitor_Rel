@@ -3,7 +3,6 @@ package com.etfmonitor.core.di
 import android.content.Context
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
-import com.etfmonitor.core.network.python.MarketIndexPyClient
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,14 +35,4 @@ object PythonModule {
 
     // OscillatorPyClient는 @Inject constructor를 사용하므로 수동 제공 불필요
     // Hilt가 자동으로 의존성을 주입합니다
-
-    /**
-     * MarketIndexPyClient 제공 (Singleton)
-     * KOSPI/KOSDAQ 시장 지수 수집용 Python 클라이언트
-     */
-    @Provides
-    @Singleton
-    fun provideMarketIndexPyClient(@ApplicationContext context: Context): MarketIndexPyClient {
-        return MarketIndexPyClient(context)
-    }
 }

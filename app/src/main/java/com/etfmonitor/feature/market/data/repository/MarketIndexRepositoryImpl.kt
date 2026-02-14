@@ -2,7 +2,7 @@ package com.etfmonitor.feature.market.data.repository
 
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.database.MarketIndexDao
-import com.etfmonitor.core.network.python.MarketIndexPyClient
+import com.etfmonitor.core.domain.usecase.krx.GetKrxIndexDataUseCase
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toDomain
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toIndexDomainList
 import com.etfmonitor.feature.market.domain.model.MarketIndex
@@ -22,12 +22,12 @@ import javax.inject.Singleton
  *
  * Clean Architecture 패턴을 따르는 직접 구현:
  * - KOSPI/KOSDAQ 시장 지수 데이터 관리
- * - Python MarketIndexPyClient를 통한 데이터 수집
+ * - kotlin_krx를 통한 데이터 수집 (GetKrxIndexDataUseCase)
  */
 @Singleton
 class MarketIndexRepositoryImpl @Inject constructor(
     private val dao: MarketIndexDao,
-    private val pyClient: MarketIndexPyClient
+    private val getKrxIndexDataUseCase: GetKrxIndexDataUseCase
 ) : MarketIndexRepository {
 
     companion object {
@@ -103,20 +103,29 @@ class MarketIndexRepositoryImpl @Inject constructor(
                 val startStr = startDate.format(formatter)
                 val endStr = endDate.format(formatter)
 
-                // Python으로 데이터 수집
-                val indices = pyClient.fetchMarketIndices(startStr, endStr)
+                // kotlin_krx로 데이터 수집
+                val indicesResult = getKrxIndexDataUseCase(startStr, endStr)
 
-                if (indices.isEmpty()) {
-                    logger.e("No market index data fetched")
-                    return@withContext Result.failure(Exception("시장 지수 데이터를 가져올 수 없습니다"))
-                }
+                // Result 처리
+                indicesResult.fold(
+                    onSuccess = { indices ->
+                        if (indices.isEmpty()) {
+                            logger.e("No market index data fetched")
+                            return@withContext Result.failure(Exception("시장 지수 데이터를 가져올 수 없습니다"))
+                        }
 
-                // DB에 저장
-                dao.deleteAll()
-                dao.insertAll(indices)
+                        // DB에 저장
+                        dao.deleteAll()
+                        dao.insertAll(indices)
 
-                logger.d("Successfully initialized ${indices.size} market index records")
-                Result.success(indices.size)
+                        logger.d("Successfully initialized ${indices.size} market index records")
+                        Result.success(indices.size)
+                    },
+                    onFailure = { e ->
+                        logger.e("Error fetching market index data from kotlin_krx", e)
+                        Result.failure(e)
+                    }
+                )
             } catch (e: Exception) {
                 logger.e("Error initializing market index data", e)
                 Result.failure(e)
@@ -135,19 +144,28 @@ class MarketIndexRepositoryImpl @Inject constructor(
             try {
                 logger.d("Updating market index data for recent $days days")
 
-                // 최근 데이터 수집
-                val indices = pyClient.fetchRecentDays(days)
+                // kotlin_krx로 최근 데이터 수집
+                val indicesResult = getKrxIndexDataUseCase.getRecentDays(days)
 
-                if (indices.isEmpty()) {
-                    logger.e("No market index data fetched for update")
-                    return@withContext Result.failure(Exception("시장 지수 데이터를 가져올 수 없습니다"))
-                }
+                // Result 처리
+                indicesResult.fold(
+                    onSuccess = { indices ->
+                        if (indices.isEmpty()) {
+                            logger.e("No market index data fetched for update")
+                            return@withContext Result.failure(Exception("시장 지수 데이터를 가져올 수 없습니다"))
+                        }
 
-                // DB에 저장 (REPLACE 전략으로 중복 제거)
-                dao.insertAll(indices)
+                        // DB에 저장 (REPLACE 전략으로 중복 제거)
+                        dao.insertAll(indices)
 
-                logger.d("Successfully updated ${indices.size} market index records")
-                Result.success(indices.size)
+                        logger.d("Successfully updated ${indices.size} market index records")
+                        Result.success(indices.size)
+                    },
+                    onFailure = { e ->
+                        logger.e("Error fetching market index data from kotlin_krx", e)
+                        Result.failure(e)
+                    }
+                )
             } catch (e: Exception) {
                 logger.e("Error updating market index data", e)
                 Result.failure(e)
