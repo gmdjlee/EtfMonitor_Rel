@@ -189,6 +189,7 @@ dependencies {
     testImplementation(libs.coroutines.test)
     testImplementation(libs.arch.core.testing)
     testImplementation(libs.room.testing)
+    testImplementation("org.jetbrains.kotlin:kotlin-test:2.1.0")
 
     // Testing - Instrumented Tests (Android)
     androidTestImplementation(libs.androidx.test.core)
