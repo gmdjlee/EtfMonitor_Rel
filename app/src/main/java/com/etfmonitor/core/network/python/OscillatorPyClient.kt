@@ -25,8 +25,7 @@ import javax.inject.Singleton
 /**
  * Python 기반 기술적 분석 데이터 클라이언트
  *
- * 주식 분석, 시장 자금 동향, 기술적 지표(오실레이터) 등
- * 고급 분석 데이터를 Python 스크립트를 통해 수집합니다.
+ * 주식 분석 및 기술적 지표 데이터를 Python 스크립트를 통해 수집합니다.
  *
  * ## 주요 기능
  *
@@ -34,26 +33,19 @@ import javax.inject.Singleton
  * - 종목 검색: [searchStock]
  * - 종목 분석 데이터 (시총, 외국인/기관 수급): [getStockAnalysis]
  * - 전체 종목 리스트: [getAllStocksList]
- *
- * ### 시장 자금 동향
- * - 고객예탁금/신용잔고 데이터: [getMarketDepositData]
- * - 최신 시장 자금 현황: [getLatestMarketData]
+ * - 종목 OHLCV 데이터: [getStockOhlcv]
  *
  * ### 기술적 지표
- * - 시장 과매수/과매도 지표: [getMarketOscillator] (타임아웃 180초)
  * - 추세 시그널 분석: [getTrendSignalData]
  * - Elder Impulse System: [getElderImpulseData]
  * - DeMark TD Setup: [getDemarkTDData]
  *
  * ## Python 모듈
  * - `stocks`: 종목 검색 및 분석
- * - `deposit_scraper`: 시장 자금 동향 스크래핑
- * - `market`: 시장 오실레이터 계산
  * - `trend_signal`: 기술적 지표 분석
  *
  * ## 타임아웃 설정
- * - 일반 작업: 30초 ([TIMEOUT_MS])
- * - 시장 오실레이터: 180초 ([MARKET_OSCILLATOR_TIMEOUT_MS]) - 200+ 종목 분석 필요
+ * - 모든 작업: 30초 ([TIMEOUT_MS])
  *
  * ## 예외 처리
  * - [PythonTimeoutException]: 타임아웃 발생 시
@@ -68,7 +60,6 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
     companion object {
         private val logger = AppLogger.getLogger("OscillatorPy")
         private const val TIMEOUT_MS = 30_000L
-        private const val MARKET_OSCILLATOR_TIMEOUT_MS = 180_000L  // 3분 - 시장 전체 종목 분석에 필요
     }
 
     // kotlinx.serialization 설정
@@ -94,16 +85,6 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         @SerialName("market_cap") val marketCap: List<Double> = emptyList(),
         @SerialName("foreign_5d") val foreign5d: List<Double> = emptyList(),
         @SerialName("institution_5d") val institution5d: List<Double> = emptyList(),
-        val error: String? = null
-    )
-
-    @Serializable
-    private data class MarketDepositResponse(
-        val dates: List<String> = emptyList(),
-        @SerialName("deposit_amounts") val depositAmounts: List<Double> = emptyList(),
-        @SerialName("deposit_changes") val depositChanges: List<Double> = emptyList(),
-        @SerialName("credit_amounts") val creditAmounts: List<Double> = emptyList(),
-        @SerialName("credit_changes") val creditChanges: List<Double> = emptyList(),
         val error: String? = null
     )
 
@@ -182,16 +163,6 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         python.getModule("stocks")
     }
 
-    private val depositModule by lazy {
-        logger.d( "Loading deposit_scraper module")
-        python.getModule("deposit_scraper")
-    }
-
-    private val marketModule by lazy {
-        logger.d( "Loading market module")
-        python.getModule("market")
-    }
-
     private val trendSignalModule by lazy {
         logger.d( "Loading trend_signal module")
         python.getModule("trend_signal")
@@ -267,67 +238,6 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         }
 
     /**
-     * 증시 자금 동향 데이터 수집
-     */
-    suspend fun getMarketDepositData(numPages: Int = 5): MarketDepositData? =
-        withContext(Dispatchers.IO) {
-            try {
-                withTimeout(TIMEOUT_MS) {
-                    logger.d( "getMarketDepositData: $numPages pages")
-                    val jsonStr = depositModule.callAttr("get_market_deposit_data", numPages).toString()
-                    val response = json.decodeFromString<MarketDepositResponse>(jsonStr)
-
-                    if (response.error != null) {
-                        logger.e( "Market data error: ${response.error}")
-                        return@withTimeout null
-                    }
-
-                    MarketDepositData(
-                        dates = response.dates,
-                        depositAmounts = response.depositAmounts,
-                        depositChanges = response.depositChanges,
-                        creditAmounts = response.creditAmounts,
-                        creditChanges = response.creditChanges
-                    ).also {
-                        logger.d( "Market deposit data complete: ${response.dates.size} data points")
-                    }
-                }
-            } catch (e: Exception) {
-                logger.e( "getMarketDepositData error", e)
-                null
-            }
-        }
-
-    /**
-     * 최신 증시 자금 동향
-     */
-    suspend fun getLatestMarketData(): MarketDepositData? = withContext(Dispatchers.IO) {
-        try {
-            withTimeout(TIMEOUT_MS) {
-                logger.d( "getLatestMarketData")
-                val jsonStr = depositModule.callAttr("get_latest_market_data").toString()
-                val response = json.decodeFromString<MarketDepositResponse>(jsonStr)
-
-                if (response.error != null) {
-                    logger.e( "Latest market data error: ${response.error}")
-                    return@withTimeout null
-                }
-
-                MarketDepositData(
-                    dates = response.dates,
-                    depositAmounts = response.depositAmounts,
-                    depositChanges = response.depositChanges,
-                    creditAmounts = response.creditAmounts,
-                    creditChanges = response.creditChanges
-                )
-            }
-        } catch (e: Exception) {
-            logger.e( "getLatestMarketData error", e)
-            null
-        }
-    }
-
-    /**
      * 전체 종목 리스트 가져오기 (자동완성용)
      */
     suspend fun getAllStocksList(): List<Pair<String, String>> = withContext(Dispatchers.IO) {
@@ -396,39 +306,6 @@ class OscillatorPyClient @Inject constructor(private val python: Python) {
         } catch (e: Exception) {
             logger.e("getStockOhlcv error", PythonRuntimeException("OHLCV 조회 실패: $ticker", "stocks", "get_stock_ohlcv", cause = e))
             null
-        }
-    }
-
-    /**
-     * 시장 과매수/과매도 지표 조회
-     *
-     * @param market "KOSPI" 또는 "KOSDAQ"
-     * @param startDate YYYYMMDD 형식
-     * @param endDate YYYYMMDD 형식
-     * @return JSON 문자열
-     */
-    suspend fun getMarketOscillator(
-        market: String,
-        startDate: String,
-        endDate: String
-    ): String = withContext(Dispatchers.IO) {
-        try {
-            // 시장 오실레이터는 전체 구성종목 데이터를 수집해야 하므로 더 긴 타임아웃 사용
-            withTimeout(MARKET_OSCILLATOR_TIMEOUT_MS) {
-                logger.d( "getMarketOscillator: $market, $startDate ~ $endDate (timeout: ${MARKET_OSCILLATOR_TIMEOUT_MS}ms)")
-                val jsonStr = marketModule.callAttr(
-                    "get_market_oscillator",
-                    market,
-                    startDate,
-                    endDate
-                ).toString()
-
-                logger.d( "Market oscillator data retrieved for $market")
-                jsonStr
-            }
-        } catch (e: Exception) {
-            logger.e( "getMarketOscillator error", e)
-            """{"error": "${e.message}"}"""
         }
     }
 
