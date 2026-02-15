@@ -50,6 +50,25 @@ class KrxStockDataRepositoryImpl @Inject constructor(
     companion object {
         private val logger = AppLogger.getLogger("KrxStockDataRepo")
         private const val TIMEOUT_30S = 30_000L
+
+        /**
+         * Calculate rolling sum for investor trading data
+         *
+         * @param values Daily trading values
+         * @param window Rolling window size (default: 5 days)
+         * @return List of rolling sums
+         */
+        private fun calculateRollingSum(values: List<Long>, window: Int = 5): List<Long> {
+            return values.mapIndexed { index, _ ->
+                if (index < window - 1) {
+                    // Not enough data for full window, use partial sum
+                    values.subList(0, index + 1).sum()
+                } else {
+                    // Full window rolling sum
+                    values.subList(index - window + 1, index + 1).sum()
+                }
+            }
+        }
     }
 
     // ============================================================
@@ -204,12 +223,34 @@ class KrxStockDataRepositoryImpl @Inject constructor(
             // 3. Approximate market cap history: close[i] * sharesOutstanding
             val marketCap = close.map { c -> (c * sharesOutstanding).toLong() }
 
-            // 4. Investor trading data not available in current kotlin_krx API
-            // Use zero values for foreign/institution 5-day rolling sum
-            // Note: This is acceptable as StockData is primarily used for oscillator calculation
-            // which relies on market cap. Full investor data requires additional API endpoints.
-            val foreign5d = List(dates.size) { 0L }
-            val institution5d = List(dates.size) { 0L }
+            // 4. Get investor trading data (foreign + institution net buy)
+            val tradingResult = krxCall(TIMEOUT_30S) {
+                krxStock.getTradingByInvestor(
+                    startDate = DateAdapter.toKrxFormat(start),
+                    endDate = DateAdapter.toKrxFormat(end),
+                    ticker = ticker,
+                    valueType = com.krxkt.model.TradingValueType.VALUE,
+                    askBidType = com.krxkt.model.AskBidType.NET_BUY
+                )
+            }
+
+            val (foreign5d, institution5d) = if (tradingResult.isSuccess) {
+                val tradingList = tradingResult.getOrNull() ?: emptyList()
+
+                // Align trading data to OHLCV dates
+                val tradingMap = tradingList.associateBy { it.date }
+                val foreignDaily = dates.map { date -> tradingMap[date]?.foreigner ?: 0L }
+                val institutionDaily = dates.map { date -> tradingMap[date]?.institutionalTotal ?: 0L }
+
+                // Calculate 5-day rolling sum
+                val foreign5dSum = calculateRollingSum(foreignDaily, 5)
+                val institution5dSum = calculateRollingSum(institutionDaily, 5)
+
+                Pair(foreign5dSum, institution5dSum)
+            } else {
+                logger.w("getTradingByInvestor failed, using zeros: ${tradingResult.exceptionOrNull()?.message}")
+                Pair(List(dates.size) { 0L }, List(dates.size) { 0L })
+            }
 
             // Get stock name
             val name = getStockName(ticker) ?: ticker
