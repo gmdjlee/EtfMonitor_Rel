@@ -106,7 +106,7 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 | Database | `core/database/AppDatabase.kt` | 21 entities, 18 DAOs, 18 migrations (v19) |
 | Database entities | `core/database/entities/` | 20 files (AIChatSession in AIChatMessage.kt) |
 | Python scripts | `app/src/main/python/` | 8 files: etfcollector, stocks, market, feargreed, deposit_scraper, trend_signal, core, logger |
-| Python bridge | `core/network/python/` | PyKrxClient, MarketIndexPyClient, OscillatorPyClient, BloodIndicatorPyClient |
+| Python bridge | `core/network/python/` | OscillatorPyClient, MarketIndexPyClient, BloodIndicatorPyClient (PyKrxClient removed) |
 | AI clients | `core/network/ai/` | ClaudeApiClient, GeminiApiClient, AIApiClientFactory (11 files) |
 | Theme | `core/ui/theme/` | Theme.kt, ThemeManager.kt |
 | Workers | `core/worker/` | 8 workers + WorkManagerHelper |
@@ -226,16 +226,15 @@ DISCARD during compaction:
 
 ## Migration Context: pykrx → kotlin_krx
 
-**Status**: ✅ Phase 1 COMPLETE | ✅ Phase 2 COMPLETE | ✅ Phase 3 COMPLETE | ✅ **Phase A COMPLETE (100% pykrx migration)**
+**Status**: ✅ Phase 1-3 COMPLETE | ✅ Phase A COMPLETE | ✅ **Market Migration COMPLETE** | ✅ **pykrx REMOVED**
 **Target**: github.com/gmdjlee/kotlin_krx (native Kotlin replacement for pykrx)
 **Architecture**: MVVM + Clean Architecture + Feature modules
 **DI Framework**: Hilt
 **Key Achievement**: **PyKrxClient completely removed** - No Python dependency for KRX data fetching
 **API Coverage**: 100% (11/11 pykrx functions covered via kotlin_krx)
 **Primary Documents**: MIGRATION_STRATEGY.md (Phase 1-2), docs/PHASE3_MIGRATION_STRATEGY.md (Phase 3), PHASE_A_COMPLETION_REPORT.md (Phase A)
-**Phase 2 Complete**: T-006 ✅ Gradle | T-007 ✅ Repositories | T-008 ✅ UseCases | T-009 ✅ Coexistence | T-010 ✅ UNBLOCKED
-**Phase 3 Progress**: T-011 ✅ ETF (complete via Phase A) | T-012 ✅ Oscillator (complete, AD-002 resolved) | T-013 ⏳ Stock Analysis
-**Phase A Complete**: PyKrxClient.getBusinessDays() → GetKrxBusinessDaysUseCase | kotlin_krx getBusinessDays() API | 100% pykrx migration
+**All Phases Complete**: T-006~T-013 ✅ | Market migration ✅ | pykrx removed ✅
+**Post-Migration Fixes**: Zero-data bug ✅ | Investor trading data ✅ | Chart period selection ✅
 
 ### Python Bridge Architecture (4 Patterns - PyKrxClient Removed)
 
@@ -501,57 +500,39 @@ chaquopy {
 - **AggregatedStockTrendScreen.kt**: Removed unused `val pyClient` from AggregatedStockTrendViewModel
 - **StockModule.kt**: Added StockDataRepository binding, 4 UseCase providers, updated repository DI
 
-### Post-Migration Status (2025-02-14) — Ralph Loop Iteration 14
+### Post-Migration Status (2026-02-18) — COMPLETE
 
-**Migration Achievement**: ✅ **91.7% pykrx API call reduction** (24 calls → 2 calls)
-**Quality Gate**: ✅ **ALL TASKS COMPLETE** (R-001 through R-015)
-**Build Status**: ✅ **PRODUCTION-READY** (debug + release builds successful)
+**Migration Achievement**: ✅ **100% pykrx migration** — PyKrxClient completely removed
+**Build Status**: ✅ **PRODUCTION-READY**
 **Deployment Status**: ✅ **APPROVED** (Architect-reviewed)
 
-**Completed Migrations**:
-- T-011: ETF feature (partial) — 2/3 methods migrated, getBusinessDays retained
-- T-013: Stock analysis feature (complete) — All oscillator calculations native Kotlin
+**Completed Migrations (All)**:
+- T-011: ETF feature ✅ (Phase A: getBusinessDays → GetKrxBusinessDaysUseCase)
+- T-012: Oscillator feature ✅ (TechnicalAnalysisEngine + 4 UseCases)
+- T-013: Stock analysis feature ✅ (native Kotlin oscillator calculations)
+- Market feature ✅ (MarketIndex + MarketDeposit → kotlin_krx + Kotlin web scraping)
+- pykrx dependency ✅ **REMOVED** from build.gradle.kts
 
-**Retained Python Dependencies** (Architect-Approved):
-- `PyKrxClient.getBusinessDays()` - 2 call sites (business calendar logic)
-- `OscillatorPyClient` - Full class (market oscillator feature, API gap + budget constraint)
-- 3 non-pykrx clients unchanged (MarketIndexPyClient, BloodIndicatorPyClient, FearGreedRepositoryImpl)
+**Remaining Python Dependencies** (non-pykrx, out of migration scope):
+- `OscillatorPyClient` - Market oscillator feature (stocks.py, market.py)
+- `MarketIndexPyClient` - Market index data (market.py)
+- `BloodIndicatorPyClient` - Blood indicator data (blood_indicator.py, Yahoo/FRED)
+- `FearGreedRepositoryImpl` - Direct Python/DataFrame manipulation (feargreed.py)
 
-**Final Deliverables**:
-- ✅ REVIEW_REPORT.md: Comprehensive post-migration review (all R-001 through R-012 findings)
-- ✅ PROGRESS.md: Detailed findings log with LOOP_COMPLETE marker
-- ✅ CLAUDE.md: Updated with post-migration architecture (this section)
-- ✅ All 15 tasks in TASK.md marked complete
+**Post-Migration Bug Fixes**:
+- ✅ Zero-data bug: kotlin_krx wrong API endpoint + reverse chronological order (ROOT_CAUSE_REPORT.md)
+- ✅ Investor trading data: 외국인/기관 수급 데이터 zero 수정
+- ✅ Chart period selection: 날짜 포맷 불일치 (yyyy-MM-dd → yyyyMMdd) 수정 + 5개 차트 전체 필터링
 
-**Key Improvements**:
-- ✅ Type Safety: kotlin_krx compile-time validation vs. pykrx runtime parsing
-- ✅ Null Safety: Result<T> pattern with explicit error handling
-- ✅ Architecture: Clean Architecture maintained (ViewModel → UseCase → Repository → kotlin_krx)
-- ✅ Performance: Build time improved 5.6% (7m 12s → 6m 48s)
-
-**Next Steps** (Post-Deployment):
-- Monitor ETF list timeout (recommendation: increase to 60s)
-- Manual QA testing for key user flows (ETF, oscillator, analysis)
-- Add retry logic wrapper for transient network failures
-- Future: Migrate market oscillator feature (3-4 iterations standalone effort)
-
-**Technical Achievements**:
+**Key Technical Achievements**:
 - ✅ **AD-002 RESOLVED**: All 3 ViewModels now use UseCases (Clean Architecture compliance)
-- ✅ **Zero Python**: OscillatorPyClient completely removed from stock feature (0 references)
-- ✅ **Type Safety**: kotlin_krx Long → Double conversions for numerical analysis
+- ✅ **Type Safety**: kotlin_krx compile-time validation vs. pykrx runtime parsing
+- ✅ **Null Safety**: Result<T> pattern with explicit error handling
+- ✅ **Architecture**: Clean Architecture maintained (ViewModel → UseCase → Repository → kotlin_krx)
 - ✅ **CLAUDE.md Rule #3**: KrxRepositoryBase uses configurable timeouts (30s-180s)
 - ✅ **CLAUDE.md Rule #10**: All repository operations use `withContext(Dispatchers.IO)`
 
-**Trade-offs Documented**:
-- Market cap approximation: Acceptable for display-only ElderImpulse/DemarkTD (proportional errors cancel in OscillatorCalculator)
-- Investor trading data: Zero values acceptable (API gap, minimal oscillator impact)
-- Stock search: DB-based approach (searchStocks) instead of Python searchStock
-
-**Build Verification**:
-- Compilation: SUCCESS (1m 23s, 52 tasks)
-- OscillatorPyClient references: 0 in stock feature
-- DI graph: All UseCases injectable via Hilt @Inject constructors
-
-**Files Changed**: 14 total (8 created, 6 modified)
-
-**T-010 Impact**: Partial unblock. PyKrxClient.getBusinessDays() remains (2 call sites), OscillatorPyClient removed.
+**Known Issues / Future Work**:
+- maxDays 365로 제한 중 (kotlin_krx date chunking 수정 후 730 복원 필요)
+- ETF 목록 조회 timeout 60s 증가 검토
+- 디버그 checkpoint 로그 정리 필요
