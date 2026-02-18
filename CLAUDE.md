@@ -134,6 +134,7 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 | Change DB schema without migration | Add migration in AppDatabase.kt first |
 | Add unrequested features or refactoring | Make ONLY the requested changes |
 | Over-engineer with abstractions | Minimum complexity for current task |
+| Assume kotlin_krx returns ascending dates | Always sort to ascending at ViewModel cache (kotlin_krx returns newest-first) |
 
 ---
 
@@ -464,7 +465,7 @@ DISCARD during compaction:
 
 3. **KrxStockDataRepositoryImpl.kt** (441 lines) - Implementation
    - Wires KrxStock API + TechnicalAnalysisEngine
-   - Market cap approximation: `close[i] * sharesOutstanding` (single getMarketCap call)
+   - Market cap approximation: `close[i] * sharesOutstanding` (OHLCV dates retry, cap.sharesOutstanding priority)
    - Investor trading: Zero values (API gap, minimal impact on oscillator ratios)
    - Type conversion: kotlin_krx Long → Double for TechnicalAnalysisEngine compatibility
    - Extends KrxRepositoryBase for timeout/error handling
@@ -489,7 +490,7 @@ DISCARD during compaction:
 - **AggregatedStockTrendScreen.kt**: Removed unused `val pyClient` from AggregatedStockTrendViewModel
 - **StockModule.kt**: Added StockDataRepository binding, 4 UseCase providers, updated repository DI
 
-### Post-Migration Status (2026-02-18) — COMPLETE
+### Post-Migration Status (2026-02-19) — COMPLETE
 
 **Migration Achievement**: ✅ **100% pykrx migration** — PyKrxClient completely removed
 **Build Status**: ✅ **PRODUCTION-READY**
@@ -511,6 +512,8 @@ DISCARD during compaction:
 - ✅ Zero-data bug: kotlin_krx wrong API endpoint + reverse chronological order (ROOT_CAUSE_REPORT.md)
 - ✅ Investor trading data: 외국인/기관 수급 데이터 zero 수정
 - ✅ Chart period selection: 날짜 포맷 불일치 (yyyy-MM-dd → yyyyMMdd) 수정 + 5개 차트 전체 필터링
+- ✅ Elder Impulse/DeMark TD 시가총액 0 버그: getMarketCap() LocalDate.now() 단일 호출 → OHLCV 거래일 기반 최대 7회 retry + cap.sharesOutstanding 우선 사용
+- ✅ 차트 기간 선택 필터링 미작동: kotlin_krx 역순 데이터를 OscillatorViewModel 캐시 시점에 오름차순 정렬 + 차트 .reversed() 제거
 
 **Key Technical Achievements**:
 - ✅ **AD-002 RESOLVED**: All 3 ViewModels now use UseCases (Clean Architecture compliance)
@@ -523,4 +526,3 @@ DISCARD during compaction:
 **Known Issues / Future Work**:
 - maxDays 365로 제한 중 (kotlin_krx date chunking 수정 후 730 복원 필요)
 - ETF 목록 조회 timeout 60s 증가 검토
-- 디버그 checkpoint 로그 정리 필요
