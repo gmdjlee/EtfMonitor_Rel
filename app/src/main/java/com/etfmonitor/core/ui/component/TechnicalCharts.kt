@@ -18,6 +18,7 @@ import com.etfmonitor.core.analysis.model.ElderImpulseData
 import com.etfmonitor.core.analysis.model.ImpulseState
 import com.etfmonitor.core.analysis.model.OscillatorResult
 import com.etfmonitor.core.analysis.model.TrendSignalData
+import com.etfmonitor.core.common.util.DateFormatter
 import com.etfmonitor.core.ui.theme.*
 import com.github.mikephil.charting.charts.CombinedChart
 import com.github.mikephil.charting.charts.ScatterChart
@@ -79,16 +80,6 @@ fun MacdChart(
                         CombinedChart.DrawOrder.LINE
                     ))
 
-                    // MACD 전용 마커 뷰
-                    val markerView = MacdMarkerView(
-                        context,
-                        R.layout.marker_view,
-                        result.dates,
-                        result.macd,
-                        result.signal
-                    )
-                    marker = markerView
-
                     // X축 설정
                     xAxis.apply {
                         position = XAxis.XAxisPosition.BOTTOM
@@ -100,16 +91,7 @@ fun MacdChart(
                         granularity = 1f
                         labelRotationAngle = -45f
                         setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(result.dates.size), false)
-                        valueFormatter = object : ValueFormatter() {
-                            override fun getFormattedValue(value: Float): String {
-                                val index = value.toInt()
-                                return if (index >= 0 && index < result.dates.size) {
-                                    result.dates[index]
-                                } else {
-                                    ""
-                                }
-                            }
-                        }
+                        // valueFormatter is set in update block with reversed dates
                     }
 
                     // Y축 설정
@@ -131,12 +113,45 @@ fun MacdChart(
                 }
             },
             update = { chart ->
+                // 데이터 역순 정렬 (최신 데이터가 오른쪽에 표시되도록)
+                val reversedDates = result.dates.reversed()
+                val reversedMacd = result.macd.reversed()
+                val reversedSignal = result.signal.reversed()
+                val reversedHistogram = result.histogram.reversed()
+
+                val dataCount = reversedDates.size
+
+                // MACD 전용 마커 뷰 (역순 데이터 사용)
+                val markerView = MacdMarkerView(
+                    chart.context,
+                    R.layout.marker_view,
+                    reversedDates,
+                    reversedMacd,
+                    reversedSignal
+                )
+                chart.marker = markerView
+
+                // Update x-axis with dynamic label count and smart date formatting
+                chart.xAxis.apply {
+                    setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(dataCount), false)
+                    valueFormatter = object : ValueFormatter() {
+                        override fun getFormattedValue(value: Float): String {
+                            val index = value.toInt()
+                            return if (index >= 0 && index < reversedDates.size) {
+                                DateFormatter.formatForChartByDataCount(reversedDates[index], dataCount)
+                            } else {
+                                ""
+                            }
+                        }
+                    }
+                }
+
                 // Histogram
-                val barEntries = result.histogram.mapIndexed { index, value ->
+                val barEntries = reversedHistogram.mapIndexed { index, value ->
                     BarEntry(index.toFloat(), value.toFloat())
                 }
                 val barDataSet = BarDataSet(barEntries, "").apply {
-                    colors = result.histogram.map { value ->
+                    colors = reversedHistogram.map { value ->
                         if (value >= 0) positiveColor
                         else negativeColor
                     }
@@ -148,7 +163,7 @@ fun MacdChart(
                 }
 
                 // MACD 라인
-                val macdEntries = result.macd.mapIndexed { index, value ->
+                val macdEntries = reversedMacd.mapIndexed { index, value ->
                     Entry(index.toFloat(), value.toFloat())
                 }
                 val macdDataSet = LineDataSet(macdEntries, "MACD").apply {
@@ -162,7 +177,7 @@ fun MacdChart(
                 }
 
                 // Signal 라인
-                val signalEntries = result.signal.mapIndexed { index, value ->
+                val signalEntries = reversedSignal.mapIndexed { index, value ->
                     Entry(index.toFloat(), value.toFloat())
                 }
                 val signalDataSet = LineDataSet(signalEntries, "Signal").apply {
@@ -546,15 +561,7 @@ fun ElderImpulseChart(
                         granularity = 1f
                         labelRotationAngle = -45f
                         setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(data.dates.size), false)
-                        valueFormatter = object : ValueFormatter() {
-                            override fun getFormattedValue(value: Float): String {
-                                val idx = value.toInt()
-                                return if (idx in data.dates.indices) {
-                                    val date = data.dates[idx]
-                                    if (date.length >= 7) date.substring(5) else date
-                                } else ""
-                            }
-                        }
+                        // valueFormatter is set in update block with reversed dates
                     }
 
                     // 왼쪽 Y축: 시가총액
@@ -590,6 +597,23 @@ fun ElderImpulseChart(
             },
             update = { chart ->
                 try {
+                    val dataCount = data.dates.size
+
+                    // Update x-axis with dynamic label count and smart date formatting
+                    chart.xAxis.apply {
+                        setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(dataCount), false)
+                        valueFormatter = object : ValueFormatter() {
+                            override fun getFormattedValue(value: Float): String {
+                                val index = value.toInt()
+                                return if (index >= 0 && index < data.dates.size) {
+                                    DateFormatter.formatForChartByDataCount(data.dates[index], dataCount)
+                                } else {
+                                    ""
+                                }
+                            }
+                        }
+                    }
+
                     val lineDataSets = mutableListOf<LineDataSet>()
 
                     // 시가총액 라인
@@ -750,15 +774,7 @@ fun DemarkTDChart(
                         granularity = 1f
                         labelRotationAngle = -45f
                         setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(data.dates.size), false)
-                        valueFormatter = object : ValueFormatter() {
-                            override fun getFormattedValue(value: Float): String {
-                                val idx = value.toInt()
-                                return if (idx in data.dates.indices) {
-                                    val date = data.dates[idx]
-                                    if (date.length >= 7) date.substring(5) else date
-                                } else ""
-                            }
-                        }
+                        // valueFormatter is set in update block with reversed dates
                     }
 
                     // 왼쪽 Y축: 시가총액
@@ -796,6 +812,23 @@ fun DemarkTDChart(
             },
             update = { chart ->
                 try {
+                    val dataCount = data.dates.size
+
+                    // Update x-axis with dynamic label count and smart date formatting
+                    chart.xAxis.apply {
+                        setLabelCount(ChartLabelCalculator.calculateOptimalLabelCount(dataCount), false)
+                        valueFormatter = object : ValueFormatter() {
+                            override fun getFormattedValue(value: Float): String {
+                                val index = value.toInt()
+                                return if (index >= 0 && index < data.dates.size) {
+                                    DateFormatter.formatForChartByDataCount(data.dates[index], dataCount)
+                                } else {
+                                    ""
+                                }
+                            }
+                        }
+                    }
+
                     val lineDataSets = mutableListOf<LineDataSet>()
 
                     // 시가총액 라인

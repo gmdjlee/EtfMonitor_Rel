@@ -11,6 +11,7 @@ import com.etfmonitor.core.analysis.TrendSignalCalculator
 import com.etfmonitor.core.analysis.model.*
 import com.etfmonitor.core.analysis.model.ElderImpulseData
 import com.etfmonitor.core.analysis.model.DemarkTDData
+import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.domain.usecase.krx.GetTrendSignalDataUseCase
 import com.etfmonitor.core.domain.usecase.krx.GetElderImpulseDataUseCase
 import com.etfmonitor.core.domain.usecase.krx.GetDemarkTDDataUseCase
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 sealed class OscillatorState {
@@ -124,9 +126,14 @@ class OscillatorViewModel @Inject constructor(
     private var fullStockData: StockData? = null
     private var fullOscillatorResult: OscillatorResult? = null
     private var fullSignalAnalysis: SignalAnalysis? = null
+    private var fullTrendSignalData: TrendSignalData? = null
+    private var fullElderImpulseData: ElderImpulseData? = null
+    private var fullDemarkTDData: DemarkTDData? = null
 
     // 최대 조회 일수 (전체 기간)
-    private val maxDays = 730
+    // WORKAROUND: Reduced from 730 to 365 due to kotlin_krx date chunking bug
+    // TODO: Increase back to 730 after fixing kotlin_krx multi-chunk support
+    private val maxDays = 365
 
     init {
         loadSearchHistory()
@@ -267,6 +274,16 @@ class OscillatorViewModel @Inject constructor(
                     return@launch
                 }
 
+                // ========== CHECKPOINT 4: ViewModel INPUT (from Repository) ==========
+                AppLogger.getLogger("OscillatorViewModel").d("========== CHECKPOINT 4: ViewModel INPUT ==========")
+                AppLogger.getLogger("OscillatorViewModel").d("  Received StockData:")
+                AppLogger.getLogger("OscillatorViewModel").d("    ticker: ${stockData.ticker}")
+                AppLogger.getLogger("OscillatorViewModel").d("    name: ${stockData.name}")
+                AppLogger.getLogger("OscillatorViewModel").d("    dates: ${stockData.dates.size} records")
+                AppLogger.getLogger("OscillatorViewModel").d("    marketCap sample (first 3): ${stockData.marketCap.take(3)}")
+                AppLogger.getLogger("OscillatorViewModel").d("    foreign5d sample (first 3): ${stockData.foreign5d.take(3)}")
+                AppLogger.getLogger("OscillatorViewModel").d("    institution5d sample (first 3): ${stockData.institution5d.take(3)}")
+
                 // 전체 데이터 캐시
                 fullStockData = stockData
 
@@ -276,8 +293,20 @@ class OscillatorViewModel @Inject constructor(
                 // 선택된 기간으로 필터링
                 val filteredData = filterStockDataByRange(stockData, _selectedRange.value)
 
+                // ========== CHECKPOINT 5: Filtered Data (for Calculator) ==========
+                AppLogger.getLogger("OscillatorViewModel").d("========== CHECKPOINT 5: Filtered Data ==========")
+                AppLogger.getLogger("OscillatorViewModel").d("  Range: ${_selectedRange.value}")
+                AppLogger.getLogger("OscillatorViewModel").d("  Filtered dates: ${filteredData.dates.size} records")
+                AppLogger.getLogger("OscillatorViewModel").d("  Filtered marketCap sample (first 3): ${filteredData.marketCap.take(3)}")
+
                 // 4. 오실레이터 계산 (필터링된 데이터 사용)
                 val oscillatorResult = OscillatorCalculator.calculate(filteredData)
+
+                // ========== CHECKPOINT 6: Calculator OUTPUT ==========
+                AppLogger.getLogger("OscillatorViewModel").d("========== CHECKPOINT 6: Calculator OUTPUT ==========")
+                AppLogger.getLogger("OscillatorViewModel").d("  Oscillator values (first 3): ${oscillatorResult.oscillator.take(3)}")
+                AppLogger.getLogger("OscillatorViewModel").d("  EMA values (first 3): ${oscillatorResult.ema.take(3)}")
+                AppLogger.getLogger("OscillatorViewModel").d("  MACD values (first 3): ${oscillatorResult.macd.take(3)}")
 
                 // 5. 신호 분석
                 val signalAnalysis = OscillatorCalculator.analyzeSignal(oscillatorResult)
@@ -315,6 +344,11 @@ class OscillatorViewModel @Inject constructor(
                     android.util.Log.e("OscillatorViewModel", "DeMark TD error", e)
                     null
                 }
+
+                // 추가 차트 데이터도 캐시 (클라이언트 사이드 필터링용)
+                fullTrendSignalData = trendSignalData
+                fullElderImpulseData = elderImpulseData
+                fullDemarkTDData = demarkTDData
 
                 _state.value = OscillatorState.Success(
                     stockData = filteredData,
@@ -406,6 +440,11 @@ class OscillatorViewModel @Inject constructor(
                     android.util.Log.e("OscillatorViewModel", "DeMark TD error", e)
                     null
                 }
+
+                // 추가 차트 데이터도 캐시 (클라이언트 사이드 필터링용)
+                fullTrendSignalData = trendSignalData
+                fullElderImpulseData = elderImpulseData
+                fullDemarkTDData = demarkTDData
 
                 _state.value = OscillatorState.Success(
                     stockData = filteredData,
@@ -519,7 +558,7 @@ class OscillatorViewModel @Inject constructor(
         if (option.days == -1 || data.dates.isEmpty()) return data
 
         val cutoffDate = LocalDate.now().minusDays(option.days.toLong())
-        val cutoffStr = cutoffDate.toString()
+        val cutoffStr = cutoffDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
 
         val startIndex = data.dates.indexOfFirst { it >= cutoffStr }
         if (startIndex < 0) return data
@@ -531,6 +570,93 @@ class OscillatorViewModel @Inject constructor(
             marketCap = data.marketCap.drop(startIndex),
             foreign5d = data.foreign5d.drop(startIndex),
             institution5d = data.institution5d.drop(startIndex)
+        )
+    }
+
+    /**
+     * TrendSignalData를 날짜 범위로 필터링
+     */
+    private fun filterTrendSignalDataByRange(data: TrendSignalData?, option: DateRangeOption): TrendSignalData? {
+        if (data == null) return null
+        if (option.days == -1 || data.dates.isEmpty()) return data
+
+        val cutoffDate = LocalDate.now().minusDays(option.days.toLong())
+        val cutoffStr = cutoffDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+
+        val startIndex = data.dates.indexOfFirst { it >= cutoffStr }
+        if (startIndex < 0) return data
+
+        return TrendSignalData(
+            ticker = data.ticker,
+            name = data.name,
+            interval = data.interval,
+            dates = data.dates.drop(startIndex),
+            open = data.open.drop(startIndex),
+            high = data.high.drop(startIndex),
+            low = data.low.drop(startIndex),
+            close = data.close.drop(startIndex),
+            volume = data.volume.drop(startIndex),
+            ma = data.ma.drop(startIndex),
+            cmf = data.cmf.drop(startIndex),
+            fearGreed = data.fearGreed.drop(startIndex),
+            buySignal = data.buySignal.drop(startIndex),
+            auxBuySignal = data.auxBuySignal.drop(startIndex),
+            sellSignal = data.sellSignal.drop(startIndex),
+            auxSellSignal = data.auxSellSignal.drop(startIndex)
+        )
+    }
+
+    /**
+     * ElderImpulseData를 날짜 범위로 필터링
+     */
+    private fun filterElderImpulseDataByRange(data: ElderImpulseData?, option: DateRangeOption): ElderImpulseData? {
+        if (data == null) return null
+        if (option.days == -1 || data.dates.isEmpty()) return data
+
+        val cutoffDate = LocalDate.now().minusDays(option.days.toLong())
+        val cutoffStr = cutoffDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+
+        val startIndex = data.dates.indexOfFirst { it >= cutoffStr }
+        if (startIndex < 0) return data
+
+        return ElderImpulseData(
+            ticker = data.ticker,
+            name = data.name,
+            interval = data.interval,
+            dates = data.dates.drop(startIndex),
+            close = data.close.drop(startIndex),
+            marketCap = data.marketCap.drop(startIndex),
+            ema = data.ema.drop(startIndex),
+            macd = data.macd.drop(startIndex),
+            macdSignal = data.macdSignal.drop(startIndex),
+            macdHist = data.macdHist.drop(startIndex),
+            impulse = data.impulse.drop(startIndex)
+        )
+    }
+
+    /**
+     * DemarkTDData를 날짜 범위로 필터링
+     */
+    private fun filterDemarkTDDataByRange(data: DemarkTDData?, option: DateRangeOption): DemarkTDData? {
+        if (data == null) return null
+        if (option.days == -1 || data.dates.isEmpty()) return data
+
+        val cutoffDate = LocalDate.now().minusDays(option.days.toLong())
+        val cutoffStr = cutoffDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+
+        val startIndex = data.dates.indexOfFirst { it >= cutoffStr }
+        if (startIndex < 0) return data
+
+        return DemarkTDData(
+            ticker = data.ticker,
+            name = data.name,
+            interval = data.interval,
+            intervalName = data.intervalName,
+            dates = data.dates.drop(startIndex),
+            close = data.close.drop(startIndex),
+            marketCap = data.marketCap.drop(startIndex),
+            tdSell = data.tdSell.drop(startIndex),
+            tdBuy = data.tdBuy.drop(startIndex)
         )
     }
 
@@ -548,11 +674,22 @@ class OscillatorViewModel @Inject constructor(
             val oscillatorResult = OscillatorCalculator.calculate(filteredData)
             val signalAnalysis = OscillatorCalculator.analyzeSignal(oscillatorResult)
 
+            // 추가 차트 데이터도 필터링
+            val filteredTrendSignalData = filterTrendSignalDataByRange(fullTrendSignalData, _selectedRange.value)
+            val filteredTrendSignalAnalysis = filteredTrendSignalData?.let {
+                TrendSignalCalculator.analyze(it)
+            }
+            val filteredElderImpulseData = filterElderImpulseDataByRange(fullElderImpulseData, _selectedRange.value)
+            val filteredDemarkTDData = filterDemarkTDDataByRange(fullDemarkTDData, _selectedRange.value)
+
             _state.value = currentState.copy(
                 stockData = filteredData,
                 oscillatorResult = oscillatorResult,
-                signalAnalysis = signalAnalysis
-                // trendSignalData, elderImpulseData, demarkTDData는 유지
+                signalAnalysis = signalAnalysis,
+                trendSignalData = filteredTrendSignalData,
+                trendSignalAnalysis = filteredTrendSignalAnalysis,
+                elderImpulseData = filteredElderImpulseData,
+                demarkTDData = filteredDemarkTDData
             )
         }
     }

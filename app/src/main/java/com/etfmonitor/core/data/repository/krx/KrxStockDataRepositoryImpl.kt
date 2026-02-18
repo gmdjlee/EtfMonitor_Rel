@@ -178,6 +178,8 @@ class KrxStockDataRepositoryImpl @Inject constructor(
             val start = end.minusDays(days.toLong())
 
             // 1. Get OHLCV for close prices
+            logger.d("Requesting OHLCV: ${DateAdapter.toKrxFormat(start)} to ${DateAdapter.toKrxFormat(end)} ($days days)")
+
             val ohlcvResult = krxCall(TIMEOUT_30S) {
                 krxStock.getOhlcvByTicker(
                     DateAdapter.toKrxFormat(start),
@@ -197,27 +199,98 @@ class KrxStockDataRepositoryImpl @Inject constructor(
                 return@withContext null
             }
 
+            logger.d("OHLCV data received: ${ohlcvList.size} records")
+            logger.d("  First date: ${ohlcvList.firstOrNull()?.date}")
+            logger.d("  Last date: ${ohlcvList.lastOrNull()?.date}")
+
             val dates = ohlcvList.map { it.date }
             val close = ohlcvList.map { it.close }
 
+            // ========== CHECKPOINT 1: kotlin_krx OHLCV OUTPUT ==========
+            logger.d("========== CHECKPOINT 1: kotlin_krx OHLCV ==========")
+            logger.d("  Dates: ${dates.size} records")
+            logger.d("  First 3 dates: ${dates.take(3)}")
+            logger.d("  Last 3 dates: ${dates.takeLast(3)}")
+            logger.d("  First 3 close: ${close.take(3)}")
+            logger.d("  Last 3 close: ${close.takeLast(3)}")
+
             // 2. Get latest market cap for shares outstanding
-            val capResult = krxCall(TIMEOUT_30S) {
-                krxStock.getMarketCap(DateAdapter.toKrxFormat(end), Market.ALL)
+            // Use latest business day from OHLCV data (not end date which could be weekend/holiday)
+            // NOTE: kotlin_krx returns dates in REVERSE chronological order (newest first)
+            // NOTE: Market cap data may have significant lag, so we try up to 30 recent business days
+
+            var sharesOutstanding = 0L
+            var successfulDate: String? = null
+
+            // Try up to 30 most recent business days to find when market cap data becomes available
+            for (i in 0 until minOf(30, dates.size)) {
+                val candidateDate = dates[i]
+                logger.d("Attempting market cap query for date: $candidateDate (index=$i)")
+
+                val capResult = krxCall(TIMEOUT_30S) {
+                    krxStock.getMarketCap(candidateDate, Market.ALL)
+                }
+
+                if (capResult.isSuccess) {
+                    val caps = capResult.getOrNull() ?: emptyList()
+                    logger.d("getMarketCap returned ${caps.size} records for date $candidateDate")
+
+                    if (caps.isNotEmpty()) {
+                        // ========== CHECKPOINT 2: kotlin_krx MarketCap OUTPUT ==========
+                        logger.d("========== CHECKPOINT 2: kotlin_krx MarketCap ==========")
+                        logger.d("  Sample MarketCap records (first 3):")
+                        caps.take(3).forEach {
+                            logger.d("    ${it.ticker}: close=${it.close}, marketCap=${it.marketCap}, sharesOut=${it.sharesOutstanding}")
+                        }
+
+                        val cap = caps.find { it.ticker == ticker }
+                        if (cap != null) {
+                            logger.d("Found MarketCap for $ticker:")
+                            logger.d("  ticker: ${cap.ticker}")
+                            logger.d("  name: ${cap.name}")
+                            logger.d("  close: ${cap.close}")
+                            logger.d("  marketCap: ${cap.marketCap}")
+                            logger.d("  sharesOutstanding: ${cap.sharesOutstanding}")
+
+                            sharesOutstanding = if (cap.sharesOutstanding > 0) {
+                                // Use actual shares outstanding from KRX API
+                                cap.sharesOutstanding
+                            } else {
+                                logger.w("sharesOutstanding is 0, falling back to calculation")
+                                if (cap.marketCap > 0 && cap.close > 0) {
+                                    (cap.marketCap / cap.close)
+                                } else {
+                                    logger.e("Cannot calculate sharesOutstanding: marketCap=${cap.marketCap}, close=${cap.close}")
+                                    0L
+                                }
+                            }
+
+                            if (sharesOutstanding > 0) {
+                                successfulDate = candidateDate
+                                logger.d("✅ Successfully retrieved sharesOutstanding=$sharesOutstanding from date $candidateDate")
+                                break  // Success! Stop trying
+                            } else {
+                                logger.w("sharesOutstanding is 0 for date $candidateDate, trying previous date...")
+                            }
+                        } else {
+                            logger.w("Ticker $ticker not found in ${caps.size} market cap records for date $candidateDate")
+                            logger.d("Available tickers sample: ${caps.take(5).map { it.ticker }}")
+                            // Try next date
+                        }
+                    } else {
+                        logger.w("getMarketCap returned 0 records for date $candidateDate, trying previous date...")
+                    }
+                } else {
+                    logger.w("getMarketCap API failed for date $candidateDate: ${capResult.exceptionOrNull()?.message}")
+                }
             }
 
-            val sharesOutstanding = if (capResult.isSuccess) {
-                val caps = capResult.getOrNull() ?: emptyList()
-                val cap = caps.find { it.ticker == ticker }
-                if (cap != null && cap.marketCap > 0 && close.isNotEmpty()) {
-                    // Approximate shares: marketCap / latestClose
-                    (cap.marketCap / close.last()).toLong()
-                } else {
-                    logger.w("Market cap not found for $ticker, using 0")
-                    0L
-                }
+            if (successfulDate != null) {
+                logger.d("Using market cap data from date: $successfulDate (data lag handled)")
             } else {
-                logger.w("getMarketCap failed, using 0: ${capResult.exceptionOrNull()?.message}")
-                0L
+                logger.e("Failed to retrieve market cap data from any of the 30 most recent business days")
+                logger.e("  Tried dates from ${dates.firstOrNull()} to ${dates.getOrNull(29)}")
+                logger.e("  This suggests the KRX Market Cap API may be unavailable or broken")
             }
 
             // 3. Approximate market cap history: close[i] * sharesOutstanding
@@ -236,17 +309,26 @@ class KrxStockDataRepositoryImpl @Inject constructor(
 
             val (foreign5d, institution5d) = if (tradingResult.isSuccess) {
                 val tradingList = tradingResult.getOrNull() ?: emptyList()
+                logger.d("getTradingByInvestor returned ${tradingList.size} records")
 
-                // Align trading data to OHLCV dates
-                val tradingMap = tradingList.associateBy { it.date }
-                val foreignDaily = dates.map { date -> tradingMap[date]?.foreigner ?: 0L }
-                val institutionDaily = dates.map { date -> tradingMap[date]?.institutionalTotal ?: 0L }
+                if (tradingList.isEmpty()) {
+                    logger.w("getTradingByInvestor returned empty list for $ticker")
+                    Pair(List(dates.size) { 0L }, List(dates.size) { 0L })
+                } else {
+                    // Align trading data to OHLCV dates
+                    val tradingMap = tradingList.associateBy { it.date }
+                    val foreignDaily = dates.map { date -> tradingMap[date]?.foreigner ?: 0L }
+                    val institutionDaily = dates.map { date -> tradingMap[date]?.institutionalTotal ?: 0L }
 
-                // Calculate 5-day rolling sum
-                val foreign5dSum = calculateRollingSum(foreignDaily, 5)
-                val institution5dSum = calculateRollingSum(institutionDaily, 5)
+                    logger.d("  foreignDaily sample (first 3): ${foreignDaily.take(3)}")
+                    logger.d("  institutionDaily sample (first 3): ${institutionDaily.take(3)}")
 
-                Pair(foreign5dSum, institution5dSum)
+                    // Calculate 5-day rolling sum
+                    val foreign5dSum = calculateRollingSum(foreignDaily, 5)
+                    val institution5dSum = calculateRollingSum(institutionDaily, 5)
+
+                    Pair(foreign5dSum, institution5dSum)
+                }
             } else {
                 logger.w("getTradingByInvestor failed, using zeros: ${tradingResult.exceptionOrNull()?.message}")
                 Pair(List(dates.size) { 0L }, List(dates.size) { 0L })
@@ -255,6 +337,19 @@ class KrxStockDataRepositoryImpl @Inject constructor(
             // Get stock name
             val name = getStockName(ticker) ?: ticker
 
+            // ========== CHECKPOINT 3: Repository OUTPUT (StockData) ==========
+            logger.d("========== CHECKPOINT 3: Repository OUTPUT ==========")
+            logger.d("  Creating StockData:")
+            logger.d("    ticker: $ticker")
+            logger.d("    name: $name")
+            logger.d("    dates: ${dates.size} records")
+            logger.d("    sharesOutstanding: $sharesOutstanding")
+            logger.d("    marketCap calculation: close * sharesOutstanding")
+            logger.d("    marketCap[0] = ${close.firstOrNull()} * $sharesOutstanding = ${marketCap.firstOrNull()}")
+            logger.d("    marketCap sample (first 3): ${marketCap.take(3)}")
+            logger.d("    foreign5d sample (first 3): ${foreign5d.take(3)}")
+            logger.d("    institution5d sample (first 3): ${institution5d.take(3)}")
+
             StockData(
                 ticker = ticker,
                 name = name,
@@ -262,9 +357,7 @@ class KrxStockDataRepositoryImpl @Inject constructor(
                 marketCap = marketCap,
                 foreign5d = foreign5d,
                 institution5d = institution5d
-            ).also {
-                logger.d("Stock analysis data complete: $name, ${dates.size} records")
-            }
+            )
 
         } catch (e: Exception) {
             logger.e("getStockAnalysisData error: ${e.message}", e)
