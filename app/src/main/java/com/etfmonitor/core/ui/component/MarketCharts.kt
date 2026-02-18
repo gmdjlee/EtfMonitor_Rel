@@ -80,12 +80,12 @@ fun MarketCapOscillatorChart(
                             CombinedChart.DrawOrder.LINE
                         ))
 
-                        // 마커 뷰 설정 (역순 날짜 사용)
+                        // 마커 뷰 설정 (오름차순 날짜 사용)
                         try {
                             val markerView = MarketCapMarkerView(
                                 context,
                                 R.layout.marker_view,
-                                result.dates.reversed()  // 역순 날짜 전달
+                                result.dates  // ViewModel에서 오름차순 정렬됨
                             )
                             marker = markerView
                         } catch (e: Exception) {
@@ -147,12 +147,12 @@ fun MarketCapOscillatorChart(
             },
             update = { chart ->
                 try {
-                    // 데이터 역순 정렬 (최신 데이터가 오른쪽에 표시되도록)
-                    val reversedDates = result.dates.reversed()
-                    val reversedMarketCap = marketCap.reversed()
-                    val reversedOscillator = result.oscillator.reversed()
+                    // 데이터는 ViewModel에서 오름차순 정렬됨 (oldest→newest)
+                    val chartDates = result.dates
+                    val chartMarketCap = marketCap
+                    val chartOscillator = result.oscillator
 
-                    val dataCount = reversedDates.size
+                    val dataCount = chartDates.size
 
                     // Update x-axis with dynamic label count and smart date formatting
                     chart.xAxis.apply {
@@ -160,8 +160,8 @@ fun MarketCapOscillatorChart(
                         valueFormatter = object : ValueFormatter() {
                             override fun getFormattedValue(value: Float): String {
                                 val index = value.toInt()
-                                return if (index >= 0 && index < reversedDates.size) {
-                                    DateFormatter.formatForChartByDataCount(reversedDates[index], dataCount)
+                                return if (index >= 0 && index < chartDates.size) {
+                                    DateFormatter.formatForChartByDataCount(chartDates[index], dataCount)
                                 } else {
                                     ""
                                 }
@@ -170,7 +170,7 @@ fun MarketCapOscillatorChart(
                     }
 
                     // 시가총액 라인
-                    val marketCapEntries = reversedMarketCap.mapIndexed { index, value ->
+                    val marketCapEntries = chartMarketCap.mapIndexed { index, value ->
                         Entry(index.toFloat(), value.toFloat())
                     }
                     val marketCapDataSet = LineDataSet(marketCapEntries, "시가총액").apply {
@@ -186,7 +186,7 @@ fun MarketCapOscillatorChart(
                     }
 
                     // 오실레이터 라인
-                    val oscEntries = reversedOscillator.mapIndexed { index, value ->
+                    val oscEntries = chartOscillator.mapIndexed { index, value ->
                         Entry(index.toFloat(), value.toFloat())
                     }
                     val oscDataSet = LineDataSet(oscEntries, "오실레이터").apply {

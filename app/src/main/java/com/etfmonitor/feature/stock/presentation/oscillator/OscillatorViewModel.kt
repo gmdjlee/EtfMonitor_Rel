@@ -135,6 +135,59 @@ class OscillatorViewModel @Inject constructor(
     // TODO: Increase back to 730 after fixing kotlin_krx multi-chunk support
     private val maxDays = 365
 
+    // ============================================================
+    // 날짜 오름차순 정렬 헬퍼 (kotlin_krx는 역순 반환)
+    // filterStockDataByRange 등 필터 함수가 오름차순을 전제하므로,
+    // 캐시 시점에 한 번만 정렬하여 모든 필터가 정상 동작하도록 함.
+    // ============================================================
+
+    private fun StockData.sortedByDateAsc(): StockData {
+        if (dates.size <= 1 || dates.first() <= dates.last()) return this
+        return StockData(
+            ticker = ticker, name = name,
+            dates = dates.reversed(),
+            marketCap = marketCap.reversed(),
+            foreign5d = foreign5d.reversed(),
+            institution5d = institution5d.reversed()
+        )
+    }
+
+    private fun TrendSignalData.sortedByDateAsc(): TrendSignalData {
+        if (dates.size <= 1 || dates.first() <= dates.last()) return this
+        return TrendSignalData(
+            ticker = ticker, name = name, interval = interval,
+            dates = dates.reversed(), open = open.reversed(),
+            high = high.reversed(), low = low.reversed(),
+            close = close.reversed(), volume = volume.reversed(),
+            ma = ma.reversed(), cmf = cmf.reversed(),
+            fearGreed = fearGreed.reversed(),
+            buySignal = buySignal.reversed(), auxBuySignal = auxBuySignal.reversed(),
+            sellSignal = sellSignal.reversed(), auxSellSignal = auxSellSignal.reversed()
+        )
+    }
+
+    private fun ElderImpulseData.sortedByDateAsc(): ElderImpulseData {
+        if (dates.size <= 1 || dates.first() <= dates.last()) return this
+        return ElderImpulseData(
+            ticker = ticker, name = name, interval = interval,
+            dates = dates.reversed(), close = close.reversed(),
+            marketCap = marketCap.reversed(), ema = ema.reversed(),
+            macd = macd.reversed(), macdSignal = macdSignal.reversed(),
+            macdHist = macdHist.reversed(), impulse = impulse.reversed()
+        )
+    }
+
+    private fun DemarkTDData.sortedByDateAsc(): DemarkTDData {
+        if (dates.size <= 1 || dates.first() <= dates.last()) return this
+        return DemarkTDData(
+            ticker = ticker, name = name, interval = interval,
+            intervalName = intervalName,
+            dates = dates.reversed(), close = close.reversed(),
+            marketCap = marketCap.reversed(),
+            tdSell = tdSell.reversed(), tdBuy = tdBuy.reversed()
+        )
+    }
+
     init {
         loadSearchHistory()
         loadQuickChartAnalysisSetting()
@@ -284,14 +337,15 @@ class OscillatorViewModel @Inject constructor(
                 AppLogger.getLogger("OscillatorViewModel").d("    foreign5d sample (first 3): ${stockData.foreign5d.take(3)}")
                 AppLogger.getLogger("OscillatorViewModel").d("    institution5d sample (first 3): ${stockData.institution5d.take(3)}")
 
-                // 전체 데이터 캐시
-                fullStockData = stockData
+                // 전체 데이터 캐시 (오름차순 정렬)
+                val sortedStockData = stockData.sortedByDateAsc()
+                fullStockData = sortedStockData
 
                 // 3. 검색 히스토리에 저장 (already have stock from step 1)
                 saveToHistory(stock.ticker, stock.name, stock.market)
 
                 // 선택된 기간으로 필터링
-                val filteredData = filterStockDataByRange(stockData, _selectedRange.value)
+                val filteredData = filterStockDataByRange(sortedStockData, _selectedRange.value)
 
                 // ========== CHECKPOINT 5: Filtered Data (for Calculator) ==========
                 AppLogger.getLogger("OscillatorViewModel").d("========== CHECKPOINT 5: Filtered Data ==========")
@@ -312,13 +366,14 @@ class OscillatorViewModel @Inject constructor(
                 val signalAnalysis = OscillatorCalculator.analyzeSignal(oscillatorResult)
 
                 // 전체 데이터 기반 결과도 캐시
-                val fullResult = OscillatorCalculator.calculate(stockData)
+                val fullResult = OscillatorCalculator.calculate(sortedStockData)
                 fullOscillatorResult = fullResult
                 fullSignalAnalysis = OscillatorCalculator.analyzeSignal(fullResult)
 
                 // 6. 추세 시그널 데이터 수집 (선택된 인터벌) - kotlin_krx
                 val trendSignalData = try {
                     getTrendSignalDataUseCase(ticker, days = 365, interval = _trendSignalInterval.value)
+                        ?.sortedByDateAsc()
                 } catch (e: Exception) {
                     android.util.Log.e("OscillatorViewModel", "Trend signal error", e)
                     null
@@ -332,6 +387,7 @@ class OscillatorViewModel @Inject constructor(
                 // 8. Elder Impulse 데이터 수집 (선택된 인터벌) - kotlin_krx
                 val elderImpulseData = try {
                     getElderImpulseDataUseCase(ticker, interval = _elderImpulseInterval.value)
+                        ?.sortedByDateAsc()
                 } catch (e: Exception) {
                     android.util.Log.e("OscillatorViewModel", "Elder Impulse error", e)
                     null
@@ -340,12 +396,13 @@ class OscillatorViewModel @Inject constructor(
                 // 9. DeMark TD 데이터 수집 (현재 선택된 인터벌) - kotlin_krx
                 val demarkTDData = try {
                     getDemarkTDDataUseCase(ticker, interval = _demarkTDInterval.value)
+                        ?.sortedByDateAsc()
                 } catch (e: Exception) {
                     android.util.Log.e("OscillatorViewModel", "DeMark TD error", e)
                     null
                 }
 
-                // 추가 차트 데이터도 캐시 (클라이언트 사이드 필터링용)
+                // 추가 차트 데이터도 캐시 (이미 오름차순 정렬됨)
                 fullTrendSignalData = trendSignalData
                 fullElderImpulseData = elderImpulseData
                 fullDemarkTDData = demarkTDData
@@ -384,8 +441,9 @@ class OscillatorViewModel @Inject constructor(
                     return@launch
                 }
 
-                // 전체 데이터 캐시
-                fullStockData = stockData
+                // 전체 데이터 캐시 (오름차순 정렬)
+                val sortedStockData = stockData.sortedByDateAsc()
+                fullStockData = sortedStockData
 
                 // 검색 히스토리에 저장 (FAB 네비게이션 시에는 저장하지 않음)
                 if (saveHistory) {
@@ -399,7 +457,7 @@ class OscillatorViewModel @Inject constructor(
                 }
 
                 // 선택된 기간으로 필터링
-                val filteredData = filterStockDataByRange(stockData, _selectedRange.value)
+                val filteredData = filterStockDataByRange(sortedStockData, _selectedRange.value)
 
                 // 오실레이터 계산 (필터링된 데이터 사용)
                 val oscillatorResult = OscillatorCalculator.calculate(filteredData)
@@ -408,13 +466,14 @@ class OscillatorViewModel @Inject constructor(
                 val signalAnalysis = OscillatorCalculator.analyzeSignal(oscillatorResult)
 
                 // 전체 데이터 기반 결과도 캐시
-                val fullResult = OscillatorCalculator.calculate(stockData)
+                val fullResult = OscillatorCalculator.calculate(sortedStockData)
                 fullOscillatorResult = fullResult
                 fullSignalAnalysis = OscillatorCalculator.analyzeSignal(fullResult)
 
                 // 추세 시그널 데이터 수집 (선택된 인터벌) - kotlin_krx
                 val trendSignalData = try {
                     getTrendSignalDataUseCase(ticker, days = 365, interval = _trendSignalInterval.value)
+                        ?.sortedByDateAsc()
                 } catch (e: Exception) {
                     android.util.Log.e("OscillatorViewModel", "Trend signal error", e)
                     null
@@ -428,6 +487,7 @@ class OscillatorViewModel @Inject constructor(
                 // Elder Impulse 데이터 수집 (선택된 인터벌) - kotlin_krx
                 val elderImpulseData = try {
                     getElderImpulseDataUseCase(ticker, interval = _elderImpulseInterval.value)
+                        ?.sortedByDateAsc()
                 } catch (e: Exception) {
                     android.util.Log.e("OscillatorViewModel", "Elder Impulse error", e)
                     null
@@ -436,12 +496,13 @@ class OscillatorViewModel @Inject constructor(
                 // DeMark TD 데이터 수집 (현재 선택된 인터벌) - kotlin_krx
                 val demarkTDData = try {
                     getDemarkTDDataUseCase(ticker, interval = _demarkTDInterval.value)
+                        ?.sortedByDateAsc()
                 } catch (e: Exception) {
                     android.util.Log.e("OscillatorViewModel", "DeMark TD error", e)
                     null
                 }
 
-                // 추가 차트 데이터도 캐시 (클라이언트 사이드 필터링용)
+                // 추가 차트 데이터도 캐시 (이미 오름차순 정렬됨)
                 fullTrendSignalData = trendSignalData
                 fullElderImpulseData = elderImpulseData
                 fullDemarkTDData = demarkTDData
@@ -476,6 +537,7 @@ class OscillatorViewModel @Inject constructor(
         viewModelScope.launch {
             val trendSignalData = try {
                 getTrendSignalDataUseCase(ticker, days = 365, interval = interval)
+                    ?.sortedByDateAsc()
             } catch (e: Exception) {
                 android.util.Log.e("OscillatorViewModel", "Trend signal error", e)
                 null
@@ -487,6 +549,7 @@ class OscillatorViewModel @Inject constructor(
 
             // 데이터 가져오기 성공한 경우에만 업데이트
             if (trendSignalData != null) {
+                fullTrendSignalData = trendSignalData
                 val updatedState = currentState.copy(
                     trendSignalData = trendSignalData,
                     trendSignalAnalysis = trendSignalAnalysis
@@ -510,6 +573,7 @@ class OscillatorViewModel @Inject constructor(
         viewModelScope.launch {
             val elderImpulseData = try {
                 getElderImpulseDataUseCase(ticker, interval = interval)
+                    ?.sortedByDateAsc()
             } catch (e: Exception) {
                 android.util.Log.e("OscillatorViewModel", "Elder Impulse error", e)
                 null
@@ -517,6 +581,7 @@ class OscillatorViewModel @Inject constructor(
 
             // 데이터 가져오기 성공한 경우에만 업데이트
             if (elderImpulseData != null) {
+                fullElderImpulseData = elderImpulseData
                 val updatedState = currentState.copy(elderImpulseData = elderImpulseData)
                 _state.value = updatedState
             }
@@ -537,6 +602,7 @@ class OscillatorViewModel @Inject constructor(
         viewModelScope.launch {
             val demarkTDData = try {
                 getDemarkTDDataUseCase(ticker, interval = interval)
+                    ?.sortedByDateAsc()
             } catch (e: Exception) {
                 android.util.Log.e("OscillatorViewModel", "DeMark TD error", e)
                 null
@@ -544,6 +610,7 @@ class OscillatorViewModel @Inject constructor(
 
             // 데이터 가져오기 성공한 경우에만 업데이트 (null이면 이전 데이터 유지)
             if (demarkTDData != null) {
+                fullDemarkTDData = demarkTDData
                 val updatedState = currentState.copy(demarkTDData = demarkTDData)
                 _state.value = updatedState
             }
@@ -554,14 +621,34 @@ class OscillatorViewModel @Inject constructor(
      * StockData를 날짜 범위로 필터링
      */
     private fun filterStockDataByRange(data: StockData, option: DateRangeOption): StockData {
+        val log = AppLogger.getLogger("OscillatorVM.Filter")
+        log.d("========== filterStockDataByRange ==========")
+        log.d("  option: ${option.name} (${option.label}, days=${option.days})")
+        log.d("  input dates: ${data.dates.size} records")
+        log.d("  input dates range: ${data.dates.firstOrNull()} ~ ${data.dates.lastOrNull()}")
+        log.d("  input dates sample (first 3): ${data.dates.take(3)}")
+
         // 전체 기간이면 필터링 없이 반환
-        if (option.days == -1 || data.dates.isEmpty()) return data
+        if (option.days == -1 || data.dates.isEmpty()) {
+            log.d("  → No filtering (days=-1 or empty). Returning all ${data.dates.size} records.")
+            return data
+        }
 
         val cutoffDate = LocalDate.now().minusDays(option.days.toLong())
         val cutoffStr = cutoffDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+        log.d("  cutoffDate: $cutoffDate → cutoffStr: '$cutoffStr'")
 
         val startIndex = data.dates.indexOfFirst { it >= cutoffStr }
-        if (startIndex < 0) return data
+        log.d("  startIndex: $startIndex (first date >= cutoffStr)")
+
+        if (startIndex < 0) {
+            log.d("  → No date >= cutoffStr found. Returning all ${data.dates.size} records (no filtering).")
+            return data
+        }
+
+        val filteredSize = data.dates.size - startIndex
+        log.d("  → Filtering: dropping $startIndex records, keeping $filteredSize records")
+        log.d("  → Filtered dates range: ${data.dates[startIndex]} ~ ${data.dates.lastOrNull()}")
 
         return StockData(
             ticker = data.ticker,
@@ -665,13 +752,30 @@ class OscillatorViewModel @Inject constructor(
      * 로딩 상태 전환 없이 클라이언트 사이드 필터링
      */
     private fun applyDateRangeFilter() {
+        val log = AppLogger.getLogger("OscillatorVM.ApplyFilter")
+        log.d("========== applyDateRangeFilter ==========")
+
         val currentState = _state.value
         val cachedData = fullStockData
 
         if (currentState is OscillatorState.Success && cachedData != null) {
+            log.d("  selectedRange: ${_selectedRange.value.name} (${_selectedRange.value.label}, days=${_selectedRange.value.days})")
+            log.d("  cachedData: ${cachedData.dates.size} records, range: ${cachedData.dates.firstOrNull()} ~ ${cachedData.dates.lastOrNull()}")
+
             // 클라이언트 사이드 필터링 - 데이터 리로드 없음
             val filteredData = filterStockDataByRange(cachedData, _selectedRange.value)
             val oscillatorResult = OscillatorCalculator.calculate(filteredData)
+
+            log.d("  [시가총액 & 수급 오실레이터 / MACD] After filter+calculate:")
+            log.d("    filteredData.dates: ${filteredData.dates.size} records")
+            log.d("    filteredData.marketCap: ${filteredData.marketCap.size} records, sample(first 3): ${filteredData.marketCap.take(3)}")
+            log.d("    filteredData.foreign5d: ${filteredData.foreign5d.size} records, sample(first 3): ${filteredData.foreign5d.take(3)}")
+            log.d("    filteredData.institution5d: ${filteredData.institution5d.size} records, sample(first 3): ${filteredData.institution5d.take(3)}")
+            log.d("    oscillatorResult.dates: ${oscillatorResult.dates.size}")
+            log.d("    oscillatorResult.oscillator: ${oscillatorResult.oscillator.size} values, sample(last 3): ${oscillatorResult.oscillator.takeLast(3)}")
+            log.d("    oscillatorResult.macd: ${oscillatorResult.macd.size} values, sample(last 3): ${oscillatorResult.macd.takeLast(3)}")
+            log.d("    oscillatorResult.signal: ${oscillatorResult.signal.size} values, sample(last 3): ${oscillatorResult.signal.takeLast(3)}")
+
             val signalAnalysis = OscillatorCalculator.analyzeSignal(oscillatorResult)
 
             // 추가 차트 데이터도 필터링
@@ -682,6 +786,8 @@ class OscillatorViewModel @Inject constructor(
             val filteredElderImpulseData = filterElderImpulseDataByRange(fullElderImpulseData, _selectedRange.value)
             val filteredDemarkTDData = filterDemarkTDDataByRange(fullDemarkTDData, _selectedRange.value)
 
+            log.d("  State updated. filteredData=${filteredData.dates.size}, oscillator=${oscillatorResult.oscillator.size}, macd=${oscillatorResult.macd.size}")
+
             _state.value = currentState.copy(
                 stockData = filteredData,
                 oscillatorResult = oscillatorResult,
@@ -691,6 +797,8 @@ class OscillatorViewModel @Inject constructor(
                 elderImpulseData = filteredElderImpulseData,
                 demarkTDData = filteredDemarkTDData
             )
+        } else {
+            log.d("  → Cannot apply filter: isSuccess=${currentState is OscillatorState.Success}, hasCachedData=${cachedData != null}")
         }
     }
 
@@ -698,14 +806,29 @@ class OscillatorViewModel @Inject constructor(
      * 날짜 범위 변경 - 클라이언트 사이드 필터링 사용
      */
     fun updateDateRange(option: DateRangeOption) {
-        if (option == _selectedRange.value) return
+        val log = AppLogger.getLogger("OscillatorVM.DateRange")
+        log.d("========== updateDateRange ==========")
+        log.d("  requested: ${option.name} (${option.label}, days=${option.days})")
+        log.d("  current: ${_selectedRange.value.name} (${_selectedRange.value.label})")
+
+        if (option == _selectedRange.value) {
+            log.d("  → Same as current. Skipping.")
+            return
+        }
         _selectedRange.value = option
 
+        val hasCachedData = fullStockData != null
+        val isSuccess = _state.value is OscillatorState.Success
+        log.d("  hasCachedData: $hasCachedData, isSuccessState: $isSuccess")
+        log.d("  cachedData dates: ${fullStockData?.dates?.size ?: 0} records")
+
         // 캐시된 데이터가 있으면 클라이언트 사이드 필터링
-        if (fullStockData != null && _state.value is OscillatorState.Success) {
+        if (hasCachedData && isSuccess) {
+            log.d("  → Applying client-side filter (applyDateRangeFilter)")
             applyDateRangeFilter()
         } else {
             // 캐시가 없으면 전체 데이터 로드 필요
+            log.d("  → No cache. Reloading data for ticker: ${_currentTicker.value}")
             _currentTicker.value?.let { ticker ->
                 analyzeStock(ticker, saveHistory = false)
             }

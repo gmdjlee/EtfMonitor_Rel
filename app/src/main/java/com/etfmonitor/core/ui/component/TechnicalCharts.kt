@@ -113,21 +113,21 @@ fun MacdChart(
                 }
             },
             update = { chart ->
-                // 데이터 역순 정렬 (최신 데이터가 오른쪽에 표시되도록)
-                val reversedDates = result.dates.reversed()
-                val reversedMacd = result.macd.reversed()
-                val reversedSignal = result.signal.reversed()
-                val reversedHistogram = result.histogram.reversed()
+                // 데이터는 ViewModel에서 오름차순 정렬됨 (oldest→newest)
+                val chartDates = result.dates
+                val chartMacd = result.macd
+                val chartSignal = result.signal
+                val chartHistogram = result.histogram
 
-                val dataCount = reversedDates.size
+                val dataCount = chartDates.size
 
-                // MACD 전용 마커 뷰 (역순 데이터 사용)
+                // MACD 전용 마커 뷰
                 val markerView = MacdMarkerView(
                     chart.context,
                     R.layout.marker_view,
-                    reversedDates,
-                    reversedMacd,
-                    reversedSignal
+                    chartDates,
+                    chartMacd,
+                    chartSignal
                 )
                 chart.marker = markerView
 
@@ -137,8 +137,8 @@ fun MacdChart(
                     valueFormatter = object : ValueFormatter() {
                         override fun getFormattedValue(value: Float): String {
                             val index = value.toInt()
-                            return if (index >= 0 && index < reversedDates.size) {
-                                DateFormatter.formatForChartByDataCount(reversedDates[index], dataCount)
+                            return if (index >= 0 && index < chartDates.size) {
+                                DateFormatter.formatForChartByDataCount(chartDates[index], dataCount)
                             } else {
                                 ""
                             }
@@ -147,11 +147,11 @@ fun MacdChart(
                 }
 
                 // Histogram
-                val barEntries = reversedHistogram.mapIndexed { index, value ->
+                val barEntries = chartHistogram.mapIndexed { index, value ->
                     BarEntry(index.toFloat(), value.toFloat())
                 }
                 val barDataSet = BarDataSet(barEntries, "").apply {
-                    colors = reversedHistogram.map { value ->
+                    colors = chartHistogram.map { value ->
                         if (value >= 0) positiveColor
                         else negativeColor
                     }
@@ -163,7 +163,7 @@ fun MacdChart(
                 }
 
                 // MACD 라인
-                val macdEntries = reversedMacd.mapIndexed { index, value ->
+                val macdEntries = chartMacd.mapIndexed { index, value ->
                     Entry(index.toFloat(), value.toFloat())
                 }
                 val macdDataSet = LineDataSet(macdEntries, "MACD").apply {
@@ -177,7 +177,7 @@ fun MacdChart(
                 }
 
                 // Signal 라인
-                val signalEntries = reversedSignal.mapIndexed { index, value ->
+                val signalEntries = chartSignal.mapIndexed { index, value ->
                     Entry(index.toFloat(), value.toFloat())
                 }
                 val signalDataSet = LineDataSet(signalEntries, "Signal").apply {

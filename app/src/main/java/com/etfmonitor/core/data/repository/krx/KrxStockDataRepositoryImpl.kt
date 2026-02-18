@@ -453,22 +453,26 @@ class KrxStockDataRepositoryImpl @Inject constructor(
             // 1. Get OHLCV data
             val ohlcvData = getStockOhlcv(ticker, days, interval) ?: return@withContext null
 
-            // 2. Get market cap approximation
-            val end = LocalDate.now()
-            val capResult = krxCall(TIMEOUT_30S) {
-                krxStock.getMarketCap(DateAdapter.toKrxFormat(end), Market.ALL)
-            }
-
-            val sharesOutstanding = if (capResult.isSuccess) {
-                val caps = capResult.getOrNull() ?: emptyList()
-                val cap = caps.find { it.ticker == ticker }
-                if (cap != null && cap.marketCap > 0 && ohlcvData.close.isNotEmpty()) {
-                    (cap.marketCap / ohlcvData.close.last()).toLong()
-                } else {
-                    0L
+            // 2. Get market cap approximation (retry up to 7 OHLCV dates to handle weekends/holidays)
+            var sharesOutstanding = 0L
+            for (i in 0 until minOf(7, ohlcvData.dates.size)) {
+                val candidateDate = ohlcvData.dates[i]
+                val capResult = krxCall(TIMEOUT_30S) {
+                    krxStock.getMarketCap(candidateDate, Market.ALL)
                 }
-            } else {
-                0L
+                if (capResult.isSuccess) {
+                    val cap = capResult.getOrNull()?.find { it.ticker == ticker }
+                    if (cap != null) {
+                        sharesOutstanding = if (cap.sharesOutstanding > 0) {
+                            cap.sharesOutstanding
+                        } else if (cap.marketCap > 0 && cap.close > 0) {
+                            (cap.marketCap / cap.close)
+                        } else {
+                            0L
+                        }
+                        if (sharesOutstanding > 0) break
+                    }
+                }
             }
 
             val marketCap = ohlcvData.close.map { c -> (c * sharesOutstanding).toLong() }
@@ -516,22 +520,26 @@ class KrxStockDataRepositoryImpl @Inject constructor(
             // 1. Get OHLCV data
             val ohlcvData = getStockOhlcv(ticker, days, interval) ?: return@withContext null
 
-            // 2. Get market cap approximation
-            val end = LocalDate.now()
-            val capResult = krxCall(TIMEOUT_30S) {
-                krxStock.getMarketCap(DateAdapter.toKrxFormat(end), Market.ALL)
-            }
-
-            val sharesOutstanding = if (capResult.isSuccess) {
-                val caps = capResult.getOrNull() ?: emptyList()
-                val cap = caps.find { it.ticker == ticker }
-                if (cap != null && cap.marketCap > 0 && ohlcvData.close.isNotEmpty()) {
-                    (cap.marketCap / ohlcvData.close.last()).toLong()
-                } else {
-                    0L
+            // 2. Get market cap approximation (retry up to 7 OHLCV dates to handle weekends/holidays)
+            var sharesOutstanding = 0L
+            for (i in 0 until minOf(7, ohlcvData.dates.size)) {
+                val candidateDate = ohlcvData.dates[i]
+                val capResult = krxCall(TIMEOUT_30S) {
+                    krxStock.getMarketCap(candidateDate, Market.ALL)
                 }
-            } else {
-                0L
+                if (capResult.isSuccess) {
+                    val cap = capResult.getOrNull()?.find { it.ticker == ticker }
+                    if (cap != null) {
+                        sharesOutstanding = if (cap.sharesOutstanding > 0) {
+                            cap.sharesOutstanding
+                        } else if (cap.marketCap > 0 && cap.close > 0) {
+                            (cap.marketCap / cap.close)
+                        } else {
+                            0L
+                        }
+                        if (sharesOutstanding > 0) break
+                    }
+                }
             }
 
             val marketCap = ohlcvData.close.map { c -> (c * sharesOutstanding).toLong() }
