@@ -16,7 +16,7 @@ interface StockIndicatorAIResultDao {
     /**
      * 특정 종목의 모든 AI 분석 결과 조회 (날짜 내림차순)
      */
-    @Query("SELECT * FROM stock_indicator_ai_result WHERE ticker = :ticker ORDER BY createdAt DESC")
+    @Query("SELECT * FROM stock_indicator_ai_result WHERE ticker = :ticker ORDER BY createdAt DESC LIMIT 50")
     fun getAllByTicker(ticker: String): Flow<List<StockIndicatorAIResult>>
 
     /**
@@ -46,7 +46,7 @@ interface StockIndicatorAIResultDao {
     /**
      * 모든 분석 결과 조회 (최신순)
      */
-    @Query("SELECT * FROM stock_indicator_ai_result ORDER BY createdAt DESC")
+    @Query("SELECT * FROM stock_indicator_ai_result ORDER BY createdAt DESC LIMIT 200")
     fun getAll(): Flow<List<StockIndicatorAIResult>>
 
     /**
@@ -58,13 +58,13 @@ interface StockIndicatorAIResultDao {
     /**
      * 특정 시장의 분석 결과 조회
      */
-    @Query("SELECT * FROM stock_indicator_ai_result WHERE market = :market ORDER BY createdAt DESC")
+    @Query("SELECT * FROM stock_indicator_ai_result WHERE market = :market ORDER BY createdAt DESC LIMIT 200")
     fun getAllByMarket(market: String): Flow<List<StockIndicatorAIResult>>
 
     /**
      * 특정 AI 제공자의 결과만 조회
      */
-    @Query("SELECT * FROM stock_indicator_ai_result WHERE aiProvider = :provider ORDER BY createdAt DESC")
+    @Query("SELECT * FROM stock_indicator_ai_result WHERE aiProvider = :provider ORDER BY createdAt DESC LIMIT 200")
     fun getByProvider(provider: String): Flow<List<StockIndicatorAIResult>>
 
     /**
@@ -74,6 +74,7 @@ interface StockIndicatorAIResultDao {
         SELECT * FROM stock_indicator_ai_result
         WHERE analysisDate >= :startDate AND analysisDate <= :endDate
         ORDER BY createdAt DESC
+        LIMIT 500
     """)
     suspend fun getByDateRange(startDate: String, endDate: String): List<StockIndicatorAIResult>
 

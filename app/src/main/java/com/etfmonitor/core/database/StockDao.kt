@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface StockDao {
-    @Query("SELECT * FROM stocks ORDER BY name ASC")
+    @Query("SELECT * FROM stocks ORDER BY name ASC LIMIT 2000")
     fun getAllStocks(): Flow<List<Stock>>
 
     @Query("SELECT * FROM stocks WHERE ticker = :ticker")
@@ -22,10 +22,10 @@ interface StockDao {
     @Query("SELECT * FROM stocks WHERE name LIKE '%' || :query || '%' OR ticker LIKE '%' || :query || '%' ORDER BY name ASC LIMIT 50")
     fun searchStocks(query: String): Flow<List<Stock>>
 
-    @Query("SELECT * FROM stocks WHERE is_etf_holding = 1 ORDER BY name ASC")
+    @Query("SELECT * FROM stocks WHERE is_etf_holding = 1 ORDER BY name ASC LIMIT 1000")
     fun getEtfHoldingStocks(): Flow<List<Stock>>
 
-    @Query("SELECT * FROM stocks WHERE market = :market ORDER BY name ASC")
+    @Query("SELECT * FROM stocks WHERE market = :market ORDER BY name ASC LIMIT 1500")
     fun getStocksByMarket(market: String): Flow<List<Stock>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

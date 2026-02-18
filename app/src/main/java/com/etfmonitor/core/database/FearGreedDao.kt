@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FearGreedDao {
-    @Query("SELECT * FROM fear_greed_index WHERE market = :market ORDER BY date DESC")
+    @Query("SELECT * FROM fear_greed_index WHERE market = :market ORDER BY date DESC LIMIT 730")
     fun getAllByMarket(market: String): Flow<List<FearGreedIndex>>
 
     @Query("SELECT * FROM fear_greed_index WHERE market = :market AND date = :date")

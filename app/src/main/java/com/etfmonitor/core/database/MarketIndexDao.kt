@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.etfmonitor.core.database.entities.MarketIndex
 import kotlinx.coroutines.flow.Flow
 
@@ -65,6 +66,15 @@ interface MarketIndexDao {
      */
     @Query("DELETE FROM market_index")
     suspend fun deleteAll()
+
+    /**
+     * 전체 교체 (deleteAll + insertAll을 원자적으로 수행)
+     */
+    @Transaction
+    suspend fun replaceAll(items: List<MarketIndex>) {
+        deleteAll()
+        insertAll(items)
+    }
 
     /**
      * 특정 시장의 데이터 개수

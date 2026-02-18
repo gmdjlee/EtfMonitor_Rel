@@ -12,13 +12,13 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface EnhancedPredictionDao {
-    @Query("SELECT * FROM enhanced_predictions ORDER BY predictionDate DESC, confidence DESC")
+    @Query("SELECT * FROM enhanced_predictions ORDER BY predictionDate DESC, confidence DESC LIMIT 200")
     fun getAllPredictions(): Flow<List<EnhancedPrediction>>
 
-    @Query("SELECT * FROM enhanced_predictions WHERE predictionDate = :date ORDER BY confidence DESC")
+    @Query("SELECT * FROM enhanced_predictions WHERE predictionDate = :date ORDER BY confidence DESC LIMIT 200")
     fun getPredictionsByDate(date: String): Flow<List<EnhancedPrediction>>
 
-    @Query("SELECT * FROM enhanced_predictions WHERE ticker = :ticker ORDER BY predictionDate DESC")
+    @Query("SELECT * FROM enhanced_predictions WHERE ticker = :ticker ORDER BY predictionDate DESC LIMIT 100")
     fun getPredictionsByTicker(ticker: String): Flow<List<EnhancedPrediction>>
 
     @Query("SELECT * FROM enhanced_predictions WHERE id = :id")

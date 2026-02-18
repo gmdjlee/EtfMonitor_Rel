@@ -9,6 +9,7 @@ import com.etfmonitor.core.database.entities.StockAnalysisWithName
 
 @Dao
 interface StockAnalysisDao {
+    @Deprecated("Use getAnalysisDataWithName() instead — this query returns name=null", ReplaceWith("getAnalysisDataWithName(ticker)"))
     @Query("SELECT * FROM stock_analysis_data WHERE ticker = :ticker")
     suspend fun getAnalysisData(ticker: String): StockAnalysisData?
 
@@ -35,7 +36,7 @@ interface StockAnalysisDao {
     @Query("SELECT COUNT(*) FROM stock_analysis_data")
     suspend fun getCount(): Int
 
-    @Query("SELECT * FROM stock_analysis_data ORDER BY lastUpdated DESC")
+    @Query("SELECT * FROM stock_analysis_data ORDER BY lastUpdated DESC LIMIT 500")
     suspend fun getAllAnalysisData(): List<StockAnalysisData>
 
     /** stocks JOIN으로 전체 조회 */
@@ -46,6 +47,7 @@ interface StockAnalysisDao {
         FROM stock_analysis_data a
         LEFT JOIN stocks s ON a.ticker = s.ticker
         ORDER BY a.lastUpdated DESC
+        LIMIT 500
     """)
     suspend fun getAllAnalysisDataWithName(): List<StockAnalysisWithName>
 }

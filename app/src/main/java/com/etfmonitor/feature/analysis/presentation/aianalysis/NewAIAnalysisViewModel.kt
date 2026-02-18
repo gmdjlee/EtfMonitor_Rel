@@ -161,32 +161,37 @@ class NewAIAnalysisViewModel @Inject constructor(
      */
     private fun loadLatestResults() {
         viewModelScope.launch {
-            val market = _selectedMarket.value
+            try {
+                val market = _selectedMarket.value
 
-            // 최신 상관관계 결과 로드
-            val latestCorrelation = correlationAnalysisRepository.getLatestCorrelationResult(market)
+                // 최신 상관관계 결과 로드
+                val latestCorrelation = correlationAnalysisRepository.getLatestCorrelationResult(market)
 
-            if (latestCorrelation != null) {
-                // 해당 상관관계에 대한 AI 결과 로드
-                val latestAI = correlationAnalysisRepository.getLatestAIResult(market)
+                if (latestCorrelation != null) {
+                    // 해당 상관관계에 대한 AI 결과 로드
+                    val latestAI = correlationAnalysisRepository.getLatestAIResult(market)
 
-                _analysisResult.value = FullAnalysis(
-                    correlationResult = latestCorrelation,
-                    aiResult = latestAI,
-                    errorMessage = null
-                )
-
-                // 상태 업데이트
-                _state.value = if (latestAI != null) {
-                    NewAIAnalysisState.FullAnalysisComplete(
-                        FullAnalysis(latestCorrelation, latestAI, null)
+                    _analysisResult.value = FullAnalysis(
+                        correlationResult = latestCorrelation,
+                        aiResult = latestAI,
+                        errorMessage = null
                     )
+
+                    // 상태 업데이트
+                    _state.value = if (latestAI != null) {
+                        NewAIAnalysisState.FullAnalysisComplete(
+                            FullAnalysis(latestCorrelation, latestAI, null)
+                        )
+                    } else {
+                        NewAIAnalysisState.CorrelationComplete(latestCorrelation)
+                    }
                 } else {
-                    NewAIAnalysisState.CorrelationComplete(latestCorrelation)
+                    // 결과가 없으면 자동으로 로컬 상관관계 분석 실행
+                    runCorrelationAnalysis()
                 }
-            } else {
-                // 결과가 없으면 자동으로 로컬 상관관계 분석 실행
-                runCorrelationAnalysis()
+            } catch (e: Exception) {
+                android.util.Log.e("NewAIAnalysisVM", "Error loading latest results", e)
+                _state.value = NewAIAnalysisState.Idle
             }
         }
     }
@@ -605,6 +610,13 @@ class NewAIAnalysisViewModel @Inject constructor(
      */
     fun startNewChat() {
         viewModelScope.launch {
+            if (!_isApiKeyConfigured.value) {
+                _state.value = NewAIAnalysisState.Error(
+                    "API 키가 설정되지 않았습니다. 설정에서 ${_selectedProvider.value.name} API 키를 등록해주세요."
+                )
+                return@launch
+            }
+
             val analysisResult = _analysisResult.value
 
             val session = if (analysisResult != null) {
@@ -657,6 +669,13 @@ class NewAIAnalysisViewModel @Inject constructor(
         val session = _currentSession.value ?: return
 
         viewModelScope.launch {
+            if (!_isApiKeyConfigured.value) {
+                _state.value = NewAIAnalysisState.ChatError(
+                    "API 키가 설정되지 않았습니다. 설정에서 ${_selectedProvider.value.name} API 키를 등록해주세요."
+                )
+                return@launch
+            }
+
             _isSendingMessage.value = true
 
             val result = chatRepository.sendMessage(session.id, content)

@@ -173,7 +173,7 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
         market: String
     ): DivergenceAnalysis = withContext(Dispatchers.IO) {
         try {
-            val allData = stockAnalysisDao.getAllAnalysisData()
+            val allData = stockAnalysisDao.getAllAnalysisDataWithName()
             if (allData.isEmpty()) {
                 return@withContext createEmptyDivergenceAnalysis(date, market)
             }
@@ -191,7 +191,7 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
 
                 if (marketCap == 0L) continue
 
-                val stockName = stockDao.getStock(data.ticker)?.name ?: data.ticker
+                val stockName = data.name
                 val divergenceScore = calculateDivergenceScore(foreign5d, institution5d, marketCap)
                 val divergenceType = classifyDivergenceType(foreign5d, institution5d)
 

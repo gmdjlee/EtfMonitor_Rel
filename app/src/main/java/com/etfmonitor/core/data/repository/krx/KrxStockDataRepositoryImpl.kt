@@ -5,6 +5,7 @@ import com.etfmonitor.core.analysis.model.*
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.data.krx.adapter.DateAdapter
 import com.etfmonitor.core.data.krx.adapter.KrxRepositoryBase
+import com.etfmonitor.core.database.StockDao
 import com.etfmonitor.core.domain.repository.StockDataRepository
 import com.krxkt.KrxStock
 import com.krxkt.model.Market
@@ -44,7 +45,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class KrxStockDataRepositoryImpl @Inject constructor(
-    private val krxStock: KrxStock
+    private val krxStock: KrxStock,
+    private val stockDao: StockDao
 ) : KrxRepositoryBase(), StockDataRepository {
 
     companion object {
@@ -206,14 +208,6 @@ class KrxStockDataRepositoryImpl @Inject constructor(
             val dates = ohlcvList.map { it.date }
             val close = ohlcvList.map { it.close }
 
-            // ========== CHECKPOINT 1: kotlin_krx OHLCV OUTPUT ==========
-            logger.d("========== CHECKPOINT 1: kotlin_krx OHLCV ==========")
-            logger.d("  Dates: ${dates.size} records")
-            logger.d("  First 3 dates: ${dates.take(3)}")
-            logger.d("  Last 3 dates: ${dates.takeLast(3)}")
-            logger.d("  First 3 close: ${close.take(3)}")
-            logger.d("  Last 3 close: ${close.takeLast(3)}")
-
             // 2. Get latest market cap for shares outstanding
             // Use latest business day from OHLCV data (not end date which could be weekend/holiday)
             // NOTE: kotlin_krx returns dates in REVERSE chronological order (newest first)
@@ -223,7 +217,7 @@ class KrxStockDataRepositoryImpl @Inject constructor(
             var successfulDate: String? = null
 
             // Try up to 30 most recent business days to find when market cap data becomes available
-            for (i in 0 until minOf(30, dates.size)) {
+            for (i in 0 until minOf(7, dates.size)) {
                 val candidateDate = dates[i]
                 logger.d("Attempting market cap query for date: $candidateDate (index=$i)")
 
@@ -236,21 +230,8 @@ class KrxStockDataRepositoryImpl @Inject constructor(
                     logger.d("getMarketCap returned ${caps.size} records for date $candidateDate")
 
                     if (caps.isNotEmpty()) {
-                        // ========== CHECKPOINT 2: kotlin_krx MarketCap OUTPUT ==========
-                        logger.d("========== CHECKPOINT 2: kotlin_krx MarketCap ==========")
-                        logger.d("  Sample MarketCap records (first 3):")
-                        caps.take(3).forEach {
-                            logger.d("    ${it.ticker}: close=${it.close}, marketCap=${it.marketCap}, sharesOut=${it.sharesOutstanding}")
-                        }
-
                         val cap = caps.find { it.ticker == ticker }
                         if (cap != null) {
-                            logger.d("Found MarketCap for $ticker:")
-                            logger.d("  ticker: ${cap.ticker}")
-                            logger.d("  name: ${cap.name}")
-                            logger.d("  close: ${cap.close}")
-                            logger.d("  marketCap: ${cap.marketCap}")
-                            logger.d("  sharesOutstanding: ${cap.sharesOutstanding}")
 
                             sharesOutstanding = if (cap.sharesOutstanding > 0) {
                                 // Use actual shares outstanding from KRX API
@@ -337,19 +318,6 @@ class KrxStockDataRepositoryImpl @Inject constructor(
             // Get stock name
             val name = getStockName(ticker) ?: ticker
 
-            // ========== CHECKPOINT 3: Repository OUTPUT (StockData) ==========
-            logger.d("========== CHECKPOINT 3: Repository OUTPUT ==========")
-            logger.d("  Creating StockData:")
-            logger.d("    ticker: $ticker")
-            logger.d("    name: $name")
-            logger.d("    dates: ${dates.size} records")
-            logger.d("    sharesOutstanding: $sharesOutstanding")
-            logger.d("    marketCap calculation: close * sharesOutstanding")
-            logger.d("    marketCap[0] = ${close.firstOrNull()} * $sharesOutstanding = ${marketCap.firstOrNull()}")
-            logger.d("    marketCap sample (first 3): ${marketCap.take(3)}")
-            logger.d("    foreign5d sample (first 3): ${foreign5d.take(3)}")
-            logger.d("    institution5d sample (first 3): ${institution5d.take(3)}")
-
             StockData(
                 ticker = ticker,
                 name = name,
@@ -396,7 +364,10 @@ class KrxStockDataRepositoryImpl @Inject constructor(
 
     override suspend fun getStockName(ticker: String): String? = withContext(Dispatchers.IO) {
         try {
-            // Use ticker cache lookup (KrxStock already handles this internally)
+            // Try local DB first (fast, no network)
+            stockDao.getStockName(ticker)?.let { return@withContext it }
+
+            // Fall back to KRX API only if not found locally
             val result = krxCall(TIMEOUT_30S) {
                 krxStock.getTickerList(DateAdapter.today(), Market.ALL)
             }

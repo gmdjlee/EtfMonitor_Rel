@@ -80,8 +80,9 @@ object StockModule {
     @Provides
     @Singleton
     fun provideStockDataRepository(
-        krxStock: KrxStock
-    ): StockDataRepository = KrxStockDataRepositoryImpl(krxStock)
+        krxStock: KrxStock,
+        stockDao: StockDao
+    ): StockDataRepository = KrxStockDataRepositoryImpl(krxStock, stockDao)
 
     @Provides
     @Singleton

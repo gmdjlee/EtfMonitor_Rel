@@ -13,12 +13,16 @@ class Converters {
 
     @TypeConverter
     fun toStringList(value: String): List<String> {
-        val jsonArray = JSONArray(value)
-        val list = mutableListOf<String>()
-        for (i in 0 until jsonArray.length()) {
-            list.add(jsonArray.getString(i))
+        return try {
+            val jsonArray = JSONArray(value)
+            val list = mutableListOf<String>()
+            for (i in 0 until jsonArray.length()) {
+                list.add(jsonArray.getString(i))
+            }
+            list
+        } catch (e: org.json.JSONException) {
+            emptyList()
         }
-        return list
     }
 
     @TypeConverter
@@ -30,11 +34,15 @@ class Converters {
 
     @TypeConverter
     fun toLongList(value: String): List<Long> {
-        val jsonArray = JSONArray(value)
-        val list = mutableListOf<Long>()
-        for (i in 0 until jsonArray.length()) {
-            list.add(jsonArray.getLong(i))
+        return try {
+            val jsonArray = JSONArray(value)
+            val list = mutableListOf<Long>()
+            for (i in 0 until jsonArray.length()) {
+                list.add(jsonArray.getLong(i))
+            }
+            list
+        } catch (e: org.json.JSONException) {
+            emptyList()
         }
-        return list
     }
 }

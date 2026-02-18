@@ -114,9 +114,8 @@ class MarketIndexRepositoryImpl @Inject constructor(
                             return@withContext Result.failure(Exception("시장 지수 데이터를 가져올 수 없습니다"))
                         }
 
-                        // DB에 저장
-                        dao.deleteAll()
-                        dao.insertAll(indices)
+                        // DB에 저장 (atomic replace)
+                        dao.replaceAll(indices)
 
                         logger.d("Successfully initialized ${indices.size} market index records")
                         Result.success(indices.size)

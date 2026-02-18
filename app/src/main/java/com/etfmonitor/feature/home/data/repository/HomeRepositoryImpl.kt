@@ -7,6 +7,7 @@ import com.etfmonitor.feature.home.domain.model.DataStatus
 import com.etfmonitor.feature.home.domain.model.HomeSummary
 import com.etfmonitor.feature.home.domain.repository.HomeRepository
 import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
+import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
 import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +39,7 @@ class HomeRepositoryImpl @Inject constructor(
 ) : HomeRepository {
 
     companion object {
+        private val logger = AppLogger.getLogger("HomeRepoImpl")
         private const val OSCILLATOR_OVERBOUGHT_THRESHOLD = 70.0
         private const val OSCILLATOR_OVERSOLD_THRESHOLD = -70.0
     }
@@ -83,7 +85,7 @@ class HomeRepositoryImpl @Inject constructor(
                 kosdaqStatus = kosdaqOscillator?.let { calculateOscillatorStatus(it.oscillator) }
             )
         } catch (e: Exception) {
-            android.util.Log.e("HomeRepositoryImpl", "Error loading summary data", e)
+            logger.e("Error loading summary data", e)
             null
         }
     }
