@@ -6,8 +6,6 @@ from functools import reduce
 from typing import Any, Dict, Optional, Tuple
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
-
 from core import get_logger, HttpClient, to_iso, parse_num
 
 log = get_logger(__name__)
@@ -163,8 +161,14 @@ def _calc_fg(df: pd.DataFrame, idx_col: str) -> pd.DataFrame:
         df["FG"] = np.nan
         return df
 
-    scaler = MinMaxScaler()
-    df.loc[valid, feats] = scaler.fit_transform(df.loc[valid, feats])
+    # MinMaxScaler replacement: normalize each feature to [0, 1]
+    for feat in feats:
+        col = df.loc[valid, feat]
+        col_min, col_max = col.min(), col.max()
+        if col_max - col_min > 0:
+            df.loc[valid, feat] = (col - col_min) / (col_max - col_min)
+        else:
+            df.loc[valid, feat] = 0.0
 
     df["FG"] = (df["Mom"] * 0.2 + (1 - df["PCR"]) * 0.2 +
                 (1 - df["Vol"]) * 0.2 + df["Spread"] * 0.2 + df["RSI"] * 0.2)

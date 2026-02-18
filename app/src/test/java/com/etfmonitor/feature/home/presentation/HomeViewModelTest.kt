@@ -13,6 +13,7 @@ import com.etfmonitor.feature.home.domain.usecase.GetDefaultDaysUseCase
 import com.etfmonitor.feature.home.domain.usecase.GetHomeSummaryUseCase
 import com.etfmonitor.feature.home.domain.usecase.SaveDialogDismissedUseCase
 import com.etfmonitor.feature.home.presentation.viewmodel.HomeViewModel
+import com.etfmonitor.core.service.CollectionState
 import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
 import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
@@ -75,6 +76,9 @@ class HomeViewModelTest {
 
         // Default mock behavior - not first run
         coEvery { checkFirstRunUseCase() } returns false
+
+        // Reset global singleton to prevent test pollution
+        CollectionState.reset()
     }
 
     private fun createViewModel(): HomeViewModel {

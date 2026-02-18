@@ -32,7 +32,4 @@ object PythonModule {
         }
         return Python.getInstance()
     }
-
-    // OscillatorPyClient는 @Inject constructor를 사용하므로 수동 제공 불필요
-    // Hilt가 자동으로 의존성을 주입합니다
 }

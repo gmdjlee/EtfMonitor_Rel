@@ -61,6 +61,7 @@ android {
         unitTests.all {
             it.useJUnitPlatform()
         }
+        unitTests.isReturnDefaultValues = true
     }
 
     buildFeatures {
@@ -92,16 +93,7 @@ chaquopy {
 
             // Core packages
             install("pandas")
-            install("setuptools")
-            install("wheel")
             install("requests")
-            install("beautifulsoup4")
-            install("scikit-learn")
-
-            // Enhanced ML prediction packages (v2)
-            // Note: imbalanced-learn removed due to scipy version conflict with Chaquopy
-            // SMOTE functionality is optional and handled via try-except in Python
-            install("joblib==1.3.2")     // Model serialization
         }
     }
 }
@@ -123,10 +115,6 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.androidx.material3.adaptive)
-    implementation(libs.androidx.material3.adaptive.layout)
-    implementation(libs.androidx.material3.adaptive.navigation)
-    implementation(libs.androidx.material3.adaptive.navigation.suite)
     implementation(libs.androidx.material.icons.extended)  // ✅ 추가
     implementation(libs.androidx.navigation.compose)
 
@@ -156,9 +144,6 @@ dependencies {
     // WorkManager for scheduled tasks
     implementation(libs.androidx.work.runtime.ktx)
 
-    // Graphics shapes for hexagon menu with morph animation
-    implementation("androidx.graphics:graphics-shapes:1.1.0")
-
     // OkHttp for Claude API
     implementation(libs.okhttp)
 
@@ -182,14 +167,12 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
 
     // Testing - Unit Tests
-    testImplementation(libs.junit)
     testImplementation(libs.junit5.api)
     testRuntimeOnly(libs.junit5.engine)
     testImplementation(libs.junit5.params)
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)
     testImplementation(libs.coroutines.test)
-    testImplementation(libs.arch.core.testing)
     testImplementation(libs.room.testing)
     testImplementation("org.jetbrains.kotlin:kotlin-test:2.1.0")
 
@@ -200,10 +183,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.truth.ext)
-    androidTestImplementation(libs.mockk.android)
     androidTestImplementation(libs.turbine)
     androidTestImplementation(libs.coroutines.test)
     androidTestImplementation(libs.room.testing)
-    androidTestImplementation(libs.hilt.testing)
-    kspAndroidTest(libs.hilt.android.compiler)
 }

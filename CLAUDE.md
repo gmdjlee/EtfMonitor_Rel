@@ -5,7 +5,7 @@
 Korean stock market (KRX) ETF monitoring Android app.
 Kotlin 2.1.0 | Jetpack Compose + M3 | MVVM + Clean Architecture | Hilt 2.54 | Room 2.8.3 (schema v19) | Chaquopy (embedded Python) | Claude & Gemini AI APIs
 
-Package: `com.etfmonitor` | DB: `etf_monitor.db` | ~255 Kotlin files | 8 Python scripts
+Package: `com.etfmonitor` | DB: `etf_monitor.db` | ~255 Kotlin files | 7 Python scripts
 Structure: `core/` (97 files) shared infra, `feature/` (155 files) 6 modules, `navigation/` (1 file)
 Each feature: `domain/{model,repository,usecase}` → `data/{mapper,repository}` → `presentation/` → `di/`
 
@@ -34,11 +34,10 @@ In SQL queries, convert: `CAST(weightBps AS REAL) / 10000.0`, `CAST(amountMillio
 ### 3. IMPORTANT: Python Timeouts — Not All 30s
 | Client | Timeout | Why |
 |--------|---------|-----|
-| PyKrxClient | 30s | Standard (2 retries for holdings) |
 | MarketIndexPyClient | 30s | Standard |
 | BloodIndicatorPyClient | **90s** | 100-week SMA calculation |
-| EnhancedPredictorClient | **120s** | ML ensemble training (28 features) |
-| OscillatorPyClient | **180s** | Collects 200+ component stocks |
+| FearGreedRepositoryImpl | **60s** | KRX API + DataFrame analysis |
+| KrxRepositoryBase | 30s-180s | Configurable per kotlin_krx call |
 
 ### 4. IMPORTANT: FearGreed — Request 3x Days
 Moving averages lose leading data. To get N days of Fear & Greed data:
@@ -105,8 +104,8 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 | Navigation | `navigation/Navigation.kt` | 14 screen routes |
 | Database | `core/database/AppDatabase.kt` | 21 entities, 18 DAOs, 18 migrations (v19) |
 | Database entities | `core/database/entities/` | 20 files (AIChatSession in AIChatMessage.kt) |
-| Python scripts | `app/src/main/python/` | 8 files: etfcollector, stocks, market, feargreed, deposit_scraper, trend_signal, core, logger |
-| Python bridge | `core/network/python/` | OscillatorPyClient, MarketIndexPyClient, BloodIndicatorPyClient (PyKrxClient removed) |
+| Python scripts | `app/src/main/python/` | 7 files: etfcollector, stocks, market, feargreed, deposit_scraper, trend_signal, core |
+| Python bridge | `core/network/python/` | MarketIndexPyClient, BloodIndicatorPyClient (PyKrxClient + OscillatorPyClient removed) |
 | AI clients | `core/network/ai/` | ClaudeApiClient, GeminiApiClient, AIApiClientFactory (11 files) |
 | Theme | `core/ui/theme/` | Theme.kt, ThemeManager.kt |
 | Workers | `core/worker/` | 8 workers + WorkManagerHelper |
@@ -123,8 +122,7 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 |--------|-----------|
 | Construct `Holding(...)` directly | Use `Holding.create()` factory method |
 | Query `stock_analysis_data` without JOIN | Use `getAnalysisDataWithName()` (JOIN with stocks) |
-| Use 30s timeout for `getMarketOscillator()` | Use 180s — collects 200+ stocks |
-| Use 30s timeout for ML prediction | Use 120s — ensemble training is expensive |
+| Use 30s timeout for all KRX calls | Use KrxRepositoryBase with configurable timeouts (30s-180s) |
 | Request exact days for FearGreed | Request 3x days (MA data loss) |
 | Write ranking queries without LIMIT | Add LIMIT clause (OOM on Android) |
 | Expose `MutableStateFlow` publicly | Use `_state` private + `state: StateFlow` public via `.asStateFlow()` |
@@ -232,15 +230,15 @@ DISCARD during compaction:
 **DI Framework**: Hilt
 **Key Achievement**: **PyKrxClient completely removed** - No Python dependency for KRX data fetching
 **API Coverage**: 100% (11/11 pykrx functions covered via kotlin_krx)
-**Primary Documents**: MIGRATION_STRATEGY.md (Phase 1-2), docs/PHASE3_MIGRATION_STRATEGY.md (Phase 3), PHASE_A_COMPLETION_REPORT.md (Phase A)
+**Primary Documents**: MIGRATION_STRATEGY.md (Phase 1-2), docs/PHASE3_MIGRATION_STRATEGY.md (Phase 3), PHASE_A_COMPLETION_REPORT.md (Phase A), PROJECT_REVIEW_REPORT.md (full review)
 **All Phases Complete**: T-006~T-013 ✅ | Market migration ✅ | pykrx removed ✅
 **Post-Migration Fixes**: Zero-data bug ✅ | Investor trading data ✅ | Chart period selection ✅
 
-### Python Bridge Architecture (4 Patterns - PyKrxClient Removed)
+### Python Bridge Architecture (2 PyClients + 1 Direct - PyKrxClient & OscillatorPyClient Removed)
 
-**PyClient bridge classes (3 - JSON-based):**
+**PyClient bridge classes (2 - JSON-based):**
 1. ~~`PyKrxClient`~~ - ✅ **REMOVED** (Phase A: Replaced by kotlin_krx UseCases)
-2. `OscillatorPyClient` - Multi-module consumer (used by 7 classes across 3 features)
+2. ~~`OscillatorPyClient`~~ - ✅ **REMOVED** (T-012: Replaced by TechnicalAnalysisEngine + kotlin_krx UseCases, file deleted in project review)
 3. `MarketIndexPyClient` - Market index data (market.py)
 4. `BloodIndicatorPyClient` - Blood indicator data (blood_indicator.py)
 
@@ -360,8 +358,8 @@ DISCARD during compaction:
 - `core.py`, `etfcollector.py`, `stocks.py`, `market.py`, `trend_signal.py`
 - Uses: `get_market_ticker_list`, `get_market_ohlcv`, `get_market_ticker_name`, `get_etf_ticker_list`, `get_etf_ticker_name`, `get_etf_portfolio_deposit_file`, `get_market_cap`, `get_market_trading_value_by_date`, `get_index_ohlcv`, `get_index_portfolio_deposit_file`
 
-**Non-pykrx (5 Python scripts - OUT OF SCOPE):**
-- `feargreed.py` (KRX API), `deposit_scraper.py` (Naver), `blood_indicator.py` (Yahoo/FRED), `kis_client.py` (KIS API), `logger.py` (utility)
+**Non-pykrx (4 Python scripts - OUT OF SCOPE):**
+- `feargreed.py` (KRX API), `deposit_scraper.py` (Naver), `blood_indicator.py` (Yahoo/FRED), `kis_client.py` (KIS API)
 
 **Test migration strategy:**
 - **MIGRATE**: `PyKrxClientTest.kt`, `EtfRepositoryImplTest.kt`
@@ -373,25 +371,16 @@ DISCARD during compaction:
 **Remaining coupling risks:**
 1. ~~**CRITICAL GAP**: `get_index_portfolio_deposit_file`~~ ✅ **RESOLVED** (T-012: kotlin_krx getIndexPortfolio API added)
 2. **FearGreedRepositoryImpl** - Direct PyObject/DataFrame manipulation (special handling required)
-3. **OscillatorPyClient** - Used by 7 classes across 3 features (accepted as permanent Python dependency)
+3. ~~**OscillatorPyClient**~~ ✅ **REMOVED** (T-012: TechnicalAnalysisEngine + kotlin_krx, file deleted in project review)
 4. ~~**PyKrxClient**~~ ✅ **COMPLETELY REMOVED** (Phase A: 100% migration to kotlin_krx)
 5. ~~**Architecture violations**~~ ✅ **RESOLVED** (T-012: All ViewModels now use UseCases)
 6. **Dependency conflicts**: Gson vs kotlinx.serialization (~1MB) ✅ **ACCEPTED** (Gson already in APK via google-api-client-gson)
 
-### Build Configuration Changes
+### Build Configuration Changes — ✅ COMPLETE
 
-**Target for removal in `app/build.gradle.kts`:**
-```kotlin
-chaquopy {
-    defaultConfig {
-        pip {
-            install("pykrx")  // REMOVE after kotlin_krx integration
-        }
-    }
-}
-```
-
-**Note**: Other Python dependencies (pandas, requests, beautifulsoup4, scikit-learn) remain for non-pykrx scripts.
+**pykrx**: ✅ REMOVED from pip install list
+**beautifulsoup4, scikit-learn, joblib, setuptools, wheel**: ✅ REMOVED (project review P-007)
+**Remaining pip**: `pandas`, `requests` (used by feargreed.py, deposit_scraper.py, blood_indicator.py)
 
 ### kotlin_krx Integration (T-002 Findings)
 
@@ -414,12 +403,12 @@ chaquopy {
 - Hilt singletons: `@Singleton OkHttpClient`, `@Singleton TickerCache`
 - Repository adapters: Convert `KrxError` → app error states, pandas DataFrame → Kotlin data classes → Room entities
 
-### Phase 3 Deliverables (Iterations 11-14) - 🔄 IN PROGRESS
+### Phase 3 Deliverables (Iterations 11-14) - ✅ COMPLETE
 
-**Completed Tasks (2/3 feature migrations)**:
-- [x] T-011: ETF feature migration (partial - 2 of 3 PyKrxClient methods migrated)
-- [x] T-012: Oscillator feature migration (deferred - API gap, budget constraint)
-- [ ] T-013: Stock analysis feature migration (pending)
+**Completed Tasks (3/3 feature migrations)**:
+- [x] T-011: ETF feature migration (Phase A: getBusinessDays → GetKrxBusinessDaysUseCase)
+- [x] T-012: Oscillator feature migration (TechnicalAnalysisEngine + 4 UseCases)
+- [x] T-013: Stock analysis feature migration (native Kotlin oscillator calculations)
 
 #### T-011: ETF Feature Migration (Partial Python Dependency)
 
@@ -514,7 +503,6 @@ chaquopy {
 - pykrx dependency ✅ **REMOVED** from build.gradle.kts
 
 **Remaining Python Dependencies** (non-pykrx, out of migration scope):
-- `OscillatorPyClient` - Market oscillator feature (stocks.py, market.py)
 - `MarketIndexPyClient` - Market index data (market.py)
 - `BloodIndicatorPyClient` - Blood indicator data (blood_indicator.py, Yahoo/FRED)
 - `FearGreedRepositoryImpl` - Direct Python/DataFrame manipulation (feargreed.py)

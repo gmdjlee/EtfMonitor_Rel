@@ -9,8 +9,6 @@ import javax.inject.Inject
 //
 // KOSPI/KOSDAQ 전체 시장 데이터를 집계 조회하는 유스케이스입니다.
 //
-// PHASE 3 ENABLEMENT: T-013 stock analysis feature migration을 위한 기반 UseCase
-// Phase 2에서는 AggregatedStockTrendViewModel을 대체하지 않음 (여전히 OscillatorPyClient 사용)
 //
 // TECHNICAL DEBT (C2): 인터페이스 대신 concrete class 주입
 // Rationale: Coexistence phase 단축. Clean Architecture 인터페이스는 Phase 3로 연기
