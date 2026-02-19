@@ -1,20 +1,11 @@
-# TASK.md — blood_indicator.py Kotlin Migration
+# TASK.md — Current Tasks
 
-## Phase 1: Analysis (iterations 1-2)
-- [x] B-001 Read existing migration analysis reports for blood_indicator.py context
-- [x] B-002 Analyze blood_indicator.py: catalog all functions, KRX API calls, calculation logic, data flows
-- [x] B-003 Create implementation plan: function-to-module mapping. Architect approves.
+No active tasks.
 
-## Phase 2: Data and Domain Layer (iterations 3-5)
-- [x] B-004 Create BloodIndicatorClient.kt — OkHttp HTTP client for Yahoo Finance + FRED API
-- [x] B-005 Create BloodIndicatorCalculator.kt — Weekly resampling, 100-week SMA, signal logic
-- [x] B-006 Update BloodIndicatorRepositoryImpl to use new Kotlin client
+## Completed
 
-## Phase 3: Integration and Cleanup (iterations 6-7)
-- [x] B-007 Remove BloodIndicatorPyClient, PythonModule, blood_indicator.py, core.py
-- [x] B-008 Remove Chaquopy from build config (plugin, pip, proguard, versions, maven repos)
-- [x] B-009 Update KrxApiFunctionalityTest to remove Python imports
-
-## Phase 4: Verification and Documentation (iterations 8-10)
-- [x] B-010 Build verification: assembleDebug SUCCESS, test 57/57 PASS
-- [x] B-011 Update CLAUDE.md, CHANGELOG.md, FEATURE_CHECKLIST.md, PROGRESS.md
+### blood_indicator.py Kotlin Migration (v1.3.0, 2026-02-20)
+- [x] B-001~B-003 Analysis and planning
+- [x] B-004~B-006 BloodIndicatorClient + Calculator + Repository
+- [x] B-007~B-009 Chaquopy removal, DI cleanup, test update
+- [x] B-010~B-011 Build verification (57/57 PASS), documentation

@@ -80,7 +80,7 @@ val isoDate = DateAdapter.fromKrxFormat(krxDate).toString()  // "20260219" → "
 // ❌ Store raw kotlin_krx dates — SQL BETWEEN queries will fail
 ```
 
-### 12. Long-Running Data Collection — Use NonCancellable
+### 11. Long-Running Data Collection — Use NonCancellable
 Data collection (200+ tickers) takes minutes. If bound to `viewModelScope`, user navigation cancels the job.
 ```kotlin
 // ✅ Wrap in NonCancellable so collection completes even if user navigates away
@@ -89,7 +89,7 @@ val result = withContext(NonCancellable) { repository.initializeMarketData(...) 
 ```
 Also: never swallow `CancellationException` in catch blocks — always rethrow.
 
-### 13. KIS Financial API — OAuth2 Token + Cache
+### 12. KIS Financial API — OAuth2 Token + Cache
 Financial info uses KIS Open API with OAuth2 client credentials (`/oauth2/tokenP`).
 - Token cached in-memory for 23h (Mutex-protected)
 - Financial data cached in Room `financial_cache` table with 24h TTL
@@ -119,13 +119,13 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 | Category | Path | Notes |
 |----------|------|-------|
 | Entry | `MainActivity.kt`, `EtfMonitorApp.kt` | Theme, permissions |
-| Navigation | `navigation/Navigation.kt` | 14 screen routes |
-| Database | `core/database/AppDatabase.kt` | 22 entities, 19 DAOs, 19 migrations (v20) |
-| Database entities | `core/database/entities/` | 20 files (AIChatSession in AIChatMessage.kt) |
+| Navigation | `navigation/Navigation.kt` | 17 screen routes |
+| Database | `core/database/AppDatabase.kt` | 22 entities, 21 DAOs, 19 migrations (v20) |
+| Database entities | `core/database/entities/` | 22 files (AIChatSession in AIChatMessage.kt) |
 | Blood Indicator | `core/network/blood/` | BloodIndicatorClient (OkHttp: Yahoo Finance + FRED API) |
 | AI clients | `core/network/ai/` | ClaudeApiClient, GeminiApiClient, AIApiClientFactory (11 files) |
 | Theme | `core/ui/theme/` | Theme.kt, ThemeManager.kt |
-| Workers | `core/worker/` | 8 workers + WorkManagerHelper |
+| Workers | `core/worker/` | 9 workers + WorkManagerHelper |
 | DI | `core/di/` + `feature/*/di/` | 11 modules (4 core + 7 feature) |
 | kotlin_krx repos | `core/data/repository/krx/` | KrxStockDataRepositoryImpl, KrxEtfDataRepositoryImpl, KrxMarketDataRepositoryImpl |
 | kotlin_krx UseCases | `core/domain/usecase/krx/` | 11 UseCases (MarketCap, IndexComponents, MarketData, EtfHoldings, EtfList, BusinessDays, TrendSignal, ElderImpulse, DemarkTD, StockOhlcv, IndexData) |
@@ -179,10 +179,10 @@ Default model: **sonnet**. Use tiered agents in `.claude/agents/` for cost-effic
 
 ### Escalation Criteria (→ opus reviewer)
 
-- Changes touch **security-critical paths**: `SharedPreferencesApiKeyProvider`, `*ApiClient.kt`, `*PyClient.kt` callAttr()
+- Changes touch **security-critical paths**: `SharedPreferencesApiKeyProvider`, `KisApiKeyProvider`, `*ApiClient.kt`
 - Database migration changes (schema integrity)
 - Changes span **4+ feature modules** simultaneously
-- Performance-sensitive code (DAO queries, Python bridge, caching logic)
+- Performance-sensitive code (DAO queries, kotlin_krx, caching logic)
 - Pre-merge review for PRs with 10+ file changes
 
 ### De-escalation Criteria (→ haiku)
@@ -195,7 +195,7 @@ Default model: **sonnet**. Use tiered agents in `.claude/agents/` for cost-effic
 ### Always Sonnet+ (never haiku)
 
 - Any code modification (Write/Edit operations)
-- Kotlin/Python logic changes
+- Kotlin logic changes
 - Build configuration changes (`build.gradle.kts`, `libs.versions.toml`)
 - Test writing and execution
 
@@ -248,8 +248,9 @@ All former Python scripts have been replaced by native Kotlin implementations:
 
 - maxDays 365로 제한 중 (kotlin_krx date chunking 수정 후 730 복원 필요)
 - ETF 목록 조회 timeout 60s 증가 검토
-- PROJECT_REVIEW_REPORT.md에 P0-P3 우선순위 수정 항목 미해결 (OOM 방지, API key 가드, TypeConverter 에러 처리 등)
-- ROOT_CAUSE_REPORT.md: kotlin_krx 역순 데이터 + 잘못된 API endpoint 버그 상세 기록
+- OOM 방지: 일부 DAO 쿼리 LIMIT 미적용 (BackupDao.getAllHoldings 등)
+- API key 가드: NewAIAnalysisViewModel.startNewChat/sendMessage에 isApiKeyConfigured 체크 누락
+- Room TypeConverter JSON 파싱 에러 처리 미비
 
 ---
 
