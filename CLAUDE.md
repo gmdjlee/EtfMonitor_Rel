@@ -5,7 +5,7 @@
 Korean stock market (KRX) ETF monitoring Android app.
 Kotlin 2.1.0 | Jetpack Compose + M3 | MVVM + Clean Architecture | Hilt 2.54 | Room 2.8.3 (schema v20) | Chaquopy (embedded Python) | Claude & Gemini AI APIs | KIS Open API (재무정보)
 
-Package: `com.etfmonitor` | DB: `etf_monitor.db` | ~298 Kotlin files | 4 Python scripts
+Package: `com.etfmonitor` | DB: `etf_monitor.db` | ~298 Kotlin files | 2 Python scripts
 Structure: `core/` (132 files) shared infra, `feature/` (163 files) 7 modules, `navigation/` (1 file)
 Each feature: `domain/{model,repository,usecase}` → `data/{mapper,repository}` → `presentation/` → `di/`
 
@@ -130,7 +130,7 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 | Navigation | `navigation/Navigation.kt` | 14 screen routes |
 | Database | `core/database/AppDatabase.kt` | 22 entities, 19 DAOs, 19 migrations (v20) |
 | Database entities | `core/database/entities/` | 20 files (AIChatSession in AIChatMessage.kt) |
-| Python scripts | `app/src/main/python/` | 4 active: blood_indicator, feargreed, kis_client, core |
+| Python scripts | `app/src/main/python/` | 2 active: blood_indicator, core |
 | Python bridge | `core/network/python/` | BloodIndicatorPyClient (sole remaining PyClient) |
 | AI clients | `core/network/ai/` | ClaudeApiClient, GeminiApiClient, AIApiClientFactory (11 files) |
 | Theme | `core/ui/theme/` | Theme.kt, ThemeManager.kt |
@@ -236,15 +236,15 @@ Default model: **sonnet**. Use tiered agents in `.claude/agents/` for cost-effic
 
 **Architecture**: ViewModel → UseCase → Repository (extends KrxRepositoryBase) → kotlin_krx API
 
-### Remaining Python Dependencies (1 PyClient + 1 Direct)
+### Remaining Python Dependencies (1 PyClient only)
 
 | Kotlin Class | Python Script | Data Source | Purpose |
 |--------------|--------------|-------------|---------|
 | `BloodIndicatorPyClient` | blood_indicator.py | Yahoo Finance + FRED | Blood indicator (US03MY / High Yield Spread, 90s timeout) |
-| `FearGreedRepositoryImpl` | feargreed.py | KRX API (direct) | 공포/탐욕 지수 (직접 PyObject/DataFrame 조작, 60s timeout) |
 
 **Python pip dependencies**: `pandas`, `requests`
 **Hilt injection**: `PythonModule` provides `Python` singleton — `BloodIndicatorPyClient` injects via constructor
+**Note**: `FearGreedRepositoryImpl`은 kotlin_krx + FearGreedCalculator로 완전 마이그레이션 완료 (Python 의존성 없음)
 
 ### Kotlin Native Computation Engines (replaced Python)
 

@@ -108,8 +108,8 @@ KrxEtfRepositoryImpl, KrxStockRepositoryImpl, KrxMarketRepositoryImpl, KrxIndexR
 ### Core DI Modules (5)
 AIModule, DatabaseModule, KrxModule, PythonModule, WorkerModule
 
-### Python Scripts (4 active)
-blood_indicator.py, feargreed.py, kis_client.py, core.py
+### Python Scripts (2 active)
+blood_indicator.py, core.py
 
 ## Summary Counts
 
