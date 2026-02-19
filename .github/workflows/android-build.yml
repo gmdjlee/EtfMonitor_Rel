@@ -1,13 +1,7 @@
 name: Android Build APK
 
 on:
-  # 1. main 브랜치에 push가 발생할 때 실행
-  push:
-    branches: [ "master" ]
-  # 2. pull request가 발생할 때 실행
-  pull_request:
-    branches: [ "master" ]
-  # 3. Actions 탭에서 수동으로 클릭해서 실행 가능 (테스트용으로 유용)
+  # Actions 탭에서 수동으로 실행
   workflow_dispatch:
 
 jobs:
