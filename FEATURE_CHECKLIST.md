@@ -67,21 +67,22 @@
 - **DI**: SettingsModule
 - **Data Sources**: SharedPreferences, Room
 
-### 7. stock (37 files)
-- **Screens**: StocksHubScreen, OscillatorScreen, StockTrendScreen, AggregatedStockTrendScreen
-- **ViewModels**: OscillatorViewModel, StockTrendViewModel, StatisticsViewModel (12+ StateFlows, intentional exception)
-- **UseCases**: AnalyzeStockUseCase, GetCashDepositTrendUseCase, GetStatisticsDatesUseCase, GetStockAnalysisUseCase, GetStockChangesUseCase, GetStockRankingUseCase, GetStockTrendUseCase, InitializeStocksUseCase, SearchStocksUseCase
-- **Repositories**: StockRepository, StockAnalysisRepository, StockTrendRepository, StockStatisticsRepository
-- **DI**: StockModule
-- **Data Sources**: kotlin_krx (TechnicalAnalysisEngine, KrxStockDataRepository), AI APIs, Room
+### 7. stock (50 files)
+- **Screens**: StocksHubScreen (TabRow: 차트 분석/재무정보), OscillatorScreen, StockTrendScreen, AggregatedStockTrendScreen
+- **ViewModels**: OscillatorViewModel, StockTrendViewModel, StatisticsViewModel (12+ StateFlows, intentional exception), FinancialInfoViewModel
+- **UseCases**: AnalyzeStockUseCase, GetCashDepositTrendUseCase, GetStatisticsDatesUseCase, GetStockAnalysisUseCase, GetStockChangesUseCase, GetStockRankingUseCase, GetStockTrendUseCase, InitializeStocksUseCase, SearchStocksUseCase, GetFinancialSummaryUseCase
+- **Repositories**: StockRepository, StockAnalysisRepository, StockTrendRepository, StockStatisticsRepository, FinancialRepository
+- **Financial UI**: FinancialInfoContent, ProfitabilityContent (3 MPAndroidChart charts), StabilityContent (4 charts + evaluation badges)
+- **DI**: StockModule (@KisOkHttp qualifier, KIS Financial providers)
+- **Data Sources**: kotlin_krx (TechnicalAnalysisEngine, KrxStockDataRepository), KIS Open API (5 financial endpoints, OAuth2), AI APIs, Room
 
 ## Core Infrastructure
 
-### DAOs (20)
-AIAnalysisDao, AIChatDao, BackupDao, BloodIndicatorDao, CorrelationAnalysisDao, DailyEtfStatisticsDao, EnhancedPredictionDao, EtfCorrelationDao, EtfDao, FearGreedDao, LiquidityAnalysisDao, MarketDepositDao, MarketIndexDao, MarketOscillatorDao, PriceCacheDao, SearchHistoryDao, SectorAnalysisDao, StockAnalysisDao, StockDao, StockIndicatorAIResultDao
+### DAOs (21)
+AIAnalysisDao, AIChatDao, BackupDao, BloodIndicatorDao, CorrelationAnalysisDao, DailyEtfStatisticsDao, EnhancedPredictionDao, EtfCorrelationDao, EtfDao, FearGreedDao, FinancialCacheDao, LiquidityAnalysisDao, MarketDepositDao, MarketIndexDao, MarketOscillatorDao, PriceCacheDao, SearchHistoryDao, SectorAnalysisDao, StockAnalysisDao, StockDao, StockIndicatorAIResultDao
 
-### Entities (21)
-AIAnalysisResult, AIChatMessage, AIChatSession, BloodIndicator, CorrelationAnalysisResult, DailyEtfStatistics, EnhancedPrediction, Etf, EtfCorrelationCache, FearGreedIndex, Holding, LiquidityAnalysis, MarketDeposit, MarketIndex, MarketOscillatorData, PriceCache, SearchHistory, SectorAnalysis, Setting, Stock, StockAnalysisData, StockIndicatorAIResult
+### Entities (22)
+AIAnalysisResult, AIChatMessage, AIChatSession, BloodIndicator, CorrelationAnalysisResult, DailyEtfStatistics, EnhancedPrediction, Etf, EtfCorrelationCache, FearGreedIndex, FinancialCache, Holding, LiquidityAnalysis, MarketDeposit, MarketIndex, MarketOscillatorData, PriceCache, SearchHistory, SectorAnalysis, Setting, Stock, StockAnalysisData, StockIndicatorAIResult
 
 ### Workers (9)
 AdvancedAnalysisWorker, BloodIndicatorUpdateWorker, DataArchiveWorker, EtfUpdateWorker, FearGreedUpdateWorker, MarketDepositUpdateWorker, MarketIndexUpdateWorker, MarketOscillatorUpdateWorker, StockUpdateWorker
@@ -89,6 +90,11 @@ AdvancedAnalysisWorker, BloodIndicatorUpdateWorker, DataArchiveWorker, EtfUpdate
 ### Python Clients (1 active)
 - BloodIndicatorPyClient (90s timeout) — blood_indicator.py (Yahoo/FRED)
 - FearGreedRepositoryImpl (60s timeout) — feargreed.py (직접 PyObject 조작, PyClient 아님)
+
+### KIS API (Financial Info)
+- KisApiKeyProvider — EncryptedSharedPreferences (AES256-GCM) for KIS API key storage
+- KisApiKeyConfig — appKey, appSecret, InvestmentMode enum (MOCK/PRODUCTION)
+- FinancialRepositoryImpl — OAuth2 token management, 5 parallel API endpoints, 24h Room cache
 
 ### AI Clients (11 files)
 AIApiClient, AIApiClientFactory, AIModel, AIProvider, AIResponseParser, ClaudeApiClient, GeminiApiClient, ApiKeyProvider, SharedPreferencesApiKeyProvider, MarketAnalysisPrompts, MarketSignal
@@ -111,14 +117,15 @@ blood_indicator.py, feargreed.py, kis_client.py, core.py
 |---|---|
 | Screen routes | 17 (14 declared + 3 extra) |
 | Feature modules | 7 |
-| ViewModels | 14 |
-| Feature UseCases | 21 |
+| ViewModels | 15 (+FinancialInfoViewModel) |
+| Feature UseCases | 22 (+GetFinancialSummaryUseCase) |
 | Core krx UseCases | 11 |
-| Repositories (feature) | 18 |
+| Repositories (feature) | 19 (+FinancialRepository) |
 | Repositories (core krx) | 5 |
-| DAOs | 20 |
-| Entities | 21 |
+| DAOs | 21 (+FinancialCacheDao) |
+| Entities | 22 (+FinancialCache) |
 | Workers | 9 |
 | Python clients | 1 |
+| KIS API clients | 1 (FinancialRepositoryImpl) |
 | AI client files | 11 |
 | DI modules | 12 (5 core + 7 feature) |

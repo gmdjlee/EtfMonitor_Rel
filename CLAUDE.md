@@ -5,8 +5,8 @@
 Korean stock market (KRX) ETF monitoring Android app.
 Kotlin 2.1.0 | Jetpack Compose + M3 | MVVM + Clean Architecture | Hilt 2.54 | Room 2.8.3 (schema v20) | Chaquopy (embedded Python) | Claude & Gemini AI APIs | KIS Open API (재무정보)
 
-Package: `com.etfmonitor` | DB: `etf_monitor.db` | ~255 Kotlin files | 4 Python scripts
-Structure: `core/` (97 files) shared infra, `feature/` (155 files) 6 modules, `navigation/` (1 file)
+Package: `com.etfmonitor` | DB: `etf_monitor.db` | ~298 Kotlin files | 4 Python scripts
+Structure: `core/` (132 files) shared infra, `feature/` (163 files) 7 modules, `navigation/` (1 file)
 Each feature: `domain/{model,repository,usecase}` → `data/{mapper,repository}` → `presentation/` → `di/`
 
 ---
@@ -135,7 +135,7 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 | AI clients | `core/network/ai/` | ClaudeApiClient, GeminiApiClient, AIApiClientFactory (11 files) |
 | Theme | `core/ui/theme/` | Theme.kt, ThemeManager.kt |
 | Workers | `core/worker/` | 8 workers + WorkManagerHelper |
-| DI | `core/di/` + `feature/*/di/` | 11 modules (5 core + 6 feature) |
+| DI | `core/di/` + `feature/*/di/` | 12 modules (5 core + 7 feature) |
 | kotlin_krx repos | `core/data/repository/krx/` | KrxStockDataRepositoryImpl, KrxEtfDataRepositoryImpl, KrxMarketDataRepositoryImpl |
 | kotlin_krx UseCases | `core/domain/usecase/krx/` | 11 UseCases (MarketCap, IndexComponents, MarketData, EtfHoldings, EtfList, BusinessDays, TrendSignal, ElderImpulse, DemarkTD, StockOhlcv, IndexData) |
 | Analysis engines | `core/analysis/` | FearGreedCalculator, TechnicalAnalysisEngine, MarketOscillatorCalculator |

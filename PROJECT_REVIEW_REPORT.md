@@ -4,6 +4,10 @@
 **Scope**: Full project review — functional verification, cleanup, quality assessment
 **Build**: assembleDebug PASS | Tests: 57/57 PASS | Schema: v19
 
+> **Post-Review Update (2026-02-19)**: KIS Financial Information feature added after this review.
+> Schema v19→v20, 22 entities (+FinancialCache), 21 DAOs (+FinancialCacheDao), 19 migrations (+MIGRATION_19_20).
+> 13 new files, 7 modified files. See CHANGELOG.md v1.2.0 for details.
+
 ---
 
 ## Executive Summary

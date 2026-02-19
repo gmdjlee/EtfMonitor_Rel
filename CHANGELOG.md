@@ -5,6 +5,30 @@ All notable changes to ETF Monitor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-19
+
+### Added
+
+#### KIS Financial Information (재무정보)
+- KIS Open API integration with OAuth2 client credentials (`/oauth2/tokenP`)
+- 5 parallel financial data API endpoints (balance-sheet, income-statement, profit-ratio, stability-ratio, growth-ratio)
+- FinancialInfoContent composable with TabRow (수익성/안정성)
+- ProfitabilityContent with 3 MPAndroidChart charts (income bar, growth line, asset growth line)
+- StabilityContent with 4 line charts + evaluation badges
+- FinancialInfoViewModel with sealed FinancialState (NoStock, Loading, NoApiKey, Success, Error)
+- GetFinancialSummaryUseCase (invoke + refresh)
+- FinancialRepositoryImpl with cache-first 24h TTL + 5 async API calls
+- KisApiKeyProvider using EncryptedSharedPreferences (AES256-GCM)
+- KisApiKeyCard in Settings GeneralTab for API key management
+- StocksHubScreen TabRow integration ["차트 분석" | "재무정보"]
+- YTD-to-quarterly conversion for cumulative income statement values
+
+#### Database (Schema v19→v20)
+- Migration v19→v20: `financial_cache` table (ticker PK, name, data JSON, cachedAt)
+- FinancialCache entity + FinancialCacheDao (7 queries)
+
+---
+
 ## [1.1.0] - 2026-02-19
 
 ### Added
@@ -170,6 +194,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Schema | Key Changes |
 |---------|------|--------|-------------|
+| 1.2.0 | 2026-02-19 | v20 | KIS Financial Info feature (재무정보), 13 new files |
 | 1.1.0 | 2026-02-19 | v19 | pykrx → kotlin_krx migration, 3 Kotlin engines, bug fixes |
 | 1.0.1 | 2025-12-27 | v17 | Testing, quality fixes, 3 new entities |
 | 1.0.0 | 2025-12-25 | v14 | Initial release, Clean Architecture |
