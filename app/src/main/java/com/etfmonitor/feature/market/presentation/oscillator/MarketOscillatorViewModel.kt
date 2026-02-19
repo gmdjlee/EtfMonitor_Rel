@@ -12,8 +12,10 @@ import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepositor
 import com.etfmonitor.core.ui.theme.ThemeManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -199,13 +201,15 @@ class MarketOscillatorViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = MarketOscillatorState.Initializing("시장 데이터 수집 중...", 0)
 
-            // KOSPI 수집
-            _state.value = MarketOscillatorState.Initializing("KOSPI 데이터 수집 중...", 25)
-            val kospiResult = repository.initializeMarketData("KOSPI", days)
+            // NonCancellable: 사용자가 화면을 나가도 데이터 수집 완료 보장
+            val (kospiResult, kosdaqResult) = withContext(NonCancellable) {
+                _state.value = MarketOscillatorState.Initializing("KOSPI 데이터 수집 중...", 25)
+                val kospi = repository.initializeMarketData("KOSPI", days)
 
-            // KOSDAQ 수집
-            _state.value = MarketOscillatorState.Initializing("KOSDAQ 데이터 수집 중...", 50)
-            val kosdaqResult = repository.initializeMarketData("KOSDAQ", days)
+                _state.value = MarketOscillatorState.Initializing("KOSDAQ 데이터 수집 중...", 50)
+                val kosdaq = repository.initializeMarketData("KOSDAQ", days)
+                Pair(kospi, kosdaq)
+            }
 
             if (kospiResult.isSuccess && kosdaqResult.isSuccess) {
                 val kospiCount = kospiResult.getOrNull() ?: 0
@@ -231,8 +235,12 @@ class MarketOscillatorViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = MarketOscillatorState.Updating("시장 데이터 업데이트 중...")
 
-            val kospiResult = repository.updateMarketData("KOSPI")
-            val kosdaqResult = repository.updateMarketData("KOSDAQ")
+            // NonCancellable: 사용자가 화면을 나가도 업데이트 완료 보장
+            val (kospiResult, kosdaqResult) = withContext(NonCancellable) {
+                val kospi = repository.updateMarketData("KOSPI")
+                val kosdaq = repository.updateMarketData("KOSDAQ")
+                Pair(kospi, kosdaq)
+            }
 
             if (kospiResult.isSuccess && kosdaqResult.isSuccess) {
                 val kospiCount = kospiResult.getOrNull() ?: 0

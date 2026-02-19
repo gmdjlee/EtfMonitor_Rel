@@ -59,7 +59,7 @@
 - **ViewModels**: FearGreedViewModel, MarketDepositViewModel, BloodIndicatorViewModel, MarketOscillatorViewModel
 - **Repositories**: FearGreedRepository, MarketDepositRepository, MarketIndexRepository, MarketOscillatorRepository, BloodIndicatorRepository
 - **DI**: MarketModule
-- **Data Sources**: Python (feargreed.py, blood_indicator.py), OscillatorPyClient, NaverFinanceScraper, kotlin_krx, Room
+- **Data Sources**: kotlin_krx (KrxIndex + FearGreedCalculator, MarketOscillatorCalculator), Python (blood_indicator.py), NaverFinanceScraper, Room
 
 ### 6. settings (11 files)
 - **Screens**: SettingsScreen
@@ -73,7 +73,7 @@
 - **UseCases**: AnalyzeStockUseCase, GetCashDepositTrendUseCase, GetStatisticsDatesUseCase, GetStockAnalysisUseCase, GetStockChangesUseCase, GetStockRankingUseCase, GetStockTrendUseCase, InitializeStocksUseCase, SearchStocksUseCase
 - **Repositories**: StockRepository, StockAnalysisRepository, StockTrendRepository, StockStatisticsRepository
 - **DI**: StockModule
-- **Data Sources**: kotlin_krx (TechnicalAnalysisEngine), OscillatorPyClient, AI APIs, Room
+- **Data Sources**: kotlin_krx (TechnicalAnalysisEngine, KrxStockDataRepository), AI APIs, Room
 
 ## Core Infrastructure
 
@@ -87,7 +87,7 @@ AIAnalysisResult, AIChatMessage, AIChatSession, BloodIndicator, CorrelationAnaly
 AdvancedAnalysisWorker, BloodIndicatorUpdateWorker, DataArchiveWorker, EtfUpdateWorker, FearGreedUpdateWorker, MarketDepositUpdateWorker, MarketIndexUpdateWorker, MarketOscillatorUpdateWorker, StockUpdateWorker
 
 ### Python Clients (2 active)
-- OscillatorPyClient (180s timeout) — market oscillator via stocks.py + market.py
+- MarketIndexPyClient (30s timeout) — market index data via market.py
 - BloodIndicatorPyClient (90s timeout) — blood_indicator.py (Yahoo/FRED)
 
 ### AI Clients (11 files)
@@ -102,8 +102,8 @@ KrxEtfRepositoryImpl, KrxStockRepositoryImpl, KrxMarketRepositoryImpl, KrxIndexR
 ### Core DI Modules (5)
 AIModule, DatabaseModule, KrxModule, PythonModule, WorkerModule
 
-### Python Scripts (6)
-feargreed.py, blood_indicator.py, kis_client.py, core.py, logger.py, __init__.py
+### Python Scripts (4 active)
+blood_indicator.py, feargreed.py, kis_client.py, core.py
 
 ## Summary Counts
 

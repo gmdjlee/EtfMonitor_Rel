@@ -6,6 +6,7 @@ import com.krxkt.KrxStock
 import com.krxkt.model.IndexOhlcv
 import com.krxkt.model.Market
 import com.krxkt.model.StockOhlcvHistory
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -162,6 +163,8 @@ class MarketOscillatorCalculator @Inject constructor(
                             volumes[ticker] = aligned.map { it.volume }
                         }
                         delay(REQUEST_DELAY_MS)
+                    } catch (e: CancellationException) {
+                        throw e  // 코루틴 취소는 반드시 전파
                     } catch (e: Exception) {
                         logger.w("Failed to fetch OHLCV for $ticker: ${e.message}")
                         // 개별 종목 오류는 무시하고 계속 진행

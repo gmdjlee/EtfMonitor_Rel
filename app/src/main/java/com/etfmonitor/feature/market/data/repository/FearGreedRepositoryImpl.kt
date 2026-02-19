@@ -1,7 +1,6 @@
 package com.etfmonitor.feature.market.data.repository
 
-import com.chaquo.python.PyObject
-import com.chaquo.python.Python
+import com.etfmonitor.core.analysis.FearGreedCalculator
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.common.util.DateFormatter
 import com.etfmonitor.core.database.EtfDao
@@ -12,7 +11,10 @@ import com.etfmonitor.feature.market.data.mapper.MarketMapper.toDomain
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toFearGreedDomainList
 import com.etfmonitor.feature.market.domain.model.FearGreedIndex
 import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
+import com.krxkt.KrxIndex
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -20,28 +22,48 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.SortedSet
+import java.util.TreeSet
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Fear & Greed Repository Implementation
  *
- * Clean Architecture 패턴을 따르는 직접 구현:
- * - 3x 데이터 요청 로직 (Python 분석 시 데이터 손실 보완)
- * - Python feargreed 모듈을 사용한 데이터 수집
+ * Replaces Python feargreed.py with direct kotlin_krx API calls + FearGreedCalculator.
+ *
+ * Data pipeline:
+ *   1. Fetch 7 KRX datasets in parallel (call/put options, bond5y, bond10y, vkospi, kospi, kosdaq)
+ *   2. Merge by date using Map<String, MergedDayData>
+ *   3. Apply 5-day rolling mean to raw option volumes
+ *   4. Feed merged rows into FearGreedCalculator.calcFearGreed()
+ *   5. Filter results where fearGreedValue.isFinite() (removes NaN warm-up rows)
+ *   6. Persist to DB
+ *
+ * Notes:
+ *  - kotlin_krx returns dates in "yyyyMMdd" format; converted to "yyyy-MM-dd" for DB storage
+ *  - Option data (Call/Put) missing → fatal error (mirrors Python: `if call is None or put is None`)
+ *  - KOSPI/KOSDAQ index missing → that market's results are skipped (optional in Python too)
+ *  - Overall timeout: 90s (7 parallel API calls, each individually bounded)
  */
 @Singleton
 class FearGreedRepositoryImpl @Inject constructor(
     private val fearGreedDao: FearGreedDao,
     private val etfDao: EtfDao,
-    private val python: Python
+    private val krxIndex: KrxIndex
 ) : FearGreedRepository {
 
     companion object {
         private val logger = AppLogger.getLogger("FearGreedRepoImpl")
-        private const val DATA_EXPIRY_HOURS = 12
         private const val KEY_DIALOG_DISMISSED = "fear_greed_dialog_dismissed"
+
+        // Minimum rows required before analysis (mirrors Python `if len(df) < 15`)
+        private const val MIN_ROWS = 15
     }
+
+    // =========================================================================
+    // Read-only DB queries — unchanged
+    // =========================================================================
 
     override fun getAllByMarket(market: String): Flow<List<FearGreedIndex>> =
         fearGreedDao.getAllByMarket(market)
@@ -90,44 +112,39 @@ class FearGreedRepositoryImpl @Inject constructor(
         etfDao.saveSetting(Setting(KEY_DIALOG_DISMISSED, "true"))
     }
 
+    // =========================================================================
+    // Write operations — rewritten to use kotlin_krx
+    // =========================================================================
+
     /**
      * Fear & Greed Index 데이터 초기화 (지정된 기간 동안의 데이터 수집)
-     * @param days 데이터 수집 기간 (기본 365일)
      *
-     * 주의: Python 분석 과정에서 대량의 데이터 손실이 발생합니다:
-     * - Call/Put 옵션 5일 이동평균: 5일 손실
-     * - 필수 데이터(Call/Put/VIX/국채) 없는 날짜 제거: 대량 손실
-     * - RSI 계산(10일 rolling): 10일 손실
-     * - MA 계산(125일 rolling): 125일 손실
-     * - MACD 계산(26일 EMA): 26일 손실
-     * 따라서 실제로는 약 3배의 데이터를 수집하여 원하는 기간만큼 남도록 합니다.
-     * KRX API 제한으로 최대 730일(약 2년)까지만 수집합니다.
+     * @param days 원하는 결과 데이터 기간 (기본 365일)
+     *
+     * MA warm-up 손실(최대 ~125일)을 보완하기 위해 3배 기간을 수집합니다.
+     * KRX API 한계로 최대 730일(약 2년)까지만 수집합니다.
      */
     override suspend fun initializeFearGreed(
         days: Int,
         onProgress: ((String, Int) -> Unit)?
     ): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            // 분석 과정의 데이터 손실을 고려하여 3배 수집, 최대 730일로 제한
             val collectionDays = minOf(days * 3, 730)
-            logger.d("Initializing Fear & Greed Index data: requested=$days days, collecting=$collectionDays days (max 730)")
+            logger.d("Initializing Fear & Greed: requested=$days days, collecting=$collectionDays days")
 
             onProgress?.invoke("Fear & Greed Index 데이터 수집 준비 중...", 0)
 
-            // 날짜 범위 계산
+            val yyyyMMdd = DateTimeFormatter.ofPattern("yyyyMMdd")
             val endDate = LocalDate.now()
             val startDate = endDate.minusDays(collectionDays.toLong())
+            val startStr = startDate.format(yyyyMMdd)
+            val endStr = endDate.format(yyyyMMdd)
 
-            val formatter = DateTimeFormatter.ofPattern("yyyyMMdd")
-            val startStr = startDate.format(formatter)
-            val endStr = endDate.format(formatter)
-
-            // Python에서 Fear & Greed 데이터 가져오기
             onProgress?.invoke("시장 데이터 수집 중...", 20)
             val fearGreedData = try {
-                calculateFearGreed(startStr, endStr, onProgress)
+                fetchAndCalculate(startStr, endStr, onProgress)
             } catch (e: Exception) {
-                logger.e("Python call failed", e)
+                logger.e("fetchAndCalculate failed", e)
                 return@withContext Result.failure(Exception("Fear & Greed 계산 실패: ${e.message}", e))
             }
 
@@ -136,7 +153,6 @@ class FearGreedRepositoryImpl @Inject constructor(
                 return@withContext Result.failure(Exception("계산된 데이터가 없습니다"))
             }
 
-            // DB에 저장
             onProgress?.invoke("데이터베이스 저장 중...", 90)
             fearGreedDao.deleteAll()
             fearGreedDao.insertAll(fearGreedData)
@@ -156,25 +172,22 @@ class FearGreedRepositoryImpl @Inject constructor(
     /**
      * Fear & Greed Index 데이터 업데이트 (최근 데이터만 갱신)
      *
-     * 분석 과정의 데이터 손실을 고려하여 충분한 기간의 데이터를 수집합니다.
+     * MA 손실 보완을 위해 150일 수집합니다.
      */
     override suspend fun updateFearGreed(): Result<Int> = withContext(Dispatchers.IO) {
         try {
             logger.d("Updating Fear & Greed Index data...")
 
-            // 최근 데이터 갱신 (데이터 손실 고려하여 150일 수집)
+            val yyyyMMdd = DateTimeFormatter.ofPattern("yyyyMMdd")
             val endDate = LocalDate.now()
             val startDate = endDate.minusDays(150)
+            val startStr = startDate.format(yyyyMMdd)
+            val endStr = endDate.format(yyyyMMdd)
 
-            val formatter = DateTimeFormatter.ofPattern("yyyyMMdd")
-            val startStr = startDate.format(formatter)
-            val endStr = endDate.format(formatter)
-
-            // Python에서 Fear & Greed 데이터 가져오기
             val fearGreedData = try {
-                calculateFearGreed(startStr, endStr)
+                fetchAndCalculate(startStr, endStr)
             } catch (e: Exception) {
-                logger.e("Python call failed", e)
+                logger.e("fetchAndCalculate failed", e)
                 return@withContext Result.failure(Exception("Fear & Greed 계산 실패: ${e.message}", e))
             }
 
@@ -183,7 +196,7 @@ class FearGreedRepositoryImpl @Inject constructor(
                 return@withContext Result.failure(Exception("계산된 데이터가 없습니다"))
             }
 
-            // DB에 저장 (REPLACE 전략으로 중복 제거)
+            // REPLACE strategy eliminates duplicates
             fearGreedDao.insertAll(fearGreedData)
 
             logger.d("Successfully updated ${fearGreedData.size} Fear & Greed records")
@@ -197,238 +210,235 @@ class FearGreedRepositoryImpl @Inject constructor(
         }
     }
 
+    // =========================================================================
+    // Core fetch-and-calculate logic (replaces Python combine() + analyze())
+    // =========================================================================
+
     /**
-     * Python 스크립트를 호출하여 Fear & Greed Index 계산
+     * kotlin_krx API를 호출하여 Fear & Greed Index 계산
+     *
+     * Replaces Python `calculateFearGreed()` that called `module["combine"]` + `module["analyze"]`.
+     *
+     * @param startDate "yyyyMMdd"
+     * @param endDate   "yyyyMMdd"
      */
-    private suspend fun calculateFearGreed(
+    private suspend fun fetchAndCalculate(
         startDate: String,
         endDate: String,
         onProgress: ((String, Int) -> Unit)? = null
     ): List<FearGreedEntity> = withContext(Dispatchers.IO) {
-        try {
-            logger.d("Calculating Fear & Greed for period: $startDate ~ $endDate")
-            val module = python.getModule("feargreed")
+        withTimeout(90_000L) {
+            logger.d("fetchAndCalculate: $startDate ~ $endDate")
 
-            // combine 함수 호출하여 데이터 수집
+            // ------------------------------------------------------------------
+            // Step 1: Fetch all 7 datasets in parallel (replaces Python KRXFetcher)
+            // ------------------------------------------------------------------
             onProgress?.invoke("원시 데이터 수집 중...", 30)
-            val combineFunc = module["combine"]
-            if (combineFunc == null) {
-                logger.e("combine function not found in Python module")
-                return@withContext emptyList()
+
+            val (callVol, putVol, bond5y, bond10y, vkospi, kospi, kosdaq) = coroutineScope {
+                val callD = async { runCatching { krxIndex.getCallOptionVolume(startDate, endDate) } }
+                val putD  = async { runCatching { krxIndex.getPutOptionVolume(startDate, endDate) } }
+                val b5D   = async { runCatching { krxIndex.getBond5y(startDate, endDate) } }
+                val b10D  = async { runCatching { krxIndex.getBond10y(startDate, endDate) } }
+                val vkD   = async { runCatching { krxIndex.getVkospi(startDate, endDate) } }
+                val kpD   = async { runCatching { krxIndex.getKospi(startDate, endDate) } }
+                val kqD   = async { runCatching { krxIndex.getKosdaq(startDate, endDate) } }
+                FetchResults(
+                    callD.await(), putD.await(), b5D.await(), b10D.await(),
+                    vkD.await(), kpD.await(), kqD.await()
+                )
             }
 
-            val dfObject = withTimeout(60_000L) {
-                combineFunc.call(startDate, endDate)
+            // Option data is required — fatal if missing (mirrors Python)
+            val callList = callVol.getOrElse {
+                logger.e("getCallOptionVolume failed: ${it.message}")
+                return@withTimeout emptyList()
             }
-            if (dfObject == null || dfObject.toString() == "None") {
-                logger.e("Failed to get combined data from Python (returned None)")
-                return@withContext emptyList()
+            val putList = putVol.getOrElse {
+                logger.e("getPutOptionVolume failed: ${it.message}")
+                return@withTimeout emptyList()
             }
 
-            logger.d("Combined data retrieved successfully")
+            // Required derivative indices — fatal if missing
+            val bond5yList = bond5y.getOrElse {
+                logger.e("getBond5y failed: ${it.message}")
+                return@withTimeout emptyList()
+            }
+            val bond10yList = bond10y.getOrElse {
+                logger.e("getBond10y failed: ${it.message}")
+                return@withTimeout emptyList()
+            }
+            val vkospiList = vkospi.getOrElse {
+                logger.e("getVkospi failed: ${it.message}")
+                return@withTimeout emptyList()
+            }
 
-            // analyze 함수 호출하여 분석
+            // Index data is optional — one market may be unavailable
+            val kospiList  = kospi.getOrNull()
+            val kosdaqList = kosdaq.getOrNull()
+
+            if (kospiList == null)  logger.w("getKospi failed — KOSPI results will be skipped")
+            if (kosdaqList == null) logger.w("getKosdaq failed — KOSDAQ results will be skipped")
+
+            // ------------------------------------------------------------------
+            // Step 2: Sort call/put chronologically and apply 5-day rolling mean
+            //         (replaces Python call["전체"].rolling(5).mean())
+            // ------------------------------------------------------------------
+            val sortedCall  = callList.sortedBy { it.date }
+            val sortedPut   = putList.sortedBy { it.date }
+
+            val callMa5 = FearGreedCalculator.rollingMean5(sortedCall.map { it.totalVolume })
+            val putMa5  = FearGreedCalculator.rollingMean5(sortedPut.map { it.totalVolume })
+
+            // Map date → rolling mean value (NaN entries skipped — same as Python dropna)
+            val callByDate: Map<String, Double> = sortedCall.indices
+                .filter { callMa5[it].isFinite() }
+                .associate { i -> sortedCall[i].date to callMa5[i] }
+
+            val putByDate: Map<String, Double> = sortedPut.indices
+                .filter { putMa5[it].isFinite() }
+                .associate { i -> sortedPut[i].date to putMa5[i] }
+
+            // ------------------------------------------------------------------
+            // Step 3: Build lookup maps for the other 5 datasets
+            // ------------------------------------------------------------------
+            val bond5yByDate  = bond5yList.associate  { it.date to it.close }
+            val bond10yByDate = bond10yList.associate { it.date to it.close }
+            val vkospiByDate  = vkospiList.associate  { it.date to it.close }
+            val kospiByDate   = kospiList?.associate  { it.date to it.close } ?: emptyMap()
+            val kosdaqByDate  = kosdaqList?.associate { it.date to it.close } ?: emptyMap()
+
+            // ------------------------------------------------------------------
+            // Step 4: Build merged date set (outer join — then drop rows missing
+            //         required fields, mirroring Python dropna(subset=req))
+            // ------------------------------------------------------------------
+            val allDates: TreeSet<String> = TreeSet<String>().apply {
+                addAll(callByDate.keys)
+                addAll(putByDate.keys)
+                addAll(bond5yByDate.keys)
+                addAll(bond10yByDate.keys)
+                addAll(vkospiByDate.keys)
+                addAll(kospiByDate.keys)
+                addAll(kosdaqByDate.keys)
+            }
+
+            val mergedRows: List<MergedRow> = allDates.mapNotNull { date ->
+                val call   = callByDate[date]    ?: return@mapNotNull null
+                val put    = putByDate[date]     ?: return@mapNotNull null
+                val b5     = bond5yByDate[date]  ?: return@mapNotNull null
+                val b10    = bond10yByDate[date] ?: return@mapNotNull null
+                val vix    = vkospiByDate[date]  ?: return@mapNotNull null
+                MergedRow(
+                    date    = date,
+                    call    = call,
+                    put     = put,
+                    bond5y  = b5,
+                    bond10y = b10,
+                    vix     = vix,
+                    kospi   = kospiByDate[date],
+                    kosdaq  = kosdaqByDate[date]
+                )
+            }
+
+            if (mergedRows.size < MIN_ROWS) {
+                logger.e("Insufficient merged data: ${mergedRows.size} rows (min $MIN_ROWS required)")
+                return@withTimeout emptyList()
+            }
+
+            logger.d("Merged rows: ${mergedRows.size}")
             onProgress?.invoke("Fear & Greed Index 분석 중...", 60)
-            val analyzeFunc = module["analyze"]
-            if (analyzeFunc == null) {
-                logger.e("analyze function not found in Python module")
-                return@withContext emptyList()
-            }
 
-            val result = withTimeout(60_000L) {
-                analyzeFunc.call(dfObject)
-            }
-            if (result == null) {
-                logger.e("analyze function returned null")
-                return@withContext emptyList()
-            }
+            // ------------------------------------------------------------------
+            // Step 5: Calculate Fear & Greed for each market
+            //         (replaces Python _calc_fg() + analyze())
+            // ------------------------------------------------------------------
+            val results = mutableListOf<FearGreedEntity>()
 
-            logger.d("Analyze function completed")
-            onProgress?.invoke("데이터 파싱 중...", 80)
+            fun calcForMarket(market: String, indexValues: List<Double?>) {
+                // Filter to rows where this market's index value is present
+                val validPairs = mergedRows.zip(indexValues)
+                    .filter { (_, idx) -> idx != null }
 
-            // 결과 파싱 (KOSPI, KOSDAQ) - Python에서 튜플 (kp_df, kq_df) 반환
-            val indices = mutableListOf<FearGreedEntity>()
-
-            // 튜플을 리스트로 변환
-            val resultList = result.asList()
-            if (resultList == null || resultList.size < 2) {
-                logger.e("Invalid result tuple from analyze function")
-                return@withContext emptyList()
-            }
-
-            try {
-                // 튜플의 첫 번째 요소: KOSPI 데이터
-                val kospiDf = resultList.getOrNull(0)
-                if (kospiDf != null && kospiDf.toString() != "None") {
-                    logger.d("Parsing KOSPI data...")
-                    val kospiIndices = parseFearGreedData(kospiDf, "KOSPI")
-                    logger.d("KOSPI parsed: ${kospiIndices.size} records")
-                    indices.addAll(kospiIndices)
-                } else {
-                    logger.w("KOSPI data is None")
+                if (validPairs.isEmpty()) {
+                    logger.d("No $market data available — skipping")
+                    return
                 }
-            } catch (e: Exception) {
-                logger.e("Error parsing KOSPI data", e)
-            }
 
-            try {
-                // 튜플의 두 번째 요소: KOSDAQ 데이터
-                val kosdaqDf = resultList.getOrNull(1)
-                if (kosdaqDf != null && kosdaqDf.toString() != "None") {
-                    logger.d("Parsing KOSDAQ data...")
-                    val kosdaqIndices = parseFearGreedData(kosdaqDf, "KOSDAQ")
-                    logger.d("KOSDAQ parsed: ${kosdaqIndices.size} records")
-                    indices.addAll(kosdaqIndices)
-                } else {
-                    logger.w("KOSDAQ data is None")
-                }
-            } catch (e: Exception) {
-                logger.e("Error parsing KOSDAQ data", e)
-            }
-
-            if (indices.isEmpty()) {
-                logger.e("No Fear & Greed data calculated")
-            } else {
-                logger.d("Total Fear & Greed records: ${indices.size}")
-            }
-
-            indices
-        } catch (e: Exception) {
-            logger.e("Error calculating Fear & Greed", e)
-            emptyList()
-        }
-    }
-
-    /**
-     * Python DataFrame을 FearGreedIndex 리스트로 변환
-     */
-    private fun parseFearGreedData(df: PyObject, market: String): List<FearGreedEntity> {
-        try {
-            val indices = mutableListOf<FearGreedEntity>()
-
-            // DataFrame을 딕셔너리 리스트로 변환
-            val recordsFunc = df["to_dict"]
-            if (recordsFunc == null) {
-                logger.e("to_dict method not found on DataFrame")
-                return emptyList()
-            }
-
-            val records = recordsFunc.call("records")
-            if (records == null) {
-                logger.e("Failed to convert DataFrame to records (returned null)")
-                return emptyList()
-            }
-
-            val recordsList = records.asList()
-            if (recordsList == null) {
-                logger.e("Failed to convert records to list")
-                return emptyList()
-            }
-
-            logger.d("Processing ${recordsList.size} records for $market")
-
-            for ((index, record) in recordsList.withIndex()) {
-                try {
-                    // 첫 번째 레코드에서 디버깅 정보 출력
-                    if (index == 0) {
-                        logger.d("First record type: ${record.javaClass.name}")
-                        logger.d("First record toString: ${record.toString()}")
-                        try {
-                            val keys = record.asMap()?.keys
-                            logger.d("Record keys: $keys")
-                        } catch (e: Exception) {
-                            logger.w("Cannot get keys as map: ${e.message}")
-                        }
-                    }
-
-                    // Python dict의 get 메서드 사용
-                    val getFunc = record["get"]
-                    if (getFunc == null) {
-                        logger.e("Record $index: get method not found")
-                        continue
-                    }
-
-                    val dateObj = getFunc.call("거래일")
-                    val date = dateObj?.toString()
-                    if (date == null || date == "None") {
-                        if (index < 3) logger.w("Record $index: missing date (dateObj=$dateObj)")
-                        continue
-                    }
-
-                    val indexValueObj = getFunc.call(market)
-                    val indexValue = try {
-                        indexValueObj?.toDouble()
-                    } catch (e: Exception) {
-                        if (index < 3) logger.w("Record $index ($date): cannot convert $market to double: $indexValueObj")
-                        null
-                    }
-                    if (indexValue == null) {
-                        if (index < 3) logger.w("Record $index ($date): missing $market value")
-                        continue
-                    }
-
-                    val fgObj = getFunc.call("FG")
-                    val fg = try {
-                        fgObj?.toDouble()
-                    } catch (e: Exception) {
-                        if (index < 3) logger.w("Record $index ($date): cannot convert FG to double: $fgObj")
-                        null
-                    }
-                    if (fg == null) {
-                        if (index < 3) logger.w("Record $index ($date): missing FG value")
-                        continue
-                    }
-
-                    val oscObj = getFunc.call("Osc")
-                    val osc = try {
-                        oscObj?.toDouble()
-                    } catch (e: Exception) {
-                        if (index < 3) logger.w("Record $index ($date): cannot convert Osc to double: $oscObj")
-                        null
-                    }
-                    if (osc == null) {
-                        if (index < 3) logger.w("Record $index ($date): missing Osc value")
-                        continue
-                    }
-
-                    val rsi = try { getFunc.call("RSI")?.toDouble() } catch (e: Exception) { null } ?: 0.0
-                    val mom = try { getFunc.call("Mom")?.toDouble() } catch (e: Exception) { null } ?: 0.0
-                    val pcr = try { getFunc.call("PCR")?.toDouble() } catch (e: Exception) { null } ?: 0.0
-                    val vol = try { getFunc.call("Vol")?.toDouble() } catch (e: Exception) { null } ?: 0.0
-                    val spread = try { getFunc.call("Spread")?.toDouble() } catch (e: Exception) { null } ?: 0.0
-
-                    // 날짜 형식 변환 (Timestamp -> YYYY-MM-DD)
-                    val formattedDate = formatDate(date)
-
-                    indices.add(
-                        FearGreedEntity(
-                            id = "$market-$formattedDate",
-                            market = market,
-                            date = formattedDate,
-                            indexValue = indexValue,
-                            fearGreedValue = fg,
-                            oscillator = osc,
-                            rsi = rsi,
-                            momentum = mom,
-                            putCallRatio = pcr,
-                            volatility = vol,
-                            spread = spread,
-                            lastUpdated = System.currentTimeMillis()
-                        )
+                val dayData: List<FearGreedCalculator.FearGreedDayData> = validPairs.map { (row, idx) ->
+                    FearGreedCalculator.FearGreedDayData(
+                        date       = DateFormatter.formatFromYYYYMMDD(row.date),
+                        indexValue = idx!!,
+                        call       = row.call,
+                        put        = row.put,
+                        vix        = row.vix,
+                        bond5y     = row.bond5y,
+                        bond10y    = row.bond10y
                     )
-                } catch (e: Exception) {
-                    if (index < 3) logger.w("Failed to parse record $index: ${e.message}", e)
-                    continue
                 }
+
+                val fgResults = FearGreedCalculator.calcFearGreed(dayData)
+
+                // Only keep fully-valid rows (filter NaN warm-up period, mirrors Python .dropna())
+                val entities = fgResults.mapNotNull { fg ->
+                    if (!fg.fearGreedValue.isFinite() || !fg.oscillator.isFinite()) return@mapNotNull null
+                    FearGreedEntity(
+                        id             = "$market-${fg.date}",
+                        market         = market,
+                        date           = fg.date,
+                        indexValue     = fg.indexValue,
+                        fearGreedValue = fg.fearGreedValue,
+                        oscillator     = fg.oscillator,
+                        rsi            = if (fg.rsi.isFinite()) fg.rsi else 0.0,
+                        momentum       = if (fg.momentum.isFinite()) fg.momentum else 0.0,
+                        putCallRatio   = if (fg.putCallRatio.isFinite()) fg.putCallRatio else 0.0,
+                        volatility     = if (fg.volatility.isFinite()) fg.volatility else 0.0,
+                        spread         = if (fg.spread.isFinite()) fg.spread else 0.0,
+                        lastUpdated    = System.currentTimeMillis()
+                    )
+                }
+
+                logger.d("$market: ${entities.size} valid records out of ${fgResults.size}")
+                results.addAll(entities)
             }
 
-            logger.d("Successfully parsed ${indices.size} out of ${recordsList.size} records for $market")
-            return indices
-        } catch (e: Exception) {
-            logger.e("Error parsing Fear & Greed data for $market", e)
-            return emptyList()
+            calcForMarket("KOSPI",  mergedRows.map { it.kospi })
+            calcForMarket("KOSDAQ", mergedRows.map { it.kosdaq })
+
+            if (results.isEmpty()) {
+                logger.e("No Fear & Greed data calculated for any market")
+            } else {
+                logger.d("Total Fear & Greed records: ${results.size}")
+            }
+
+            onProgress?.invoke("데이터 파싱 중...", 80)
+            results
         }
     }
 
-    private fun formatDate(dateStr: String): String = DateFormatter.formatFromYYYYMMDD(dateStr)
+    // =========================================================================
+    // Internal helpers
+    // =========================================================================
+
+    /** One row after merging all 7 datasets on date. */
+    private data class MergedRow(
+        val date: String,     // "yyyyMMdd"
+        val call: Double,
+        val put: Double,
+        val bond5y: Double,
+        val bond10y: Double,
+        val vix: Double,
+        val kospi: Double?,
+        val kosdaq: Double?
+    )
+
+    /** Destructure helper for the 7 parallel fetch results. */
+    private data class FetchResults(
+        val callVol: Result<List<com.krxkt.model.OptionVolume>>,
+        val putVol:  Result<List<com.krxkt.model.OptionVolume>>,
+        val bond5y:  Result<List<com.krxkt.model.DerivativeIndex>>,
+        val bond10y: Result<List<com.krxkt.model.DerivativeIndex>>,
+        val vkospi:  Result<List<com.krxkt.model.DerivativeIndex>>,
+        val kospi:   Result<List<com.krxkt.model.IndexOhlcv>>,
+        val kosdaq:  Result<List<com.krxkt.model.IndexOhlcv>>
+    )
 }

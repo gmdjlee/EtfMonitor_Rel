@@ -9,6 +9,7 @@ import com.etfmonitor.core.database.entities.Setting
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toDomain
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toOscillatorDomainList
 import com.etfmonitor.feature.market.domain.model.MarketOscillator
+import com.etfmonitor.core.data.krx.adapter.DateAdapter
 import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -120,12 +121,13 @@ class MarketOscillatorRepositoryImpl @Inject constructor(
             val indexValues = result.indexValues
             val oscillators = result.oscillator
 
-            // Entity 리스트 생성
+            // Entity 리스트 생성 (yyyyMMdd → yyyy-MM-dd 변환)
             val dataList = dates.indices.map { i ->
+                val isoDate = DateAdapter.fromKrxFormat(dates[i]).toString()
                 MarketOscillatorEntity(
-                    id = "${market}-${dates[i]}",
+                    id = "${market}-${isoDate}",
                     market = market,
-                    date = dates[i],
+                    date = isoDate,
                     indexValue = indexValues[i],
                     oscillator = oscillators[i]
                 )
@@ -178,12 +180,13 @@ class MarketOscillatorRepositoryImpl @Inject constructor(
             val indexValues = result.indexValues
             val oscillators = result.oscillator
 
-            // Entity 리스트 생성
+            // Entity 리스트 생성 (yyyyMMdd → yyyy-MM-dd 변환)
             val dataList = dates.indices.map { i ->
+                val isoDate = DateAdapter.fromKrxFormat(dates[i]).toString()
                 MarketOscillatorEntity(
-                    id = "${market}-${dates[i]}",
+                    id = "${market}-${isoDate}",
                     market = market,
-                    date = dates[i],
+                    date = isoDate,
                     indexValue = indexValues[i],
                     oscillator = oscillators[i]
                 )

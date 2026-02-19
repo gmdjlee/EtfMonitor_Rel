@@ -5,6 +5,52 @@ All notable changes to ETF Monitor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-02-19
+
+### Added
+
+#### kotlin_krx Integration (pykrx Replacement)
+- kotlin_krx native Kotlin library replacing pykrx Python dependency
+- KrxModule Hilt DI (KrxClient, KrxStock, KrxEtf, KrxIndex, TickerCache singletons)
+- 11 kotlin_krx UseCases for market data operations
+- 5 kotlin_krx Repository implementations with KrxRepositoryBase
+- DateAdapter, KrxErrorMapper, HoldingMapper adapter layer
+
+#### Kotlin Native Computation Engines
+- FearGreedCalculator — RSI, MACD, Fear & Greed index (replaces feargreed.py KRX calls)
+- TechnicalAnalysisEngine — EMA, CMF, Elder Impulse, DeMark TD, trend signals (replaces trend_signal.py)
+- MarketOscillatorCalculator — market overbought/oversold via top-200 market cap proxy
+
+#### Database (Schema v17-v19)
+- Migration v17→v18, v18→v19
+
+### Removed
+- **pykrx** Python dependency — 100% replaced by kotlin_krx
+- **PyKrxClient** — all call sites migrated to kotlin_krx UseCases
+- **OscillatorPyClient** — replaced by TechnicalAnalysisEngine + kotlin_krx
+- Python packages: beautifulsoup4, scikit-learn, joblib, setuptools, wheel
+- FearGreedRepositoryImpl Python/DataFrame dependency — now pure kotlin_krx + FearGreedCalculator
+
+### Fixed
+- Zero-data bug: kotlin_krx wrong API endpoint (MDCSTAT01602 → MDCSTAT01501) + reverse chronological order
+- Investor trading data: 외국인/기관 수급 데이터 zero values
+- Chart period selection: date format mismatch (yyyy-MM-dd → yyyyMMdd) across 5 charts
+- Elder Impulse/DeMark TD market cap 0: single-call → OHLCV trade-day retry + sharesOutstanding priority
+- BloodIndicatorPyClient crash: Python.getInstance() → Hilt constructor injection
+- MarketOscillator empty display: yyyyMMdd → yyyy-MM-dd date conversion before DB storage
+- MarketOscillator CancellationException swallowed in catch(Exception): added rethrow
+- MarketOscillator job cancellation on navigation: NonCancellable context for data collection
+
+### Changed
+- FearGreedRepositoryImpl constructor: `Python` → `KrxIndex`
+- OscillatorViewModel: 18 pyClient calls → 3 kotlin_krx UseCases
+- EtfRepositoryImpl: PyKrxClient → 3 kotlin_krx UseCases
+- All ViewModels now inject domain UseCases (Clean Architecture AD-002 resolved)
+- Python packages pinned: pandas, requests only (reduced from 6 packages)
+- Project cleanup: 27 dead files removed, 13 unused dependencies removed
+
+---
+
 ## [1.0.1] - 2025-12-27
 
 ### Added
@@ -51,13 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Version code: 1 → 2
 - Version name: "1.0" → "1.0.1"
-- Python package versions now pinned for reproducible builds:
-  - pandas==2.1.4
-  - pykrx==1.0.47
-  - scikit-learn==1.3.2
-  - requests==2.31.0
-  - beautifulsoup4==4.12.2
-  - joblib==1.3.2
+- Python package versions pinned for reproducible builds (pandas, pykrx, scikit-learn, requests, beautifulsoup4, joblib)
 
 ### Security
 
@@ -130,5 +170,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Schema | Key Changes |
 |---------|------|--------|-------------|
+| 1.1.0 | 2026-02-19 | v19 | pykrx → kotlin_krx migration, 3 Kotlin engines, bug fixes |
 | 1.0.1 | 2025-12-27 | v17 | Testing, quality fixes, 3 new entities |
 | 1.0.0 | 2025-12-25 | v14 | Initial release, Clean Architecture |

@@ -1,10 +1,10 @@
 package com.etfmonitor.feature.market.data.repository
 
 import app.cash.turbine.test
-import com.chaquo.python.Python
 import com.etfmonitor.MainDispatcherExtension
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.FearGreedDao
+import com.krxkt.KrxIndex
 import com.etfmonitor.core.database.entities.FearGreedIndex as FearGreedEntity
 import com.etfmonitor.core.database.entities.Setting
 import io.mockk.coEvery
@@ -35,7 +35,7 @@ import kotlin.test.assertTrue
  * - 다이얼로그 상태 관리
  * - 오류 처리
  *
- * 주의: Python 통합 테스트는 Android 환경에서 진행 필요
+ * 주의: kotlin_krx API 통합 테스트는 Korean network 환경에서 진행 필요
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @ExtendWith(MainDispatcherExtension::class)
@@ -44,7 +44,7 @@ class FearGreedRepositoryImplTest {
     // Mocks
     private lateinit var fearGreedDao: FearGreedDao
     private lateinit var etfDao: EtfDao
-    private lateinit var python: Python
+    private lateinit var krxIndex: KrxIndex
 
     private lateinit var repository: FearGreedRepositoryImpl
 
@@ -52,12 +52,12 @@ class FearGreedRepositoryImplTest {
     fun setup() {
         fearGreedDao = mockk(relaxed = true)
         etfDao = mockk(relaxed = true)
-        python = mockk(relaxed = true)
+        krxIndex = mockk(relaxed = true)
 
         repository = FearGreedRepositoryImpl(
             fearGreedDao = fearGreedDao,
             etfDao = etfDao,
-            python = python
+            krxIndex = krxIndex
         )
     }
 

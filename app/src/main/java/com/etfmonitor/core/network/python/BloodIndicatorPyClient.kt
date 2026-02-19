@@ -42,15 +42,14 @@ private data class BloodIndicatorResponse(
  */
 @Singleton
 class BloodIndicatorPyClient @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val python: Python
 ) {
     companion object {
         private val logger = AppLogger.getLogger("BloodIndicatorPyClient")
         private const val TIMEOUT_MS = 90_000L  // 90 seconds for 100-week SMA calculation
         private const val MODULE_NAME = "blood_indicator"
     }
-
-    private val python = Python.getInstance()
     private val module by lazy { python.getModule(MODULE_NAME) }
     private val json = Json {
         ignoreUnknownKeys = true
