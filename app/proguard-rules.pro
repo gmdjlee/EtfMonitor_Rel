@@ -26,14 +26,6 @@
 # --------------------------------------------
 -keep class com.etfmonitor.core.database.entities.** { *; }
 
-# --------------------------------------------
-# Python/Chaquopy Integration
-# --------------------------------------------
--keep class com.chaquo.python.** { *; }
--keep class com.chaquo.python.PyObject { *; }
--keepclassmembers class * {
-    @com.chaquo.python.** *;
-}
 
 # --------------------------------------------
 # Kotlinx Serialization

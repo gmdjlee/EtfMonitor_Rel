@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.jetbrains.kotlin.android) apply false
     alias(libs.plugins.google.devtools.ksp) apply false
-    alias(libs.plugins.chaquopy) apply false
+
     alias(libs.plugins.compose.compiler) apply false
     kotlin("jvm") version "2.1.0" apply false
 }

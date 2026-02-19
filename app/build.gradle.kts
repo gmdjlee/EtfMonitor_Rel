@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
-    alias(libs.plugins.chaquopy)
+
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.google.devtools.ksp)
     alias(libs.plugins.hilt.android)
@@ -85,18 +85,6 @@ android {
     }
 }
 
-chaquopy {
-    defaultConfig {
-        pip {
-//            options("--no-cache-dir")
-//            options("--timeout", "300")
-
-            // Core packages
-            install("pandas")
-            install("requests")
-        }
-    }
-}
 
 dependencies {
     // kotlin_krx integration

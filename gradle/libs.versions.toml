@@ -11,7 +11,7 @@ composeBom = "2024.12.01"
 navigationCompose = "2.8.5"
 room = "2.8.3"
 coroutines = "1.10.2"
-chaquopy = "15.0.1"
+
 kotlinxSerialization = "1.7.1"
 vico = "2.0.0-alpha.28"
 work = "2.9.1"
@@ -104,6 +104,6 @@ truth-ext = { group = "androidx.test.ext", name = "truth", version.ref = "truthE
 android-application = { id = "com.android.application", version.ref = "agp" }
 jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 google-devtools-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-chaquopy = { id = "com.chaquo.python", version.ref = "chaquopy" }
+
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }

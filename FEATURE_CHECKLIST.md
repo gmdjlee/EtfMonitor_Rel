@@ -87,9 +87,9 @@ AIAnalysisResult, AIChatMessage, AIChatSession, BloodIndicator, CorrelationAnaly
 ### Workers (9)
 AdvancedAnalysisWorker, BloodIndicatorUpdateWorker, DataArchiveWorker, EtfUpdateWorker, FearGreedUpdateWorker, MarketDepositUpdateWorker, MarketIndexUpdateWorker, MarketOscillatorUpdateWorker, StockUpdateWorker
 
-### Python Clients (1 active)
-- BloodIndicatorPyClient (90s timeout) — blood_indicator.py (Yahoo/FRED)
-- FearGreedRepositoryImpl (60s timeout) — feargreed.py (직접 PyObject 조작, PyClient 아님)
+### Native HTTP Clients (Blood Indicator)
+- BloodIndicatorClient (@Singleton, OkHttp) — Yahoo Finance (^IRX, SPY) + FRED API (BAMLH0A0HYM2)
+- BloodIndicatorCalculator (object) — Weekly resampling, 100-week SMA, RISK_ON/RISK_OFF signals
 
 ### KIS API (Financial Info)
 - KisApiKeyProvider — EncryptedSharedPreferences (AES256-GCM) for KIS API key storage
@@ -105,11 +105,8 @@ GetKrxMarketCapUseCase, GetKrxIndexComponentsUseCase, GetKrxMarketDataUseCase, G
 ### kotlin_krx Repositories (5)
 KrxEtfRepositoryImpl, KrxStockRepositoryImpl, KrxMarketRepositoryImpl, KrxIndexRepositoryImpl, KrxStockDataRepositoryImpl
 
-### Core DI Modules (5)
-AIModule, DatabaseModule, KrxModule, PythonModule, WorkerModule
-
-### Python Scripts (2 active)
-blood_indicator.py, core.py
+### Core DI Modules (4)
+AIModule, DatabaseModule, KrxModule, WorkerModule
 
 ## Summary Counts
 
@@ -125,7 +122,8 @@ blood_indicator.py, core.py
 | DAOs | 21 (+FinancialCacheDao) |
 | Entities | 22 (+FinancialCache) |
 | Workers | 9 |
-| Python clients | 1 |
+| Python clients | 0 (Chaquopy removed) |
+| Native HTTP clients | 1 (BloodIndicatorClient) |
 | KIS API clients | 1 (FinancialRepositoryImpl) |
 | AI client files | 11 |
-| DI modules | 12 (5 core + 7 feature) |
+| DI modules | 11 (4 core + 7 feature) |

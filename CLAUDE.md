@@ -3,10 +3,10 @@
 ## Project Identity
 
 Korean stock market (KRX) ETF monitoring Android app.
-Kotlin 2.1.0 | Jetpack Compose + M3 | MVVM + Clean Architecture | Hilt 2.54 | Room 2.8.3 (schema v20) | Chaquopy (embedded Python) | Claude & Gemini AI APIs | KIS Open API (재무정보)
+Kotlin 2.1.0 | Jetpack Compose + M3 | MVVM + Clean Architecture | Hilt 2.54 | Room 2.8.3 (schema v20) | Claude & Gemini AI APIs | KIS Open API (재무정보)
 
-Package: `com.etfmonitor` | DB: `etf_monitor.db` | ~298 Kotlin files | 2 Python scripts
-Structure: `core/` (132 files) shared infra, `feature/` (163 files) 7 modules, `navigation/` (1 file)
+Package: `com.etfmonitor` | DB: `etf_monitor.db` | ~300 Kotlin files | 0 Python scripts
+Structure: `core/` (134 files) shared infra, `feature/` (163 files) 7 modules, `navigation/` (1 file)
 Each feature: `domain/{model,repository,usecase}` → `data/{mapper,repository}` → `presentation/` → `di/`
 
 ---
@@ -31,10 +31,10 @@ In SQL queries, convert: `CAST(weightBps AS REAL) / 10000.0`, `CAST(amountMillio
 // ❌ stockAnalysisDao.getAnalysisData(ticker)           // name will be null
 ```
 
-### 3. IMPORTANT: Python/KRX Timeouts — Not All 30s
+### 3. IMPORTANT: KRX/HTTP Timeouts — Not All 30s
 | Client | Timeout | Why |
 |--------|---------|-----|
-| BloodIndicatorPyClient | **90s** | 100-week SMA calculation |
+| BloodIndicatorClient | **30s** per HTTP call | Yahoo Finance + FRED API (3 retries) |
 | FearGreedRepositoryImpl | **90s** | 7 parallel kotlin_krx API calls + FearGreedCalculator |
 | KrxRepositoryBase | 30s-180s | Configurable per kotlin_krx call |
 | MarketOscillatorCalculator | **no timeout** | 200 tickers × sequential fetch — use `NonCancellable` in ViewModel |
@@ -72,15 +72,7 @@ New ViewModels should use sealed classes.
 - Handle Gemini `SAFETY`/`RECITATION` blocks (returns empty instead of error)
 - API keys stored with AES256-GCM via Android Keystore (`SharedPreferencesApiKeyProvider`)
 
-### 10. Python Calls — Always withContext(IO) + withTimeout
-```kotlin
-suspend fun fetch() = withContext(Dispatchers.IO) {
-    withTimeout(30_000L) { module.callAttr("fn").toString() }
-}
-```
-Use `Json { ignoreUnknownKeys = true }` for Python JSON parsing.
-
-### 11. kotlin_krx Date Format — Always Convert
+### 10. kotlin_krx Date Format — Always Convert
 kotlin_krx returns dates in `"yyyyMMdd"` format. Room entities and UI expect `"yyyy-MM-dd"` (ISO).
 ```kotlin
 // ✅ Convert before DB storage
@@ -126,19 +118,18 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 
 | Category | Path | Notes |
 |----------|------|-------|
-| Entry | `MainActivity.kt`, `EtfMonitorApp.kt` | Theme, permissions, Python init |
+| Entry | `MainActivity.kt`, `EtfMonitorApp.kt` | Theme, permissions |
 | Navigation | `navigation/Navigation.kt` | 14 screen routes |
 | Database | `core/database/AppDatabase.kt` | 22 entities, 19 DAOs, 19 migrations (v20) |
 | Database entities | `core/database/entities/` | 20 files (AIChatSession in AIChatMessage.kt) |
-| Python scripts | `app/src/main/python/` | 2 active: blood_indicator, core |
-| Python bridge | `core/network/python/` | BloodIndicatorPyClient (sole remaining PyClient) |
+| Blood Indicator | `core/network/blood/` | BloodIndicatorClient (OkHttp: Yahoo Finance + FRED API) |
 | AI clients | `core/network/ai/` | ClaudeApiClient, GeminiApiClient, AIApiClientFactory (11 files) |
 | Theme | `core/ui/theme/` | Theme.kt, ThemeManager.kt |
 | Workers | `core/worker/` | 8 workers + WorkManagerHelper |
-| DI | `core/di/` + `feature/*/di/` | 12 modules (5 core + 7 feature) |
+| DI | `core/di/` + `feature/*/di/` | 11 modules (4 core + 7 feature) |
 | kotlin_krx repos | `core/data/repository/krx/` | KrxStockDataRepositoryImpl, KrxEtfDataRepositoryImpl, KrxMarketDataRepositoryImpl |
 | kotlin_krx UseCases | `core/domain/usecase/krx/` | 11 UseCases (MarketCap, IndexComponents, MarketData, EtfHoldings, EtfList, BusinessDays, TrendSignal, ElderImpulse, DemarkTD, StockOhlcv, IndexData) |
-| Analysis engines | `core/analysis/` | FearGreedCalculator, TechnicalAnalysisEngine, MarketOscillatorCalculator |
+| Analysis engines | `core/analysis/` | FearGreedCalculator, TechnicalAnalysisEngine, MarketOscillatorCalculator, BloodIndicatorCalculator |
 | kotlin_krx adapters | `core/data/krx/adapter/` | DateAdapter, KrxErrorMapper, HoldingMapper |
 | Data collection | `core/service/DataCollectionService.kt` | Foreground Service with serviceScope |
 | KIS Financial Info | `feature/stock/presentation/financial/` | FinancialInfoContent, ProfitabilityContent, StabilityContent |
@@ -159,7 +150,7 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 | Write ranking queries without LIMIT | Add LIMIT clause (OOM on Android) |
 | Expose `MutableStateFlow` publicly | Use `_state` private + `state: StateFlow` public via `.asStateFlow()` |
 | Use `LiveData` | This project uses `StateFlow` exclusively |
-| Omit dispatcher on DB/Python/network calls | Always `withContext(Dispatchers.IO)` |
+| Omit dispatcher on DB/network calls | Always `withContext(Dispatchers.IO)` |
 | Call AI without checking API key | Check `isApiKeyConfigured` first |
 | Assume English signal names only | Parser handles Korean: 강력매수, 매수, 중립, 매도, 강력매도 |
 | Create ViewModels manually | Use `hiltViewModel()` in Composables |
@@ -236,20 +227,17 @@ Default model: **sonnet**. Use tiered agents in `.claude/agents/` for cost-effic
 
 **Architecture**: ViewModel → UseCase → Repository (extends KrxRepositoryBase) → kotlin_krx API
 
-### Remaining Python Dependencies (1 PyClient only)
+### Python Dependencies — FULLY REMOVED
 
-| Kotlin Class | Python Script | Data Source | Purpose |
-|--------------|--------------|-------------|---------|
-| `BloodIndicatorPyClient` | blood_indicator.py | Yahoo Finance + FRED | Blood indicator (US03MY / High Yield Spread, 90s timeout) |
-
-**Python pip dependencies**: `pandas`, `requests`
-**Hilt injection**: `PythonModule` provides `Python` singleton — `BloodIndicatorPyClient` injects via constructor
-**Note**: `FearGreedRepositoryImpl`은 kotlin_krx + FearGreedCalculator로 완전 마이그레이션 완료 (Python 의존성 없음)
+**Chaquopy embedded Python has been completely removed** from this project.
+All former Python scripts have been replaced by native Kotlin implementations:
 
 ### Kotlin Native Computation Engines (replaced Python)
 
 | Engine | Replaces | Key Functions |
 |--------|----------|---------------|
+| `BloodIndicatorCalculator` (object) | blood_indicator.py | resampleWeeklyFriday, rollingMean, calcSignal (100-week SMA) |
+| `BloodIndicatorClient` (@Singleton) | blood_indicator.py HTTP | fetchIrxData (Yahoo), fetchHighYieldSpread (FRED), fetchSpyData (Yahoo) |
 | `FearGreedCalculator` (object) | feargreed.py | calcRsi, calcMacd, calcFearGreed, rollingMean5, minMaxNormalize |
 | `TechnicalAnalysisEngine` (object) | trend_signal.py | calculateEMA, resampleWeekly/Monthly, calculateCMF, generateSignals, calculateElderImpulse, calculateDemarkTD |
 | `MarketOscillatorCalculator` (@Singleton) | market.py Oscillator | analyze (top-200 market cap proxy for index components) |
@@ -268,7 +256,7 @@ Default model: **sonnet**. Use tiered agents in `.claude/agents/` for cost-effic
 ## Compaction Instructions
 
 When context is compacted, PRESERVE:
-- All Critical Rules (especially Holding factory, StockAnalysisData JOIN, Python timeouts, FearGreed 3x, date format conversion, NonCancellable)
+- All Critical Rules (especially Holding factory, StockAnalysisData JOIN, KRX timeouts, FearGreed 3x, date format conversion, NonCancellable)
 - Do NOT table (project-specific mistakes)
 - Project Identity (package name, DB name, structure)
 - Commands section

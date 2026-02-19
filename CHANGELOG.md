@@ -5,6 +5,34 @@ All notable changes to ETF Monitor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-02-20
+
+### Added
+
+#### Blood Indicator Kotlin Migration (Chaquopy 제거)
+- BloodIndicatorClient — native OkHttp client for Yahoo Finance (^IRX, SPY) and FRED API (BAMLH0A0HYM2)
+- BloodIndicatorCalculator — pure Kotlin computation: weekly resampling (W-FRI), 100-week SMA, RISK_ON/RISK_OFF signals
+- HTTP retry logic with exponential backoff (3 retries, 30s timeout per call)
+
+### Removed
+- **Chaquopy** embedded Python runtime — completely removed from project
+- `blood_indicator.py` (527 lines) — replaced by BloodIndicatorClient + BloodIndicatorCalculator
+- `core.py` (149 lines) — utility functions replaced by native Kotlin
+- `BloodIndicatorPyClient.kt` — replaced by BloodIndicatorClient
+- `PythonModule.kt` — Hilt module for Python singleton (no longer needed)
+- `__init__.py` — Python package marker
+- pip dependencies: `pandas`, `requests` (no longer bundled in APK)
+- Chaquopy Gradle plugin, Maven repository, and ProGuard rules
+- Python initialization in Android test (`KrxApiFunctionalityTest`)
+- Configuration cache disabled workaround (`org.gradle.configuration-cache=false`)
+
+### Changed
+- BloodIndicatorRepositoryImpl — injects `BloodIndicatorClient` instead of `BloodIndicatorPyClient`
+- KrxApiFunctionalityTest — removed Python/feargreed test, retained kotlin_krx tests only
+- Configuration cache now enabled (`org.gradle.configuration-cache=true`)
+
+---
+
 ## [1.2.0] - 2026-02-19
 
 ### Added
@@ -194,6 +222,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Schema | Key Changes |
 |---------|------|--------|-------------|
+| 1.3.0 | 2026-02-20 | v20 | blood_indicator.py → Kotlin, Chaquopy removed |
 | 1.2.0 | 2026-02-19 | v20 | KIS Financial Info feature (재무정보), 13 new files |
 | 1.1.0 | 2026-02-19 | v19 | pykrx → kotlin_krx migration, 3 Kotlin engines, bug fixes |
 | 1.0.1 | 2025-12-27 | v17 | Testing, quality fixes, 3 new entities |

@@ -1,48 +1,39 @@
-Read TASK.md, PROGRESS.md, and these reference files:
-- D:\android_2025\mini_stock\StockApp\MIGRATION_SPEC.md (feature specification)
-- D:\android_2025\mini_stock\StockApp\FILE_MANIFEST.md (file list and dependencies)
-- Also read StockApp source code as needed from D:\android_2025\mini_stock\StockApp\
+Read TASK.md, PROGRESS.md, and any existing migration analysis reports (MIGRATION_MAP.md, MIGRATION_REVIEW_REPORT.md, COVERAGE_MAP.md — whichever exist).
 
-Mission: Implement Financial Information tab in the current project's Stock menu. When stock analysis completes, display financial info. Store collected financial data in local DB. Update on new or changed data. Replicate exact functionality from StockApp.
+Mission: Migrate blood_indicator.py to native Kotlin. Maintain 100% functional parity with the Python version. Follow MVVM + Clean Architecture + Feature module pattern.
 
 Agent Team (3 members): Spawn 3 teammates.
-1. Integrator (Sonnet): Use source-migrator and feature-extractor subagents. Analyze StockApp source, implement feature in current project following MVVM + Clean Architecture + Feature module pattern.
-2. QA-Engineer (Sonnet): Use qa-verifier subagent. Verify each implementation step: build, tests, DB operations, data flow correctness.
-3. Architect-Reviewer (Opus): Approve implementation plans for data layer (Room DB schema), DI configuration, and navigation changes. Final quality gate.
+1. Integrator (Sonnet): Use python-analyzer to analyze blood_indicator.py, then use kotlin-implementer to build Kotlin equivalent. Implement in Clean Architecture layers.
+2. QA-Engineer (Sonnet): Use qa-verifier to validate functional parity. Tests, build, output comparison vs Python.
+3. Architect-Reviewer (Opus): Approve implementation plan before coding starts. Reject if architecture deviates from project patterns. Final quality gate.
 
 Use Subagents:
-- feature-extractor (haiku): Scan StockApp source to identify needed code.
-- source-migrator (sonnet): Transform StockApp code to current project patterns.
-- kotlin-implementer (sonnet): Implement new Kotlin code following project conventions.
-- qa-verifier (sonnet): Test and verify implementations.
+- python-analyzer (haiku): Analyze blood_indicator.py logic, KRX API calls, calculations.
+- kotlin-implementer (sonnet): Implement Kotlin code in project architecture.
+- qa-verifier (sonnet): Verify parity, run tests, check build.
 
-Implementation Requirements:
-1. Financial Info Tab: Add tab under Stock menu. Show financial data after stock analysis.
-2. Data Layer: Room DB table for financial info. Insert on first collection, update on changes.
-3. Domain Layer: Entity, Repository interface, UseCases (GetFinancialInfo, SaveFinancialInfo, UpdateFinancialInfo).
-4. Presentation: ViewModel with StateFlow, UI showing financial metrics.
-5. DI: Hilt module for financial info feature.
-6. Navigation: Wire tab into existing stock analysis flow.
-7. Functional Parity: Must match StockApp behavior exactly.
+Rules:
+- Read existing migration analysis first. Do not re-analyze what is already documented.
+- Implementation plan required before coding. Write to PROGRESS.md, get Architect approval.
+- If rejected: revise and resubmit (max 2 retries).
+- After every code change: run gradlew assembleDebug.
+- Every Blood Indicator calculation must produce identical output to Python version for same input.
+- Log all changes to PROGRESS.md.
 
-Workflow per iteration:
-1. Lead reads TASK.md, picks next incomplete task.
-2. For analysis tasks: use feature-extractor to scan StockApp source.
-3. For implementation tasks: write plan to PROGRESS.md, Architect approves, implement.
-4. If plan rejected: revise and resubmit (max 2 retries).
-5. For each code change: QA verifies build passes.
-6. Lead marks task done after verification.
+Workflow:
+1. Lead reads TASK.md, picks next task.
+2. Analysis tasks: python-analyzer scans, logs to PROGRESS.md.
+3. Implementation tasks: plan in PROGRESS.md, Architect approves, implement, QA verifies.
+4. Lead marks task done after verification.
 
 Completion (ALL must be met):
 - Every task in TASK.md is checked done.
-- Financial Info tab visible in Stock menu.
-- DB schema created with Room, CRUD operations working.
-- Data persists and updates correctly.
+- All blood_indicator.py functions migrated to Kotlin.
 - gradlew assembleDebug passes.
 - gradlew test passes.
-- Functionality matches StockApp exactly.
-- IMPLEMENTATION_REPORT.md generated.
-- CLAUDE.md updated with new feature architecture.
+- Output parity verified vs Python for test inputs.
+- MIGRATION_REPORT.md generated.
+- CLAUDE.md updated.
 - PROGRESS.md contains LOOP_COMPLETE.
 
 Output COMPLETE when ALL verified.
