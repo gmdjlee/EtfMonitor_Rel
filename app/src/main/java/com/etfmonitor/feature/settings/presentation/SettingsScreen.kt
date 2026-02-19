@@ -201,6 +201,7 @@ private fun GeneralTab(
     val isLoadingClaudeModels by viewModel.isLoadingClaudeModels.collectAsState()
     val isLoadingGeminiModels by viewModel.isLoadingGeminiModels.collectAsState()
     val isFredApiKeyConfigured by viewModel.isFredApiKeyConfigured.collectAsState()
+    val isKisApiKeyConfigured by viewModel.isKisApiKeyConfigured.collectAsState()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -256,6 +257,16 @@ private fun GeneralTab(
                 isConfigured = isFredApiKeyConfigured,
                 onSetApiKey = { viewModel.setFredApiKey(it) },
                 onClearApiKey = { viewModel.clearFredApiKey() }
+            )
+        }
+
+        // KIS API 키 설정 (재무정보 조회용)
+        item {
+            KisApiKeyCard(
+                isConfigured = isKisApiKeyConfigured,
+                onSetAppKey = { viewModel.setKisAppKey(it) },
+                onSetAppSecret = { viewModel.setKisAppSecret(it) },
+                onClearApiKeys = { viewModel.clearKisApiKeys() }
             )
         }
 

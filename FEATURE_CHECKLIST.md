@@ -86,9 +86,9 @@ AIAnalysisResult, AIChatMessage, AIChatSession, BloodIndicator, CorrelationAnaly
 ### Workers (9)
 AdvancedAnalysisWorker, BloodIndicatorUpdateWorker, DataArchiveWorker, EtfUpdateWorker, FearGreedUpdateWorker, MarketDepositUpdateWorker, MarketIndexUpdateWorker, MarketOscillatorUpdateWorker, StockUpdateWorker
 
-### Python Clients (2 active)
-- MarketIndexPyClient (30s timeout) — market index data via market.py
+### Python Clients (1 active)
 - BloodIndicatorPyClient (90s timeout) — blood_indicator.py (Yahoo/FRED)
+- FearGreedRepositoryImpl (60s timeout) — feargreed.py (직접 PyObject 조작, PyClient 아님)
 
 ### AI Clients (11 files)
 AIApiClient, AIApiClientFactory, AIModel, AIProvider, AIResponseParser, ClaudeApiClient, GeminiApiClient, ApiKeyProvider, SharedPreferencesApiKeyProvider, MarketAnalysisPrompts, MarketSignal
@@ -119,6 +119,6 @@ blood_indicator.py, feargreed.py, kis_client.py, core.py
 | DAOs | 20 |
 | Entities | 21 |
 | Workers | 9 |
-| Python clients | 2 |
+| Python clients | 1 |
 | AI client files | 11 |
 | DI modules | 12 (5 core + 7 feature) |

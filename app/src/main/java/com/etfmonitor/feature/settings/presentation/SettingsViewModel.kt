@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.core.network.ai.AIProvider
 import com.etfmonitor.core.network.ai.ApiKeyProvider
+import com.etfmonitor.core.network.kis.KisApiKeyProvider
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.entities.Setting
 import com.etfmonitor.feature.market.domain.repository.BloodIndicatorRepository
@@ -130,6 +131,7 @@ class SettingsViewModel @Inject constructor(
     private val bloodIndicatorRepository: BloodIndicatorRepository,
     private val aiAnalysisRepository: AIAnalysisRepository,
     private val apiKeyProvider: ApiKeyProvider,
+    private val kisApiKeyProvider: KisApiKeyProvider,
     private val etfDao: EtfDao,
     private val themeManager: ThemeManager,
     @ApplicationContext private val context: Context
@@ -234,6 +236,10 @@ class SettingsViewModel @Inject constructor(
     // FRED API key for Blood Indicator
     private val _isFredApiKeyConfigured = MutableStateFlow(false)
     val isFredApiKeyConfigured: StateFlow<Boolean> = _isFredApiKeyConfigured.asStateFlow()
+
+    // KIS API key for Financial Info
+    private val _isKisApiKeyConfigured = MutableStateFlow(false)
+    val isKisApiKeyConfigured: StateFlow<Boolean> = _isKisApiKeyConfigured.asStateFlow()
 
     private val _apiKeyTestState = MutableStateFlow<ApiKeyTestState>(ApiKeyTestState.Idle)
     val apiKeyTestState: StateFlow<ApiKeyTestState> = _apiKeyTestState.asStateFlow()
@@ -1152,6 +1158,8 @@ class SettingsViewModel @Inject constructor(
             // Check FRED API key
             val fredKey = etfDao.getSetting(Keys.FRED_API_KEY)
             _isFredApiKeyConfigured.value = !fredKey.isNullOrBlank()
+            // Check KIS API key
+            _isKisApiKeyConfigured.value = kisApiKeyProvider.isConfigured()
         }
     }
 
@@ -1209,6 +1217,29 @@ class SettingsViewModel @Inject constructor(
     fun clearFredApiKey() = saveSetting("FRED API 키가 삭제되었습니다") {
         etfDao.saveSetting(Setting(Keys.FRED_API_KEY, ""))
         _isFredApiKeyConfigured.value = false
+    }
+
+    // ==================== KIS API Key Management (Financial Info) ====================
+
+    fun setKisAppKey(appKey: String) {
+        if (appKey.isBlank()) { _message.value = "KIS App Key를 입력해주세요"; return }
+        saveSetting("KIS App Key가 저장되었습니다") {
+            kisApiKeyProvider.setAppKey(appKey)
+            _isKisApiKeyConfigured.value = kisApiKeyProvider.isConfigured()
+        }
+    }
+
+    fun setKisAppSecret(appSecret: String) {
+        if (appSecret.isBlank()) { _message.value = "KIS App Secret을 입력해주세요"; return }
+        saveSetting("KIS App Secret이 저장되었습니다") {
+            kisApiKeyProvider.setAppSecret(appSecret)
+            _isKisApiKeyConfigured.value = kisApiKeyProvider.isConfigured()
+        }
+    }
+
+    fun clearKisApiKeys() = saveSetting("KIS API 키가 삭제되었습니다") {
+        kisApiKeyProvider.clearAll()
+        _isKisApiKeyConfigured.value = false
     }
 
     /**

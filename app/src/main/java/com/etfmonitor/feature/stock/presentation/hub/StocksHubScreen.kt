@@ -36,6 +36,7 @@ import com.etfmonitor.core.ui.component.DateRangeSelector
 import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.feature.stock.presentation.oscillator.OscillatorViewModel
 import com.etfmonitor.feature.stock.presentation.oscillator.OscillatorState
+import com.etfmonitor.feature.stock.presentation.financial.FinancialInfoContent
 import com.etfmonitor.core.ui.component.HubHeader
 import com.etfmonitor.core.ui.component.StockSearchItem
 import com.etfmonitor.core.ui.component.UnifiedStockSearchField
@@ -66,6 +67,9 @@ fun StocksHubScreen(
     val searchHistory by viewModel.searchHistory.collectAsState()
     val selectedRange by viewModel.selectedRange.collectAsState()
     val currentTicker by viewModel.currentTicker.collectAsState()
+
+    // Main tab: 0 = 차트 분석, 1 = 재무정보
+    var mainTabIndex by remember { mutableIntStateOf(0) }
 
     // Set initial ticker if provided (skip history save when navigating via FAB)
     LaunchedEffect(initialTicker) {
@@ -214,91 +218,127 @@ fun StocksHubScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
 
-                        // Page Indicators + Chart Title
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                        // Main Tab Row: 차트 분석 / 재무정보
+                        TabRow(
+                            selectedTabIndex = mainTabIndex,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                text = chartPages.getOrNull(pagerState.currentPage)?.title ?: "",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
+                            Tab(
+                                selected = mainTabIndex == 0,
+                                onClick = { mainTabIndex = 0 },
+                                text = { Text("차트 분석") }
                             )
+                            Tab(
+                                selected = mainTabIndex == 1,
+                                onClick = { mainTabIndex = 1 },
+                                text = { Text("재무정보") }
+                            )
+                        }
 
-                            // Page Indicators
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                chartPages.forEachIndexed { index, _ ->
-                                    Box(
-                                        modifier = Modifier
-                                            .size(if (index == pagerState.currentPage) 10.dp else 8.dp)
-                                            .background(
-                                                color = if (index == pagerState.currentPage)
-                                                    MaterialTheme.colorScheme.primary
-                                                else
-                                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                                                shape = CircleShape
-                                            )
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        when (mainTabIndex) {
+                            0 -> {
+                                // Chart Analysis tab (existing content)
+                                // Page Indicators + Chart Title
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = chartPages.getOrNull(pagerState.currentPage)?.title ?: "",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
+
+                                    // Page Indicators
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        chartPages.forEachIndexed { index, _ ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(if (index == pagerState.currentPage) 10.dp else 8.dp)
+                                                    .background(
+                                                        color = if (index == pagerState.currentPage)
+                                                            MaterialTheme.colorScheme.primary
+                                                        else
+                                                            MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                                        shape = CircleShape
+                                                    )
+                                            )
+                                        }
+                                    }
                                 }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // Horizontal Pager for Charts
+                                HorizontalPager(
+                                    state = pagerState,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f),
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    pageSpacing = 16.dp
+                                ) { page ->
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .verticalScroll(rememberScrollState())
+                                    ) {
+                                        chartPages[page].content()
+                                    }
+                                }
+
+                                // Swipe hint
+                                Text(
+                                    text = stringResource(R.string.oscillator_swipe_hint),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                            1 -> {
+                                // Financial Info tab
+                                FinancialInfoContent(
+                                    ticker = currentState.stockData.ticker,
+                                    stockName = currentState.stockData.name,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f)
+                                )
                             }
                         }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Horizontal Pager for Charts
-                        HorizontalPager(
-                            state = pagerState,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            pageSpacing = 16.dp
-                        ) { page ->
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState())
-                            ) {
-                                chartPages[page].content()
-                            }
-                        }
-
-                        // Swipe hint
-                        Text(
-                            text = stringResource(R.string.oscillator_swipe_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
                     }
 
-                    // Floating Action Button
-                    ExtendedFloatingActionButton(
-                        onClick = { onNavigateToStatistics(currentState.stockData.ticker) },
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(16.dp),
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        icon = {
-                            Icon(Icons.Default.Analytics, contentDescription = null)
-                        },
-                        text = {
-                            Text(stringResource(R.string.fab_etf_analysis))
-                        }
-                    )
+                    // Floating Action Button (only show on chart tab)
+                    if (mainTabIndex == 0) {
+                        ExtendedFloatingActionButton(
+                            onClick = { onNavigateToStatistics(currentState.stockData.ticker) },
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(16.dp),
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            icon = {
+                                Icon(Icons.Default.Analytics, contentDescription = null)
+                            },
+                            text = {
+                                Text(stringResource(R.string.fab_etf_analysis))
+                            }
+                        )
+                    }
                 }
             }
 

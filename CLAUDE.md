@@ -3,7 +3,7 @@
 ## Project Identity
 
 Korean stock market (KRX) ETF monitoring Android app.
-Kotlin 2.1.0 | Jetpack Compose + M3 | MVVM + Clean Architecture | Hilt 2.54 | Room 2.8.3 (schema v19) | Chaquopy (embedded Python) | Claude & Gemini AI APIs
+Kotlin 2.1.0 | Jetpack Compose + M3 | MVVM + Clean Architecture | Hilt 2.54 | Room 2.8.3 (schema v20) | Chaquopy (embedded Python) | Claude & Gemini AI APIs | KIS Open API (재무정보)
 
 Package: `com.etfmonitor` | DB: `etf_monitor.db` | ~255 Kotlin files | 4 Python scripts
 Structure: `core/` (97 files) shared infra, `feature/` (155 files) 6 modules, `navigation/` (1 file)
@@ -34,7 +34,6 @@ In SQL queries, convert: `CAST(weightBps AS REAL) / 10000.0`, `CAST(amountMillio
 ### 3. IMPORTANT: Python/KRX Timeouts — Not All 30s
 | Client | Timeout | Why |
 |--------|---------|-----|
-| MarketIndexPyClient | 30s | Standard |
 | BloodIndicatorPyClient | **90s** | 100-week SMA calculation |
 | FearGreedRepositoryImpl | **90s** | 7 parallel kotlin_krx API calls + FearGreedCalculator |
 | KrxRepositoryBase | 30s-180s | Configurable per kotlin_krx call |
@@ -50,7 +49,7 @@ fearGreedRepository.initializeFearGreed(days = N * 3)
 Ranking queries without LIMIT cause OOM on Android. Existing limits: rankings=500, changes=300, lists=100.
 
 ### 6. Database Migrations — Inline in AppDatabase.kt
-Schema is v19 (18 migrations). All migrations defined inline in `AppDatabase.kt`.
+Schema is v20 (19 migrations). All migrations defined inline in `AppDatabase.kt`.
 IMPORTANT: Always add migration BEFORE changing schema. Never use `fallbackToDestructiveMigration()`.
 
 ### 7. Repository Caching
@@ -59,6 +58,7 @@ IMPORTANT: Always add migration BEFORE changing schema. Never use `fallbackToDes
 | StockAnalysis | 24h | OR missing today OR <80% days |
 | MarketDeposit | 12h | AND latest == today |
 | FearGreed | 12h | OR latest != today |
+| Financial | 24h | By ticker, manual refresh bypasses cache |
 
 ### 8. ViewModel State Exceptions
 Most ViewModels use sealed class state. Two exceptions use individual StateFlows (intentional):
@@ -97,6 +97,14 @@ val result = withContext(NonCancellable) { repository.initializeMarketData(...) 
 ```
 Also: never swallow `CancellationException` in catch blocks — always rethrow.
 
+### 13. KIS Financial API — OAuth2 Token + Cache
+Financial info uses KIS Open API with OAuth2 client credentials (`/oauth2/tokenP`).
+- Token cached in-memory for 23h (Mutex-protected)
+- Financial data cached in Room `financial_cache` table with 24h TTL
+- KIS API keys stored in separate EncryptedSharedPreferences via `KisApiKeyProvider`
+- Check `kisApiKeyProvider.isConfigured()` before calling KIS APIs
+- KIS income statement returns **cumulative YTD** values — use `convertYtdToQuarterly()` to get quarterly deltas
+
 ---
 
 ## Commands
@@ -120,10 +128,10 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 |----------|------|-------|
 | Entry | `MainActivity.kt`, `EtfMonitorApp.kt` | Theme, permissions, Python init |
 | Navigation | `navigation/Navigation.kt` | 14 screen routes |
-| Database | `core/database/AppDatabase.kt` | 21 entities, 18 DAOs, 18 migrations (v19) |
+| Database | `core/database/AppDatabase.kt` | 22 entities, 19 DAOs, 19 migrations (v20) |
 | Database entities | `core/database/entities/` | 20 files (AIChatSession in AIChatMessage.kt) |
 | Python scripts | `app/src/main/python/` | 4 active: blood_indicator, feargreed, kis_client, core |
-| Python bridge | `core/network/python/` | MarketIndexPyClient, BloodIndicatorPyClient |
+| Python bridge | `core/network/python/` | BloodIndicatorPyClient (sole remaining PyClient) |
 | AI clients | `core/network/ai/` | ClaudeApiClient, GeminiApiClient, AIApiClientFactory (11 files) |
 | Theme | `core/ui/theme/` | Theme.kt, ThemeManager.kt |
 | Workers | `core/worker/` | 8 workers + WorkManagerHelper |
@@ -133,6 +141,9 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 | Analysis engines | `core/analysis/` | FearGreedCalculator, TechnicalAnalysisEngine, MarketOscillatorCalculator |
 | kotlin_krx adapters | `core/data/krx/adapter/` | DateAdapter, KrxErrorMapper, HoldingMapper |
 | Data collection | `core/service/DataCollectionService.kt` | Foreground Service with serviceScope |
+| KIS Financial Info | `feature/stock/presentation/financial/` | FinancialInfoContent, ProfitabilityContent, StabilityContent |
+| KIS API client | `feature/stock/data/repository/financial/` | FinancialRepositoryImpl (OAuth2 + 5 KIS REST APIs, 24h cache) |
+| KIS API keys | `core/network/kis/` | KisApiKeyProvider (EncryptedSharedPreferences), KisApiKeyConfig |
 | Tests | `app/src/test/`, `app/src/androidTest/` | JUnit5, MockK, Turbine |
 
 ---
@@ -225,14 +236,14 @@ Default model: **sonnet**. Use tiered agents in `.claude/agents/` for cost-effic
 
 **Architecture**: ViewModel → UseCase → Repository (extends KrxRepositoryBase) → kotlin_krx API
 
-### Remaining Python Dependencies (2 PyClients — non-KRX data)
+### Remaining Python Dependencies (1 PyClient + 1 Direct)
 
-| Client | Python Module | Data Source | Purpose |
-|--------|--------------|-------------|---------|
-| `MarketIndexPyClient` | market.py | KRX API (direct) | Market index data |
-| `BloodIndicatorPyClient` | blood_indicator.py | Yahoo Finance + FRED | Blood indicator (US03MY / High Yield Spread) |
+| Kotlin Class | Python Script | Data Source | Purpose |
+|--------------|--------------|-------------|---------|
+| `BloodIndicatorPyClient` | blood_indicator.py | Yahoo Finance + FRED | Blood indicator (US03MY / High Yield Spread, 90s timeout) |
+| `FearGreedRepositoryImpl` | feargreed.py | KRX API (direct) | 공포/탐욕 지수 (직접 PyObject/DataFrame 조작, 60s timeout) |
 
-**Python pip dependencies**: `pandas`, `requests` (used by above + feargreed.py, deposit_scraper.py)
+**Python pip dependencies**: `pandas`, `requests`
 **Hilt injection**: `PythonModule` provides `Python` singleton — `BloodIndicatorPyClient` injects via constructor
 
 ### Kotlin Native Computation Engines (replaced Python)

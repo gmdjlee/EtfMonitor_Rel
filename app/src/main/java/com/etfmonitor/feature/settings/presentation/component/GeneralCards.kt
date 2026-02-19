@@ -803,6 +803,208 @@ fun FredApiKeyCard(
     }
 }
 
+/**
+ * KIS API Key Card for Financial Info data queries.
+ * KIS (Korea Investment & Securities) Open API provides stock financial info.
+ */
+@Composable
+fun KisApiKeyCard(
+    isConfigured: Boolean,
+    onSetAppKey: (String) -> Unit,
+    onSetAppSecret: (String) -> Unit,
+    onClearApiKeys: () -> Unit
+) {
+    var showAppKeyDialog by remember { mutableStateOf(false) }
+    var showAppSecretDialog by remember { mutableStateOf(false) }
+    var showClearConfirmDialog by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.AccountBalance,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    "KIS API 키 설정",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            HorizontalDivider()
+
+            Text(
+                "한국투자증권 Open API 키를 입력하면 종목 재무정보를 조회할 수 있습니다.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            // API 키 상태 표시
+            Surface(
+                color = if (isConfigured)
+                    MaterialTheme.colorScheme.primaryContainer
+                else
+                    MaterialTheme.colorScheme.errorContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            if (isConfigured) Icons.Default.CheckCircle else Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = if (isConfigured)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            if (isConfigured) "KIS API 키 설정됨" else "KIS API 키 미설정",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isConfigured)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+
+            // 버튼
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { showAppKeyDialog = true },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        if (isConfigured) Icons.Default.Edit else Icons.Default.Key,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text("App Key 설정")
+                }
+
+                Button(
+                    onClick = { showAppSecretDialog = true },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        if (isConfigured) Icons.Default.Edit else Icons.Default.Key,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text("App Secret 설정")
+                }
+
+                if (isConfigured) {
+                    IconButton(
+                        onClick = { showClearConfirmDialog = true }
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "삭제",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+
+            // 안내 문구
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Text(
+                        "KIS Open API 신청:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "https://apiportal.koreainvestment.com",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+
+    // App Key 입력 다이얼로그
+    if (showAppKeyDialog) {
+        ApiKeyInputDialog(
+            title = "KIS App Key 설정",
+            placeholder = "PSXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            onDismiss = { showAppKeyDialog = false },
+            onConfirm = { appKey ->
+                onSetAppKey(appKey)
+                showAppKeyDialog = false
+            }
+        )
+    }
+
+    // App Secret 입력 다이얼로그
+    if (showAppSecretDialog) {
+        ApiKeyInputDialog(
+            title = "KIS App Secret 설정",
+            placeholder = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            onDismiss = { showAppSecretDialog = false },
+            onConfirm = { appSecret ->
+                onSetAppSecret(appSecret)
+                showAppSecretDialog = false
+            }
+        )
+    }
+
+    // 삭제 확인 다이얼로그
+    if (showClearConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmDialog = false },
+            icon = { Icon(Icons.Default.Warning, null) },
+            title = { Text("KIS API 키 삭제") },
+            text = { Text("저장된 KIS App Key와 App Secret을 삭제하시겠습니까?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onClearApiKeys()
+                        showClearConfirmDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text(stringResource(R.string.settings_action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirmDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+}
+
 @Composable
 fun ApiKeyInputDialog(
     title: String,

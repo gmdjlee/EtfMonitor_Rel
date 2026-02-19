@@ -30,10 +30,19 @@ import com.etfmonitor.feature.stock.domain.usecase.GetStockRankingUseCase
 import com.etfmonitor.feature.stock.domain.usecase.GetStockTrendUseCase
 import com.etfmonitor.feature.stock.domain.usecase.InitializeStocksUseCase
 import com.etfmonitor.feature.stock.domain.usecase.SearchStocksUseCase
+import com.etfmonitor.core.database.FinancialCacheDao
+import com.etfmonitor.core.network.kis.KisApiKeyProvider
+import com.etfmonitor.feature.stock.data.repository.financial.FinancialRepositoryImpl
+import com.etfmonitor.feature.stock.domain.repository.FinancialRepository
+import com.etfmonitor.feature.stock.domain.usecase.GetFinancialSummaryUseCase
+import kotlinx.serialization.json.Json
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Qualifier
 import javax.inject.Singleton
 
 /**
@@ -196,4 +205,44 @@ object StockModule {
     fun provideGetStockOhlcvUseCase(
         stockDataRepository: StockDataRepository
     ): GetStockOhlcvUseCase = GetStockOhlcvUseCase(stockDataRepository)
+
+    // ========== KIS API / Financial Info ==========
+
+    @Qualifier
+    @Retention(AnnotationRetention.BINARY)
+    annotation class KisOkHttp
+
+    @Provides
+    @Singleton
+    @KisOkHttp
+    fun provideKisOkHttpClient(): OkHttpClient =
+        OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+
+    @Provides
+    @Singleton
+    fun provideFinancialJson(): Json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+    }
+
+    @Provides
+    @Singleton
+    fun provideFinancialRepository(
+        financialCacheDao: FinancialCacheDao,
+        kisApiKeyProvider: KisApiKeyProvider,
+        json: Json,
+        @KisOkHttp httpClient: OkHttpClient
+    ): FinancialRepository = FinancialRepositoryImpl(
+        financialCacheDao, kisApiKeyProvider, json, httpClient
+    )
+
+    @Provides
+    @Singleton
+    fun provideGetFinancialSummaryUseCase(
+        repository: FinancialRepository
+    ): GetFinancialSummaryUseCase = GetFinancialSummaryUseCase(repository)
 }

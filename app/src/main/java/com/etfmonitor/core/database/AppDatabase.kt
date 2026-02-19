@@ -43,6 +43,7 @@ import com.etfmonitor.core.database.entities.StockIndicatorAIResult
 import com.etfmonitor.core.database.entities.PriceCache
 import com.etfmonitor.core.database.entities.EnhancedPrediction
 import com.etfmonitor.core.database.entities.BloodIndicator
+import com.etfmonitor.core.database.entities.FinancialCache
 
 @Database(
     entities = [
@@ -67,9 +68,10 @@ import com.etfmonitor.core.database.entities.BloodIndicator
         StockIndicatorAIResult::class,
         PriceCache::class,
         EnhancedPrediction::class,
-        BloodIndicator::class
+        BloodIndicator::class,
+        FinancialCache::class
     ],
-    version = 19,
+    version = 20,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -93,6 +95,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun priceCacheDao(): PriceCacheDao
     abstract fun enhancedPredictionDao(): EnhancedPredictionDao
     abstract fun bloodIndicatorDao(): BloodIndicatorDao
+    abstract fun financialCacheDao(): FinancialCacheDao
     abstract fun backupDao(): BackupDao
 }
 
@@ -820,5 +823,24 @@ val MIGRATION_18_19 = object : Migration(18, 19) {
         // 3. 인덱스 생성
         database.execSQL("CREATE INDEX IF NOT EXISTS index_blood_indicator_date ON blood_indicator(date)")
         database.execSQL("CREATE INDEX IF NOT EXISTS index_blood_indicator_signalType ON blood_indicator(signalType)")
+    }
+}
+
+/**
+ * Migration from version 19 to 20: Add FinancialCache table
+ * KIS API 재무정보 캐시 테이블 추가 (24h TTL)
+ */
+val MIGRATION_19_20 = object : Migration(19, 20) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS financial_cache (
+                ticker TEXT PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                data TEXT NOT NULL,
+                cachedAt INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
     }
 }

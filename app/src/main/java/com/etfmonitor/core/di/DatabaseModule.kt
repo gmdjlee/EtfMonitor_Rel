@@ -21,6 +21,8 @@ import com.etfmonitor.core.database.MIGRATION_15_16
 import com.etfmonitor.core.database.MIGRATION_16_17
 import com.etfmonitor.core.database.MIGRATION_17_18
 import com.etfmonitor.core.database.MIGRATION_18_19
+import com.etfmonitor.core.database.MIGRATION_19_20
+import com.etfmonitor.core.database.FinancialCacheDao
 import com.etfmonitor.core.database.AIChatDao
 import com.etfmonitor.core.database.AIAnalysisDao
 import com.etfmonitor.core.database.CorrelationAnalysisDao
@@ -95,7 +97,8 @@ object DatabaseModule {
                 MIGRATION_15_16,
                 MIGRATION_16_17,
                 MIGRATION_17_18,
-                MIGRATION_18_19
+                MIGRATION_18_19,
+                MIGRATION_19_20
             )
             .build()
     }
@@ -288,6 +291,16 @@ object DatabaseModule {
     @Singleton
     fun provideBloodIndicatorDao(database: AppDatabase): BloodIndicatorDao {
         return database.bloodIndicatorDao()
+    }
+
+    /**
+     * Financial Cache DAO 제공
+     * KIS API 재무정보 캐시 데이터를 관리하는 DAO
+     */
+    @Provides
+    @Singleton
+    fun provideFinancialCacheDao(database: AppDatabase): FinancialCacheDao {
+        return database.financialCacheDao()
     }
 
     /**
