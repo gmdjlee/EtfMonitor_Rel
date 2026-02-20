@@ -12,8 +12,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 
 /**
  * KRX API 및 kotlin_krx 기능 테스트
@@ -49,11 +49,11 @@ class KrxApiFunctionalityTest {
             // Test 1.1: ETF List
             println("\n--- Test 1.1: ETF List ---")
             val etfList = withTimeout(30_000L) {
-                krxEtf.getEtfList(date)
+                krxEtf.getEtfTickerList(date)
             }
 
-            assertNotNull(etfList, "ETF list should not be null")
-            assertTrue(etfList.isNotEmpty(), "ETF list should not be empty")
+            assertNotNull("ETF list should not be null", etfList)
+            assertTrue("ETF list should not be empty", etfList.isNotEmpty())
             println("✓ ETF list retrieved: ${etfList.size} ETFs")
             println("  Sample: ${etfList.take(3).map { it.ticker to it.name }}")
 
@@ -65,12 +65,12 @@ class KrxApiFunctionalityTest {
                     krxEtf.getPortfolio(date, sampleEtf.ticker)
                 }
 
-                assertNotNull(portfolio, "Portfolio should not be null")
+                assertNotNull("Portfolio should not be null", portfolio)
                 println("✓ Portfolio retrieved for ${sampleEtf.name} (${sampleEtf.ticker})")
-                println("  Holdings: ${portfolio.holdings.size} stocks")
-                if (portfolio.holdings.isNotEmpty()) {
+                println("  Holdings: ${portfolio.size} stocks")
+                if (portfolio.isNotEmpty()) {
                     println("  Top 3 holdings:")
-                    portfolio.holdings.take(3).forEach { holding ->
+                    portfolio.take(3).forEach { holding ->
                         println("    - ${holding.name}: ${holding.weight}%")
                     }
                 }
@@ -111,8 +111,8 @@ class KrxApiFunctionalityTest {
                 krxIndex.getKospi(startStr, endStr)
             }
 
-            assertNotNull(kospiData, "KOSPI data should not be null")
-            assertTrue(kospiData.isNotEmpty(), "KOSPI data should not be empty")
+            assertNotNull("KOSPI data should not be null", kospiData)
+            assertTrue("KOSPI data should not be empty", kospiData.isNotEmpty())
             println("✓ KOSPI data retrieved: ${kospiData.size} records")
             println("  Latest: ${kospiData.lastOrNull()?.let { "${it.date} - Close: ${it.close}" }}")
 
@@ -122,8 +122,8 @@ class KrxApiFunctionalityTest {
                 krxIndex.getKosdaq(startStr, endStr)
             }
 
-            assertNotNull(kosdaqData, "KOSDAQ data should not be null")
-            assertTrue(kosdaqData.isNotEmpty(), "KOSDAQ data should not be empty")
+            assertNotNull("KOSDAQ data should not be null", kosdaqData)
+            assertTrue("KOSDAQ data should not be empty", kosdaqData.isNotEmpty())
             println("✓ KOSDAQ data retrieved: ${kosdaqData.size} records")
             println("  Latest: ${kosdaqData.lastOrNull()?.let { "${it.date} - Close: ${it.close}" }}")
 
@@ -133,8 +133,8 @@ class KrxApiFunctionalityTest {
                 krxIndex.getIndexList(endStr)
             }
 
-            assertNotNull(indexList, "Index list should not be null")
-            assertTrue(indexList.isNotEmpty(), "Index list should not be empty")
+            assertNotNull("Index list should not be null", indexList)
+            assertTrue("Index list should not be empty", indexList.isNotEmpty())
             println("✓ Index list retrieved: ${indexList.size} indices")
             println("  Sample: ${indexList.take(5).map { it.ticker to it.name }}")
 
@@ -169,11 +169,11 @@ class KrxApiFunctionalityTest {
             // Test 3.1: Market Cap
             println("\n--- Test 3.1: Market Cap ---")
             val marketCap = withTimeout(30_000L) {
-                krxStock.getMarketCap(date, Market.ALL, ticker)
+                krxStock.getMarketCap(date, Market.ALL)
             }
 
-            assertNotNull(marketCap, "Market cap should not be null")
-            assertTrue(marketCap.isNotEmpty(), "Market cap should not be empty")
+            assertNotNull("Market cap should not be null", marketCap)
+            assertTrue("Market cap should not be empty", marketCap.isNotEmpty())
             println("✓ Market cap retrieved: ${marketCap.size} records")
             marketCap.firstOrNull()?.let { cap ->
                 println("  ${cap.name} (${cap.ticker}): ${cap.marketCap} 원")
@@ -190,8 +190,8 @@ class KrxApiFunctionalityTest {
                 krxStock.getOhlcvByTicker(startStr, endStr, ticker)
             }
 
-            assertNotNull(ohlcv, "OHLCV data should not be null")
-            assertTrue(ohlcv.isNotEmpty(), "OHLCV data should not be empty")
+            assertNotNull("OHLCV data should not be null", ohlcv)
+            assertTrue("OHLCV data should not be empty", ohlcv.isNotEmpty())
             println("✓ OHLCV data retrieved: ${ohlcv.size} records")
             ohlcv.lastOrNull()?.let { data ->
                 println("  Latest (${data.date}): Close=${data.close}, Volume=${data.volume}")
@@ -203,8 +203,8 @@ class KrxApiFunctionalityTest {
                 krxStock.getTickerList(date, Market.KOSPI)
             }
 
-            assertNotNull(tickerList, "Ticker list should not be null")
-            assertTrue(tickerList.isNotEmpty(), "Ticker list should not be empty")
+            assertNotNull("Ticker list should not be null", tickerList)
+            assertTrue("Ticker list should not be empty", tickerList.isNotEmpty())
             println("✓ KOSPI ticker list retrieved: ${tickerList.size} stocks")
             println("  Sample: ${tickerList.take(5)}")
 

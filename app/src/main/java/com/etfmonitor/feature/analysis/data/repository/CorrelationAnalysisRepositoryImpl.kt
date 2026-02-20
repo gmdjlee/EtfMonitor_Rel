@@ -16,6 +16,7 @@ import com.etfmonitor.feature.analysis.domain.model.CorrelationAnalysis
 import com.etfmonitor.feature.analysis.domain.model.FullAnalysis
 import com.etfmonitor.feature.analysis.domain.repository.CorrelationAnalysisRepository
 import com.etfmonitor.feature.market.domain.repository.MarketIndexRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -68,6 +69,8 @@ class CorrelationAnalysisRepositoryImpl @Inject constructor(
             } else {
                 Result.failure(result.exceptionOrNull() ?: Exception("Analysis failed"))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Correlation analysis failed", e)
             Result.failure(e)
@@ -96,6 +99,8 @@ class CorrelationAnalysisRepositoryImpl @Inject constructor(
             }
 
             runCorrelationAnalysis(market, latestDate, periodDays)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Latest correlation analysis failed", e)
             Result.failure(e)
@@ -161,6 +166,8 @@ class CorrelationAnalysisRepositoryImpl @Inject constructor(
             logger.d("AI analysis saved: ${aiResult.id}")
 
             Result.success(aiResult.toDomain())
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("AI interpretation failed", e)
             Result.failure(e)
@@ -210,6 +217,8 @@ class CorrelationAnalysisRepositoryImpl @Inject constructor(
                     errorMessage = null
                 )
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Full analysis failed", e)
             Result.failure(e)

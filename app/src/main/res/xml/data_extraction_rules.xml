@@ -15,6 +15,8 @@
 
         <!-- SECURITY: Exclude encrypted API key storage from cloud backup -->
         <exclude domain="sharedpref" path="ai_api_prefs.xml" />
+        <exclude domain="sharedpref" path="fred_api_prefs.xml" />
+        <exclude domain="sharedpref" path="kis_api_prefs.xml" />
         <exclude domain="sharedpref" path="__androidx_security_crypto_encrypted_prefs__.xml" />
 
         <!-- Include database for user convenience -->
@@ -33,6 +35,8 @@
 
         <!-- SECURITY: Exclude sensitive data even on device transfer -->
         <exclude domain="sharedpref" path="ai_api_prefs.xml" />
+        <exclude domain="sharedpref" path="fred_api_prefs.xml" />
+        <exclude domain="sharedpref" path="kis_api_prefs.xml" />
         <exclude domain="sharedpref" path="__androidx_security_crypto_encrypted_prefs__.xml" />
 
         <!-- Include database -->

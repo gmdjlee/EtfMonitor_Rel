@@ -2,6 +2,7 @@ package com.etfmonitor.feature.market.data.repository
 
 import com.etfmonitor.core.analysis.MarketOscillatorCalculator
 import com.etfmonitor.core.common.util.AppLogger
+import kotlinx.coroutines.CancellationException
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.MarketOscillatorDao
 import com.etfmonitor.core.database.entities.MarketOscillatorData as MarketOscillatorEntity
@@ -141,6 +142,8 @@ class MarketOscillatorRepositoryImpl @Inject constructor(
             onProgress?.invoke("$market 완료", 100)
             Result.success(dataList.size)
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error initializing market data", e)
             Result.failure(e)
@@ -201,6 +204,8 @@ class MarketOscillatorRepositoryImpl @Inject constructor(
             logger.d("Updated $market with ${dataList.size} data points")
             Result.success(dataList.size)
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error updating market data", e)
             Result.failure(e)

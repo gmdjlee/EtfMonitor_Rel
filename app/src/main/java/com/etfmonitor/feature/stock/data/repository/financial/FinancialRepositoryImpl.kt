@@ -1,6 +1,6 @@
 package com.etfmonitor.feature.stock.data.repository.financial
 
-import android.util.Log
+import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.database.FinancialCacheDao
 import com.etfmonitor.core.database.entities.FinancialCache
 import com.etfmonitor.core.network.kis.KisApiKeyProvider
@@ -56,7 +56,7 @@ class FinancialRepositoryImpl @Inject constructor(
                         val cacheData = json.decodeFromString<FinancialDataCache>(cached.data)
                         return@withContext Result.success(cacheData.toData().copy(name = name))
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to parse cached data for $ticker, fetching from API", e)
+                        logger.w("Failed to parse cached data for $ticker, fetching from API", e)
                     }
                 }
             }
@@ -111,7 +111,7 @@ class FinancialRepositoryImpl @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to refresh financial data for $ticker", e)
+            logger.e("Failed to refresh financial data for $ticker", e)
             Result.failure(e)
         }
     }
@@ -152,12 +152,13 @@ class FinancialRepositoryImpl @Inject constructor(
             .post(requestBody.toRequestBody("application/json; charset=utf-8".toMediaType()))
             .build()
 
-        val response = httpClient.newCall(request).execute()
-        val body = response.body?.string()
-            ?: throw Exception("Empty token response")
+        val (isSuccessful, code, body) = httpClient.newCall(request).execute().use { response ->
+            Triple(response.isSuccessful, response.code, response.body?.string() ?: "")
+        }
 
-        if (!response.isSuccessful) {
-            throw Exception("Token request failed: ${response.code} - $body")
+        if (body.isEmpty()) throw Exception("Empty token response")
+        if (!isSuccessful) {
+            throw Exception("Token request failed: $code - $body")
         }
 
         val tokenResponse = json.decodeFromString<KisTokenResponse>(body)
@@ -251,9 +252,9 @@ class FinancialRepositoryImpl @Inject constructor(
                 .addHeader("tr_id", trId)
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-            val body = response.body?.string()
-                ?: throw Exception("Empty response for $dataTypeLabel")
+            val body = httpClient.newCall(request).execute().use { response ->
+                response.body?.string() ?: throw Exception("Empty response for $dataTypeLabel")
+            }
 
             val apiResponse = json.decodeFromString<KisApiResponse>(body)
 
@@ -266,7 +267,7 @@ class FinancialRepositoryImpl @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to fetch $dataTypeLabel for $ticker", e)
+            logger.w("Failed to fetch $dataTypeLabel for $ticker", e)
             return emptyList()
         }
     }
@@ -314,7 +315,7 @@ class FinancialRepositoryImpl @Inject constructor(
     )
 
     companion object {
-        private const val TAG = "FinancialRepoImpl"
+        private val logger = AppLogger.getLogger("FinancialRepoImpl")
         private const val CACHE_TTL_MS = 24 * 60 * 60 * 1000L // 24 hours
         private const val TOKEN_CACHE_DURATION_MS = 23 * 60 * 60 * 1000L // 23 hours
 

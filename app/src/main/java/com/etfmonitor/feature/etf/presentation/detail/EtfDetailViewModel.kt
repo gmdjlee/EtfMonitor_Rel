@@ -12,6 +12,7 @@ import com.etfmonitor.feature.etf.domain.usecase.GetEtfComparisonUseCase
 import com.etfmonitor.feature.etf.domain.usecase.GetEtfDetailUseCase
 import com.etfmonitor.core.common.util.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -77,6 +78,8 @@ class EtfDetailViewModel @Inject constructor(
                 val dates = getAvailableDatesUseCase()
                 _availableDates.value = dates
                 logger.d("Available dates loaded: ${dates.size}")
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error loading available dates", e)
             }
@@ -134,6 +137,8 @@ class EtfDetailViewModel @Inject constructor(
                 } else {
                     EtfDetailState.Error("선택한 기간에 데이터가 없습니다")
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error loading comparison for ticker: $etfTicker", e)
                 _state.value = EtfDetailState.Error(e.message ?: "오류 발생")

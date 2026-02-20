@@ -10,6 +10,7 @@ import com.etfmonitor.feature.analysis.domain.repository.AdvancedAnalysisReposit
 import com.etfmonitor.core.common.util.AppLogger
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -153,6 +154,8 @@ class AdvancedAnalysisWorker @AssistedInject constructor(
                 // 모두 실패
                 Result.failure(workDataOf(KEY_ERROR_MESSAGE to "모든 분석이 실패했습니다."))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error in AdvancedAnalysisWorker", e)
             if (runAttemptCount < 3) {
@@ -172,6 +175,8 @@ class AdvancedAnalysisWorker @AssistedInject constructor(
             block()
             logger.d("$name analysis completed successfully")
             true
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error in $name analysis", e)
             false

@@ -1,6 +1,7 @@
 package com.etfmonitor.core.database.entities
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
 import com.etfmonitor.core.database.Converters
@@ -9,7 +10,10 @@ import com.etfmonitor.core.database.Converters
  * 상관관계 분석 결과 엔티티
  * 각 지표와 시장 지수 간의 상관관계 계산 결과 저장
  */
-@Entity(tableName = "correlation_analysis_result")
+@Entity(
+    tableName = "correlation_analysis_result",
+    indices = [Index(value = ["analysisDate"])]
+)
 @TypeConverters(Converters::class)
 data class CorrelationAnalysisResult(
     @PrimaryKey

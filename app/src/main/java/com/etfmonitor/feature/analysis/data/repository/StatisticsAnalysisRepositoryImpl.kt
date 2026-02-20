@@ -7,6 +7,7 @@ import com.etfmonitor.core.database.MarketIndexDao
 import com.etfmonitor.core.database.entities.DailyEtfStatistics
 import com.etfmonitor.feature.analysis.domain.repository.CorrelationData
 import com.etfmonitor.feature.analysis.domain.repository.StatisticsAnalysisRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -110,6 +111,8 @@ class StatisticsAnalysisRepositoryImpl @Inject constructor(
                         "increased=$increasedStockCount, decreased=$decreasedStockCount")
 
                 statistics
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error calculating daily statistics", e)
                 null
@@ -197,6 +200,8 @@ class StatisticsAnalysisRepositoryImpl @Inject constructor(
                 dataPoints = pairs.size,
                 correlations = correlations
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error calculating correlation", e)
             null

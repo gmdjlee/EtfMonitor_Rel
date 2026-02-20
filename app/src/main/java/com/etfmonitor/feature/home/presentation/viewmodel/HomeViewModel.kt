@@ -90,10 +90,18 @@ class HomeViewModel @Inject constructor(
     private val _showUnifiedInitDialog = MutableStateFlow(false)
     val showUnifiedInitDialog: StateFlow<Boolean> = _showUnifiedInitDialog.asStateFlow()
 
+    // 프로세스 종료로 중단된 수집 알림용 상태
+    private val _showInterruptedCollectionBanner = MutableStateFlow(false)
+    val showInterruptedCollectionBanner: StateFlow<Boolean> = _showInterruptedCollectionBanner.asStateFlow()
+
+    private val _interruptedCollectionMessage = MutableStateFlow("")
+    val interruptedCollectionMessage: StateFlow<String> = _interruptedCollectionMessage.asStateFlow()
+
     init {
         checkData()
         observeCollectionState()
         checkFirstRun()
+        checkInterruptedCollection()
     }
 
     private fun checkFirstRun() {
@@ -272,6 +280,29 @@ class HomeViewModel @Inject constructor(
         // Race condition 방지: Service 시작 전에 CollectionState 먼저 설정
         CollectionState.startCollection(isInitialize = false, initialMessage = "업데이트 준비 중...")
         DataCollectionService.startUpdate(context)
+    }
+
+    /**
+     * 앱 재시작 시 이전 프로세스에서 수집이 중단됐는지 확인합니다.
+     * CollectionState.wasInterrupted=true이면 배너 상태를 활성화합니다.
+     */
+    fun checkInterruptedCollection() {
+        if (CollectionState.wasInterrupted.value) {
+            val progress = CollectionState.interruptedProgress.value
+            val savedMessage = CollectionState.interruptedMessage.value
+            val detail = if (savedMessage.isNotBlank()) " ($savedMessage, ${progress}%)" else ""
+            _interruptedCollectionMessage.value = "이전 데이터 수집이 중단되었습니다$detail"
+            _showInterruptedCollectionBanner.value = true
+        }
+    }
+
+    /**
+     * 사용자가 중단 수집 배너를 닫을 때 호출합니다.
+     */
+    fun dismissInterruptedCollectionBanner() {
+        _showInterruptedCollectionBanner.value = false
+        _interruptedCollectionMessage.value = ""
+        CollectionState.acknowledgeInterruption()
     }
 
     fun clearMessage() {

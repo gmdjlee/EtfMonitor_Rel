@@ -24,6 +24,7 @@ import com.etfmonitor.feature.analysis.domain.repository.CorrelationAnalysisRepo
 import com.etfmonitor.feature.analysis.domain.repository.StockIndicatorRepository
 import com.etfmonitor.feature.analysis.domain.repository.StockIndicatorAIHistoryItem
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -149,6 +150,8 @@ class NewAIAnalysisViewModel @Inject constructor(
             try {
                 val enabled = etfDao.getSetting(QUICK_CHART_ANALYSIS_KEY) == "true"
                 _quickChartAnalysisEnabled.value = enabled
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 // Ignore error, keep default value
             }
@@ -189,6 +192,8 @@ class NewAIAnalysisViewModel @Inject constructor(
                     // 결과가 없으면 자동으로 로컬 상관관계 분석 실행
                     runCorrelationAnalysis()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 android.util.Log.e("NewAIAnalysisVM", "Error loading latest results", e)
                 _state.value = NewAIAnalysisState.Idle
@@ -394,6 +399,8 @@ class NewAIAnalysisViewModel @Inject constructor(
                 _stockSearchResults.value = results.take(10).map {
                     Pair(it.stockTicker, it.stockName)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _stockSearchResults.value = emptyList()
             } finally {
@@ -423,6 +430,8 @@ class NewAIAnalysisViewModel @Inject constructor(
                 )
                 // 오래된 히스토리 정리 (최대 20개 유지) - AI_ANALYSIS 타입만
                 searchHistoryDao.deleteOldSearchesByType(SearchHistoryType.AI_ANALYSIS, 20)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 // 히스토리 저장 실패 무시
             }

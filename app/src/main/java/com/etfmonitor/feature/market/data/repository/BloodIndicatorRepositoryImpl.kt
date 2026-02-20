@@ -6,6 +6,7 @@ import com.etfmonitor.core.database.BloodIndicatorDao
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.entities.Setting
 import com.etfmonitor.core.network.blood.BloodIndicatorClient
+import com.etfmonitor.core.network.blood.FredApiKeyProvider
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toBloodDomainList
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toDomain
 import com.etfmonitor.feature.market.domain.model.BloodIndicator
@@ -36,21 +37,21 @@ import com.etfmonitor.core.database.entities.BloodIndicator as BloodIndicatorEnt
 class BloodIndicatorRepositoryImpl @Inject constructor(
     private val bloodIndicatorDao: BloodIndicatorDao,
     private val etfDao: EtfDao,
-    private val bloodClient: BloodIndicatorClient
+    private val bloodClient: BloodIndicatorClient,
+    private val fredApiKeyProvider: FredApiKeyProvider
 ) : BloodIndicatorRepository {
 
     companion object {
         private val logger = AppLogger.getLogger("BloodIndicatorRepoImpl")
         private const val KEY_DIALOG_DISMISSED = "blood_indicator_dialog_dismissed"
-        private const val KEY_FRED_API_KEY = "fred_api_key"
         private const val SMA_WARMUP_WEEKS = 110L  // 100-week SMA + 10 extra weeks buffer
     }
 
     /**
-     * Get FRED API key from stored settings.
+     * Get FRED API key from EncryptedSharedPreferences via FredApiKeyProvider.
      */
-    private suspend fun getFredApiKey(): String? {
-        return etfDao.getSetting(KEY_FRED_API_KEY)
+    private fun getFredApiKey(): String? {
+        return fredApiKeyProvider.getApiKey()
     }
 
     override fun getAll(): Flow<List<BloodIndicator>> =

@@ -10,6 +10,7 @@ import com.etfmonitor.core.database.MarketOscillatorDao
 import com.etfmonitor.feature.analysis.domain.repository.AIAnalysisRepository
 import com.etfmonitor.feature.analysis.domain.repository.AIAnalysisResponse
 import com.etfmonitor.feature.analysis.domain.repository.AnalysisTypeRequest
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -92,6 +93,8 @@ class AIAnalysisRepositoryImpl @Inject constructor(
                     processingTime = processingTime
                 )
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Market analysis error", e)
             Result.failure(e)
@@ -118,6 +121,8 @@ class AIAnalysisRepositoryImpl @Inject constructor(
         try {
             val client = aiApiClientFactory.getClient(provider)
             client.listModels()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Failed to list models for $provider", e)
             Result.failure(e)
@@ -192,6 +197,8 @@ class AIAnalysisRepositoryImpl @Inject constructor(
                 fearGreedOscillator = fearGreed?.oscillator,
                 marketOscillator = oscillator?.oscillator
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error collecting analysis data", e)
             null

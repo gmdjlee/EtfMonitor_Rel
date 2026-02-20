@@ -12,7 +12,8 @@ import androidx.room.PrimaryKey
     tableName = "ai_chat_message",
     indices = [
         Index(value = ["sessionId"]),
-        Index(value = ["sessionId", "timestamp"])
+        Index(value = ["sessionId", "timestamp"]),
+        Index(value = ["timestamp"])
     ]
 )
 data class AIChatMessage(
@@ -40,7 +41,10 @@ data class AIChatMessage(
  * AI 채팅 세션 엔티티
  * 대화 세션 관리
  */
-@Entity(tableName = "ai_chat_session")
+@Entity(
+    tableName = "ai_chat_session",
+    indices = [Index(value = ["market"])]
+)
 data class AIChatSession(
     @PrimaryKey
     val id: String, // UUID

@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.etfmonitor.core.service.CollectionState
 import com.etfmonitor.core.worker.WorkManagerHelper
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -43,6 +44,9 @@ class EtfMonitorApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+
+        // 프로세스 종료 시 중단된 수집 감지를 위해 가장 먼저 초기화
+        CollectionState.init(this)
 
         // WorkManager 스케줄링을 메인 스레드 큐 끝으로 지연
         // SurfaceSyncGroup 타임아웃 에러 방지를 위해 앱 시작 후 지연 실행

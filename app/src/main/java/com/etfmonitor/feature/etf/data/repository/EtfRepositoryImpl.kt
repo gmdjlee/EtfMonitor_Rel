@@ -20,6 +20,7 @@ import com.etfmonitor.core.database.entities.Setting
 import com.etfmonitor.core.domain.usecase.krx.GetKrxBusinessDaysUseCase
 import com.etfmonitor.core.domain.usecase.krx.GetKrxEtfHoldingsUseCase
 import com.etfmonitor.core.domain.usecase.krx.GetKrxEtfListUseCase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -895,6 +896,8 @@ class EtfRepositoryImpl @Inject constructor(
             }
 
             null
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.w("Failed to get previous business day: ${e.message}")
             null

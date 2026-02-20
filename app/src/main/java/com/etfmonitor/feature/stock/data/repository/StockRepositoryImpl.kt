@@ -8,6 +8,7 @@ import com.etfmonitor.feature.stock.domain.repository.StockRepository
 import com.etfmonitor.core.domain.repository.StockDataRepository
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.database.entities.Stock as StockEntity
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -92,6 +93,8 @@ class StockRepositoryImpl @Inject constructor(
         try {
             val market = Stock.inferMarket(ticker)
             localDataSource.upsertFromHolding(ticker, name, market, System.currentTimeMillis())
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Failed to sync stock: $ticker", e)
         }
@@ -102,6 +105,8 @@ class StockRepositoryImpl @Inject constructor(
             if (holdings.isEmpty()) return@withContext
             localDataSource.syncFromHoldings(holdings)
             logger.d("Synced ${holdings.size} stocks from holdings")
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Failed to sync stocks from holdings", e)
         }
@@ -136,6 +141,8 @@ class StockRepositoryImpl @Inject constructor(
 
             logger.d("Successfully initialized ${stocks.size} stocks from kotlin_krx")
             Result.success(stocks.size)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error initializing stocks", e)
             Result.failure(e)

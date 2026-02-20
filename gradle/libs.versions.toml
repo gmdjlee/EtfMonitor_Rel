@@ -12,7 +12,7 @@ navigationCompose = "2.8.5"
 room = "2.8.3"
 coroutines = "1.10.2"
 
-kotlinxSerialization = "1.7.1"
+kotlinxSerialization = "1.8.1"
 vico = "2.0.0-alpha.28"
 work = "2.9.1"
 hiltWork = "1.2.0"
@@ -99,6 +99,7 @@ androidx-test-runner = { group = "androidx.test", name = "runner", version.ref =
 androidx-test-rules = { group = "androidx.test", name = "rules", version.ref = "androidxTestRules" }
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 truth-ext = { group = "androidx.test.ext", name = "truth", version.ref = "truthExt" }
+androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version = "1.1.5" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -4,6 +4,9 @@ import androidx.room.testing.MigrationTestHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -12,7 +15,7 @@ import java.io.IOException
 /**
  * Database migration tests for ETF Monitor.
  *
- * Tests all 17 migrations (v1 -> v17) to ensure:
+ * Tests all 20 migrations (v1 -> v21) to ensure:
  * 1. Schema changes are applied correctly
  * 2. Data is preserved during migration
  * 3. No exceptions occur during migration
@@ -47,7 +50,11 @@ class MigrationTest {
         MIGRATION_13_14,
         MIGRATION_14_15,
         MIGRATION_15_16,
-        MIGRATION_16_17
+        MIGRATION_16_17,
+        MIGRATION_17_18,
+        MIGRATION_18_19,
+        MIGRATION_19_20,
+        MIGRATION_20_21
     )
 
     // ===========================================
@@ -71,13 +78,13 @@ class MigrationTest {
 
         // Verify stocks table exists
         val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='stocks'")
-        assert(cursor.count == 1) { "stocks table should exist after migration 1->2" }
+        assertEquals("stocks table should exist after migration 1->2", 1, cursor.count)
         cursor.close()
 
         // Verify etfs data is preserved
         val etfCursor = db.query("SELECT * FROM etfs WHERE ticker = '069500'")
-        assert(etfCursor.moveToFirst()) { "ETF data should be preserved after migration" }
-        assert(etfCursor.getString(etfCursor.getColumnIndex("name")) == "KODEX 200")
+        assertTrue("ETF data should be preserved after migration", etfCursor.moveToFirst())
+        assertEquals("KODEX 200", etfCursor.getString(etfCursor.getColumnIndex("name")))
         etfCursor.close()
     }
 
@@ -88,7 +95,7 @@ class MigrationTest {
         val db = helper.runMigrationsAndValidate(testDb, 3, true, MIGRATION_1_2, MIGRATION_2_3)
 
         val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='market_deposits'")
-        assert(cursor.count == 1) { "market_deposits table should exist after migration 2->3" }
+        assertEquals("market_deposits table should exist after migration 2->3", 1, cursor.count)
         cursor.close()
     }
 
@@ -99,7 +106,7 @@ class MigrationTest {
         val db = helper.runMigrationsAndValidate(testDb, 4, true, MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
 
         val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='stock_analysis_data'")
-        assert(cursor.count == 1) { "stock_analysis_data table should exist after migration 3->4" }
+        assertEquals("stock_analysis_data table should exist after migration 3->4", 1, cursor.count)
         cursor.close()
     }
 
@@ -111,7 +118,7 @@ class MigrationTest {
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 
         val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='search_history'")
-        assert(cursor.count == 1) { "search_history table should exist after migration 4->5" }
+        assertEquals("search_history table should exist after migration 4->5", 1, cursor.count)
         cursor.close()
     }
 
@@ -123,7 +130,7 @@ class MigrationTest {
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 
         val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='fear_greed_index'")
-        assert(cursor.count == 1) { "fear_greed_index table should exist after migration 5->6" }
+        assertEquals("fear_greed_index table should exist after migration 5->6", 1, cursor.count)
         cursor.close()
     }
 
@@ -135,7 +142,7 @@ class MigrationTest {
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
 
         val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='market_oscillator'")
-        assert(cursor.count == 1) { "market_oscillator table should exist after migration 6->7" }
+        assertEquals("market_oscillator table should exist after migration 6->7", 1, cursor.count)
         cursor.close()
     }
 
@@ -164,19 +171,19 @@ class MigrationTest {
         }
         cursor.close()
 
-        assert(columnNames.contains("weightBps")) { "holdings should have weightBps column" }
-        assert(columnNames.contains("amountMillion")) { "holdings should have amountMillion column" }
-        assert(columnNames.contains("snapshotType")) { "holdings should have snapshotType column" }
+        assertTrue("holdings should have weightBps column", columnNames.contains("weightBps"))
+        assertTrue("holdings should have amountMillion column", columnNames.contains("amountMillion"))
+        assertTrue("holdings should have snapshotType column", columnNames.contains("snapshotType"))
 
         // Verify data conversion (25% -> 2500 bps, 50B KRW -> 50000 million)
         val dataCursor = db.query("SELECT * FROM holdings WHERE stockTicker = '005930'")
-        assert(dataCursor.moveToFirst()) { "Holding data should be preserved" }
+        assertTrue("Holding data should be preserved", dataCursor.moveToFirst())
 
         val weightBps = dataCursor.getInt(dataCursor.getColumnIndex("weightBps"))
         val amountMillion = dataCursor.getInt(dataCursor.getColumnIndex("amountMillion"))
 
-        assert(weightBps == 2500) { "weight should be converted to basis points: expected 2500, got $weightBps" }
-        assert(amountMillion == 50000) { "amount should be converted to millions: expected 50000, got $amountMillion" }
+        assertEquals("weight should be converted to basis points", 2500, weightBps)
+        assertEquals("amount should be converted to millions", 50000, amountMillion)
         dataCursor.close()
     }
 
@@ -189,7 +196,7 @@ class MigrationTest {
             MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
 
         val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='market_index'")
-        assert(cursor.count == 1) { "market_index table should exist after migration 8->9" }
+        assertEquals("market_index table should exist after migration 8->9", 1, cursor.count)
         cursor.close()
     }
 
@@ -202,7 +209,7 @@ class MigrationTest {
             MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
 
         val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='daily_etf_statistics'")
-        assert(cursor.count == 1) { "daily_etf_statistics table should exist after migration 9->10" }
+        assertEquals("daily_etf_statistics table should exist after migration 9->10", 1, cursor.count)
         cursor.close()
     }
 
@@ -224,7 +231,7 @@ class MigrationTest {
 
         for (table in tables) {
             val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='$table'")
-            assert(cursor.count == 1) { "$table table should exist after migration 10->11" }
+            assertEquals("$table table should exist after migration 10->11", 1, cursor.count)
             cursor.close()
         }
     }
@@ -239,7 +246,7 @@ class MigrationTest {
             MIGRATION_11_12)
 
         val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='stock_predictions'")
-        assert(cursor.count == 1) { "stock_predictions table should exist after migration 11->12" }
+        assertEquals("stock_predictions table should exist after migration 11->12", 1, cursor.count)
         cursor.close()
     }
 
@@ -272,8 +279,8 @@ class MigrationTest {
         }
         stocksCursor.close()
 
-        assert(stockColumns.contains("sector")) { "stocks should have sector column" }
-        assert(stockColumns.contains("is_etf_holding")) { "stocks should have is_etf_holding column" }
+        assertTrue("stocks should have sector column", stockColumns.contains("sector"))
+        assertTrue("stocks should have is_etf_holding column", stockColumns.contains("is_etf_holding"))
 
         // Verify stock_analysis_data no longer has name column
         val analysisCursor = db.query("PRAGMA table_info(stock_analysis_data)")
@@ -283,7 +290,8 @@ class MigrationTest {
         }
         analysisCursor.close()
 
-        assert(!analysisColumns.contains("name")) { "stock_analysis_data should NOT have name column after migration 12->13" }
+        assertFalse("stock_analysis_data should NOT have name column after migration 12->13",
+            analysisColumns.contains("name"))
     }
 
     @Test
@@ -299,7 +307,7 @@ class MigrationTest {
 
         for (table in tables) {
             val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='$table'")
-            assert(cursor.count == 1) { "$table table should exist after migration 13->14" }
+            assertEquals("$table table should exist after migration 13->14", 1, cursor.count)
             cursor.close()
         }
     }
@@ -317,7 +325,7 @@ class MigrationTest {
 
         for (table in tables) {
             val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='$table'")
-            assert(cursor.count == 1) { "$table table should exist after migration 14->15" }
+            assertEquals("$table table should exist after migration 14->15", 1, cursor.count)
             cursor.close()
         }
     }
@@ -332,7 +340,7 @@ class MigrationTest {
             MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
 
         val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='stock_indicator_ai_result'")
-        assert(cursor.count == 1) { "stock_indicator_ai_result table should exist after migration 15->16" }
+        assertEquals("stock_indicator_ai_result table should exist after migration 15->16", 1, cursor.count)
         cursor.close()
     }
 
@@ -354,7 +362,131 @@ class MigrationTest {
         }
         cursor.close()
 
-        assert(columns.contains("historyType")) { "search_history should have historyType column after migration 16->17" }
+        assertTrue("search_history should have historyType column after migration 16->17",
+            columns.contains("historyType"))
+    }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate17To18_addsBloodIndicatorTable() {
+        helper.createDatabase(testDb, 17).apply { close() }
+        val db = helper.runMigrationsAndValidate(testDb, 18, true,
+            MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
+            MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11,
+            MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
+            MIGRATION_16_17, MIGRATION_17_18)
+
+        val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='blood_indicator'")
+        assertEquals("blood_indicator table should exist after migration 17->18", 1, cursor.count)
+        cursor.close()
+
+        // Verify expected columns from v1 schema: id, date, bloodValue, irx, hygYield, tenYearYield, spreadValue, spyClose, signalType, lastUpdated
+        val schemaCursor = db.query("PRAGMA table_info(blood_indicator)")
+        val columnNames = mutableListOf<String>()
+        while (schemaCursor.moveToNext()) {
+            columnNames.add(schemaCursor.getString(schemaCursor.getColumnIndex("name")))
+        }
+        schemaCursor.close()
+
+        assertTrue("blood_indicator should have id column", columnNames.contains("id"))
+        assertTrue("blood_indicator should have date column", columnNames.contains("date"))
+        assertTrue("blood_indicator should have bloodValue column", columnNames.contains("bloodValue"))
+        assertTrue("blood_indicator should have signalType column", columnNames.contains("signalType"))
+    }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate18To19_updatesBloodIndicatorSchemaForFredApi() {
+        helper.createDatabase(testDb, 18).apply { close() }
+        val db = helper.runMigrationsAndValidate(testDb, 19, true,
+            MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
+            MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11,
+            MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
+            MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19)
+
+        // Verify new schema columns exist (FRED API v2.0)
+        val cursor = db.query("PRAGMA table_info(blood_indicator)")
+        val columnNames = mutableListOf<String>()
+        while (cursor.moveToNext()) {
+            columnNames.add(cursor.getString(cursor.getColumnIndex("name")))
+        }
+        cursor.close()
+
+        assertTrue("blood_indicator should have bloodSma column", columnNames.contains("bloodSma"))
+        assertTrue("blood_indicator should have us03my column", columnNames.contains("us03my"))
+        assertTrue("blood_indicator should have highYieldSpread column", columnNames.contains("highYieldSpread"))
+        assertTrue("blood_indicator should have signalColor column", columnNames.contains("signalColor"))
+
+        // Old columns removed in v18->19
+        assertFalse("blood_indicator should NOT have irx column after migration 18->19",
+            columnNames.contains("irx"))
+        assertFalse("blood_indicator should NOT have hygYield column after migration 18->19",
+            columnNames.contains("hygYield"))
+        assertFalse("blood_indicator should NOT have tenYearYield column after migration 18->19",
+            columnNames.contains("tenYearYield"))
+        assertFalse("blood_indicator should NOT have spreadValue column after migration 18->19",
+            columnNames.contains("spreadValue"))
+    }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate19To20_addsFinancialCacheTable() {
+        helper.createDatabase(testDb, 19).apply { close() }
+        val db = helper.runMigrationsAndValidate(testDb, 20, true,
+            MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
+            MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11,
+            MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
+            MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20)
+
+        val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='financial_cache'")
+        assertEquals("financial_cache table should exist after migration 19->20", 1, cursor.count)
+        cursor.close()
+
+        // Verify columns
+        val schemaCursor = db.query("PRAGMA table_info(financial_cache)")
+        val columnNames = mutableListOf<String>()
+        while (schemaCursor.moveToNext()) {
+            columnNames.add(schemaCursor.getString(schemaCursor.getColumnIndex("name")))
+        }
+        schemaCursor.close()
+
+        assertTrue("financial_cache should have ticker column", columnNames.contains("ticker"))
+        assertTrue("financial_cache should have name column", columnNames.contains("name"))
+        assertTrue("financial_cache should have data column", columnNames.contains("data"))
+        assertTrue("financial_cache should have cachedAt column", columnNames.contains("cachedAt"))
+    }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate20To21_addsPerformanceIndices() {
+        val db = helper.createDatabase(testDb, 20).apply {
+            // Insert test data into tables that will get indices
+            execSQL("INSERT INTO fear_greed_index (date, value, rsiScore, macdScore, volumeScore, priceStrengthScore, safeHavenScore) VALUES ('2026-02-20', 50.0, 50.0, 50.0, 50.0, 50.0, 50.0)")
+            execSQL("INSERT INTO market_oscillator (date, oscillatorValue) VALUES ('2026-02-20', 0.5)")
+            close()
+        }
+
+        val migratedDb = helper.runMigrationsAndValidate(testDb, 21, true,
+            MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21)
+
+        // Verify indices were created by checking sqlite_master
+        val indexCursor = migratedDb.query(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'"
+        )
+        val indices = mutableListOf<String>()
+        while (indexCursor.moveToNext()) {
+            indices.add(indexCursor.getString(0))
+        }
+        indexCursor.close()
+
+        assertTrue("idx_fear_greed_date should exist", indices.contains("idx_fear_greed_date"))
+        assertTrue("idx_market_oscillator_date should exist", indices.contains("idx_market_oscillator_date"))
+
+        // Verify data is preserved after migration
+        val dataCursor = migratedDb.query("SELECT COUNT(*) FROM fear_greed_index")
+        dataCursor.moveToFirst()
+        assertEquals("Data should be preserved after index migration", 1, dataCursor.getInt(0))
+        dataCursor.close()
     }
 
     // ===========================================
@@ -363,7 +495,7 @@ class MigrationTest {
 
     @Test
     @Throws(IOException::class)
-    fun migrateAll_version1To17() {
+    fun migrateAll_version1To21() {
         // Create v1 database with initial data
         helper.createDatabase(testDb, 1).apply {
             execSQL("INSERT INTO etfs (ticker, name) VALUES ('069500', 'KODEX 200')")
@@ -373,7 +505,7 @@ class MigrationTest {
         }
 
         // Run all migrations
-        val db = helper.runMigrationsAndValidate(testDb, 17, true, *allMigrations)
+        val db = helper.runMigrationsAndValidate(testDb, 21, true, *allMigrations)
 
         // Verify final schema has all expected tables
         val expectedTables = listOf(
@@ -383,19 +515,20 @@ class MigrationTest {
             "correlation_analysis_result", "ai_analysis_result",
             "ai_chat_session", "ai_chat_message", "stock_predictions",
             "sector_analysis", "etf_correlation_cache", "liquidity_analysis",
-            "price_cache", "enhanced_predictions", "stock_indicator_ai_result"
+            "price_cache", "enhanced_predictions", "stock_indicator_ai_result",
+            "blood_indicator", "financial_cache"
         )
 
         for (table in expectedTables) {
             val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='$table'")
-            assert(cursor.count == 1) { "$table table should exist after full migration" }
+            assertEquals("$table table should exist after full migration", 1, cursor.count)
             cursor.close()
         }
 
         // Verify ETF data is preserved
         val etfCursor = db.query("SELECT COUNT(*) as count FROM etfs")
         etfCursor.moveToFirst()
-        assert(etfCursor.getInt(0) == 2) { "ETF data should be preserved after full migration" }
+        assertEquals("ETF data should be preserved after full migration", 2, etfCursor.getInt(0))
         etfCursor.close()
 
         // Verify holding data is converted correctly
@@ -405,7 +538,7 @@ class MigrationTest {
         val amountMillion = holdingCursor.getInt(1)
         holdingCursor.close()
 
-        assert(weightBps == 2500) { "weight should be 2500 bps" }
-        assert(amountMillion == 50000) { "amount should be 50000 million" }
+        assertEquals("weight should be 2500 bps", 2500, weightBps)
+        assertEquals("amount should be 50000 million", 50000, amountMillion)
     }
 }

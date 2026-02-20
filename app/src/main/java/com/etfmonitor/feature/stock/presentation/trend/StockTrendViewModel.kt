@@ -9,6 +9,7 @@ import com.etfmonitor.feature.stock.domain.model.StockTrend
 import com.etfmonitor.feature.stock.domain.usecase.GetStockTrendUseCase
 import com.etfmonitor.core.common.util.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -84,6 +85,8 @@ class StockTrendViewModel @Inject constructor(
                 } else {
                     _state.value = StockTrendState.Error("추이 데이터를 찾을 수 없습니다")
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error loading trend for ETF: $etfTicker, Stock: $stockTicker", e)
                 _state.value = StockTrendState.Error(e.message ?: "오류 발생")
@@ -116,6 +119,8 @@ class StockTrendViewModel @Inject constructor(
             try {
                 val enabled = etfDao.getSetting(QUICK_CHART_ANALYSIS_KEY) == "true"
                 _quickChartAnalysisEnabled.value = enabled
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error loading quick chart analysis setting", e)
             }

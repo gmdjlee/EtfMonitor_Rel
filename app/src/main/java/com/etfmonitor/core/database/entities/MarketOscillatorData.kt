@@ -1,13 +1,14 @@
 package com.etfmonitor.core.database.entities
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
  * 시장 과매수/과매도 데이터 엔티티
  * 코스피/코스닥 지수별 일별 oscillator 데이터 저장
  */
-@Entity(tableName = "market_oscillator")
+@Entity(tableName = "market_oscillator", indices = [Index(value = ["date"])])
 data class MarketOscillatorData(
     @PrimaryKey
     val id: String, // "KOSPI-2025-01-01" 또는 "KOSDAQ-2025-01-01" 형식

@@ -23,7 +23,7 @@ Implementation — new features, bug fixes, refactoring across Kotlin and Python
 1. **Holding entity**: ALWAYS use `Holding.create()` factory. NEVER construct directly.
 2. **StockAnalysisData**: ALWAYS JOIN with stocks table (`getAnalysisDataWithName()`). Name was removed in v12→13.
 3. **Python timeouts**: PyKrx=30s, MarketIndex=30s, Oscillator=**180s**, ML=**120s**, BloodIndicator=**90s**
-4. **FearGreed data**: Request **3x days** (MA data loss). `initializeFearGreed(days = needed * 3)`
+4. **FearGreed data**: Repository handles **3x internally**. Pass desired output days only: `initializeFearGreed(days = 90)`. Do NOT pre-multiply.
 5. **DAO queries**: ALWAYS add LIMIT for ranking/list queries (OOM prevention)
 6. **DB schema changes**: Add migration in AppDatabase.kt BEFORE changing entities
 7. **Python calls**: ALWAYS `withContext(Dispatchers.IO) { withTimeout(N) { ... } }` + `Json { ignoreUnknownKeys = true }`

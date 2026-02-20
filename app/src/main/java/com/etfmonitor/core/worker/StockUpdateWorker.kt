@@ -8,6 +8,7 @@ import com.etfmonitor.feature.stock.domain.repository.StockRepository
 import com.etfmonitor.core.common.util.AppLogger
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -49,6 +50,8 @@ class StockUpdateWorker @AssistedInject constructor(
                 logger.e("Failed to update stocks: ${result.exceptionOrNull()?.message}")
                 if (runAttemptCount < 3) Result.retry() else Result.failure()
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error in StockUpdateWorker", e)
             Result.failure()

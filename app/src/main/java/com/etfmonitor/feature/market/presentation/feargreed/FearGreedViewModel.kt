@@ -11,8 +11,10 @@ import com.etfmonitor.feature.market.domain.model.FearGreedIndex
 import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -170,7 +172,10 @@ class FearGreedViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = FearGreedState.Initializing("Fear & Greed Index 데이터 수집 중...", 0)
 
-            val result = repository.initializeFearGreed(days)
+            // NonCancellable: 사용자가 화면을 나가도 데이터 수집 완료 보장
+            val result = withContext(NonCancellable) {
+                repository.initializeFearGreed(days)
+            }
 
             if (result.isSuccess) {
                 val count = result.getOrNull() ?: 0

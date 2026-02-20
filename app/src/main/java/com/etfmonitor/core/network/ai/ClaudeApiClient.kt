@@ -4,7 +4,9 @@ import com.etfmonitor.core.common.util.ApiAuthenticationException
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.common.util.ApiException
 import com.etfmonitor.core.common.util.DataParsingException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
@@ -76,6 +78,10 @@ class ClaudeApiClient @Inject constructor(
                 val signal = AIResponseParser.parseToMarketSignal(response)
                 Result.success(signal)
             }
+        } catch (e: TimeoutCancellationException) {
+            Result.failure(e)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Market analysis failed", e)
             Result.failure(e)
@@ -154,6 +160,10 @@ class ClaudeApiClient @Inject constructor(
                 val response = callClaudeChatApi(apiKey, messages, systemPrompt, temperature, model)
                 Result.success(response)
             }
+        } catch (e: TimeoutCancellationException) {
+            Result.failure(e)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Chat failed", e)
             Result.failure(e)
@@ -239,6 +249,8 @@ class ClaudeApiClient @Inject constructor(
             val testPrompt = "Hello, please respond with 'OK'"
             val response = callClaudeApi(apiKey, testPrompt, 0.0)
             Result.success(response.isNotBlank())
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("API key test failed", e)
             Result.failure(e)
@@ -293,6 +305,10 @@ class ClaudeApiClient @Inject constructor(
                     Result.success(models)
                 }
             }
+        } catch (e: TimeoutCancellationException) {
+            Result.failure(e)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Failed to list models", e)
             Result.failure(e)

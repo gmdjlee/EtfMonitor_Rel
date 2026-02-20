@@ -4,7 +4,9 @@ import com.etfmonitor.core.common.util.ApiAuthenticationException
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.common.util.ApiException
 import com.etfmonitor.core.common.util.DataParsingException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
@@ -40,7 +42,7 @@ class GeminiApiClient @Inject constructor(
         private const val API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val MODELS_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val MODEL = "gemini-2.5-flash" // Default model
-        private const val MAX_OUTPUT_TOKENS = 200000
+        private const val MAX_OUTPUT_TOKENS = 8192
         private const val TIMEOUT_SECONDS = 60L
     }
 
@@ -84,6 +86,10 @@ class GeminiApiClient @Inject constructor(
                 val signal = AIResponseParser.parseToMarketSignal(response)
                 Result.success(signal)
             }
+        } catch (e: TimeoutCancellationException) {
+            Result.failure(e)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Market analysis failed", e)
             Result.failure(e)
@@ -257,6 +263,10 @@ class GeminiApiClient @Inject constructor(
                 val response = callGeminiChatApi(apiKey, messages, systemPrompt, temperature, model)
                 Result.success(response)
             }
+        } catch (e: TimeoutCancellationException) {
+            Result.failure(e)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Chat failed", e)
             Result.failure(e)
@@ -395,6 +405,8 @@ class GeminiApiClient @Inject constructor(
             val testPrompt = "Hello, please respond with 'OK'"
             val response = callGeminiApi(apiKey, testPrompt, 0.0, model)
             Result.success(response.isNotBlank())
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("API key test failed", e)
             Result.failure(e)
@@ -468,6 +480,10 @@ class GeminiApiClient @Inject constructor(
                     Result.success(models)
                 }
             }
+        } catch (e: TimeoutCancellationException) {
+            Result.failure(e)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Failed to list models", e)
             Result.failure(e)

@@ -7,13 +7,11 @@ import com.etfmonitor.core.database.MarketDepositDao
 import com.etfmonitor.core.database.MarketIndexDao
 import com.etfmonitor.core.database.MarketOscillatorDao
 import com.etfmonitor.core.database.entities.DailyEtfStatistics
-import com.etfmonitor.core.database.entities.FearGreedIndex
-import com.etfmonitor.core.database.entities.MarketDeposit
 import com.etfmonitor.core.database.entities.MarketIndex
-import com.etfmonitor.core.database.entities.MarketOscillatorData
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -22,8 +20,6 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.CsvSource
 import kotlin.math.abs
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -33,10 +29,10 @@ import kotlin.test.assertTrue
  * CorrelationAnalyzer 테스트
  *
  * 테스트 범위:
- * - Pearson 상관계수 계산
+ * - Pearson 상관계수 계산 (analyze()를 통한 간접 검증)
  * - 종합 신호 생성
  * - 데이터 부족 시 오류 처리
- * - 날짜 계산
+ * - 날짜 계산 (DAO 호출 인자 검증)
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @ExtendWith(MainDispatcherExtension::class)
@@ -69,123 +65,257 @@ class CorrelationAnalyzerTest {
     }
 
     @Nested
-    @DisplayName("Pearson 상관계수 계산 테스트")
+    @DisplayName("Pearson 상관계수 계산 테스트 — analyze()를 통한 검증")
     inner class PearsonCorrelationTests {
 
+        /**
+         * 지수가 교번 상승/하락하고(홀수날 큰 상승, 짝수날 작은 하락),
+         * etfIncreased 도 홀수날 높고 짝수날 낮은 패턴이면 → 양의 상관관계.
+         *
+         * 설계 원칙:
+         * - CorrelationAnalyzer 는 indexReturn[i] = (close[i]-close[i-1])/close[i-1] 를 계산
+         * - ETF stats 는 prevDate(i-1) 기준으로 indexReturn[i] 와 매칭
+         * - 따라서 ETF stats[day] 와 return[day+1] 이 같은 방향이어야 양의 상관관계
+         */
         @Test
-        @DisplayName("완전 양의 상관관계 (r = 1.0)")
-        fun whenPerfectPositiveCorrelation_thenReturnsOne() {
-            // Given
-            val x = listOf(1.0, 2.0, 3.0, 4.0, 5.0)
-            val y = listOf(2.0, 4.0, 6.0, 8.0, 10.0)
+        @DisplayName("ETF 통계가 다음날 지수 등락과 같은 방향 → etfIncreasedCorrelation 양수")
+        fun `analyze_etfStatsAlignedWithNextDayReturn_producesPositiveCorrelation`() = runTest {
+            // Given:
+            // 가격 패턴: day1=2800, day2=2900(+100), day3=2850(-50), day4=2980(+130), day5=2920(-60)...
+            // 교번 패턴으로 returns 에 분산이 생기도록 설계
+            // ETF increasedStockCount: 당일 높으면 다음날 지수도 높을 것으로 설계
+            val n = 25
+            // 가격: 홀수 인덱스에서 크게 상승, 짝수 인덱스에서 소폭 하락
+            val prices = (1..n).map { day ->
+                2800.0 + if (day % 2 == 1) day * 15.0 else day * 5.0
+            }
+            val marketIndices = (1..n).map { day ->
+                createMarketIndex("KOSPI", "2025-01-${String.format("%02d", day)}", prices[day - 1])
+            }
+            // etfIncreased: prevDate(day i-1) 기준, return on day i 와 정렬
+            // return[i] = prices[i] - prices[i-1] > 0 when i is odd (day 2,4,6... → i=2,4,6 → i%2==0)
+            // prevDate for return[i] is date[i-1]
+            // So etfStats[i-1].increasedStockCount 이 커야 return[i] 가 양수일 때
+            val etfStats = (1..n).map { day ->
+                // return on next day = prices[day] - prices[day-1] (if day < n)
+                val nextDayPositive = if (day < n) prices[day] > prices[day - 1] else true
+                createEtfStatistics(
+                    date = "2025-01-${String.format("%02d", day)}",
+                    increasedStockCount = if (nextDayPositive) 20 else 5,
+                    decreasedStockCount = if (nextDayPositive) 5 else 20
+                )
+            }
+
+            coEvery { marketIndexDao.getByMarketAndDateRangeSuspend(any(), any(), any()) } returns marketIndices
+            coEvery { dailyEtfStatisticsDao.getByDateRangeSuspend(any(), any()) } returns etfStats
+            every { fearGreedDao.getByMarketAndDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketOscillatorDao.getDataByDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketDepositDao.getAllDeposits() } returns flowOf(emptyList())
 
             // When
-            val result = calculatePearson(x, y)
+            val result = analyzer.analyze("KOSPI", "2025-01-25", 30)
 
-            // Then
-            assertEquals(1.0, result, 0.001)
-        }
-
-        @Test
-        @DisplayName("완전 음의 상관관계 (r = -1.0)")
-        fun whenPerfectNegativeCorrelation_thenReturnsNegativeOne() {
-            // Given
-            val x = listOf(1.0, 2.0, 3.0, 4.0, 5.0)
-            val y = listOf(10.0, 8.0, 6.0, 4.0, 2.0)
-
-            // When
-            val result = calculatePearson(x, y)
-
-            // Then
-            assertEquals(-1.0, result, 0.001)
-        }
-
-        @Test
-        @DisplayName("상관관계 없음 (r ≈ 0)")
-        fun whenNoCorrelation_thenReturnsZero() {
-            // Given - 무작위 데이터
-            val x = listOf(1.0, 2.0, 3.0, 4.0, 5.0)
-            val y = listOf(3.0, 1.0, 4.0, 2.0, 5.0)
-
-            // When
-            val result = calculatePearson(x, y)
-
-            // Then - 약한 상관관계 예상
-            assertTrue(abs(result) < 0.5)
-        }
-
-        @Test
-        @DisplayName("데이터 크기가 다르면 0 반환")
-        fun whenDifferentSizes_thenReturnsZero() {
-            // Given
-            val x = listOf(1.0, 2.0, 3.0)
-            val y = listOf(1.0, 2.0)
-
-            // When
-            val result = calculatePearson(x, y)
-
-            // Then
-            assertEquals(0.0, result, 0.001)
-        }
-
-        @Test
-        @DisplayName("데이터가 2개 미만이면 0 반환")
-        fun whenLessThanTwoPoints_thenReturnsZero() {
-            // Given
-            val x = listOf(1.0)
-            val y = listOf(1.0)
-
-            // When
-            val result = calculatePearson(x, y)
-
-            // Then
-            assertEquals(0.0, result, 0.001)
-        }
-
-        @Test
-        @DisplayName("상관계수는 -1과 1 사이")
-        fun correlationShouldBeBetweenMinusOneAndOne() {
-            // Given - 다양한 데이터셋
-            val testCases = listOf(
-                listOf(1.0, 5.0, 3.0, 8.0, 2.0) to listOf(4.0, 7.0, 2.0, 9.0, 1.0),
-                listOf(10.0, 20.0, 30.0, 40.0) to listOf(5.0, 25.0, 15.0, 35.0),
-                listOf(-5.0, 0.0, 5.0, 10.0, 15.0) to listOf(100.0, 50.0, 75.0, 25.0, 0.0)
+            // Then: 분석이 성공하고 etfIncreasedCorrelation 이 양수여야 한다
+            assertTrue(result.isSuccess, "충분한 데이터로 분석이 성공해야 한다")
+            val analysisResult = result.getOrNull()!!
+            assertTrue(
+                analysisResult.etfIncreasedCorrelation > 0.0,
+                "etfIncreased 가 다음날 지수 상승과 정렬되면 양의 상관관계여야 한다: ${analysisResult.etfIncreasedCorrelation}"
             )
+        }
 
-            // When & Then
-            testCases.forEach { (x, y) ->
-                val result = calculatePearson(x, y)
-                assertTrue(result >= -1.0 && result <= 1.0,
-                    "Correlation $result should be between -1 and 1 for x=$x, y=$y"
+        /**
+         * ETF 감소 종목 수가 많은 날 다음날 지수가 하락하고,
+         * ETF 감소 종목 수가 적은 날 다음날 지수가 상승하면 → 음의 상관관계.
+         */
+        @Test
+        @DisplayName("ETF 감소 통계가 다음날 지수 등락과 역방향 → etfDecreasedCorrelation 음수")
+        fun `analyze_etfDecreasedOppositeToNextDayReturn_producesNegativeCorrelation`() = runTest {
+            // Given: 교번 가격 패턴 (홀수날 상승, 짝수날 하락)
+            val n = 25
+            val prices = (1..n).map { day ->
+                2800.0 + if (day % 2 == 1) day * 15.0 else day * 5.0
+            }
+            val marketIndices = (1..n).map { day ->
+                createMarketIndex("KOSPI", "2025-01-${String.format("%02d", day)}", prices[day - 1])
+            }
+            // etfDecreased 는 다음날 return 과 반대 방향
+            val etfStats = (1..n).map { day ->
+                val nextDayPositive = if (day < n) prices[day] > prices[day - 1] else true
+                createEtfStatistics(
+                    date = "2025-01-${String.format("%02d", day)}",
+                    increasedStockCount = 5,
+                    decreasedStockCount = if (nextDayPositive) 5 else 20  // 다음날 상승이면 감소 종목 적음
+                )
+            }
+
+            coEvery { marketIndexDao.getByMarketAndDateRangeSuspend(any(), any(), any()) } returns marketIndices
+            coEvery { dailyEtfStatisticsDao.getByDateRangeSuspend(any(), any()) } returns etfStats
+            every { fearGreedDao.getByMarketAndDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketOscillatorDao.getDataByDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketDepositDao.getAllDeposits() } returns flowOf(emptyList())
+
+            // When
+            val result = analyzer.analyze("KOSPI", "2025-01-25", 30)
+
+            // Then
+            assertTrue(result.isSuccess, "충분한 데이터로 분석이 성공해야 한다")
+            val analysisResult = result.getOrNull()!!
+            assertTrue(
+                analysisResult.etfDecreasedCorrelation < 0.0,
+                "ETF 감소 종목 수가 다음날 지수와 역방향이면 음의 상관관계여야 한다: ${analysisResult.etfDecreasedCorrelation}"
+            )
+        }
+
+        /**
+         * ETF 순유입(newStock - removedStock)이 다음날 지수 상승과 같은 방향으로 움직이면
+         * etfNetFlowCorrelation 은 양수여야 한다.
+         */
+        @Test
+        @DisplayName("ETF 순유입이 다음날 지수 상승과 같은 방향 → etfNetFlowCorrelation 양수")
+        fun `analyze_netFlowAlignedWithNextDayReturn_producesPositiveNetFlowCorrelation`() = runTest {
+            // Given: 교번 가격 패턴
+            val n = 25
+            val prices = (1..n).map { day ->
+                2800.0 + if (day % 2 == 1) day * 15.0 else day * 5.0
+            }
+            val marketIndices = (1..n).map { day ->
+                createMarketIndex("KOSPI", "2025-01-${String.format("%02d", day)}", prices[day - 1])
+            }
+            // netFlow = newStock - removedStock
+            // 다음날 상승이면 순유입 양수(큰 값), 다음날 하락이면 순유입 음수(작은 값)
+            val etfStats = (1..n).map { day ->
+                val nextDayPositive = if (day < n) prices[day] > prices[day - 1] else true
+                createEtfStatistics(
+                    date = "2025-01-${String.format("%02d", day)}",
+                    newStockCount = if (nextDayPositive) 15 else 3,
+                    removedStockCount = if (nextDayPositive) 3 else 15
+                )
+            }
+
+            coEvery { marketIndexDao.getByMarketAndDateRangeSuspend(any(), any(), any()) } returns marketIndices
+            coEvery { dailyEtfStatisticsDao.getByDateRangeSuspend(any(), any()) } returns etfStats
+            every { fearGreedDao.getByMarketAndDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketOscillatorDao.getDataByDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketDepositDao.getAllDeposits() } returns flowOf(emptyList())
+
+            // When
+            val result = analyzer.analyze("KOSPI", "2025-01-25", 30)
+
+            // Then
+            assertTrue(result.isSuccess)
+            val analysisResult = result.getOrNull()!!
+            assertTrue(
+                analysisResult.etfNetFlowCorrelation > 0.0,
+                "순유입이 다음날 지수 상승과 정렬되면 etfNetFlowCorrelation 은 양수여야 한다: ${analysisResult.etfNetFlowCorrelation}"
+            )
+        }
+
+        /**
+         * 지수는 상승하지만 ETF 순유입은 무작위 패턴 → 낮은 절대 상관관계 기대
+         * (상관계수 절대값은 1.0 이하여야 한다는 불변 조건)
+         */
+        @Test
+        @DisplayName("모든 상관계수는 [-1, 1] 범위여야 한다")
+        fun `analyze_allCorrelations_areBetweenMinusOneAndOne`() = runTest {
+            // Given: 다양한 패턴의 ETF 통계
+            val n = 25
+            val marketIndices = (1..n).map { day ->
+                createMarketIndex("KOSPI", "2025-01-${String.format("%02d", day)}", 2800.0 + day * 3.0)
+            }
+            val etfStats = (1..n).map { day ->
+                createEtfStatistics(
+                    date = "2025-01-${String.format("%02d", day)}",
+                    newStockCount = if (day % 3 == 0) day else 5,
+                    removedStockCount = if (day % 2 == 0) 3 else 1,
+                    increasedStockCount = day % 7,
+                    decreasedStockCount = (n - day) % 5
+                )
+            }
+
+            coEvery { marketIndexDao.getByMarketAndDateRangeSuspend(any(), any(), any()) } returns marketIndices
+            coEvery { dailyEtfStatisticsDao.getByDateRangeSuspend(any(), any()) } returns etfStats
+            every { fearGreedDao.getByMarketAndDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketOscillatorDao.getDataByDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketDepositDao.getAllDeposits() } returns flowOf(emptyList())
+
+            // When
+            val result = analyzer.analyze("KOSPI", "2025-01-25", 30)
+
+            // Then
+            assertTrue(result.isSuccess)
+            val r = result.getOrNull()!!
+            val correlations = listOf(
+                r.etfNewStockCorrelation,
+                r.etfRemovedStockCorrelation,
+                r.etfIncreasedCorrelation,
+                r.etfDecreasedCorrelation,
+                r.etfNetFlowCorrelation,
+                r.cashDepositCorrelation
+            )
+            correlations.forEach { corr ->
+                assertTrue(
+                    corr >= -1.0 && corr <= 1.0,
+                    "상관계수 ${corr}는 [-1, 1] 범위여야 한다"
                 )
             }
         }
 
         /**
-         * 테스트용 Pearson 상관계수 계산 (private 메서드 접근을 위해)
-         * CorrelationAnalyzer의 calculatePearsonCorrelation과 동일한 로직
+         * ETF 통계 데이터가 없으면 etfNetFlowCorrelation 이 0.0 을 반환해야 한다.
+         * (calculatePearsonCorrelation 에서 x.size < 2 → 0.0)
          */
-        private fun calculatePearson(x: List<Double>, y: List<Double>): Double {
-            if (x.size != y.size || x.size < 2) return 0.0
-
-            val n = x.size
-            val meanX = x.average()
-            val meanY = y.average()
-
-            var numerator = 0.0
-            var denomX = 0.0
-            var denomY = 0.0
-
-            for (i in 0 until n) {
-                val dx = x[i] - meanX
-                val dy = y[i] - meanY
-                numerator += dx * dy
-                denomX += dx * dx
-                denomY += dy * dy
+        @Test
+        @DisplayName("ETF 데이터 없음 → 기본 상관계수 0.0 반환")
+        fun `analyze_noEtfStatistics_returnsZeroCorrelation`() = runTest {
+            // Given: 지수 데이터 충분하지만 ETF 통계 없음
+            val n = 25
+            val marketIndices = (1..n).map { day ->
+                createMarketIndex("KOSPI", "2025-01-${String.format("%02d", day)}", 2800.0 + day * 5.0)
             }
 
-            val denominator = kotlin.math.sqrt(denomX) * kotlin.math.sqrt(denomY)
-            return if (denominator > 0) numerator / denominator else 0.0
+            coEvery { marketIndexDao.getByMarketAndDateRangeSuspend(any(), any(), any()) } returns marketIndices
+            // ETF 통계: 지수와 날짜가 겹치지 않음 → 공통 날짜 없음 → 실패
+            coEvery { dailyEtfStatisticsDao.getByDateRangeSuspend(any(), any()) } returns emptyList()
+            every { fearGreedDao.getByMarketAndDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketOscillatorDao.getDataByDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketDepositDao.getAllDeposits() } returns flowOf(emptyList())
+
+            // When
+            val result = analyzer.analyze("KOSPI", "2025-01-25", 30)
+
+            // Then: 공통 날짜가 없으면 indexReturns 비어 있어 상관계수 = 0
+            // (실패 또는 성공 모두 가능 — 지수 데이터 수 기준으로 MIN_DATA_POINTS 통과)
+            // 지수는 25개 → MIN_DATA_POINTS(20) 통과 → 성공
+            assertTrue(result.isSuccess)
+            val r = result.getOrNull()!!
+            assertEquals(0.0, r.etfNetFlowCorrelation, 0.001,
+                "ETF 통계와 공통 날짜가 없으면 etfNetFlowCorrelation 은 0.0 이어야 한다")
+        }
+
+        /**
+         * 지수 데이터가 20개 미만이면 Failure 를 반환해야 한다.
+         * MIN_DATA_POINTS = 20 경계 조건 테스트.
+         */
+        @Test
+        @DisplayName("지수 데이터 19개(MIN_DATA_POINTS 미만) → 실패 반환")
+        fun `analyze_belowMinDataPoints_returnsFailure`() = runTest {
+            // Given: 19개 데이터 (MIN_DATA_POINTS=20 미만)
+            val marketIndices = (1..19).map { day ->
+                createMarketIndex("KOSPI", "2025-01-${String.format("%02d", day)}", 2800.0 + day)
+            }
+
+            coEvery { marketIndexDao.getByMarketAndDateRangeSuspend(any(), any(), any()) } returns marketIndices
+            coEvery { dailyEtfStatisticsDao.getByDateRangeSuspend(any(), any()) } returns emptyList()
+            every { fearGreedDao.getByMarketAndDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketOscillatorDao.getDataByDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketDepositDao.getAllDeposits() } returns flowOf(emptyList())
+
+            // When
+            val result = analyzer.analyze("KOSPI", "2025-01-19", 30)
+
+            // Then
+            assertTrue(result.isFailure, "19개 데이터는 MIN_DATA_POINTS(20) 미만이므로 실패해야 한다")
         }
     }
 
@@ -341,35 +471,80 @@ class CorrelationAnalyzerTest {
     @DisplayName("날짜 계산 테스트")
     inner class DateCalculationTests {
 
-        @ParameterizedTest
-        @CsvSource(
-            "2025-01-31, 30, 2025-01-01",
-            "2025-03-15, 14, 2025-03-01",
-            "2025-01-15, 365, 2024-01-16"
-        )
-        @DisplayName("시작 날짜 계산")
-        fun calculateStartDate(endDate: String, periodDays: Int, expectedStart: String) {
-            // The actual calculateStartDate is private, but we can verify
-            // the analysis uses correct date ranges by checking the DAO calls
-            // This test documents the expected behavior
-            val parts = endDate.split("-")
-            val year = parts[0].toInt()
-            val month = parts[1].toInt()
-            val day = parts[2].toInt()
+        /**
+         * analyze() 가 내부적으로 calculateStartDate(endDate, periodDays) 를 호출해
+         * DAO 에 올바른 startDate 를 전달하는지 DAO 인자를 캡처해서 검증한다.
+         */
+        @Test
+        @DisplayName("30일 기간 → DAO 호출 시 startDate 가 endDate 에서 30일 이전")
+        fun `analyze_30DayPeriod_passesCorrectStartDateToDao`() = runTest {
+            // Given
+            val endDate = "2025-01-31"
+            val periodDays = 30
 
-            val calendar = java.util.Calendar.getInstance().apply {
-                set(year, month - 1, day)
-                add(java.util.Calendar.DAY_OF_YEAR, -periodDays)
-            }
+            val startDateSlot = slot<String>()
+            coEvery {
+                marketIndexDao.getByMarketAndDateRangeSuspend(any(), capture(startDateSlot), any())
+            } returns emptyList()
+            coEvery { dailyEtfStatisticsDao.getByDateRangeSuspend(any(), any()) } returns emptyList()
+            every { fearGreedDao.getByMarketAndDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketOscillatorDao.getDataByDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketDepositDao.getAllDeposits() } returns flowOf(emptyList())
 
-            val calculatedStart = String.format(
-                "%04d-%02d-%02d",
-                calendar.get(java.util.Calendar.YEAR),
-                calendar.get(java.util.Calendar.MONTH) + 1,
-                calendar.get(java.util.Calendar.DAY_OF_MONTH)
-            )
+            // When
+            analyzer.analyze("KOSPI", endDate, periodDays)
 
-            assertEquals(expectedStart, calculatedStart)
+            // Then: startDate = "2025-01-01" (31 - 30일)
+            assertEquals("2025-01-01", startDateSlot.captured,
+                "30일 기간에서 2025-01-31의 startDate는 2025-01-01이어야 한다")
+        }
+
+        @Test
+        @DisplayName("14일 기간 → DAO 호출 시 startDate 가 endDate 에서 14일 이전")
+        fun `analyze_14DayPeriod_passesCorrectStartDateToDao`() = runTest {
+            // Given
+            val endDate = "2025-03-15"
+            val periodDays = 14
+
+            val startDateSlot = slot<String>()
+            coEvery {
+                marketIndexDao.getByMarketAndDateRangeSuspend(any(), capture(startDateSlot), any())
+            } returns emptyList()
+            coEvery { dailyEtfStatisticsDao.getByDateRangeSuspend(any(), any()) } returns emptyList()
+            every { fearGreedDao.getByMarketAndDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketOscillatorDao.getDataByDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketDepositDao.getAllDeposits() } returns flowOf(emptyList())
+
+            // When
+            analyzer.analyze("KOSPI", endDate, periodDays)
+
+            // Then: startDate = "2025-03-01" (15 - 14일)
+            assertEquals("2025-03-01", startDateSlot.captured,
+                "14일 기간에서 2025-03-15의 startDate는 2025-03-01이어야 한다")
+        }
+
+        @Test
+        @DisplayName("365일 기간 → DAO 호출 시 endDate 가 그대로 전달된다")
+        fun `analyze_365DayPeriod_passesCorrectEndDateToDao`() = runTest {
+            // Given
+            val endDate = "2025-01-15"
+            val periodDays = 365
+
+            val endDateSlot = slot<String>()
+            coEvery {
+                marketIndexDao.getByMarketAndDateRangeSuspend(any(), any(), capture(endDateSlot))
+            } returns emptyList()
+            coEvery { dailyEtfStatisticsDao.getByDateRangeSuspend(any(), any()) } returns emptyList()
+            every { fearGreedDao.getByMarketAndDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketOscillatorDao.getDataByDateRange(any(), any(), any()) } returns flowOf(emptyList())
+            every { marketDepositDao.getAllDeposits() } returns flowOf(emptyList())
+
+            // When
+            analyzer.analyze("KOSPI", endDate, periodDays)
+
+            // Then: endDate 는 변환 없이 그대로 DAO 에 전달되어야 한다
+            assertEquals(endDate, endDateSlot.captured,
+                "endDate '${endDate}'는 그대로 DAO에 전달되어야 한다")
         }
     }
 
@@ -394,16 +569,22 @@ class CorrelationAnalyzerTest {
         )
     }
 
-    private fun createEtfStatistics(date: String): DailyEtfStatistics {
+    private fun createEtfStatistics(
+        date: String,
+        newStockCount: Int = 5,
+        removedStockCount: Int = 3,
+        increasedStockCount: Int = 10,
+        decreasedStockCount: Int = 8
+    ): DailyEtfStatistics {
         return DailyEtfStatistics(
             date = date,
-            newStockCount = 5,
+            newStockCount = newStockCount,
             newStockAmount = 1000000L,
-            removedStockCount = 3,
+            removedStockCount = removedStockCount,
             removedStockAmount = 500000L,
-            increasedStockCount = 10,
+            increasedStockCount = increasedStockCount,
             increasedStockAmount = 2000000L,
-            decreasedStockCount = 8,
+            decreasedStockCount = decreasedStockCount,
             decreasedStockAmount = 1500000L,
             cashDepositAmount = 5000000L,
             cashDepositChange = 100000L,

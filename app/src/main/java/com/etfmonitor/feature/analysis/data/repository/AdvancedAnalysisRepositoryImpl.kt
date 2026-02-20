@@ -37,6 +37,7 @@ import com.etfmonitor.feature.analysis.domain.model.EtfCorrelation
 
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.feature.analysis.data.mapper.toDomain
+import kotlinx.coroutines.CancellationException
 import com.etfmonitor.feature.analysis.domain.repository.AdvancedAnalysisRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -159,6 +160,8 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
                 outflowBySize = outflowBySize.toMap(),
                 flowVsMarketChange = null
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error calculating market cap weighted flow", e)
             createEmptyMarketCapFlow(currentDate, market)
@@ -240,6 +243,8 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
                 marketSentiment = sentiment,
                 sentimentStrength = calculateSentimentStrength(foreignBullish.size, institutionBullish.size, alignedBullish.size, alignedBearish.size, total)
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error analyzing supply demand divergence", e)
             createEmptyDivergenceAnalysis(date, market)
@@ -288,6 +293,8 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
 
                 liquidityAnalysisDao.insert(analysis)
                 analysis.toDomain()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error calculating liquidity analysis", e)
                 null
@@ -361,6 +368,8 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
 
             sectorAnalysisDao.insertAll(results)
             results.sortedByDescending { it.fearGreedValue }.map { it.toDomain() }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error calculating sector analysis", e)
             emptyList()
@@ -414,6 +423,8 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
             }
 
             signals.sortedByDescending { it.confidence }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error detecting sector rotation", e)
             emptyList()
@@ -476,6 +487,8 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
 
             etfCorrelationDao.insert(correlation)
             correlation.toDomain()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error calculating ETF correlation", e)
             null
@@ -500,6 +513,8 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
                 }
 
                 results
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error calculating all ETF correlations", e)
                 emptyList()

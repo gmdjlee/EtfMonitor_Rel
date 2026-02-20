@@ -8,6 +8,7 @@ import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.feature.market.domain.repository.BloodIndicatorRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -44,6 +45,8 @@ class BloodIndicatorUpdateWorker @AssistedInject constructor(
                 logger.e("Blood Indicator update failed: $errorMsg")
                 if (runAttemptCount < 3) Result.retry() else Result.failure()
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error in Blood Indicator update work", e)
             if (runAttemptCount < 3) Result.retry() else Result.failure()

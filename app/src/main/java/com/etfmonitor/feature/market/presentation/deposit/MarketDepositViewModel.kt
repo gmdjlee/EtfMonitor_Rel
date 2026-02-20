@@ -10,6 +10,7 @@ import com.etfmonitor.core.ui.component.DateRangeOption
 import com.etfmonitor.feature.market.domain.model.MarketDepositData
 import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -138,6 +139,8 @@ class MarketDepositViewModel @Inject constructor(
 
                     _state.value = MarketDepositState.Success("데이터 로드 완료")
                 }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             _state.value = MarketDepositState.Error("데이터 로드 실패: ${e.message}")
         }

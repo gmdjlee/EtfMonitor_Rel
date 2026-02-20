@@ -9,6 +9,7 @@ import com.etfmonitor.core.database.StockDao
 import com.etfmonitor.core.domain.repository.StockDataRepository
 import com.krxkt.KrxStock
 import com.krxkt.model.Market
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -159,6 +160,8 @@ class KrxStockDataRepositoryImpl @Inject constructor(
                 logger.d("OHLCV data complete: $name, ${dates.size} records, interval=$interval")
             }
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("getStockOhlcv error: ${e.message}", e)
             null
@@ -327,6 +330,8 @@ class KrxStockDataRepositoryImpl @Inject constructor(
                 institution5d = institution5d
             )
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("getStockAnalysisData error: ${e.message}", e)
             null
@@ -356,6 +361,8 @@ class KrxStockDataRepositoryImpl @Inject constructor(
                 logger.d("Retrieved ${it.size} stocks")
             }
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("getAllStocksList error: ${e.message}", e)
             emptyList()
@@ -379,6 +386,8 @@ class KrxStockDataRepositoryImpl @Inject constructor(
                 null
             }
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("getStockName error: ${e.message}", e)
             null
@@ -432,6 +441,8 @@ class KrxStockDataRepositoryImpl @Inject constructor(
                 logger.d("Trend signal data complete: ${it.name}, ${it.dates.size} records")
             }
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("getTrendSignalData error: ${e.message}", e)
             null
@@ -499,6 +510,8 @@ class KrxStockDataRepositoryImpl @Inject constructor(
                 logger.d("Elder Impulse data complete: ${it.name}, ${it.dates.size} records")
             }
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("getElderImpulseData error: ${e.message}", e)
             null
@@ -568,6 +581,8 @@ class KrxStockDataRepositoryImpl @Inject constructor(
                 logger.d("DeMark TD data complete: ${it.name}, ${it.dates.size} records, $intervalName")
             }
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("getDemarkTDData error: ${e.message}", e)
             null

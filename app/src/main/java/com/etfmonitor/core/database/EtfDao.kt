@@ -360,22 +360,25 @@ interface EtfDao {
 
     /**
      * 특정 기간의 모든 holding 데이터 조회
+     * LIMIT 500: OOM 방지
      */
     @Query("""
         SELECT * FROM holdings
         WHERE date >= :startDate AND date <= :endDate
         ORDER BY date ASC
+        LIMIT 500
     """)
     suspend fun getHoldingsByDateRange(startDate: String, endDate: String): List<Holding>
 
     /**
      * 특정 날짜의 모든 holdings 조회 (통계 계산용)
-     * 이미 getHoldingsByDateRange가 있으므로 이를 활용
+     * LIMIT 500: OOM 방지
      */
     @Query("""
         SELECT * FROM holdings
         WHERE date = :date
         ORDER BY etfTicker, stockTicker
+        LIMIT 500
     """)
     suspend fun getHoldingsByDate(date: String): List<Holding>
 

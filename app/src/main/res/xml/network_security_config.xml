@@ -65,4 +65,38 @@
         </trust-anchors>
         <!-- Note: KRX and Naver use various CAs, pinning not recommended -->
     </domain-config>
+
+    <!--
+        KIS Open API (Korea Investment & Securities)
+        Used for OAuth2 token and financial data REST APIs
+    -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">openapi.koreainvestment.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!--
+        FRED (Federal Reserve Economic Data)
+        Used for High Yield Spread data in BloodIndicator
+    -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.stlouisfed.org</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!--
+        Yahoo Finance
+        Used for IRX and SPY market data in BloodIndicator
+    -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">query1.finance.yahoo.com</domain>
+        <domain includeSubdomains="true">query2.finance.yahoo.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
 </network-security-config>

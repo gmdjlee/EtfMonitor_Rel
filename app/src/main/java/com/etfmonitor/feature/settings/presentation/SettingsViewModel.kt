@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.core.network.ai.AIProvider
 import com.etfmonitor.core.network.ai.ApiKeyProvider
+import com.etfmonitor.core.network.blood.FredApiKeyProvider
 import com.etfmonitor.core.network.kis.KisApiKeyProvider
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.entities.Setting
@@ -25,10 +26,13 @@ import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.worker.WorkManagerHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
@@ -132,6 +136,7 @@ class SettingsViewModel @Inject constructor(
     private val aiAnalysisRepository: AIAnalysisRepository,
     private val apiKeyProvider: ApiKeyProvider,
     private val kisApiKeyProvider: KisApiKeyProvider,
+    private val fredApiKeyProvider: FredApiKeyProvider,
     private val etfDao: EtfDao,
     private val themeManager: ThemeManager,
     @ApplicationContext private val context: Context
@@ -152,7 +157,6 @@ class SettingsViewModel @Inject constructor(
             const val BLOOD_INDICATOR_PERIOD = "blood_indicator_period_days"
             const val DARK_THEME = "dark_theme"
             const val QUICK_CHART_ANALYSIS = "quick_chart_analysis_enabled"
-            const val FRED_API_KEY = "fred_api_key"
 
             fun updateHour(type: String) = "${type}_update_hour"
             fun updateMinute(type: String) = "${type}_update_minute"
@@ -280,6 +284,8 @@ class SettingsViewModel @Inject constructor(
             try {
                 action()
                 _message.value = successMessage
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
             }
@@ -498,6 +504,8 @@ class SettingsViewModel @Inject constructor(
                     dataCount = bloodCount,
                     lastUpdateTime = bloodLastUpdate
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error loading data info", e)
             }
@@ -515,23 +523,25 @@ class SettingsViewModel @Inject constructor(
                 if (reinitialize) {
                     _etfUpdateSettings.value = _etfUpdateSettings.value.copy(isUpdating = true)
                     _message.value = "기간 외 데이터 정리 중..."
-                    val deletedCount = etfRepository.trimDataToPeriod(days)
-                    if (deletedCount > 0) {
-                        _message.value = "기간 외 데이터 ${deletedCount}일치 삭제됨, 수집 중..."
-                    } else {
-                        _message.value = "ETF 데이터 수집 중..."
-                    }
-                    etfRepository.initializeData(days).collect { progress ->
-                        when (progress) {
-                            is DataProgress.Loading -> {
-                                _message.value = progress.message
-                            }
-                            is DataProgress.Success -> {
-                                loadDataInfo()
-                                _message.value = "기본 수집 기간이 ${days}일로 설정되었습니다 (재수집 완료)"
-                            }
-                            is DataProgress.Error -> {
-                                _message.value = "재수집 실패: ${progress.message}"
+                    withContext(NonCancellable) {
+                        val deletedCount = etfRepository.trimDataToPeriod(days)
+                        if (deletedCount > 0) {
+                            _message.value = "기간 외 데이터 ${deletedCount}일치 삭제됨, 수집 중..."
+                        } else {
+                            _message.value = "ETF 데이터 수집 중..."
+                        }
+                        etfRepository.initializeData(days).collect { progress ->
+                            when (progress) {
+                                is DataProgress.Loading -> {
+                                    _message.value = progress.message
+                                }
+                                is DataProgress.Success -> {
+                                    loadDataInfo()
+                                    _message.value = "기본 수집 기간이 ${days}일로 설정되었습니다 (재수집 완료)"
+                                }
+                                is DataProgress.Error -> {
+                                    _message.value = "재수집 실패: ${progress.message}"
+                                }
                             }
                         }
                     }
@@ -539,6 +549,8 @@ class SettingsViewModel @Inject constructor(
                 } else {
                     _message.value = "기본 수집 기간이 ${days}일로 설정되었습니다 (다음 초기화 시 적용)"
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
                 _etfUpdateSettings.value = _etfUpdateSettings.value.copy(isUpdating = false)
@@ -588,8 +600,10 @@ class SettingsViewModel @Inject constructor(
                 if (reinitialize) {
                     _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(isUpdating = true)
                     _message.value = "Fear & Greed Index 데이터 재수집 중..."
-                    val result = withTimeoutOrNull(180_000L) {
-                        fearGreedRepository.initializeFearGreed(days)
+                    val result = withContext(NonCancellable) {
+                        withTimeoutOrNull(180_000L) {
+                            fearGreedRepository.initializeFearGreed(days)
+                        }
                     }
                     when {
                         result == null -> _message.value = "재수집 시간 초과 (3분)"
@@ -603,6 +617,8 @@ class SettingsViewModel @Inject constructor(
                 } else {
                     _message.value = formatPeriodMessage("Fear & Greed Index", days) + " (다음 초기화 시 적용)"
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
                 _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(isUpdating = false)
@@ -619,10 +635,12 @@ class SettingsViewModel @Inject constructor(
                 if (reinitialize) {
                     _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(isUpdating = true)
                     _message.value = "과매수/과매도 데이터 재수집 중..."
-                    val results = withTimeoutOrNull(300_000L) {
-                        val kospiResult = marketOscillatorRepository.initializeMarketData("KOSPI", days)
-                        val kosdaqResult = marketOscillatorRepository.initializeMarketData("KOSDAQ", days)
-                        Pair(kospiResult, kosdaqResult)
+                    val results = withContext(NonCancellable) {
+                        withTimeoutOrNull(300_000L) {
+                            val kospiResult = marketOscillatorRepository.initializeMarketData("KOSPI", days)
+                            val kosdaqResult = marketOscillatorRepository.initializeMarketData("KOSDAQ", days)
+                            Pair(kospiResult, kosdaqResult)
+                        }
                     }
                     when {
                         results == null -> _message.value = "재수집 시간 초과 (5분)"
@@ -643,6 +661,8 @@ class SettingsViewModel @Inject constructor(
                 } else {
                     _message.value = formatPeriodMessage("과매수/과매도", days) + " (다음 초기화 시 적용)"
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
                 _marketOscillatorUpdateSettings.value = _marketOscillatorUpdateSettings.value.copy(isUpdating = false)
@@ -659,8 +679,10 @@ class SettingsViewModel @Inject constructor(
                 if (reinitialize) {
                     _marketIndexUpdateSettings.value = _marketIndexUpdateSettings.value.copy(isUpdating = true)
                     _message.value = "시장 지수 데이터 재수집 중..."
-                    val result = withTimeoutOrNull(120_000L) {
-                        marketIndexRepository.initializeMarketIndex(days)
+                    val result = withContext(NonCancellable) {
+                        withTimeoutOrNull(120_000L) {
+                            marketIndexRepository.initializeMarketIndex(days)
+                        }
                     }
                     when {
                         result == null -> _message.value = "재수집 시간 초과 (2분)"
@@ -675,6 +697,8 @@ class SettingsViewModel @Inject constructor(
                 } else {
                     _message.value = formatPeriodMessage("시장 지수", days) + " (다음 초기화 시 적용)"
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
                 _marketIndexUpdateSettings.value = _marketIndexUpdateSettings.value.copy(isUpdating = false)
@@ -691,8 +715,10 @@ class SettingsViewModel @Inject constructor(
                 if (reinitialize) {
                     _bloodIndicatorUpdateSettings.value = _bloodIndicatorUpdateSettings.value.copy(isUpdating = true)
                     _message.value = "Blood Indicator 데이터 재수집 중..."
-                    val result = withTimeoutOrNull(120_000L) {
-                        bloodIndicatorRepository.initializeBloodIndicator(days)
+                    val result = withContext(NonCancellable) {
+                        withTimeoutOrNull(120_000L) {
+                            bloodIndicatorRepository.initializeBloodIndicator(days)
+                        }
                     }
                     when {
                         result == null -> _message.value = "재수집 시간 초과 (2분)"
@@ -707,6 +733,8 @@ class SettingsViewModel @Inject constructor(
                 } else {
                     _message.value = formatPeriodMessage("Blood Indicator", days) + " (다음 초기화 시 적용)"
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
                 _bloodIndicatorUpdateSettings.value = _bloodIndicatorUpdateSettings.value.copy(isUpdating = false)
@@ -787,7 +815,9 @@ class SettingsViewModel @Inject constructor(
             _stockUpdateSettings.value = _stockUpdateSettings.value.copy(isUpdating = true)
             _message.value = "종목 데이터 업데이트 중..."
             try {
-                val result = withTimeoutOrNull(90_000L) { stockRepository.updateStocks() }
+                val result = withContext(NonCancellable) {
+                    withTimeoutOrNull(90_000L) { stockRepository.updateStocks() }
+                }
                 when {
                     result == null -> _message.value = "업데이트 시간 초과 (90초)"
                     result.isSuccess -> {
@@ -796,6 +826,8 @@ class SettingsViewModel @Inject constructor(
                     }
                     else -> _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "오류 발생: ${e.message}"
             } finally {
@@ -809,7 +841,9 @@ class SettingsViewModel @Inject constructor(
             _marketDepositUpdateSettings.value = _marketDepositUpdateSettings.value.copy(isUpdating = true)
             _message.value = "증시 자금 데이터 업데이트 중..."
             try {
-                val result = withTimeoutOrNull(90_000L) { marketDepositRepository.updateDeposits(numPages = 10) }
+                val result = withContext(NonCancellable) {
+                    withTimeoutOrNull(90_000L) { marketDepositRepository.updateDeposits(numPages = 10) }
+                }
                 when {
                     result == null -> _message.value = "업데이트 시간 초과 (90초)"
                     result.isSuccess -> {
@@ -818,6 +852,8 @@ class SettingsViewModel @Inject constructor(
                     }
                     else -> _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "오류 발생: ${e.message}"
             } finally {
@@ -831,7 +867,9 @@ class SettingsViewModel @Inject constructor(
             _fearGreedUpdateSettings.value = _fearGreedUpdateSettings.value.copy(isUpdating = true)
             _message.value = "Fear & Greed Index 업데이트 중..."
             try {
-                val result = withTimeoutOrNull(90_000L) { fearGreedRepository.updateFearGreed() }
+                val result = withContext(NonCancellable) {
+                    withTimeoutOrNull(90_000L) { fearGreedRepository.updateFearGreed() }
+                }
                 when {
                     result == null -> _message.value = "업데이트 시간 초과 (90초)"
                     result.isSuccess -> {
@@ -840,6 +878,8 @@ class SettingsViewModel @Inject constructor(
                     }
                     else -> _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "오류 발생: ${e.message}"
             } finally {
@@ -854,10 +894,12 @@ class SettingsViewModel @Inject constructor(
             _message.value = "과매수/과매도 데이터 업데이트 중..."
             try {
                 // 시장 오실레이터는 전체 종목 데이터 수집으로 오래 걸림 (5분 타임아웃)
-                val results = withTimeoutOrNull(300_000L) {
-                    val kospiResult = marketOscillatorRepository.updateMarketData("KOSPI")
-                    val kosdaqResult = marketOscillatorRepository.updateMarketData("KOSDAQ")
-                    Pair(kospiResult, kosdaqResult)
+                val results = withContext(NonCancellable) {
+                    withTimeoutOrNull(300_000L) {
+                        val kospiResult = marketOscillatorRepository.updateMarketData("KOSPI")
+                        val kosdaqResult = marketOscillatorRepository.updateMarketData("KOSDAQ")
+                        Pair(kospiResult, kosdaqResult)
+                    }
                 }
                 when {
                     results == null -> _message.value = "업데이트 시간 초과 (5분)"
@@ -873,6 +915,8 @@ class SettingsViewModel @Inject constructor(
                         _message.value = "업데이트 실패: ${errors.joinToString(", ")}"
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "오류 발생: ${e.message}"
             } finally {
@@ -886,7 +930,9 @@ class SettingsViewModel @Inject constructor(
             _marketIndexUpdateSettings.value = _marketIndexUpdateSettings.value.copy(isUpdating = true)
             _message.value = "시장 지수 데이터 업데이트 중..."
             try {
-                val result = withTimeoutOrNull(120_000L) { marketIndexRepository.updateMarketIndex(30) }
+                val result = withContext(NonCancellable) {
+                    withTimeoutOrNull(120_000L) { marketIndexRepository.updateMarketIndex(30) }
+                }
                 when {
                     result == null -> _message.value = "업데이트 시간 초과 (2분)"
                     result.isSuccess -> {
@@ -895,6 +941,8 @@ class SettingsViewModel @Inject constructor(
                     }
                     else -> _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "오류 발생: ${e.message}"
             } finally {
@@ -912,7 +960,9 @@ class SettingsViewModel @Inject constructor(
             _bloodIndicatorUpdateSettings.value = _bloodIndicatorUpdateSettings.value.copy(isUpdating = true)
             _message.value = "Blood Indicator 데이터 업데이트 중..."
             try {
-                val result = withTimeoutOrNull(120_000L) { bloodIndicatorRepository.updateBloodIndicator() }
+                val result = withContext(NonCancellable) {
+                    withTimeoutOrNull(120_000L) { bloodIndicatorRepository.updateBloodIndicator() }
+                }
                 when {
                     result == null -> _message.value = "업데이트 시간 초과 (2분)"
                     result.isSuccess -> {
@@ -921,6 +971,8 @@ class SettingsViewModel @Inject constructor(
                     }
                     else -> _message.value = "업데이트 실패: ${result.exceptionOrNull()?.message}"
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "오류 발생: ${e.message}"
             } finally {
@@ -945,6 +997,8 @@ class SettingsViewModel @Inject constructor(
                 // WorkManager를 통해 백그라운드에서 실행
                 WorkManagerHelper.runAdvancedAnalysisNow(context)
                 _message.value = "고급 분석이 백그라운드에서 시작되었습니다"
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "오류 발생: ${e.message}"
             } finally {
@@ -964,20 +1018,24 @@ class SettingsViewModel @Inject constructor(
             _message.value = "ETF 데이터 업데이트 중..."
             try {
                 // Flow 기반 업데이트로 진행 상황 추적
-                etfRepository.updateData().collect { progress ->
-                    when (progress) {
-                        is DataProgress.Loading -> {
-                            _message.value = progress.message
-                        }
-                        is DataProgress.Success -> {
-                            loadDataInfo()
-                            _message.value = progress.message
-                        }
-                        is DataProgress.Error -> {
-                            _message.value = progress.message
+                withContext(NonCancellable) {
+                    etfRepository.updateData().collect { progress ->
+                        when (progress) {
+                            is DataProgress.Loading -> {
+                                _message.value = progress.message
+                            }
+                            is DataProgress.Success -> {
+                                loadDataInfo()
+                                _message.value = progress.message
+                            }
+                            is DataProgress.Error -> {
+                                _message.value = progress.message
+                            }
                         }
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "오류 발생: ${e.message}"
             } finally {
@@ -1067,6 +1125,8 @@ class SettingsViewModel @Inject constructor(
 
                 updateChartColorState(chartType, property, color)
                 _message.value = message
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "설정 실패: ${e.message}"
             }
@@ -1142,6 +1202,8 @@ class SettingsViewModel @Inject constructor(
                 _chartColorSettings.value = defaultSettings
                 themeManager.setChartColorSettings(defaultSettings)
                 _message.value = "차트 색상이 기본값으로 초기화되었습니다"
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "초기화 실패: ${e.message}"
             }
@@ -1155,9 +1217,8 @@ class SettingsViewModel @Inject constructor(
             _selectedProvider.value = apiKeyProvider.getSelectedProvider()
             _isClaudeApiKeyConfigured.value = apiKeyProvider.hasApiKey(AIProvider.CLAUDE)
             _isGeminiApiKeyConfigured.value = apiKeyProvider.hasApiKey(AIProvider.GEMINI)
-            // Check FRED API key
-            val fredKey = etfDao.getSetting(Keys.FRED_API_KEY)
-            _isFredApiKeyConfigured.value = !fredKey.isNullOrBlank()
+            // Check FRED API key (EncryptedSharedPreferences via FredApiKeyProvider)
+            _isFredApiKeyConfigured.value = fredApiKeyProvider.isConfigured()
             // Check KIS API key
             _isKisApiKeyConfigured.value = kisApiKeyProvider.isConfigured()
         }
@@ -1209,13 +1270,13 @@ class SettingsViewModel @Inject constructor(
     fun setFredApiKey(apiKey: String) {
         if (apiKey.isBlank()) { _message.value = "FRED API 키를 입력해주세요"; return }
         saveSetting("FRED API 키가 저장되었습니다") {
-            etfDao.saveSetting(Setting(Keys.FRED_API_KEY, apiKey))
+            fredApiKeyProvider.saveApiKey(apiKey)
             _isFredApiKeyConfigured.value = true
         }
     }
 
     fun clearFredApiKey() = saveSetting("FRED API 키가 삭제되었습니다") {
-        etfDao.saveSetting(Setting(Keys.FRED_API_KEY, ""))
+        fredApiKeyProvider.clearApiKey()
         _isFredApiKeyConfigured.value = false
     }
 
@@ -1245,8 +1306,8 @@ class SettingsViewModel @Inject constructor(
     /**
      * Get FRED API key (for use by BloodIndicatorRepository)
      */
-    suspend fun getFredApiKey(): String? {
-        return etfDao.getSetting(Keys.FRED_API_KEY)?.takeIf { it.isNotBlank() }
+    fun getFredApiKey(): String? {
+        return fredApiKeyProvider.getApiKey()
     }
 
     fun testApiConnection() {
@@ -1260,6 +1321,8 @@ class SettingsViewModel @Inject constructor(
                 } else {
                     ApiKeyTestState.Error(result.exceptionOrNull()?.message ?: "연결 실패")
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _apiKeyTestState.value = ApiKeyTestState.Error(e.message ?: "알 수 없는 오류")
             }
@@ -1279,6 +1342,8 @@ class SettingsViewModel @Inject constructor(
                 } else {
                     _message.value = "Claude 모델 목록 조회 실패: ${result.exceptionOrNull()?.message}"
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "Claude 모델 목록 조회 실패: ${e.message}"
             } finally {
@@ -1298,6 +1363,8 @@ class SettingsViewModel @Inject constructor(
                 } else {
                     _message.value = "Gemini 모델 목록 조회 실패: ${result.exceptionOrNull()?.message}"
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _message.value = "Gemini 모델 목록 조회 실패: ${e.message}"
             } finally {

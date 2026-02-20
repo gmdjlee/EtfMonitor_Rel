@@ -8,6 +8,7 @@ import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import com.etfmonitor.core.common.util.AppLogger
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -47,6 +48,8 @@ class FearGreedUpdateWorker @AssistedInject constructor(
                     ?: logger.e("Failed to update Fear & Greed Index: unknown error")
                 if (runAttemptCount < 3) Result.retry() else Result.failure()
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error in FearGreedUpdateWorker", e)
             Result.failure()

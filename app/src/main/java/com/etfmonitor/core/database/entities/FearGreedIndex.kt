@@ -1,9 +1,10 @@
 package com.etfmonitor.core.database.entities
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "fear_greed_index")
+@Entity(tableName = "fear_greed_index", indices = [Index(value = ["date"])])
 data class FearGreedIndex(
     @PrimaryKey
     val id: String, // "KOSPI-2024-01-01" 또는 "KOSDAQ-2024-01-01" 형식

@@ -16,6 +16,7 @@ import com.etfmonitor.feature.analysis.domain.model.ChatMessage
 import com.etfmonitor.feature.analysis.domain.model.ChatSession
 import com.etfmonitor.feature.analysis.domain.model.CorrelationAnalysis
 import com.etfmonitor.feature.analysis.domain.repository.ChatRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -187,6 +188,8 @@ class ChatRepositoryImpl @Inject constructor(
 
                 logger.d("AI response received, ${aiResponse.length} chars")
                 Result.success(assistantMsg.toDomain())
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Failed to send message", e)
                 Result.failure(e)

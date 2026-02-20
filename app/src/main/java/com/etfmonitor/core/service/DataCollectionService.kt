@@ -21,6 +21,7 @@ import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
 import com.etfmonitor.feature.market.domain.repository.MarketIndexRepository
 import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -286,6 +287,8 @@ class DataCollectionService : Service() {
                     CollectionState.error(errorMsg)
                     updateNotification(errorMsg, 0, isError = true)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error in Market Index initialization", e)
                 val errorMsg = "시장 지수 초기화 실패: ${e.message}"
@@ -361,6 +364,8 @@ class DataCollectionService : Service() {
                         val errorMsg = "시장 지수 초기화 실패: ${result.exceptionOrNull()?.message}"
                         logger.e(errorMsg)
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.e("Error in Market Index initialization", e)
                 }
@@ -392,6 +397,8 @@ class DataCollectionService : Service() {
                     } else {
                         logger.e("Market Deposit initialization failed: ${result.exceptionOrNull()?.message}")
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.e("Error in Market Deposit initialization", e)
                 }
@@ -421,6 +428,8 @@ class DataCollectionService : Service() {
                     } else {
                         logger.e("Fear & Greed initialization failed: ${result.exceptionOrNull()?.message}")
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.e("Error in Fear & Greed initialization", e)
                 }
@@ -457,6 +466,8 @@ class DataCollectionService : Service() {
                     } else {
                         logger.e("Market Oscillator initialization failed")
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.e("Error in Market Oscillator initialization", e)
                 }
@@ -487,6 +498,8 @@ class DataCollectionService : Service() {
                     } else {
                         logger.e("Blood Indicator initialization failed: ${result.exceptionOrNull()?.message}")
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.e("Error in Blood Indicator initialization", e)
                 }
@@ -567,6 +580,8 @@ class DataCollectionService : Service() {
                     updateNotification(errorMsg, 0, isError = true)
                     stopSelf()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error in Market Index update", e)
                 val errorMsg = "시장 지수 업데이트 실패: ${e.message}"
@@ -597,6 +612,8 @@ class DataCollectionService : Service() {
                     updateNotification(errorMsg, 0, isError = true)
                     stopSelf()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error in Fear & Greed update", e)
                 val errorMsg = "Fear & Greed 업데이트 실패: ${e.message}"
@@ -631,6 +648,8 @@ class DataCollectionService : Service() {
                     releaseWakeLock()
                     stopSelf()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error in Market Oscillator update", e)
                 val errorMsg = "과매수/과매도 업데이트 실패: ${e.message}"
@@ -662,6 +681,8 @@ class DataCollectionService : Service() {
                     CollectionState.error(errorMsg)
                     updateNotification(errorMsg, 0, isError = true)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error in Blood Indicator update", e)
                 val errorMsg = "Blood Indicator 업데이트 실패: ${e.message}"

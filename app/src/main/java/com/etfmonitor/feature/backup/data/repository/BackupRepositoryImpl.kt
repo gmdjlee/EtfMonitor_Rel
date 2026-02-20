@@ -11,6 +11,7 @@ import com.etfmonitor.feature.backup.domain.model.*
 import com.etfmonitor.feature.backup.domain.repository.BackupRepository
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -22,6 +23,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
+import java.time.LocalDate
 import java.util.*
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
@@ -54,6 +56,61 @@ class BackupRepositoryImpl @Inject constructor(
 
         // 파일 크기 임계값 (1MB 이상이면 압축)
         private const val COMPRESSION_THRESHOLD = 1_000_000L
+
+        // 백업에서 제외할 민감한 설정 키 목록
+        private val SENSITIVE_KEYS = setOf("fred_api_key")
+    }
+
+    // ==================== Date Chunking Helpers ====================
+
+    /**
+     * 날짜 범위를 월 단위 청크로 분할한다.
+     * 100K-500K 행을 가진 large 테이블(holdings, price_cache)에서 OOM 방지용.
+     */
+    private fun generateMonthlyChunks(startDate: String, endDate: String): List<Pair<String, String>> {
+        val chunks = mutableListOf<Pair<String, String>>()
+        var current = LocalDate.parse(startDate)
+        val end = LocalDate.parse(endDate)
+        while (current <= end) {
+            val chunkEnd = minOf(current.plusMonths(1).minusDays(1), end)
+            chunks.add(current.toString() to chunkEnd.toString())
+            current = chunkEnd.plusDays(1)
+        }
+        return chunks
+    }
+
+    /**
+     * holdings 테이블 전체를 월별 청크로 수집한다.
+     * dateRange가 null이면 DB의 min/max 날짜를 조회한 뒤 청크 분할.
+     * dateRange가 있으면 그 범위 내에서 청크 분할.
+     */
+    private suspend fun collectHoldingsChunked(dateRange: DateRange?): List<HoldingDto> {
+        val startDate = dateRange?.startDate ?: backupDao.getHoldingMinDate() ?: return emptyList()
+        val endDate = dateRange?.endDate ?: backupDao.getHoldingMaxDate() ?: return emptyList()
+        val chunks = generateMonthlyChunks(startDate, endDate)
+        val result = mutableListOf<HoldingDto>()
+        for ((chunkStart, chunkEnd) in chunks) {
+            val rows = backupDao.getHoldingsByDateRange(chunkStart, chunkEnd)
+            rows.mapTo(result) { HoldingDto.fromEntity(it) }
+        }
+        return result
+    }
+
+    /**
+     * price_cache 테이블 전체를 월별 청크로 수집한다.
+     * dateRange가 null이면 DB의 min/max 날짜를 조회한 뒤 청크 분할.
+     * dateRange가 있으면 그 범위 내에서 청크 분할.
+     */
+    private suspend fun collectPriceCachesChunked(dateRange: DateRange?): List<PriceCacheDto> {
+        val startDate = dateRange?.startDate ?: backupDao.getPriceCacheMinDate() ?: return emptyList()
+        val endDate = dateRange?.endDate ?: backupDao.getPriceCacheMaxDate() ?: return emptyList()
+        val chunks = generateMonthlyChunks(startDate, endDate)
+        val result = mutableListOf<PriceCacheDto>()
+        for ((chunkStart, chunkEnd) in chunks) {
+            val rows = backupDao.getPriceCachesByDateRange(chunkStart, chunkEnd)
+            rows.mapTo(result) { PriceCacheDto.fromEntity(it) }
+        }
+        return result
     }
 
     // ==================== Backup Operations ====================
@@ -84,18 +141,17 @@ class BackupRepositoryImpl @Inject constructor(
 
                 settings = if (EntityType.SETTING in selectedEntities) {
                     emit(BackupProgress.Exporting("설정", ++processedEntities, totalEntities, processedEntities, totalEntities))
-                    backupDao.getAllSettings().also { entityCounts["settings"] = it.size }.map { SettingDto.fromEntity(it) }
+                    val allSettings = backupDao.getAllSettings().filter { it.key !in SENSITIVE_KEYS }
+                    entityCounts["settings"] = allSettings.size
+                    allSettings.map { SettingDto.fromEntity(it) }
                 } else null,
 
                 holdings = if (EntityType.HOLDING in selectedEntities) {
                     emit(BackupProgress.Exporting("보유 현황", ++processedEntities, totalEntities, processedEntities, totalEntities))
-                    val holdings = if (options.dateRange != null) {
-                        backupDao.getHoldingsByDateRange(options.dateRange.startDate, options.dateRange.endDate)
-                    } else {
-                        backupDao.getAllHoldings()
-                    }
+                    // 월별 청크 분할로 OOM 방지 (holdings 최대 500K 행)
+                    val holdings = collectHoldingsChunked(options.dateRange)
                     entityCounts["holdings"] = holdings.size
-                    holdings.map { HoldingDto.fromEntity(it) }
+                    holdings
                 } else null,
 
                 marketDeposits = if (EntityType.MARKET_DEPOSIT in selectedEntities) {
@@ -166,13 +222,10 @@ class BackupRepositoryImpl @Inject constructor(
 
                 priceCaches = if (EntityType.PRICE_CACHE in selectedEntities) {
                     emit(BackupProgress.Exporting("가격 캐시", ++processedEntities, totalEntities, processedEntities, totalEntities))
-                    val caches = if (options.dateRange != null) {
-                        backupDao.getPriceCachesByDateRange(options.dateRange.startDate, options.dateRange.endDate)
-                    } else {
-                        backupDao.getAllPriceCaches()
-                    }
+                    // 월별 청크 분할로 OOM 방지 (price_cache 최대 500K 행)
+                    val caches = collectPriceCachesChunked(options.dateRange)
                     entityCounts["priceCaches"] = caches.size
-                    caches.map { PriceCacheDto.fromEntity(it) }
+                    caches
                 } else null,
 
                 stockAnalysisData = if (EntityType.STOCK_ANALYSIS_DATA in selectedEntities) {
@@ -289,6 +342,8 @@ class BackupRepositoryImpl @Inject constructor(
 
             emit(BackupProgress.Success(backupInfo))
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(BackupProgress.Error("백업 실패: ${e.message}", e))
         }
@@ -312,6 +367,8 @@ class BackupRepositoryImpl @Inject constructor(
                 }
 
                 Result.success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.failure(BackupError.FileAccessError("내보내기 실패: ${e.message}"))
             }
@@ -407,12 +464,12 @@ class BackupRepositoryImpl @Inject constructor(
             if (EntityType.HOLDING in entitiesToRestore) {
                 backupData.data.holdings?.let { dtos ->
                     emit(RestoreProgress.Importing("보유 현황", 0, 0, dtos.size, ++processedEntities, totalEntities))
-                    val existingKeys = if (options.mergeMode) backupDao.getAllHoldingKeys().toSet() else emptySet()
+                    // getAllHoldingKeys()는 최대 500K 복합키를 메모리에 로드해 OOM 위험.
+                    // insertHoldingsIgnore는 OnConflictStrategy.IGNORE로 중복을 자동 무시하므로
+                    // 키 셋 조회 없이 배치 삽입만 수행한다.
                     val entities = dtos.map { it.toEntity() }
-                    val result = restoreEntitiesWithMerge(
+                    val result = restoreLargeEntitiesWithIgnore(
                         entities = entities,
-                        existingKeys = existingKeys,
-                        getKey = { "${it.etfTicker}-${it.stockTicker}-${it.date}" },
                         insert = { backupDao.insertHoldingsIgnore(it) }
                     )
                     importResults["보유 현황"] = result
@@ -514,10 +571,11 @@ class BackupRepositoryImpl @Inject constructor(
             if (EntityType.PRICE_CACHE in entitiesToRestore) {
                 backupData.data.priceCaches?.let { dtos ->
                     emit(RestoreProgress.Importing("가격 캐시", 0, 0, dtos.size, ++processedEntities, totalEntities))
-                    val result = restoreEntitiesWithMerge(
+                    // getAllPriceCacheKeys()는 최대 500K 복합키를 메모리에 로드해 OOM 위험.
+                    // insertPriceCachesIgnore는 OnConflictStrategy.IGNORE로 중복을 자동 무시하므로
+                    // 키 셋 조회 없이 배치 삽입만 수행한다.
+                    val result = restoreLargeEntitiesWithIgnore(
                         entities = dtos.map { it.toEntity() },
-                        existingKeys = if (options.mergeMode) backupDao.getAllPriceCacheKeys().toSet() else emptySet(),
-                        getKey = { "${it.ticker}-${it.date}" },
                         insert = { backupDao.insertPriceCachesIgnore(it) }
                     )
                     importResults["가격 캐시"] = result
@@ -697,6 +755,8 @@ class BackupRepositoryImpl @Inject constructor(
                 details = importResults
             ))
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: BackupError) {
             emit(RestoreProgress.Error(e.message ?: "복구 실패", e))
         } catch (e: Exception) {
@@ -716,6 +776,32 @@ class BackupRepositoryImpl @Inject constructor(
         val uri = Uri.fromFile(file)
         restoreBackup(uri, options).collect { emit(it) }
     }.flowOn(Dispatchers.IO)
+
+    /**
+     * large 테이블(holdings, price_cache)을 위한 키-셋 없는 배치 삽입.
+     * OnConflictStrategy.IGNORE가 중복을 처리하므로 existingKeys 조회가 불필요.
+     * -1L 반환값은 충돌로 무시된 행을 의미한다.
+     */
+    private suspend fun <T> restoreLargeEntitiesWithIgnore(
+        entities: List<T>,
+        insert: suspend (List<T>) -> List<Long>
+    ): ImportResult {
+        if (entities.isEmpty()) return ImportResult(0, 0, 0)
+        return try {
+            var imported = 0
+            var skipped = 0
+            entities.chunked(1000).forEach { batch ->
+                val results = insert(batch)
+                imported += results.count { it != -1L }
+                skipped += results.count { it == -1L }
+            }
+            ImportResult(imported, skipped, 0)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            ImportResult(0, 0, entities.size)
+        }
+    }
 
     private suspend fun <T> restoreEntitiesWithMerge(
         entities: List<T>,
@@ -742,6 +828,8 @@ class BackupRepositoryImpl @Inject constructor(
                     imported += results.count { it != -1L }
                 }
                 ImportResult(imported, skipped, 0)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ImportResult(0, skipped, toInsert.size)
             }
@@ -769,6 +857,8 @@ class BackupRepositoryImpl @Inject constructor(
 
                 val backupData = json.decodeFromString<BackupData>(jsonString)
                 Result.success(backupData.metadata)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.failure(BackupError.CorruptedBackup("백업 파일이 손상되었습니다: ${e.message}"))
             }
@@ -822,6 +912,8 @@ class BackupRepositoryImpl @Inject constructor(
 
             files.forEach { it.delete() }
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(BackupError.FileAccessError("삭제 실패: ${e.message}"))
         }

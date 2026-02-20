@@ -10,6 +10,7 @@ import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.common.util.DateFormatter
 import com.etfmonitor.core.database.entities.StockAnalysisData
 import com.etfmonitor.core.database.entities.StockAnalysisWithName
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -95,6 +96,8 @@ class StockAnalysisRepositoryImpl @Inject constructor(
 
             logger.d("Saved analysis data for $ticker")
             stockData
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error getting stock analysis for $ticker", e)
             null

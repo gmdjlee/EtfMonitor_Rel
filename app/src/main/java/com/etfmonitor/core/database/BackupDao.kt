@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.etfmonitor.core.database.entities.*
 
 /**
@@ -23,6 +24,7 @@ interface BackupDao {
     @Query("SELECT ticker FROM etfs")
     suspend fun getAllEtfTickers(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertEtfsIgnore(etfs: List<Etf>): List<Long>
 
@@ -36,6 +38,7 @@ interface BackupDao {
     @Query("SELECT ticker FROM stocks")
     suspend fun getAllStockTickers(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertStocksIgnore(stocks: List<Stock>): List<Long>
 
@@ -49,6 +52,7 @@ interface BackupDao {
     @Query("SELECT key FROM settings")
     suspend fun getAllSettingKeys(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertSettingsIgnore(settings: List<Setting>): List<Long>
 
@@ -71,6 +75,7 @@ interface BackupDao {
     @Query("SELECT DISTINCT etfTicker || '-' || stockTicker || '-' || date FROM holdings")
     suspend fun getAllHoldingKeys(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertHoldingsIgnore(holdings: List<Holding>): List<Long>
 
@@ -93,6 +98,7 @@ interface BackupDao {
     @Query("SELECT date FROM market_deposits")
     suspend fun getAllMarketDepositDates(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertMarketDepositsIgnore(deposits: List<MarketDeposit>): List<Long>
 
@@ -115,6 +121,7 @@ interface BackupDao {
     @Query("SELECT id FROM fear_greed_index")
     suspend fun getAllFearGreedIds(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertFearGreedIgnore(indices: List<FearGreedIndex>): List<Long>
 
@@ -137,6 +144,7 @@ interface BackupDao {
     @Query("SELECT id FROM market_oscillator")
     suspend fun getAllMarketOscillatorIds(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertMarketOscillatorsIgnore(oscillators: List<MarketOscillatorData>): List<Long>
 
@@ -159,6 +167,7 @@ interface BackupDao {
     @Query("SELECT id FROM market_index")
     suspend fun getAllMarketIndexIds(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertMarketIndicesIgnore(indices: List<MarketIndex>): List<Long>
 
@@ -181,6 +190,7 @@ interface BackupDao {
     @Query("SELECT date FROM daily_etf_statistics")
     suspend fun getAllDailyEtfStatisticsDates(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertDailyEtfStatisticsIgnore(stats: List<DailyEtfStatistics>): List<Long>
 
@@ -203,6 +213,7 @@ interface BackupDao {
     @Query("SELECT id FROM blood_indicator")
     suspend fun getAllBloodIndicatorIds(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertBloodIndicatorsIgnore(indicators: List<BloodIndicator>): List<Long>
 
@@ -225,6 +236,7 @@ interface BackupDao {
     @Query("SELECT ticker || '-' || date FROM price_cache")
     suspend fun getAllPriceCacheKeys(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPriceCachesIgnore(caches: List<PriceCache>): List<Long>
 
@@ -238,6 +250,7 @@ interface BackupDao {
     @Query("SELECT ticker FROM stock_analysis_data")
     suspend fun getAllStockAnalysisDataTickers(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertStockAnalysisDataIgnore(data: List<StockAnalysisData>): List<Long>
 
@@ -251,6 +264,7 @@ interface BackupDao {
     @Query("SELECT id FROM ai_analysis_result")
     suspend fun getAllAIAnalysisResultIds(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAIAnalysisResultsIgnore(results: List<AIAnalysisResult>): List<Long>
 
@@ -264,6 +278,7 @@ interface BackupDao {
     @Query("SELECT id FROM ai_chat_session")
     suspend fun getAllAIChatSessionIds(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAIChatSessionsIgnore(sessions: List<AIChatSession>): List<Long>
 
@@ -277,6 +292,7 @@ interface BackupDao {
     @Query("SELECT id FROM ai_chat_message")
     suspend fun getAllAIChatMessageIds(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAIChatMessagesIgnore(messages: List<AIChatMessage>): List<Long>
 
@@ -290,6 +306,7 @@ interface BackupDao {
     @Query("SELECT id FROM correlation_analysis_result")
     suspend fun getAllCorrelationResultIds(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertCorrelationResultsIgnore(results: List<CorrelationAnalysisResult>): List<Long>
 
@@ -303,6 +320,7 @@ interface BackupDao {
     @Query("SELECT id FROM sector_analysis")
     suspend fun getAllSectorAnalysisIds(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertSectorAnalysesIgnore(analyses: List<SectorAnalysis>): List<Long>
 
@@ -316,6 +334,7 @@ interface BackupDao {
     @Query("SELECT id FROM etf_correlation_cache")
     suspend fun getAllEtfCorrelationCacheIds(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertEtfCorrelationCachesIgnore(caches: List<EtfCorrelationCache>): List<Long>
 
@@ -329,6 +348,7 @@ interface BackupDao {
     @Query("SELECT date FROM liquidity_analysis")
     suspend fun getAllLiquidityAnalysisDates(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertLiquidityAnalysesIgnore(analyses: List<LiquidityAnalysis>): List<Long>
 
@@ -342,6 +362,7 @@ interface BackupDao {
     @Query("SELECT id FROM stock_indicator_ai_result")
     suspend fun getAllStockIndicatorAIResultIds(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertStockIndicatorAIResultsIgnore(results: List<StockIndicatorAIResult>): List<Long>
 
@@ -355,6 +376,7 @@ interface BackupDao {
     @Query("SELECT id FROM enhanced_predictions")
     suspend fun getAllEnhancedPredictionIds(): List<String>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertEnhancedPredictionsIgnore(predictions: List<EnhancedPrediction>): List<Long>
 
@@ -368,6 +390,7 @@ interface BackupDao {
     @Query("SELECT id FROM search_history")
     suspend fun getAllSearchHistoryIds(): List<Int>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertSearchHistoriesIgnore(histories: List<SearchHistory>): List<Long>
 

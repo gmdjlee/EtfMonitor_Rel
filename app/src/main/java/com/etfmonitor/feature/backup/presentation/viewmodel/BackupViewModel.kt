@@ -10,6 +10,7 @@ import com.etfmonitor.feature.backup.domain.repository.BackupRepository
 import com.etfmonitor.feature.backup.presentation.state.*
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -74,6 +75,8 @@ class BackupViewModel @Inject constructor(
                     dateRange = dateRange,
                     estimatedSize = estimatedSize
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.value = BackupState.Error(e.message ?: "데이터 로드 실패")
             }

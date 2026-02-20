@@ -1,6 +1,7 @@
 package com.etfmonitor.core.network.blood
 
 import com.etfmonitor.core.common.util.AppLogger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -150,6 +151,8 @@ class BloodIndicatorClient @Inject constructor() {
                 logger.d("Fetched ${dataPoints.size} records for $symbol")
                 Result.success(dataPoints)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error parsing Yahoo response for $symbol", e)
             Result.failure(e)
@@ -202,6 +205,8 @@ class BloodIndicatorClient @Inject constructor() {
                 logger.d("Fetched ${dataPoints.size} records from FRED for $seriesId")
                 Result.success(dataPoints)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error parsing FRED response for $seriesId", e)
             Result.failure(e)
@@ -216,21 +221,30 @@ class BloodIndicatorClient @Inject constructor() {
 
         for (attempt in 1..MAX_RETRIES) {
             try {
-                val response = httpClient.newCall(request).execute()
-                if (response.isSuccessful) {
-                    return response.body?.string()
+                return httpClient.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        response.body?.string()
+                    } else {
+                        // HTTP error — log redacted URL and stop retrying
+                        logger.e("HTTP ${response.code} for ${redactUrl(url)}")
+                        null
+                    }
                 }
-                // HTTP error — don't retry
-                logger.e("HTTP ${response.code} for $url")
-                return null
             } catch (e: java.net.SocketTimeoutException) {
-                logger.w("Timeout (attempt $attempt/$MAX_RETRIES) for $url")
+                logger.w("Timeout (attempt $attempt/$MAX_RETRIES) for ${redactUrl(url)}")
                 if (attempt < MAX_RETRIES) delay(RETRY_DELAY_MS * attempt)
             } catch (e: java.io.IOException) {
-                logger.w("IO error (attempt $attempt/$MAX_RETRIES) for $url: ${e.message}")
+                logger.w("IO error (attempt $attempt/$MAX_RETRIES) for ${redactUrl(url)}: ${e.message}")
                 if (attempt < MAX_RETRIES) delay(RETRY_DELAY_MS * attempt)
             }
         }
         return null
+    }
+
+    private fun redactUrl(url: String): String {
+        return url.replace(Regex("[?&](api_key|apikey|appid)=[^&]*")) { match ->
+            val key = match.value.substringBefore("=")
+            "$key=***REDACTED***"
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.etfmonitor.feature.market.data.repository
 
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.database.MarketIndexDao
+import kotlinx.coroutines.CancellationException
 import com.etfmonitor.core.domain.usecase.krx.GetKrxIndexDataUseCase
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toDomain
 import com.etfmonitor.feature.market.data.mapper.MarketMapper.toIndexDomainList
@@ -125,6 +126,8 @@ class MarketIndexRepositoryImpl @Inject constructor(
                         Result.failure(e)
                     }
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error initializing market index data", e)
                 Result.failure(e)
@@ -165,6 +168,8 @@ class MarketIndexRepositoryImpl @Inject constructor(
                         Result.failure(e)
                     }
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error updating market index data", e)
                 Result.failure(e)

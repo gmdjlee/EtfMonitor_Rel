@@ -1,0 +1,2008 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 21,
+    "identityHash": "88f40591de01f86e95496137cd825c28",
+    "entities": [
+      {
+        "tableName": "etfs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ticker` TEXT NOT NULL, `name` TEXT NOT NULL, PRIMARY KEY(`ticker`))",
+        "fields": [
+          {
+            "fieldPath": "ticker",
+            "columnName": "ticker",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ticker"
+          ]
+        }
+      },
+      {
+        "tableName": "holdings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`etfTicker` TEXT NOT NULL, `stockTicker` TEXT NOT NULL, `stockName` TEXT NOT NULL, `date` TEXT NOT NULL, `weightBps` INTEGER NOT NULL, `amountMillion` INTEGER NOT NULL, `snapshotType` TEXT NOT NULL, PRIMARY KEY(`etfTicker`, `stockTicker`, `date`))",
+        "fields": [
+          {
+            "fieldPath": "etfTicker",
+            "columnName": "etfTicker",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stockTicker",
+            "columnName": "stockTicker",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stockName",
+            "columnName": "stockName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weightBps",
+            "columnName": "weightBps",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amountMillion",
+            "columnName": "amountMillion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "snapshotType",
+            "columnName": "snapshotType",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "etfTicker",
+            "stockTicker",
+            "date"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_holdings_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_holdings_date` ON `${TABLE_NAME}` (`date`)"
+          },
+          {
+            "name": "index_holdings_etfTicker",
+            "unique": false,
+            "columnNames": [
+              "etfTicker"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_holdings_etfTicker` ON `${TABLE_NAME}` (`etfTicker`)"
+          },
+          {
+            "name": "index_holdings_etfTicker_date",
+            "unique": false,
+            "columnNames": [
+              "etfTicker",
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_holdings_etfTicker_date` ON `${TABLE_NAME}` (`etfTicker`, `date`)"
+          },
+          {
+            "name": "index_holdings_etfTicker_stockTicker",
+            "unique": false,
+            "columnNames": [
+              "etfTicker",
+              "stockTicker"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_holdings_etfTicker_stockTicker` ON `${TABLE_NAME}` (`etfTicker`, `stockTicker`)"
+          },
+          {
+            "name": "index_holdings_stockTicker_date",
+            "unique": false,
+            "columnNames": [
+              "stockTicker",
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_holdings_stockTicker_date` ON `${TABLE_NAME}` (`stockTicker`, `date`)"
+          },
+          {
+            "name": "index_holdings_snapshotType",
+            "unique": false,
+            "columnNames": [
+              "snapshotType"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_holdings_snapshotType` ON `${TABLE_NAME}` (`snapshotType`)"
+          },
+          {
+            "name": "index_holdings_date_snapshotType",
+            "unique": false,
+            "columnNames": [
+              "date",
+              "snapshotType"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_holdings_date_snapshotType` ON `${TABLE_NAME}` (`date`, `snapshotType`)"
+          }
+        ]
+      },
+      {
+        "tableName": "settings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `value` TEXT NOT NULL, PRIMARY KEY(`key`))",
+        "fields": [
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "key"
+          ]
+        }
+      },
+      {
+        "tableName": "stocks",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ticker` TEXT NOT NULL, `name` TEXT NOT NULL, `market` TEXT NOT NULL, `sector` TEXT NOT NULL DEFAULT '', `is_etf_holding` INTEGER NOT NULL DEFAULT 0, `lastUpdated` INTEGER NOT NULL, PRIMARY KEY(`ticker`))",
+        "fields": [
+          {
+            "fieldPath": "ticker",
+            "columnName": "ticker",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "market",
+            "columnName": "market",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sector",
+            "columnName": "sector",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "isEtfHolding",
+            "columnName": "is_etf_holding",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ticker"
+          ]
+        }
+      },
+      {
+        "tableName": "market_deposits",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `depositAmount` REAL NOT NULL, `depositChange` REAL NOT NULL, `creditAmount` REAL NOT NULL, `creditChange` REAL NOT NULL, `lastUpdated` INTEGER NOT NULL, PRIMARY KEY(`date`))",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "depositAmount",
+            "columnName": "depositAmount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "depositChange",
+            "columnName": "depositChange",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creditAmount",
+            "columnName": "creditAmount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creditChange",
+            "columnName": "creditChange",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date"
+          ]
+        }
+      },
+      {
+        "tableName": "stock_analysis_data",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ticker` TEXT NOT NULL, `dates` TEXT NOT NULL, `marketCap` TEXT NOT NULL, `foreign5d` TEXT NOT NULL, `institution5d` TEXT NOT NULL, `lastUpdated` INTEGER NOT NULL, `dataStartDate` TEXT NOT NULL, `dataEndDate` TEXT NOT NULL, PRIMARY KEY(`ticker`))",
+        "fields": [
+          {
+            "fieldPath": "ticker",
+            "columnName": "ticker",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dates",
+            "columnName": "dates",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "marketCap",
+            "columnName": "marketCap",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "foreign5d",
+            "columnName": "foreign5d",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "institution5d",
+            "columnName": "institution5d",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dataStartDate",
+            "columnName": "dataStartDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dataEndDate",
+            "columnName": "dataEndDate",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ticker"
+          ]
+        }
+      },
+      {
+        "tableName": "search_history",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `ticker` TEXT NOT NULL, `name` TEXT NOT NULL, `market` TEXT NOT NULL, `historyType` TEXT NOT NULL, `searchedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ticker",
+            "columnName": "ticker",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "market",
+            "columnName": "market",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "historyType",
+            "columnName": "historyType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "searchedAt",
+            "columnName": "searchedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_search_history_historyType",
+            "unique": false,
+            "columnNames": [
+              "historyType"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_search_history_historyType` ON `${TABLE_NAME}` (`historyType`)"
+          },
+          {
+            "name": "index_search_history_historyType_searchedAt",
+            "unique": false,
+            "columnNames": [
+              "historyType",
+              "searchedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_search_history_historyType_searchedAt` ON `${TABLE_NAME}` (`historyType`, `searchedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "fear_greed_index",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `market` TEXT NOT NULL, `date` TEXT NOT NULL, `indexValue` REAL NOT NULL, `fearGreedValue` REAL NOT NULL, `oscillator` REAL NOT NULL, `rsi` REAL NOT NULL, `momentum` REAL NOT NULL, `putCallRatio` REAL NOT NULL, `volatility` REAL NOT NULL, `spread` REAL NOT NULL, `lastUpdated` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "market",
+            "columnName": "market",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "indexValue",
+            "columnName": "indexValue",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fearGreedValue",
+            "columnName": "fearGreedValue",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "oscillator",
+            "columnName": "oscillator",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rsi",
+            "columnName": "rsi",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "momentum",
+            "columnName": "momentum",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "putCallRatio",
+            "columnName": "putCallRatio",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "volatility",
+            "columnName": "volatility",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "spread",
+            "columnName": "spread",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_fear_greed_index_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_fear_greed_index_date` ON `${TABLE_NAME}` (`date`)"
+          }
+        ]
+      },
+      {
+        "tableName": "market_oscillator",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `market` TEXT NOT NULL, `date` TEXT NOT NULL, `indexValue` REAL NOT NULL, `oscillator` REAL NOT NULL, `lastUpdated` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "market",
+            "columnName": "market",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "indexValue",
+            "columnName": "indexValue",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "oscillator",
+            "columnName": "oscillator",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_market_oscillator_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_market_oscillator_date` ON `${TABLE_NAME}` (`date`)"
+          }
+        ]
+      },
+      {
+        "tableName": "market_index",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `market` TEXT NOT NULL, `date` TEXT NOT NULL, `closePrice` REAL NOT NULL, `openPrice` REAL NOT NULL, `highPrice` REAL NOT NULL, `lowPrice` REAL NOT NULL, `volume` INTEGER NOT NULL, `changeRate` REAL NOT NULL, `lastUpdated` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "market",
+            "columnName": "market",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "closePrice",
+            "columnName": "closePrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "openPrice",
+            "columnName": "openPrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "highPrice",
+            "columnName": "highPrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lowPrice",
+            "columnName": "lowPrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "volume",
+            "columnName": "volume",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "changeRate",
+            "columnName": "changeRate",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_market_index_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_market_index_date` ON `${TABLE_NAME}` (`date`)"
+          },
+          {
+            "name": "index_market_index_market_date",
+            "unique": false,
+            "columnNames": [
+              "market",
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_market_index_market_date` ON `${TABLE_NAME}` (`market`, `date`)"
+          }
+        ]
+      },
+      {
+        "tableName": "daily_etf_statistics",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `newStockCount` INTEGER NOT NULL, `newStockAmount` INTEGER NOT NULL, `removedStockCount` INTEGER NOT NULL, `removedStockAmount` INTEGER NOT NULL, `increasedStockCount` INTEGER NOT NULL, `increasedStockAmount` INTEGER NOT NULL, `decreasedStockCount` INTEGER NOT NULL, `decreasedStockAmount` INTEGER NOT NULL, `cashDepositAmount` INTEGER NOT NULL, `cashDepositChange` INTEGER NOT NULL, `cashDepositChangeRate` REAL NOT NULL, `totalEtfCount` INTEGER NOT NULL, `totalHoldingAmount` INTEGER NOT NULL, `lastUpdated` INTEGER NOT NULL, PRIMARY KEY(`date`))",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "newStockCount",
+            "columnName": "newStockCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "newStockAmount",
+            "columnName": "newStockAmount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "removedStockCount",
+            "columnName": "removedStockCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "removedStockAmount",
+            "columnName": "removedStockAmount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "increasedStockCount",
+            "columnName": "increasedStockCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "increasedStockAmount",
+            "columnName": "increasedStockAmount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "decreasedStockCount",
+            "columnName": "decreasedStockCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "decreasedStockAmount",
+            "columnName": "decreasedStockAmount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cashDepositAmount",
+            "columnName": "cashDepositAmount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cashDepositChange",
+            "columnName": "cashDepositChange",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cashDepositChangeRate",
+            "columnName": "cashDepositChangeRate",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalEtfCount",
+            "columnName": "totalEtfCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalHoldingAmount",
+            "columnName": "totalHoldingAmount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date"
+          ]
+        }
+      },
+      {
+        "tableName": "correlation_analysis_result",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `market` TEXT NOT NULL, `analysisDate` TEXT NOT NULL, `periodDays` INTEGER NOT NULL, `etfNewStockCorrelation` REAL NOT NULL, `etfRemovedStockCorrelation` REAL NOT NULL, `etfIncreasedCorrelation` REAL NOT NULL, `etfDecreasedCorrelation` REAL NOT NULL, `etfNetFlowCorrelation` REAL NOT NULL, `cashDepositCorrelation` REAL NOT NULL, `marketDepositCorrelation` REAL, `creditBalanceCorrelation` REAL, `fearGreedCorrelation` REAL, `fearGreedLeadCorrelation` REAL, `oscillatorCorrelation` REAL, `oscillatorLeadCorrelation` REAL, `compositeScore` REAL NOT NULL, `signal` TEXT NOT NULL, `confidence` REAL NOT NULL, `upProbability` REAL NOT NULL, `downProbability` REAL NOT NULL, `analysisContext` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "market",
+            "columnName": "market",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "analysisDate",
+            "columnName": "analysisDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "periodDays",
+            "columnName": "periodDays",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "etfNewStockCorrelation",
+            "columnName": "etfNewStockCorrelation",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "etfRemovedStockCorrelation",
+            "columnName": "etfRemovedStockCorrelation",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "etfIncreasedCorrelation",
+            "columnName": "etfIncreasedCorrelation",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "etfDecreasedCorrelation",
+            "columnName": "etfDecreasedCorrelation",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "etfNetFlowCorrelation",
+            "columnName": "etfNetFlowCorrelation",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cashDepositCorrelation",
+            "columnName": "cashDepositCorrelation",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "marketDepositCorrelation",
+            "columnName": "marketDepositCorrelation",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "creditBalanceCorrelation",
+            "columnName": "creditBalanceCorrelation",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "fearGreedCorrelation",
+            "columnName": "fearGreedCorrelation",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "fearGreedLeadCorrelation",
+            "columnName": "fearGreedLeadCorrelation",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "oscillatorCorrelation",
+            "columnName": "oscillatorCorrelation",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "oscillatorLeadCorrelation",
+            "columnName": "oscillatorLeadCorrelation",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "compositeScore",
+            "columnName": "compositeScore",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "signal",
+            "columnName": "signal",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidence",
+            "columnName": "confidence",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "upProbability",
+            "columnName": "upProbability",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "downProbability",
+            "columnName": "downProbability",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "analysisContext",
+            "columnName": "analysisContext",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_correlation_analysis_result_analysisDate",
+            "unique": false,
+            "columnNames": [
+              "analysisDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_correlation_analysis_result_analysisDate` ON `${TABLE_NAME}` (`analysisDate`)"
+          }
+        ]
+      },
+      {
+        "tableName": "ai_analysis_result",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `market` TEXT NOT NULL, `analysisDate` TEXT NOT NULL, `correlationResultId` TEXT, `aiProvider` TEXT NOT NULL, `aiModel` TEXT NOT NULL, `signal` TEXT NOT NULL, `confidence` REAL NOT NULL, `upProbability` REAL NOT NULL, `downProbability` REAL NOT NULL, `riskLevel` TEXT NOT NULL, `reasoning` TEXT NOT NULL, `keyFactors` TEXT NOT NULL, `recommendation` TEXT NOT NULL, `alternativeScenarios` TEXT, `promptUsed` TEXT NOT NULL, `rawResponse` TEXT NOT NULL, `processingTimeMs` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "market",
+            "columnName": "market",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "analysisDate",
+            "columnName": "analysisDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "correlationResultId",
+            "columnName": "correlationResultId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "aiProvider",
+            "columnName": "aiProvider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aiModel",
+            "columnName": "aiModel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "signal",
+            "columnName": "signal",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidence",
+            "columnName": "confidence",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "upProbability",
+            "columnName": "upProbability",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "downProbability",
+            "columnName": "downProbability",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "riskLevel",
+            "columnName": "riskLevel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reasoning",
+            "columnName": "reasoning",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "keyFactors",
+            "columnName": "keyFactors",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recommendation",
+            "columnName": "recommendation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "alternativeScenarios",
+            "columnName": "alternativeScenarios",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "promptUsed",
+            "columnName": "promptUsed",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawResponse",
+            "columnName": "rawResponse",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "processingTimeMs",
+            "columnName": "processingTimeMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_ai_analysis_result_market_analysisDate",
+            "unique": false,
+            "columnNames": [
+              "market",
+              "analysisDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ai_analysis_result_market_analysisDate` ON `${TABLE_NAME}` (`market`, `analysisDate`)"
+          }
+        ]
+      },
+      {
+        "tableName": "ai_chat_session",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `market` TEXT, `analysisDate` TEXT, `contextData` TEXT, `messageCount` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "market",
+            "columnName": "market",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "analysisDate",
+            "columnName": "analysisDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "contextData",
+            "columnName": "contextData",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "messageCount",
+            "columnName": "messageCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_ai_chat_session_market",
+            "unique": false,
+            "columnNames": [
+              "market"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ai_chat_session_market` ON `${TABLE_NAME}` (`market`)"
+          }
+        ]
+      },
+      {
+        "tableName": "ai_chat_message",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `sessionId` TEXT NOT NULL, `role` TEXT NOT NULL, `content` TEXT NOT NULL, `analysisResultId` TEXT, `aiProvider` TEXT, `aiModel` TEXT, `tokenCount` INTEGER, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionId",
+            "columnName": "sessionId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "role",
+            "columnName": "role",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "analysisResultId",
+            "columnName": "analysisResultId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "aiProvider",
+            "columnName": "aiProvider",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "aiModel",
+            "columnName": "aiModel",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "tokenCount",
+            "columnName": "tokenCount",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_ai_chat_message_sessionId",
+            "unique": false,
+            "columnNames": [
+              "sessionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ai_chat_message_sessionId` ON `${TABLE_NAME}` (`sessionId`)"
+          },
+          {
+            "name": "index_ai_chat_message_sessionId_timestamp",
+            "unique": false,
+            "columnNames": [
+              "sessionId",
+              "timestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ai_chat_message_sessionId_timestamp` ON `${TABLE_NAME}` (`sessionId`, `timestamp`)"
+          },
+          {
+            "name": "index_ai_chat_message_timestamp",
+            "unique": false,
+            "columnNames": [
+              "timestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ai_chat_message_timestamp` ON `${TABLE_NAME}` (`timestamp`)"
+          }
+        ]
+      },
+      {
+        "tableName": "sector_analysis",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `sector` TEXT NOT NULL, `sectorName` TEXT NOT NULL, `date` TEXT NOT NULL, `fearGreedValue` REAL NOT NULL, `etfFlowScore` REAL NOT NULL, `momentumScore` REAL NOT NULL, `volatilityScore` REAL NOT NULL, `stockCount` INTEGER NOT NULL, `newEntries` INTEGER NOT NULL, `removals` INTEGER NOT NULL, `avgWeightChange` REAL NOT NULL, `sentiment` TEXT NOT NULL, `lastUpdated` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sector",
+            "columnName": "sector",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sectorName",
+            "columnName": "sectorName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fearGreedValue",
+            "columnName": "fearGreedValue",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "etfFlowScore",
+            "columnName": "etfFlowScore",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "momentumScore",
+            "columnName": "momentumScore",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "volatilityScore",
+            "columnName": "volatilityScore",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stockCount",
+            "columnName": "stockCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "newEntries",
+            "columnName": "newEntries",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "removals",
+            "columnName": "removals",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avgWeightChange",
+            "columnName": "avgWeightChange",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sentiment",
+            "columnName": "sentiment",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_sector_analysis_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sector_analysis_date` ON `${TABLE_NAME}` (`date`)"
+          },
+          {
+            "name": "index_sector_analysis_sector",
+            "unique": false,
+            "columnNames": [
+              "sector"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sector_analysis_sector` ON `${TABLE_NAME}` (`sector`)"
+          },
+          {
+            "name": "index_sector_analysis_sector_date",
+            "unique": false,
+            "columnNames": [
+              "sector",
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sector_analysis_sector_date` ON `${TABLE_NAME}` (`sector`, `date`)"
+          }
+        ]
+      },
+      {
+        "tableName": "etf_correlation_cache",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `etf1Ticker` TEXT NOT NULL, `etf1Name` TEXT NOT NULL, `etf2Ticker` TEXT NOT NULL, `etf2Name` TEXT NOT NULL, `date` TEXT NOT NULL, `overlapRatio` REAL NOT NULL, `weightCorrelation` REAL NOT NULL, `commonStockCount` INTEGER NOT NULL, `etf1StockCount` INTEGER NOT NULL, `etf2StockCount` INTEGER NOT NULL, `topCommonStocks` TEXT NOT NULL, `lastUpdated` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "etf1Ticker",
+            "columnName": "etf1Ticker",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "etf1Name",
+            "columnName": "etf1Name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "etf2Ticker",
+            "columnName": "etf2Ticker",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "etf2Name",
+            "columnName": "etf2Name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "overlapRatio",
+            "columnName": "overlapRatio",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weightCorrelation",
+            "columnName": "weightCorrelation",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "commonStockCount",
+            "columnName": "commonStockCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "etf1StockCount",
+            "columnName": "etf1StockCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "etf2StockCount",
+            "columnName": "etf2StockCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "topCommonStocks",
+            "columnName": "topCommonStocks",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_etf_correlation_cache_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_etf_correlation_cache_date` ON `${TABLE_NAME}` (`date`)"
+          },
+          {
+            "name": "index_etf_correlation_cache_etf1Ticker_etf2Ticker",
+            "unique": false,
+            "columnNames": [
+              "etf1Ticker",
+              "etf2Ticker"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_etf_correlation_cache_etf1Ticker_etf2Ticker` ON `${TABLE_NAME}` (`etf1Ticker`, `etf2Ticker`)"
+          },
+          {
+            "name": "index_etf_correlation_cache_etf1Ticker",
+            "unique": false,
+            "columnNames": [
+              "etf1Ticker"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_etf_correlation_cache_etf1Ticker` ON `${TABLE_NAME}` (`etf1Ticker`)"
+          },
+          {
+            "name": "index_etf_correlation_cache_etf2Ticker",
+            "unique": false,
+            "columnNames": [
+              "etf2Ticker"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_etf_correlation_cache_etf2Ticker` ON `${TABLE_NAME}` (`etf2Ticker`)"
+          }
+        ]
+      },
+      {
+        "tableName": "liquidity_analysis",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `depositAmount` REAL NOT NULL, `creditAmount` REAL NOT NULL, `totalMarketCap` INTEGER NOT NULL, `kospiMarketCap` INTEGER NOT NULL, `kosdaqMarketCap` INTEGER NOT NULL, `depositToMarketCapRatio` REAL NOT NULL, `creditToDepositRatio` REAL NOT NULL, `depositChange` REAL NOT NULL, `creditChange` REAL NOT NULL, `riskLevel` TEXT NOT NULL, `signal` TEXT NOT NULL, `historicalPercentile` REAL NOT NULL, `lastUpdated` INTEGER NOT NULL, PRIMARY KEY(`date`))",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "depositAmount",
+            "columnName": "depositAmount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creditAmount",
+            "columnName": "creditAmount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalMarketCap",
+            "columnName": "totalMarketCap",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kospiMarketCap",
+            "columnName": "kospiMarketCap",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kosdaqMarketCap",
+            "columnName": "kosdaqMarketCap",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "depositToMarketCapRatio",
+            "columnName": "depositToMarketCapRatio",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creditToDepositRatio",
+            "columnName": "creditToDepositRatio",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "depositChange",
+            "columnName": "depositChange",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creditChange",
+            "columnName": "creditChange",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "riskLevel",
+            "columnName": "riskLevel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "signal",
+            "columnName": "signal",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "historicalPercentile",
+            "columnName": "historicalPercentile",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date"
+          ]
+        }
+      },
+      {
+        "tableName": "stock_indicator_ai_result",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `ticker` TEXT NOT NULL, `stockName` TEXT NOT NULL, `market` TEXT NOT NULL, `analysisDate` TEXT NOT NULL, `period` TEXT NOT NULL, `periodDays` INTEGER NOT NULL, `aiProvider` TEXT NOT NULL, `aiModel` TEXT NOT NULL, `signal` TEXT NOT NULL, `confidence` REAL NOT NULL, `upProbability` REAL NOT NULL, `downProbability` REAL NOT NULL, `riskLevel` TEXT NOT NULL, `keyCorrelations` TEXT NOT NULL, `marketSentimentImpact` TEXT NOT NULL, `fundFlowImpact` TEXT NOT NULL, `etfFlowImpact` TEXT NOT NULL, `reasoning` TEXT NOT NULL, `recommendation` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ticker",
+            "columnName": "ticker",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stockName",
+            "columnName": "stockName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "market",
+            "columnName": "market",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "analysisDate",
+            "columnName": "analysisDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "period",
+            "columnName": "period",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "periodDays",
+            "columnName": "periodDays",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aiProvider",
+            "columnName": "aiProvider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aiModel",
+            "columnName": "aiModel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "signal",
+            "columnName": "signal",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidence",
+            "columnName": "confidence",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "upProbability",
+            "columnName": "upProbability",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "downProbability",
+            "columnName": "downProbability",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "riskLevel",
+            "columnName": "riskLevel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "keyCorrelations",
+            "columnName": "keyCorrelations",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "marketSentimentImpact",
+            "columnName": "marketSentimentImpact",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fundFlowImpact",
+            "columnName": "fundFlowImpact",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "etfFlowImpact",
+            "columnName": "etfFlowImpact",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reasoning",
+            "columnName": "reasoning",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recommendation",
+            "columnName": "recommendation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_stock_indicator_ai_result_ticker",
+            "unique": false,
+            "columnNames": [
+              "ticker"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stock_indicator_ai_result_ticker` ON `${TABLE_NAME}` (`ticker`)"
+          },
+          {
+            "name": "index_stock_indicator_ai_result_ticker_analysisDate",
+            "unique": false,
+            "columnNames": [
+              "ticker",
+              "analysisDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stock_indicator_ai_result_ticker_analysisDate` ON `${TABLE_NAME}` (`ticker`, `analysisDate`)"
+          },
+          {
+            "name": "index_stock_indicator_ai_result_createdAt",
+            "unique": false,
+            "columnNames": [
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stock_indicator_ai_result_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "price_cache",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ticker` TEXT NOT NULL, `date` TEXT NOT NULL, `closePrice` REAL NOT NULL, `priceChange5d` REAL, `priceChange10d` REAL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`ticker`, `date`))",
+        "fields": [
+          {
+            "fieldPath": "ticker",
+            "columnName": "ticker",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "closePrice",
+            "columnName": "closePrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "priceChange5d",
+            "columnName": "priceChange5d",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "priceChange10d",
+            "columnName": "priceChange10d",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ticker",
+            "date"
+          ]
+        }
+      },
+      {
+        "tableName": "enhanced_predictions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `ticker` TEXT NOT NULL, `name` TEXT NOT NULL, `predictionDate` TEXT NOT NULL, `confidence` REAL NOT NULL, `status` TEXT NOT NULL, `keyFactors` TEXT NOT NULL, `riskScore` REAL NOT NULL, `featureValues` TEXT NOT NULL, `modelType` TEXT NOT NULL, `daysAfter` INTEGER NOT NULL DEFAULT 5, `priceThreshold` REAL NOT NULL DEFAULT 3.0, `actualPriceChange` REAL, `wasCorrect` INTEGER, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ticker",
+            "columnName": "ticker",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "predictionDate",
+            "columnName": "predictionDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidence",
+            "columnName": "confidence",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "keyFactors",
+            "columnName": "keyFactors",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "riskScore",
+            "columnName": "riskScore",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "featureValues",
+            "columnName": "featureValues",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelType",
+            "columnName": "modelType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "daysAfter",
+            "columnName": "daysAfter",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "5"
+          },
+          {
+            "fieldPath": "priceThreshold",
+            "columnName": "priceThreshold",
+            "affinity": "REAL",
+            "notNull": true,
+            "defaultValue": "3.0"
+          },
+          {
+            "fieldPath": "actualPriceChange",
+            "columnName": "actualPriceChange",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "wasCorrect",
+            "columnName": "wasCorrect",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "blood_indicator",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `date` TEXT NOT NULL, `bloodValue` REAL NOT NULL, `bloodSma` REAL NOT NULL, `us03my` REAL NOT NULL, `highYieldSpread` REAL NOT NULL, `spyClose` REAL, `signalType` TEXT NOT NULL, `signalColor` TEXT NOT NULL, `lastUpdated` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bloodValue",
+            "columnName": "bloodValue",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bloodSma",
+            "columnName": "bloodSma",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "us03my",
+            "columnName": "us03my",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "highYieldSpread",
+            "columnName": "highYieldSpread",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "spyClose",
+            "columnName": "spyClose",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "signalType",
+            "columnName": "signalType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "signalColor",
+            "columnName": "signalColor",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_blood_indicator_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_blood_indicator_date` ON `${TABLE_NAME}` (`date`)"
+          },
+          {
+            "name": "index_blood_indicator_signalType",
+            "unique": false,
+            "columnNames": [
+              "signalType"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_blood_indicator_signalType` ON `${TABLE_NAME}` (`signalType`)"
+          }
+        ]
+      },
+      {
+        "tableName": "financial_cache",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ticker` TEXT NOT NULL, `name` TEXT NOT NULL, `data` TEXT NOT NULL, `cachedAt` INTEGER NOT NULL, PRIMARY KEY(`ticker`))",
+        "fields": [
+          {
+            "fieldPath": "ticker",
+            "columnName": "ticker",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data",
+            "columnName": "data",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cachedAt",
+            "columnName": "cachedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ticker"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '88f40591de01f86e95496137cd825c28')"
+    ]
+  }
+}

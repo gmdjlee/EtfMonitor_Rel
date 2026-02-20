@@ -82,6 +82,7 @@ class OscillatorViewModel @Inject constructor(
 
     companion object {
         private const val QUICK_CHART_ANALYSIS_KEY = "quick_chart_analysis_enabled"
+        private val logger = AppLogger.getLogger("OscillatorViewModel")
     }
 
     private val _state = MutableStateFlow<OscillatorState>(OscillatorState.Idle)
@@ -201,6 +202,8 @@ class OscillatorViewModel @Inject constructor(
             try {
                 val enabled = etfDao.getSetting(QUICK_CHART_ANALYSIS_KEY) == "true"
                 _quickChartAnalysisEnabled.value = enabled
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 // Ignore error, keep default value
             }
@@ -224,7 +227,7 @@ class OscillatorViewModel @Inject constructor(
                 // Expected when ViewModel is cleared, rethrow to propagate cancellation
                 throw e
             } catch (e: Exception) {
-                android.util.Log.e("OscillatorViewModel", "Error loading search history", e)
+                logger.e("Error loading search history", e)
             }
         }
     }
@@ -253,8 +256,10 @@ class OscillatorViewModel @Inject constructor(
             // 오래된 히스토리 삭제 (limit 개수 초과분) - STOCK 타입만
             searchHistoryDao.deleteOldSearchesByType(SearchHistoryType.STOCK, limit)
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            android.util.Log.e("OscillatorViewModel", "Error saving search history", e)
+            logger.e("Error saving search history", e)
         }
     }
 
@@ -283,8 +288,10 @@ class OscillatorViewModel @Inject constructor(
                 .flowOn(Dispatchers.IO)
                 .first()
             _suggestions.value = stocks.take(10) // 최대 10개만 표시
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            android.util.Log.e("OscillatorViewModel", "Error searching stocks", e)
+            logger.e("Error searching stocks", e)
             _suggestions.value = emptyList()
         }
     }
@@ -374,8 +381,10 @@ class OscillatorViewModel @Inject constructor(
                 val trendSignalData = try {
                     getTrendSignalDataUseCase(ticker, days = 365, interval = _trendSignalInterval.value)
                         ?.sortedByDateAsc()
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    android.util.Log.e("OscillatorViewModel", "Trend signal error", e)
+                    logger.e("Trend signal error", e)
                     null
                 }
 
@@ -388,8 +397,10 @@ class OscillatorViewModel @Inject constructor(
                 val elderImpulseData = try {
                     getElderImpulseDataUseCase(ticker, interval = _elderImpulseInterval.value)
                         ?.sortedByDateAsc()
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    android.util.Log.e("OscillatorViewModel", "Elder Impulse error", e)
+                    logger.e("Elder Impulse error", e)
                     null
                 }
 
@@ -397,8 +408,10 @@ class OscillatorViewModel @Inject constructor(
                 val demarkTDData = try {
                     getDemarkTDDataUseCase(ticker, interval = _demarkTDInterval.value)
                         ?.sortedByDateAsc()
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    android.util.Log.e("OscillatorViewModel", "DeMark TD error", e)
+                    logger.e("DeMark TD error", e)
                     null
                 }
 
@@ -417,6 +430,8 @@ class OscillatorViewModel @Inject constructor(
                     demarkTDData = demarkTDData
                 )
 
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.value = OscillatorState.Error("오류 발생: ${e.message}")
             }
@@ -474,8 +489,10 @@ class OscillatorViewModel @Inject constructor(
                 val trendSignalData = try {
                     getTrendSignalDataUseCase(ticker, days = 365, interval = _trendSignalInterval.value)
                         ?.sortedByDateAsc()
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    android.util.Log.e("OscillatorViewModel", "Trend signal error", e)
+                    logger.e("Trend signal error", e)
                     null
                 }
 
@@ -488,8 +505,10 @@ class OscillatorViewModel @Inject constructor(
                 val elderImpulseData = try {
                     getElderImpulseDataUseCase(ticker, interval = _elderImpulseInterval.value)
                         ?.sortedByDateAsc()
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    android.util.Log.e("OscillatorViewModel", "Elder Impulse error", e)
+                    logger.e("Elder Impulse error", e)
                     null
                 }
 
@@ -497,8 +516,10 @@ class OscillatorViewModel @Inject constructor(
                 val demarkTDData = try {
                     getDemarkTDDataUseCase(ticker, interval = _demarkTDInterval.value)
                         ?.sortedByDateAsc()
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    android.util.Log.e("OscillatorViewModel", "DeMark TD error", e)
+                    logger.e("DeMark TD error", e)
                     null
                 }
 
@@ -517,6 +538,8 @@ class OscillatorViewModel @Inject constructor(
                     demarkTDData = demarkTDData
                 )
 
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.value = OscillatorState.Error("오류 발생: ${e.message}")
             }
@@ -538,8 +561,10 @@ class OscillatorViewModel @Inject constructor(
             val trendSignalData = try {
                 getTrendSignalDataUseCase(ticker, days = 365, interval = interval)
                     ?.sortedByDateAsc()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                android.util.Log.e("OscillatorViewModel", "Trend signal error", e)
+                logger.e("Trend signal error", e)
                 null
             }
 
@@ -574,8 +599,10 @@ class OscillatorViewModel @Inject constructor(
             val elderImpulseData = try {
                 getElderImpulseDataUseCase(ticker, interval = interval)
                     ?.sortedByDateAsc()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                android.util.Log.e("OscillatorViewModel", "Elder Impulse error", e)
+                logger.e("Elder Impulse error", e)
                 null
             }
 
@@ -603,8 +630,10 @@ class OscillatorViewModel @Inject constructor(
             val demarkTDData = try {
                 getDemarkTDDataUseCase(ticker, interval = interval)
                     ?.sortedByDateAsc()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                android.util.Log.e("OscillatorViewModel", "DeMark TD error", e)
+                logger.e("DeMark TD error", e)
                 null
             }
 

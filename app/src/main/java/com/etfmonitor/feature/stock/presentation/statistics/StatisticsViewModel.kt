@@ -21,6 +21,7 @@ import com.etfmonitor.feature.stock.domain.model.StockChangeInfo
 import com.etfmonitor.feature.stock.domain.repository.StockSearchResult
 import com.etfmonitor.feature.stock.domain.repository.StockStatisticsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -141,6 +142,8 @@ class StatisticsViewModel @Inject constructor(
             try {
                 val enabled = etfDao.getSetting(QUICK_CHART_ANALYSIS_KEY) == "true"
                 _quickChartAnalysisEnabled.value = enabled
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 // Ignore error, keep default value
             }
@@ -240,6 +243,8 @@ class StatisticsViewModel @Inject constructor(
                                 )
                             )
                             searchHistoryDao.deleteOldSearchesByType(SearchHistoryType.STATISTICS, 20)
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
                             // 히스토리 저장 실패 무시
                         }

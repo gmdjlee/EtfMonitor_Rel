@@ -8,7 +8,11 @@ import com.krxkt.model.Market
 import com.krxkt.model.StockOhlcvHistory
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -31,9 +35,8 @@ class MarketOscillatorCalculator @Inject constructor(
 
     companion object {
         private val logger = AppLogger.getLogger("MarketOscillatorCalc")
-        private const val BATCH_SIZE = 50
-        private const val REQUEST_DELAY_MS = 500L
-        private const val COMPONENT_COUNT = 200 // Top N 종목 수 (KOSPI 200, KOSDAQ 150 근사)
+        private const val CONCURRENCY_LIMIT = 5  // 한국 서버 rate-limit 대응: 동시 요청 최대 5개
+        private const val COMPONENT_COUNT = 200  // Top N 종목 수 (KOSPI 200, KOSDAQ 150 근사)
 
         private val dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
         private val isoFormatter = DateTimeFormatter.ISO_LOCAL_DATE
@@ -90,6 +93,8 @@ class MarketOscillatorCalculator @Inject constructor(
                     latest = oscillatorPct.lastOrNull() ?: 0.0
                 )
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Oscillator analysis failed for $market", e)
             null
@@ -109,6 +114,8 @@ class MarketOscillatorCalculator @Inject constructor(
                     emptyList()
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Index data fetch failed for $market", e)
             emptyList()
@@ -117,6 +124,11 @@ class MarketOscillatorCalculator @Inject constructor(
 
     /**
      * 구성종목 데이터 수집 (AD-003: top-N market cap proxy)
+     *
+     * Semaphore(CONCURRENCY_LIMIT) 기반 병렬 처리:
+     * - 첫 번째 종목은 동기 처리 → kotlin_krx TickerCache ISIN 워밍업
+     * - 나머지 종목은 async/awaitAll + Semaphore 로 병렬 수집
+     * - 개별 종목 실패는 null 반환 후 집계 시 제외 (전체 실패 방지)
      *
      * @return Pair<종가맵, 거래량맵> - Map<종목코드, List<Double/Long>>
      */
@@ -146,37 +158,84 @@ class MarketOscillatorCalculator @Inject constructor(
                 return Pair(emptyMap(), emptyMap())
             }
 
-            // 2. 각 종목의 OHLCV 데이터 수집 (배치 처리)
+            // 2. 각 종목의 OHLCV 데이터 수집 (Semaphore 병렬 처리)
+            val semaphore = Semaphore(CONCURRENCY_LIMIT)
+
+            // 결과 타입: 성공 시 ticker → aligned 데이터, 실패 시 null
+            data class TickerResult(
+                val ticker: String,
+                val closes: List<Double?>,
+                val volumes: List<Long?>
+            )
+
+            // 첫 번째 종목 동기 처리: kotlin_krx TickerCache ISIN 워밍업
+            // (첫 요청이 ISIN 조회를 수행하므로 병렬 첫 요청 충돌 방지)
+            val warmupTicker = tickers.first()
+            var warmupResult: TickerResult? = null
+            try {
+                val ohlcv = krxStock.getOhlcvByTicker(startDate, endDate, warmupTicker)
+                if (ohlcv.isNotEmpty()) {
+                    val aligned = alignToIndexDates(ohlcv, indexDates)
+                    warmupResult = TickerResult(
+                        ticker = warmupTicker,
+                        closes = aligned.map { it.close },
+                        volumes = aligned.map { it.volume }
+                    )
+                }
+                logger.d("ISIN cache warmed up with first ticker: $warmupTicker")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.w("Warmup ticker $warmupTicker failed: ${e.message}")
+            }
+
+            // 나머지 종목 병렬 처리
+            val remainingTickers = tickers.drop(1)
+            val parallelResults: List<TickerResult?> = coroutineScope {
+                remainingTickers.map { ticker ->
+                    async {
+                        semaphore.withPermit {
+                            try {
+                                val ohlcv = krxStock.getOhlcvByTicker(startDate, endDate, ticker)
+                                if (ohlcv.isNotEmpty()) {
+                                    val aligned = alignToIndexDates(ohlcv, indexDates)
+                                    TickerResult(
+                                        ticker = ticker,
+                                        closes = aligned.map { it.close },
+                                        volumes = aligned.map { it.volume }
+                                    )
+                                } else {
+                                    null
+                                }
+                            } catch (e: CancellationException) {
+                                throw e  // 코루틴 취소는 반드시 전파
+                            } catch (e: Exception) {
+                                logger.w("Failed to fetch OHLCV for $ticker: ${e.message}")
+                                null  // 개별 종목 오류는 null 반환 후 집계 시 제외
+                            }
+                        }
+                    }
+                }.awaitAll()
+            }
+
+            // 결과 집계
             val closePrices = mutableMapOf<String, List<Double?>>()
             val volumes = mutableMapOf<String, List<Long?>>()
 
-            for (i in tickers.indices step BATCH_SIZE) {
-                val batch = tickers.subList(i, minOf(i + BATCH_SIZE, tickers.size))
-
-                for (ticker in batch) {
-                    try {
-                        val ohlcv = krxStock.getOhlcvByTicker(startDate, endDate, ticker)
-                        if (ohlcv.isNotEmpty()) {
-                            // 지수 날짜에 맞춰 정렬 (날짜별 매핑)
-                            val aligned = alignToIndexDates(ohlcv, indexDates)
-                            closePrices[ticker] = aligned.map { it.close }
-                            volumes[ticker] = aligned.map { it.volume }
-                        }
-                        delay(REQUEST_DELAY_MS)
-                    } catch (e: CancellationException) {
-                        throw e  // 코루틴 취소는 반드시 전파
-                    } catch (e: Exception) {
-                        logger.w("Failed to fetch OHLCV for $ticker: ${e.message}")
-                        // 개별 종목 오류는 무시하고 계속 진행
-                    }
-                }
-
-                logger.d("Processed batch ${i / BATCH_SIZE + 1}: ${batch.size} tickers")
+            warmupResult?.let {
+                closePrices[it.ticker] = it.closes
+                volumes[it.ticker] = it.volumes
+            }
+            parallelResults.filterNotNull().forEach { result ->
+                closePrices[result.ticker] = result.closes
+                volumes[result.ticker] = result.volumes
             }
 
-            logger.d("Collected data for ${closePrices.size} components")
+            logger.d("Collected data for ${closePrices.size} / ${tickers.size} components")
             return Pair(closePrices, volumes)
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Component data fetch failed", e)
             return Pair(emptyMap(), emptyMap())

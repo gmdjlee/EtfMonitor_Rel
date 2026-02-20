@@ -1,13 +1,17 @@
 package com.etfmonitor.core.database.entities
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
  * AI 분석 결과 엔티티
  * AI가 상관관계 분석을 해석한 결과 저장
  */
-@Entity(tableName = "ai_analysis_result")
+@Entity(
+    tableName = "ai_analysis_result",
+    indices = [Index(value = ["market", "analysisDate"])]
+)
 data class AIAnalysisResult(
     @PrimaryKey
     val id: String, // UUID

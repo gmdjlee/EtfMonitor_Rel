@@ -1,6 +1,7 @@
 package com.etfmonitor.core.database.entities
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -8,7 +9,13 @@ import androidx.room.PrimaryKey
  * KOSPI/KOSDAQ 일별 종가 저장
  * ETF 통계와의 상관관계 분석을 위한 별도 테이블
  */
-@Entity(tableName = "market_index")
+@Entity(
+    tableName = "market_index",
+    indices = [
+        Index(value = ["date"]),
+        Index(value = ["market", "date"])
+    ]
+)
 data class MarketIndex(
     @PrimaryKey
     val id: String, // "KOSPI-2025-01-01" 또는 "KOSDAQ-2025-01-01" 형식

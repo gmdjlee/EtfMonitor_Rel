@@ -1,9 +1,9 @@
 package com.etfmonitor.feature.stock.domain.model.financial
 
-import android.util.Log
+import com.etfmonitor.core.common.util.AppLogger
 import kotlinx.serialization.Serializable
 
-private const val TAG = "FinancialModels"
+private val logger = AppLogger.getLogger("FinancialModels")
 
 // ========== Domain Enums ==========
 
@@ -376,11 +376,11 @@ private fun convertYtdToQuarterly(
                 val prev = prevYtdByYear[year]
                 if (prev != null) {
                     if (quarter - prev.first > 1) {
-                        Log.w(TAG, "Non-consecutive quarters: Q${prev.first} -> Q$quarter for year $year")
+                        logger.w("Non-consecutive quarters: Q${prev.first} -> Q$quarter for year $year")
                     }
                     ytdValue - prev.second
                 } else {
-                    Log.w(TAG, "Missing previous quarter for ${periods[i]} (Q$quarter). Using YTD value.")
+                    logger.w("Missing previous quarter for ${periods[i]} (Q$quarter). Using YTD value.")
                     ytdValue
                 }
             }

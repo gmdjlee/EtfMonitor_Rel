@@ -9,6 +9,7 @@ import com.etfmonitor.feature.analysis.domain.model.*
 import com.etfmonitor.feature.analysis.domain.repository.AdvancedAnalysisRepository
 import com.etfmonitor.core.common.util.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -166,6 +167,8 @@ class AdvancedDashboardViewModel @Inject constructor(
 
                 // 시총가중 흐름 히스토리 계산
                 loadMarketCapFlowHistory()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error loading history data", e)
             }
@@ -197,6 +200,8 @@ class AdvancedDashboardViewModel @Inject constructor(
             }
             _marketCapFlowHistory.value = historyItems.reversed()  // 오래된 순으로 정렬
             logger.d("Loaded ${historyItems.size} market cap flow history records")
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error loading market cap flow history", e)
         }
@@ -227,6 +232,8 @@ class AdvancedDashboardViewModel @Inject constructor(
                 calculateLiquidityAccuracy(marketIndexes)
 
                 logger.d("Accuracy data loaded successfully")
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error loading accuracy data", e)
             }
@@ -295,6 +302,8 @@ class AdvancedDashboardViewModel @Inject constructor(
                 )
                 logger.d("Market cap flow accuracy: ${correctCount}/${details.size} (${String.format("%.1f", correctCount.toDouble() / details.size * 100)}%)")
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error calculating market cap flow accuracy", e)
         }
@@ -362,6 +371,8 @@ class AdvancedDashboardViewModel @Inject constructor(
                 )
                 logger.d("Liquidity accuracy: ${correctCount}/${details.size} (${String.format("%.1f", correctCount.toDouble() / details.size * 100)}%)")
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error calculating liquidity accuracy", e)
         }
@@ -469,6 +480,8 @@ class AdvancedDashboardViewModel @Inject constructor(
                         dataAvailability = dataAvailability
                     )
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error loading dashboard", e)
                 _state.value = AdvancedDashboardState.Error("데이터 로드 실패: ${e.message}")
@@ -598,6 +611,8 @@ class AdvancedDashboardViewModel @Inject constructor(
                 loadDashboard()
 
                 logger.d("Force refresh completed")
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Force refresh failed", e)
                 _state.value = AdvancedDashboardState.Error("재계산 실패: ${e.message}")
@@ -643,6 +658,8 @@ class AdvancedDashboardViewModel @Inject constructor(
 
                 // 대시보드 갱신
                 loadDashboard()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error recalculating analysis", e)
             }
@@ -671,6 +688,8 @@ class AdvancedDashboardViewModel @Inject constructor(
 
                 // 대시보드 갱신
                 loadDashboard()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error calculating ETF correlation", e)
             } finally {

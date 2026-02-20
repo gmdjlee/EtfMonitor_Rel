@@ -230,7 +230,6 @@ object LogConstants {
     const val OP_SYNC = "sync"
     const val OP_API_CALL = "api_call"
     const val OP_DATABASE = "database"
-    const val OP_PYTHON = "python"
 
     // Context keys
     const val KEY_TICKER = "ticker"

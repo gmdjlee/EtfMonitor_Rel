@@ -85,6 +85,21 @@ android {
     }
 }
 
+ksp {
+    arg("room.schemaLocation", "${projectDir}/schemas")
+}
+
+// Force kotlinx.serialization 1.8.1 in all configurations (including KSP processor classpath)
+// Required: Room 2.8.3 bundles $$serializer classes compiled against serialization 1.8.1.
+// Without this, Gradle downgrades to 1.7.1 on the KSP classpath → AbstractMethodError at build time.
+configurations.all {
+    resolutionStrategy.force(
+        "org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.1",
+        "org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1",
+        "org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.8.1",
+        "org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.8.1"
+    )
+}
 
 dependencies {
     // kotlin_krx integration
@@ -171,6 +186,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.truth.ext)
+    androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.turbine)
     androidTestImplementation(libs.coroutines.test)
     androidTestImplementation(libs.room.testing)

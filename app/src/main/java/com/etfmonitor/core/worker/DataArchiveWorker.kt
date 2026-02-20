@@ -8,6 +8,7 @@ import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.common.util.DataArchiver
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -52,6 +53,8 @@ class DataArchiveWorker @AssistedInject constructor(
                 Result.failure()
             }
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error during archiving", e)
             if (runAttemptCount < 3) {

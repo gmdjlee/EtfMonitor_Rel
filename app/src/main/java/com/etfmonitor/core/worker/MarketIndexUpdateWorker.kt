@@ -8,6 +8,7 @@ import com.etfmonitor.feature.market.domain.repository.MarketIndexRepository
 import com.etfmonitor.core.common.util.AppLogger
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -46,6 +47,8 @@ class MarketIndexUpdateWorker @AssistedInject constructor(
                     ?: logger.e("Failed to update market index: unknown error")
                 if (runAttemptCount < 3) Result.retry() else Result.failure()
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error in MarketIndexUpdateWorker", e)
             Result.failure()

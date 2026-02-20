@@ -10,6 +10,7 @@ import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
 import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
@@ -84,6 +85,8 @@ class HomeRepositoryImpl @Inject constructor(
                 kosdaqOscillator = kosdaqOscillator?.oscillator,
                 kosdaqStatus = kosdaqOscillator?.let { calculateOscillatorStatus(it.oscillator) }
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error loading summary data", e)
             null

@@ -3,7 +3,7 @@
 ## Project Identity
 
 Korean stock market (KRX) ETF monitoring Android app.
-Kotlin 2.1.0 | Jetpack Compose + M3 | MVVM + Clean Architecture | Hilt 2.54 | Room 2.8.3 (schema v20) | Claude & Gemini AI APIs | KIS Open API (재무정보)
+Kotlin 2.1.0 | Jetpack Compose + M3 | MVVM + Clean Architecture | Hilt 2.54 | Room 2.8.3 (schema v21) | Claude & Gemini AI APIs | KIS Open API (재무정보)
 
 Package: `com.etfmonitor` | DB: `etf_monitor.db` | ~300 Kotlin files | 0 Python scripts
 Structure: `core/` (134 files) shared infra, `feature/` (163 files) 7 modules, `navigation/` (1 file)
@@ -37,19 +37,22 @@ In SQL queries, convert: `CAST(weightBps AS REAL) / 10000.0`, `CAST(amountMillio
 | BloodIndicatorClient | **30s** per HTTP call | Yahoo Finance + FRED API (3 retries) |
 | FearGreedRepositoryImpl | **90s** | 7 parallel kotlin_krx API calls + FearGreedCalculator |
 | KrxRepositoryBase | 30s-180s | Configurable per kotlin_krx call |
-| MarketOscillatorCalculator | **no timeout** | 200 tickers × sequential fetch — use `NonCancellable` in ViewModel |
+| MarketOscillatorCalculator | **no timeout** | 200 tickers × Semaphore(5) parallel fetch — use `NonCancellable` in ViewModel |
 
-### 4. IMPORTANT: FearGreed — Request 3x Days
-Moving averages lose leading data. To get N days of Fear & Greed data:
+### 4. IMPORTANT: FearGreed — Repository Handles 3x Internally
+Moving averages lose leading data. `FearGreedRepositoryImpl` internally multiplies by 3x.
 ```kotlin
-fearGreedRepository.initializeFearGreed(days = N * 3)
+// ✅ Pass desired output days — repository multiplies internally
+fearGreedRepository.initializeFearGreed(days = 90)  // collects 270 days internally
+// ❌ Do NOT pre-multiply — causes 9x over-collection or hits 730-day cap
+fearGreedRepository.initializeFearGreed(days = 90 * 3)  // WRONG: becomes 810, capped to 730
 ```
 
 ### 5. DAO Queries — Always Use LIMIT
 Ranking queries without LIMIT cause OOM on Android. Existing limits: rankings=500, changes=300, lists=100.
 
 ### 6. Database Migrations — Inline in AppDatabase.kt
-Schema is v20 (19 migrations). All migrations defined inline in `AppDatabase.kt`.
+Schema is v21 (20 migrations). All migrations defined inline in `AppDatabase.kt`.
 IMPORTANT: Always add migration BEFORE changing schema. Never use `fallbackToDestructiveMigration()`.
 
 ### 7. Repository Caching
@@ -70,7 +73,7 @@ New ViewModels should use sealed classes.
 - Check `isApiKeyConfigured` before calling AI APIs
 - AI parser handles Korean signals: 강력매수, 매수, 중립, 매도, 강력매도
 - Handle Gemini `SAFETY`/`RECITATION` blocks (returns empty instead of error)
-- API keys stored with AES256-GCM via Android Keystore (`SharedPreferencesApiKeyProvider`)
+- API keys stored with AES256-GCM via Android Keystore (`SharedPreferencesApiKeyProvider`, `KisApiKeyProvider`, `FredApiKeyProvider`)
 
 ### 10. kotlin_krx Date Format — Always Convert
 kotlin_krx returns dates in `"yyyyMMdd"` format. Room entities and UI expect `"yyyy-MM-dd"` (ISO).
@@ -120,8 +123,8 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 |----------|------|-------|
 | Entry | `MainActivity.kt`, `EtfMonitorApp.kt` | Theme, permissions |
 | Navigation | `navigation/Navigation.kt` | 17 screen routes |
-| Database | `core/database/AppDatabase.kt` | 22 entities, 21 DAOs, 19 migrations (v20) |
-| Database entities | `core/database/entities/` | 22 files (AIChatSession in AIChatMessage.kt) |
+| Database | `core/database/AppDatabase.kt` | 23 entities, 21 DAOs, 20 migrations (v21) |
+| Database entities | `core/database/entities/` | 22 files, 23 entities (AIChatSession in AIChatMessage.kt) |
 | Blood Indicator | `core/network/blood/` | BloodIndicatorClient (OkHttp: Yahoo Finance + FRED API) |
 | AI clients | `core/network/ai/` | ClaudeApiClient, GeminiApiClient, AIApiClientFactory (11 files) |
 | Theme | `core/ui/theme/` | Theme.kt, ThemeManager.kt |
@@ -134,6 +137,7 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 | Data collection | `core/service/DataCollectionService.kt` | Foreground Service with serviceScope |
 | KIS Financial Info | `feature/stock/presentation/financial/` | FinancialInfoContent, ProfitabilityContent, StabilityContent |
 | KIS API client | `feature/stock/data/repository/financial/` | FinancialRepositoryImpl (OAuth2 + 5 KIS REST APIs, 24h cache) |
+| FRED API keys | `core/network/blood/` | FredApiKeyProvider (EncryptedSharedPreferences, AES256-GCM) |
 | KIS API keys | `core/network/kis/` | KisApiKeyProvider (EncryptedSharedPreferences), KisApiKeyConfig |
 | Tests | `app/src/test/`, `app/src/androidTest/` | JUnit5, MockK, Turbine |
 
@@ -146,7 +150,7 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 | Construct `Holding(...)` directly | Use `Holding.create()` factory method |
 | Query `stock_analysis_data` without JOIN | Use `getAnalysisDataWithName()` (JOIN with stocks) |
 | Use 30s timeout for all KRX calls | Use KrxRepositoryBase with configurable timeouts (30s-180s) |
-| Request exact days for FearGreed | Request 3x days (MA data loss) |
+| Pre-multiply days for FearGreed (repository does 3x internally) | Pass desired output days only: `initializeFearGreed(days = 90)` |
 | Write ranking queries without LIMIT | Add LIMIT clause (OOM on Android) |
 | Expose `MutableStateFlow` publicly | Use `_state` private + `state: StateFlow` public via `.asStateFlow()` |
 | Use `LiveData` | This project uses `StateFlow` exclusively |
@@ -248,16 +252,55 @@ All former Python scripts have been replaced by native Kotlin implementations:
 
 - maxDays 365로 제한 중 (kotlin_krx date chunking 수정 후 730 복원 필요)
 - ETF 목록 조회 timeout 60s 증가 검토
-- OOM 방지: 일부 DAO 쿼리 LIMIT 미적용 (BackupDao.getAllHoldings 등)
+- Certificate pin rotation: Anthropic API pin expires 2026-06-30
 - API key 가드: NewAIAnalysisViewModel.startNewChat/sendMessage에 isApiKeyConfigured 체크 누락
 - Room TypeConverter JSON 파싱 에러 처리 미비
+- CorrelationAnalyzer: 전체 테이블 로드 후 메모리 필터링 → `getByDateRangeSuspend` DAO 메서드 필요
+- forwardFillToIndex(): O(n*m) → O(n+m) 최적화 가능 (현재 영향 적음)
+- TechnicalAnalysisEngineTest: Elder Impulse 경계값 테스트 2개 실패 (pre-existing)
+
+---
+
+## Project Review & Hardening Summary (2026-02-20)
+
+Full reports: `PROJECT_REVIEW.md` (findings), `UPDATE_REPORT.md` (fixes applied)
+
+**Before**: Security 72, Performance 62, Reliability 62, Tests 18 (Overall 53.5/100)
+**After**: Security ~89, Performance ~86, Reliability ~91, Tests ~68 (Overall ~83.5/100)
+
+### Resolved (P0 Critical)
+- CancellationException: 216+ catch blocks fixed across 59 files
+- OkHttp Response leaks: 3 locations wrapped with `response.use {}`
+- FRED API key: Migrated from plaintext Room to `FredApiKeyProvider` (EncryptedSharedPreferences)
+- NonCancellable: Added to FearGreedViewModel + SettingsViewModel long-running ops
+- BackupDao OOM: Monthly date-range chunking for holdings/priceCache, removed getAllHoldingKeys()
+
+### Resolved (P1 High)
+- @Transaction: 22 BackupDao batch insert methods
+- DB indices: 8 CREATE INDEX via migration v20→v21
+- LIMIT clauses: Added to unbounded EtfDao queries
+- Network security config: KIS, FRED, Yahoo Finance domains added
+- Log redaction: API keys redacted via `redactUrl()`, `android.util.Log` → `AppLogger`
+- Backup rules: `fred_api_prefs.xml` + `kis_api_prefs.xml` excluded
+- exportSchema=true: Room schema export enabled (kotlinxSerialization 1.7.1→1.8.1)
+- CollectionState persistence: SharedPreferences with wasInterrupted detection
+
+### Resolved (P2 Enhancement)
+- MarketOscillator parallelism: Semaphore(5) + ISIN cache warmup (~4.8x speedup)
+- InMemoryCookieJar thread-safety: synchronized(lock) in kotlin_krx KrxClient
+
+### Resolved (P2 Tests)
+- 391 new tests total
+- Phase 3: 160 tests (Holding, DateAdapter, BloodIndicatorCalculator, FearGreedCalculator, TechnicalAnalysisEngine)
+- Phase 5: 72 tests (AIResponseParser, MarketOscillatorCalculator, StockAnalysisRepositoryImpl, CorrelationAnalyzer)
+- Phase 7: 159 tests (Workers 65 + DAOs 94)
 
 ---
 
 ## Compaction Instructions
 
 When context is compacted, PRESERVE:
-- All Critical Rules (especially Holding factory, StockAnalysisData JOIN, KRX timeouts, FearGreed 3x, date format conversion, NonCancellable)
+- All Critical Rules (especially Holding factory, StockAnalysisData JOIN, KRX timeouts, FearGreed internal 3x, date format conversion, NonCancellable)
 - Do NOT table (project-specific mistakes)
 - Project Identity (package name, DB name, structure)
 - Commands section

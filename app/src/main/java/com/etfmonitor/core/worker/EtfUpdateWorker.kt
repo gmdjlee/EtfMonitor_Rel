@@ -9,6 +9,7 @@ import com.etfmonitor.feature.etf.domain.repository.EtfRepository
 import com.etfmonitor.core.common.util.AppLogger
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.last
@@ -85,6 +86,8 @@ class EtfUpdateWorker @AssistedInject constructor(
                     Result.success()
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error in EtfUpdateWorker", e)
             if (runAttemptCount < 3) {

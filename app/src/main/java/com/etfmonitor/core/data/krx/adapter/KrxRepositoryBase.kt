@@ -1,6 +1,7 @@
 package com.etfmonitor.core.data.krx.adapter
 
 import com.krxkt.error.KrxError
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -22,6 +23,8 @@ abstract class KrxRepositoryBase {
             }
         } catch (e: KrxError) {
             Result.failure(KrxErrorMapper.toException(e))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             // FIX W5: Generic exception catch to prevent uncaught errors
             Result.failure(Exception("Unexpected error: ${e.message}", e))

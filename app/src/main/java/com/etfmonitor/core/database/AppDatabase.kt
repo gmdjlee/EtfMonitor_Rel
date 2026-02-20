@@ -71,8 +71,8 @@ import com.etfmonitor.core.database.entities.FinancialCache
         BloodIndicator::class,
         FinancialCache::class
     ],
-    version = 20,
-    exportSchema = false
+    version = 21,
+    exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -842,5 +842,21 @@ val MIGRATION_19_20 = object : Migration(19, 20) {
             )
             """.trimIndent()
         )
+    }
+}
+
+/**
+ * Migration from version 20 to 21: Add performance indexes
+ * 자주 조회되는 컬럼에 인덱스 추가하여 쿼리 성능 개선
+ */
+val MIGRATION_20_21 = object : Migration(20, 21) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE INDEX IF NOT EXISTS `idx_fear_greed_date` ON `fear_greed_index` (`date`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `idx_market_oscillator_date` ON `market_oscillator` (`date`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `idx_market_index_date_market` ON `market_index` (`date`, `market`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `idx_ai_analysis_market_date` ON `ai_analysis_result` (`market`, `analysisDate`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `idx_ai_chat_session_market` ON `ai_chat_session` (`market`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `idx_ai_chat_message_timestamp` ON `ai_chat_message` (`timestamp`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `idx_correlation_date` ON `correlation_analysis_result` (`analysisDate`)")
     }
 }

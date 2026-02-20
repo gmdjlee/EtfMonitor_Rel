@@ -56,6 +56,7 @@ object WorkManagerHelper {
         )
             .setConstraints(constraints)
             .setInitialDelay(initialDelay, TimeUnit.MILLISECONDS)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .addTag(workName)
             .build()
 
@@ -315,6 +316,7 @@ object WorkManagerHelper {
         )
             .setConstraints(constraints)
             .setInitialDelay(calculateInitialDelayForMonthly(), TimeUnit.MILLISECONDS)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .addTag(DataArchiveWorker.WORK_NAME)
             .build()
 
