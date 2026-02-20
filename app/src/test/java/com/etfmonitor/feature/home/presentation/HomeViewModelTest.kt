@@ -14,11 +14,15 @@ import com.etfmonitor.feature.home.domain.usecase.GetHomeSummaryUseCase
 import com.etfmonitor.feature.home.domain.usecase.SaveDialogDismissedUseCase
 import com.etfmonitor.feature.home.presentation.viewmodel.HomeViewModel
 import com.etfmonitor.core.service.CollectionState
+import com.etfmonitor.core.network.ai.ApiKeyProvider
+import com.etfmonitor.core.network.blood.FredApiKeyProvider
+import com.etfmonitor.core.network.kis.KisApiKeyProvider
 import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
 import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -56,6 +60,9 @@ class HomeViewModelTest {
     private lateinit var fearGreedRepository: FearGreedRepository
     private lateinit var marketOscillatorRepository: MarketOscillatorRepository
     private lateinit var marketDepositRepository: MarketDepositRepository
+    private lateinit var kisApiKeyProvider: KisApiKeyProvider
+    private lateinit var fredApiKeyProvider: FredApiKeyProvider
+    private lateinit var aiApiKeyProvider: ApiKeyProvider
     private lateinit var context: Context
 
     private lateinit var viewModel: HomeViewModel
@@ -72,10 +79,14 @@ class HomeViewModelTest {
         fearGreedRepository = mockk(relaxed = true)
         marketOscillatorRepository = mockk(relaxed = true)
         marketDepositRepository = mockk(relaxed = true)
+        kisApiKeyProvider = mockk(relaxed = true)
+        fredApiKeyProvider = mockk(relaxed = true)
+        aiApiKeyProvider = mockk(relaxed = true)
         context = mockk(relaxed = true)
 
-        // Default mock behavior - not first run
+        // Default mock behavior - not first run, KIS keys already configured
         coEvery { checkFirstRunUseCase() } returns false
+        every { kisApiKeyProvider.isConfigured() } returns true
 
         // Reset global singleton to prevent test pollution
         CollectionState.reset()
@@ -92,6 +103,9 @@ class HomeViewModelTest {
             fearGreedRepository = fearGreedRepository,
             marketOscillatorRepository = marketOscillatorRepository,
             marketDepositRepository = marketDepositRepository,
+            kisApiKeyProvider = kisApiKeyProvider,
+            fredApiKeyProvider = fredApiKeyProvider,
+            aiApiKeyProvider = aiApiKeyProvider,
             context = context
         )
     }
@@ -158,11 +172,12 @@ class HomeViewModelTest {
     inner class FirstRunDialogTests {
 
         @Test
-        @DisplayName("첫 실행 시 통합 초기화 다이얼로그 표시")
-        fun whenFirstRun_thenShowUnifiedInitDialog() = runTest {
+        @DisplayName("첫 실행 + KIS 키 설정 완료 시 통합 초기화 다이얼로그 표시")
+        fun whenFirstRun_andKisConfigured_thenShowUnifiedInitDialog() = runTest {
             // Given
             coEvery { checkFirstRunUseCase() } returns true
             coEvery { checkEtfDataUseCase() } returns Pair(false, null)
+            every { kisApiKeyProvider.isConfigured() } returns true
 
             // When
             viewModel = createViewModel()
@@ -171,6 +186,9 @@ class HomeViewModelTest {
             // Then
             viewModel.showUnifiedInitDialog.test {
                 assertTrue(awaitItem())
+            }
+            viewModel.showApiKeyDialog.test {
+                assertFalse(awaitItem())
             }
         }
 
@@ -209,6 +227,104 @@ class HomeViewModelTest {
             coVerify { saveDialogDismissedUseCase.saveFirstRunCompleted() }
             viewModel.showUnifiedInitDialog.test {
                 assertFalse(awaitItem())
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("API 키 다이얼로그 테스트")
+    inner class ApiKeyDialogTests {
+
+        @Test
+        @DisplayName("첫 실행 + KIS 키 미설정 시 API 키 다이얼로그 먼저 표시")
+        fun whenFirstRun_andKisNotConfigured_thenShowApiKeyDialog() = runTest {
+            // Given
+            coEvery { checkFirstRunUseCase() } returns true
+            coEvery { checkEtfDataUseCase() } returns Pair(false, null)
+            every { kisApiKeyProvider.isConfigured() } returns false
+
+            // When
+            viewModel = createViewModel()
+            advanceUntilIdle()
+
+            // Then: API 키 다이얼로그 표시
+            viewModel.showApiKeyDialog.test {
+                assertTrue(awaitItem())
+            }
+            // Then: 통합 초기화 다이얼로그는 아직 숨김
+            viewModel.showUnifiedInitDialog.test {
+                assertFalse(awaitItem())
+            }
+        }
+
+        @Test
+        @DisplayName("첫 실행이 아닐 때 API 키 다이얼로그 표시 안 함")
+        fun whenNotFirstRun_thenDontShowApiKeyDialog() = runTest {
+            // Given
+            coEvery { checkFirstRunUseCase() } returns false
+            coEvery { checkEtfDataUseCase() } returns Pair(false, null)
+            every { kisApiKeyProvider.isConfigured() } returns false
+
+            // When
+            viewModel = createViewModel()
+            advanceUntilIdle()
+
+            // Then
+            viewModel.showApiKeyDialog.test {
+                assertFalse(awaitItem())
+            }
+        }
+
+        @Test
+        @DisplayName("saveApiKeys() 호출 시 키 저장 후 통합 초기화 다이얼로그 표시")
+        fun whenSaveApiKeys_thenStoreKeysAndShowUnifiedInitDialog() = runTest {
+            // Given
+            coEvery { checkFirstRunUseCase() } returns true
+            coEvery { checkEtfDataUseCase() } returns Pair(false, null)
+            every { kisApiKeyProvider.isConfigured() } returns false
+
+            viewModel = createViewModel()
+            advanceUntilIdle()
+
+            // When
+            viewModel.saveApiKeys("test-app-key", "test-app-secret", "", null, null)
+            advanceUntilIdle()
+
+            // Then: API 키 다이얼로그 닫힘
+            viewModel.showApiKeyDialog.test {
+                assertFalse(awaitItem())
+            }
+            // Then: 통합 초기화 다이얼로그 열림
+            viewModel.showUnifiedInitDialog.test {
+                assertTrue(awaitItem())
+            }
+            // Then: KisApiKeyProvider에 키 저장됨
+            io.mockk.verify { kisApiKeyProvider.setAppKey("test-app-key") }
+            io.mockk.verify { kisApiKeyProvider.setAppSecret("test-app-secret") }
+        }
+
+        @Test
+        @DisplayName("dismissApiKeyDialog() 호출 시 다이얼로그 닫고 통합 초기화 다이얼로그 표시")
+        fun whenDismissApiKeyDialog_thenCloseAndShowUnifiedInitDialog() = runTest {
+            // Given
+            coEvery { checkFirstRunUseCase() } returns true
+            coEvery { checkEtfDataUseCase() } returns Pair(false, null)
+            every { kisApiKeyProvider.isConfigured() } returns false
+
+            viewModel = createViewModel()
+            advanceUntilIdle()
+
+            // When
+            viewModel.dismissApiKeyDialog()
+            advanceUntilIdle()
+
+            // Then: API 키 다이얼로그 닫힘
+            viewModel.showApiKeyDialog.test {
+                assertFalse(awaitItem())
+            }
+            // Then: 통합 초기화 다이얼로그 열림 (나중에 설정 후에도 진행 가능)
+            viewModel.showUnifiedInitDialog.test {
+                assertTrue(awaitItem())
             }
         }
     }

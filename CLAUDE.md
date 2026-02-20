@@ -5,8 +5,8 @@
 Korean stock market (KRX) ETF monitoring Android app.
 Kotlin 2.1.0 | Jetpack Compose + M3 | MVVM + Clean Architecture | Hilt 2.54 | Room 2.8.3 (schema v21) | Claude & Gemini AI APIs | KIS Open API (재무정보)
 
-Package: `com.etfmonitor` | DB: `etf_monitor.db` | ~300 Kotlin files | 0 Python scripts
-Structure: `core/` (134 files) shared infra, `feature/` (163 files) 7 modules, `navigation/` (1 file)
+Package: `com.etfmonitor` | DB: `etf_monitor.db` | 300 Kotlin files | 0 Python scripts
+Structure: `core/` (133 files) shared infra, `feature/` (164 files) 7 modules, `navigation/` (1 file)
 Each feature: `domain/{model,repository,usecase}` → `data/{mapper,repository}` → `presentation/` → `di/`
 
 ---
@@ -35,9 +35,9 @@ In SQL queries, convert: `CAST(weightBps AS REAL) / 10000.0`, `CAST(amountMillio
 | Client | Timeout | Why |
 |--------|---------|-----|
 | BloodIndicatorClient | **30s** per HTTP call | Yahoo Finance + FRED API (3 retries) |
-| FearGreedRepositoryImpl | **90s** | 7 parallel kotlin_krx API calls + FearGreedCalculator |
+| FearGreedRepositoryImpl | **90s** | 7 kotlin_krx API calls (2 batches: 4+3) + FearGreedCalculator |
 | KrxRepositoryBase | 30s-180s | Configurable per kotlin_krx call |
-| MarketOscillatorCalculator | **no timeout** | 200 tickers × Semaphore(5) parallel fetch — use `NonCancellable` in ViewModel |
+| MarketOscillatorCalculator | **no timeout** | 200 tickers × Semaphore(3) parallel fetch — use `NonCancellable` in ViewModel |
 
 ### 4. IMPORTANT: FearGreed — Repository Handles 3x Internally
 Moving averages lose leading data. `FearGreedRepositoryImpl` internally multiplies by 3x.
@@ -100,6 +100,28 @@ Financial info uses KIS Open API with OAuth2 client credentials (`/oauth2/tokenP
 - Check `kisApiKeyProvider.isConfigured()` before calling KIS APIs
 - KIS income statement returns **cumulative YTD** values — use `convertYtdToQuarterly()` to get quarterly deltas
 
+### 13. KRX Akamai WAF Rate Limiting — All Sources Must Throttle
+KRX CDN returns HTTP 403 "Access Denied" after ~50-65 rapid requests. All KRX data sources use chunked parallel with delays:
+| Source | Concurrency | Delay | Pattern |
+|--------|-------------|-------|---------|
+| MarketOscillatorCalculator | Semaphore(3) | 500ms per request | 1 warmup ticker sync → remaining async with semaphore |
+| GetKrxEtfListUseCase | chunked(3) | 500ms per chunk | ETF name lookups in chunks of 3 |
+| EtfRepositoryImpl | chunked(3) | 500ms per chunk | ETF holdings fetches in chunks of 3 |
+| FearGreedRepositoryImpl | 2 batches (4+3) | 2s between batches | 7 index API calls split into 2 batches |
+| MarketOscillatorViewModel | sequential | 15s cooldown | Between KOSPI and KOSDAQ oscillator runs |
+| DataCollectionService | sequential | 15s cooldown | Between KOSPI and KOSDAQ in init/update paths |
+```kotlin
+// ❌ Fire all KRX API calls simultaneously — triggers Akamai WAF 403
+// ✅ Use Semaphore(3) + delay(500) or chunked(3) + delay(500) pattern
+```
+
+### 14. Chart Color Constants — No Duplicate ARGB Values
+`chartDefaultColors` list in `ColorPickerComponents.kt` is used as `LazyRow` items. If two colors have the same ARGB value, `LazyRow` keys collide and the app crashes with `IllegalArgumentException`.
+```kotlin
+// ❌ ChartBlue = Color(0xFF396663) — same as ChartSecondary, causes LazyRow key collision crash
+// ✅ All chart color constants in Color.kt must have unique ARGB values
+```
+
 ---
 
 ## Commands
@@ -139,7 +161,9 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 | KIS API client | `feature/stock/data/repository/financial/` | FinancialRepositoryImpl (OAuth2 + 5 KIS REST APIs, 24h cache) |
 | FRED API keys | `core/network/blood/` | FredApiKeyProvider (EncryptedSharedPreferences, AES256-GCM) |
 | KIS API keys | `core/network/kis/` | KisApiKeyProvider (EncryptedSharedPreferences), KisApiKeyConfig |
-| Tests | `app/src/test/`, `app/src/androidTest/` | JUnit5, MockK, Turbine |
+| API Key Dialog | `feature/home/presentation/component/ApiKeyInputDialog.kt` | First-launch key input: KIS + FRED + AI (shown before UnifiedInitializationDialog if keys not set) |
+| Chart Color Settings | `feature/settings/presentation/component/ChartColorCards.kt`, `ColorPickerComponents.kt` | 4 chart color cards + color picker dialog |
+| Tests | `app/src/test/`, `app/src/androidTest/` | JUnit5, MockK, Turbine (379 tests, 16 test files + 5 androidTest files) |
 
 ---
 
@@ -164,6 +188,8 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 | Store kotlin_krx dates without conversion | Convert yyyyMMdd → yyyy-MM-dd via `DateAdapter.fromKrxFormat()` |
 | Run long data collection in viewModelScope | Wrap with `NonCancellable` or use DataCollectionService |
 | Catch Exception without rethrowing CancellationException | Always `catch (e: CancellationException) { throw e }` first |
+| Fire parallel KRX requests without rate limiting | Use Semaphore(3) + delay(500ms) or chunked(3) + delay(500ms) pattern |
+| Use ARGB color values as LazyRow/LazyColumn keys | Use index or unique identifiers — duplicate colors crash with IllegalArgumentException |
 
 ---
 
@@ -258,6 +284,10 @@ All former Python scripts have been replaced by native Kotlin implementations:
 - CorrelationAnalyzer: 전체 테이블 로드 후 메모리 필터링 → `getByDateRangeSuspend` DAO 메서드 필요
 - forwardFillToIndex(): O(n*m) → O(n+m) 최적화 가능 (현재 영향 적음)
 - TechnicalAnalysisEngineTest: Elder Impulse 경계값 테스트 2개 실패 (pre-existing)
+- First-launch flow has TWO dialogs: ApiKeyInputDialog (KIS + FRED + AI keys, all optional) → UnifiedInitializationDialog
+- BloodIndicator chart colors: `loadChartColorSettings()`에서 `bloodIndicator` 누락 — DB에 저장은 되나 로드 안 됨
+- `KRX_RATE_LIMIT_COOLDOWN_MS = 15_000L` 이 3곳(HomeViewModel, MarketOscillatorViewModel, DataCollectionService)에 독립 정의 — 공통 상수 추출 검토
+- AndroidView `factory` 블록의 axis/legend 색상이 `update` 블록에서 갱신 안 됨 (chart color 변경 시 축/범례 색상 stale)
 
 ---
 
@@ -285,15 +315,30 @@ Full reports: `PROJECT_REVIEW.md` (findings), `UPDATE_REPORT.md` (fixes applied)
 - exportSchema=true: Room schema export enabled (kotlinxSerialization 1.7.1→1.8.1)
 - CollectionState persistence: SharedPreferences with wasInterrupted detection
 
+### Resolved (P1 Rate Limiting)
+- KRX Akamai WAF 403 방지: 전체 KRX 데이터 소스에 rate limiting 적용
+- MarketOscillatorCalculator: Semaphore(3) + 500ms delay + ISIN cache warmup
+- GetKrxEtfListUseCase: chunked(3) + 500ms delay (ETF name lookups)
+- EtfRepositoryImpl: chunked(3) + 500ms delay (ETF holdings fetches)
+- FearGreedRepositoryImpl: 7 calls → 2 batches (4+3) with 2s inter-batch delay
+- MarketOscillatorViewModel/HomeViewModel/DataCollectionService: 15s KOSPI↔KOSDAQ cooldown
+
+### Resolved (P1 Bug Fixes)
+- Chart color picker crash: `ChartBlue`=`ChartSecondary` duplicate ARGB causing LazyRow key collision → fixed both color value and key strategy
+- API Key Dialog: Enhanced from KIS-only to KIS + FRED + AI keys at first launch
+- KOSDAQ empty screen: Date format mismatch (yyyyMMdd vs yyyy-MM-dd) fixed
+- ETF detail / statistics empty: Same date format mismatch root cause
+
 ### Resolved (P2 Enhancement)
-- MarketOscillator parallelism: Semaphore(5) + ISIN cache warmup (~4.8x speedup)
+- MarketOscillator parallelism: Semaphore(3) + ISIN cache warmup (~4.8x speedup)
 - InMemoryCookieJar thread-safety: synchronized(lock) in kotlin_krx KrxClient
 
 ### Resolved (P2 Tests)
-- 391 new tests total
+- 379 tests total (16 test files + 5 androidTest files)
 - Phase 3: 160 tests (Holding, DateAdapter, BloodIndicatorCalculator, FearGreedCalculator, TechnicalAnalysisEngine)
 - Phase 5: 72 tests (AIResponseParser, MarketOscillatorCalculator, StockAnalysisRepositoryImpl, CorrelationAnalyzer)
 - Phase 7: 159 tests (Workers 65 + DAOs 94)
+- 2 pre-existing failures: Elder Impulse boundary tests (TechnicalAnalysisEngineTest)
 
 ---
 

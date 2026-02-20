@@ -13,6 +13,7 @@ import com.etfmonitor.core.ui.theme.ThemeManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -52,6 +53,7 @@ class MarketOscillatorViewModel @Inject constructor(
 
     companion object {
         private val logger = AppLogger.getLogger("MarketOscillatorViewModel")
+        private const val KRX_RATE_LIMIT_COOLDOWN_MS = 15_000L
     }
 
     // Body 폰트 스케일
@@ -206,6 +208,10 @@ class MarketOscillatorViewModel @Inject constructor(
                 _state.value = MarketOscillatorState.Initializing("KOSPI 데이터 수집 중...", 25)
                 val kospi = repository.initializeMarketData("KOSPI", days)
 
+                // KRX rate limit 쿨다운 (KOSPI 수집 후 403 방지)
+                _state.value = MarketOscillatorState.Initializing("KRX 서버 대기 중...", 45)
+                delay(KRX_RATE_LIMIT_COOLDOWN_MS)
+
                 _state.value = MarketOscillatorState.Initializing("KOSDAQ 데이터 수집 중...", 50)
                 val kosdaq = repository.initializeMarketData("KOSDAQ", days)
                 Pair(kospi, kosdaq)
@@ -238,6 +244,11 @@ class MarketOscillatorViewModel @Inject constructor(
             // NonCancellable: 사용자가 화면을 나가도 업데이트 완료 보장
             val (kospiResult, kosdaqResult) = withContext(NonCancellable) {
                 val kospi = repository.updateMarketData("KOSPI")
+
+                // KRX rate limit 쿨다운 (KOSPI 수집 후 403 방지)
+                _state.value = MarketOscillatorState.Updating("KRX 서버 대기 중...")
+                delay(KRX_RATE_LIMIT_COOLDOWN_MS)
+
                 val kosdaq = repository.updateMarketData("KOSDAQ")
                 Pair(kospi, kosdaq)
             }

@@ -19,9 +19,11 @@ class KrxEtfRepositoryImpl @Inject constructor(
         ticker: String,
         date: String = DateAdapter.today()
     ): Result<List<Holding>> = krxCall {
+        // Critical Rule #10: Convert yyyyMMdd → yyyy-MM-dd before DB storage
+        val isoDate = DateAdapter.fromKrxFormat(date).toString()
         // FIX C1: Correct parameter order is (date, ticker), use named parameters for clarity
         krxEtf.getPortfolio(date = date, ticker = ticker).map { portfolio ->
-            HoldingMapper.fromEtfPortfolio(ticker, date, portfolio)
+            HoldingMapper.fromEtfPortfolio(ticker, isoDate, portfolio)
         }
     }
 

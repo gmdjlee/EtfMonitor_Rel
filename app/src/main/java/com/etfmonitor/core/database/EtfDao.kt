@@ -424,6 +424,17 @@ interface EtfDao {
         WHERE date >= :startDate AND date <= :endDate
     """)
     suspend fun getHoldingCountByDateRange(startDate: String, endDate: String): Long
+
+    /**
+     * yyyyMMdd → yyyy-MM-dd 날짜 형식 정규화 (Critical Rule #10 위반 데이터 수정)
+     * 멱등(idempotent): 이미 yyyy-MM-dd인 데이터는 변경되지 않음
+     */
+    @Query("""
+        UPDATE holdings
+        SET date = SUBSTR(date, 1, 4) || '-' || SUBSTR(date, 5, 2) || '-' || SUBSTR(date, 7, 2)
+        WHERE LENGTH(date) = 8 AND date NOT LIKE '%-%'
+    """)
+    suspend fun normalizeDateFormat()
 }
 
 // ✅ 종목 검색 결과

@@ -224,6 +224,25 @@ fun MarketOscillatorScreen(
                                 }
                             }
                         }
+                    } else if (marketData.isEmpty()) {
+                        // 다른 시장에는 데이터가 있지만 선택된 시장에 데이터가 없는 경우
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    "${selectedMarket} 데이터가 없습니다.\n데이터를 수집해 주세요.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                                Button(onClick = { showManualPeriodDialog = true }) {
+                                    Text(stringResource(R.string.action_collect_data))
+                                }
+                            }
+                        }
                     }
                 }
             }

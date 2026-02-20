@@ -37,16 +37,29 @@ import javax.inject.Singleton
  */
 @Singleton
 class StockStatisticsRepositoryImpl @Inject constructor(
-    private val localDataSource: StockStatisticsLocalDataSource
+    private val localDataSource: StockStatisticsLocalDataSource,
+    private val etfDao: com.etfmonitor.core.database.EtfDao
 ) : StockStatisticsRepository {
 
     companion object {
         private val logger = AppLogger.getLogger("StockStatisticsRepoImpl")
     }
 
+    // One-shot flag: normalize yyyyMMdd → yyyy-MM-dd in holdings table (Critical Rule #10)
+    @Volatile
+    private var dateFormatNormalized = false
+
+    private suspend fun ensureDateFormatNormalized() {
+        if (!dateFormatNormalized) {
+            etfDao.normalizeDateFormat()
+            dateFormatNormalized = true
+        }
+    }
+
     // ========== 통계 날짜 ==========
 
     override suspend fun getStatisticsDates(): Pair<String, String>? = withContext(Dispatchers.IO) {
+        ensureDateFormatNormalized()
         // holdings 테이블에서 직접 최근 2개 날짜 가져오기
         val dates = localDataSource.getLatestTwoDates()
         if (dates.size < 2) {
@@ -66,6 +79,7 @@ class StockStatisticsRepositoryImpl @Inject constructor(
         startDate: String,
         endDate: String
     ): Pair<String, String>? = withContext(Dispatchers.IO) {
+        ensureDateFormatNormalized()
         val allDates = localDataSource.getAllDistinctDates(500)
         val datesInRange = allDates.filter { it in startDate..endDate }
 

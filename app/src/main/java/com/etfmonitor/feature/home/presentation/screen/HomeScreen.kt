@@ -28,6 +28,7 @@ import com.etfmonitor.R
 import com.etfmonitor.core.ui.theme.*
 import com.etfmonitor.feature.home.domain.model.HomeState
 import com.etfmonitor.feature.home.domain.model.HomeSummary
+import com.etfmonitor.feature.home.presentation.component.ApiKeyInputDialog
 import com.etfmonitor.feature.home.presentation.component.DaysSelectionDialog
 import com.etfmonitor.feature.home.presentation.component.UnifiedInitializationDialog
 import com.etfmonitor.feature.home.presentation.viewmodel.HomeViewModel
@@ -57,13 +58,19 @@ fun HomeScreen(
     val state by viewModel.state.collectAsState()
     val showFirstRunDialog by viewModel.showFirstRunDialog.collectAsState()
     val showUnifiedInitDialog by viewModel.showUnifiedInitDialog.collectAsState()
+    val showApiKeyDialog by viewModel.showApiKeyDialog.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val lastDate = (state as? HomeState.Idle)?.lastDate
 
     var showDaysDialog by remember { mutableStateOf(false) }
     var showUnifiedDialog by remember { mutableStateOf(false) }
+    var showApiKeyInputDialog by remember { mutableStateOf(false) }
 
     // Dialog handlers
+    LaunchedEffect(showApiKeyDialog) {
+        if (showApiKeyDialog) showApiKeyInputDialog = true
+    }
+
     LaunchedEffect(showUnifiedInitDialog) {
         if (showUnifiedInitDialog) showUnifiedDialog = true
     }
@@ -123,6 +130,19 @@ fun HomeScreen(
     }
 
     // Dialogs
+    if (showApiKeyInputDialog) {
+        ApiKeyInputDialog(
+            onConfirm = { kisAppKey, kisAppSecret, fredApiKey, aiProvider, aiApiKey ->
+                showApiKeyInputDialog = false
+                viewModel.saveApiKeys(kisAppKey, kisAppSecret, fredApiKey, aiProvider, aiApiKey)
+            },
+            onDismiss = {
+                showApiKeyInputDialog = false
+                viewModel.dismissApiKeyDialog()
+            }
+        )
+    }
+
     if (showDaysDialog) {
         DaysSelectionDialog(
             onDismiss = {

@@ -26,6 +26,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -83,6 +84,7 @@ class DataCollectionService : Service() {
         private const val CHANNEL_NAME = "데이터 수집"
         private const val WAKELOCK_TAG = "EtfMonitor:DataCollectionWakeLock"
         private const val WAKELOCK_TIMEOUT_MS = 180 * 60 * 1000L  // 3 hours max (FearGreed 90d + Oscillator 365d)
+        private const val KRX_RATE_LIMIT_COOLDOWN_MS = 15_000L  // KRX 서버 rate limit 쿨다운
 
         const val ACTION_INITIALIZE = "action_initialize"
         const val ACTION_INITIALIZE_ALL = "action_initialize_all"
@@ -454,8 +456,13 @@ class DataCollectionService : Service() {
                         updateNotification("KOSPI $message", adjustedProgress)
                     }
 
+                    // KRX rate limit 쿨다운 (KOSPI 수집 후 403 방지)
+                    CollectionState.updateProgress("KRX 서버 대기 중...", 85)
+                    updateNotification("KRX 서버 대기 중...", 85)
+                    delay(KRX_RATE_LIMIT_COOLDOWN_MS)
+
                     val kosdaqResult = marketOscillatorRepository.initializeMarketData("KOSDAQ", oscillatorDays) { message, progress ->
-                        val adjustedProgress = 85 + (progress * 0.05).toInt()
+                        val adjustedProgress = 86 + (progress * 0.04).toInt()
                         CollectionState.updateProgress("KOSDAQ $message", adjustedProgress)
                         updateNotification("KOSDAQ $message", adjustedProgress)
                     }
@@ -632,6 +639,12 @@ class DataCollectionService : Service() {
 
                 // KOSPI와 KOSDAQ 데이터 업데이트
                 val kospiResult = marketOscillatorRepository.updateMarketData("KOSPI")
+
+                // KRX rate limit 쿨다운 (KOSPI 수집 후 403 방지)
+                CollectionState.updateProgress("KRX 서버 대기 중...", 75)
+                updateNotification("KRX 서버 대기 중...", 75)
+                delay(KRX_RATE_LIMIT_COOLDOWN_MS)
+
                 val kosdaqResult = marketOscillatorRepository.updateMarketData("KOSDAQ")
 
                 if (kospiResult.isSuccess && kosdaqResult.isSuccess) {

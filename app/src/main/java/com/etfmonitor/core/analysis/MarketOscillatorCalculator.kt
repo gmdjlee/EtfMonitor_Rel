@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -35,7 +36,8 @@ class MarketOscillatorCalculator @Inject constructor(
 
     companion object {
         private val logger = AppLogger.getLogger("MarketOscillatorCalc")
-        private const val CONCURRENCY_LIMIT = 5  // 한국 서버 rate-limit 대응: 동시 요청 최대 5개
+        private const val CONCURRENCY_LIMIT = 3  // KRX Akamai WAF rate-limit 대응: 동시 요청 최대 3개
+        private const val PER_REQUEST_DELAY_MS = 500L  // 요청 간 딜레이 (rate limit 방지)
         private const val COMPONENT_COUNT = 200  // Top N 종목 수 (KOSPI 200, KOSDAQ 150 근사)
 
         private val dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
@@ -195,7 +197,7 @@ class MarketOscillatorCalculator @Inject constructor(
                 remainingTickers.map { ticker ->
                     async {
                         semaphore.withPermit {
-                            try {
+                            val result = try {
                                 val ohlcv = krxStock.getOhlcvByTicker(startDate, endDate, ticker)
                                 if (ohlcv.isNotEmpty()) {
                                     val aligned = alignToIndexDates(ohlcv, indexDates)
@@ -213,6 +215,9 @@ class MarketOscillatorCalculator @Inject constructor(
                                 logger.w("Failed to fetch OHLCV for $ticker: ${e.message}")
                                 null  // 개별 종목 오류는 null 반환 후 집계 시 제외
                             }
+                            // KRX Akamai rate limit 방지: 요청 간 딜레이
+                            delay(PER_REQUEST_DELAY_MS)
+                            result
                         }
                     }
                 }.awaitAll()

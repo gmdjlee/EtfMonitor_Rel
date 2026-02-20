@@ -337,7 +337,7 @@ fun ColorPickerDialog(
                 ) {
                     items(
                         count = chartDefaultColors.size,
-                        key = { index -> chartDefaultColors[index].toArgb() }
+                        key = { index -> index }
                     ) { index ->
                         val color = chartDefaultColors[index]
                         val isSelected = color.toArgb() == selectedColor

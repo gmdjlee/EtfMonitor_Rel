@@ -121,8 +121,9 @@ object StockModule {
     @Provides
     @Singleton
     fun provideStockStatisticsRepository(
-        localDataSource: StockStatisticsLocalDataSource
-    ): StockStatisticsRepository = StockStatisticsRepositoryImpl(localDataSource)
+        localDataSource: StockStatisticsLocalDataSource,
+        etfDao: com.etfmonitor.core.database.EtfDao
+    ): StockStatisticsRepository = StockStatisticsRepositoryImpl(localDataSource, etfDao)
 
     // ========== Use Cases ==========
 

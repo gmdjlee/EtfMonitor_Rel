@@ -13,11 +13,16 @@ import com.etfmonitor.feature.home.domain.usecase.CheckFirstRunUseCase
 import com.etfmonitor.feature.home.domain.usecase.GetDefaultDaysUseCase
 import com.etfmonitor.feature.home.domain.usecase.GetHomeSummaryUseCase
 import com.etfmonitor.feature.home.domain.usecase.SaveDialogDismissedUseCase
+import com.etfmonitor.core.network.ai.AIProvider
+import com.etfmonitor.core.network.ai.ApiKeyProvider
+import com.etfmonitor.core.network.blood.FredApiKeyProvider
+import com.etfmonitor.core.network.kis.KisApiKeyProvider
 import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
 import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -68,8 +73,15 @@ class HomeViewModel @Inject constructor(
     private val fearGreedRepository: FearGreedRepository,
     private val marketOscillatorRepository: MarketOscillatorRepository,
     private val marketDepositRepository: MarketDepositRepository,
+    private val kisApiKeyProvider: KisApiKeyProvider,
+    private val fredApiKeyProvider: FredApiKeyProvider,
+    private val aiApiKeyProvider: ApiKeyProvider,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    companion object {
+        private const val KRX_RATE_LIMIT_COOLDOWN_MS = 15_000L
+    }
 
     private val _state = MutableStateFlow<HomeState>(HomeState.Loading)
     val state: StateFlow<HomeState> = _state.asStateFlow()
@@ -90,6 +102,10 @@ class HomeViewModel @Inject constructor(
     private val _showUnifiedInitDialog = MutableStateFlow(false)
     val showUnifiedInitDialog: StateFlow<Boolean> = _showUnifiedInitDialog.asStateFlow()
 
+    // API 키 입력 다이얼로그 상태 (통합 초기화 전에 표시)
+    private val _showApiKeyDialog = MutableStateFlow(false)
+    val showApiKeyDialog: StateFlow<Boolean> = _showApiKeyDialog.asStateFlow()
+
     // 프로세스 종료로 중단된 수집 알림용 상태
     private val _showInterruptedCollectionBanner = MutableStateFlow(false)
     val showInterruptedCollectionBanner: StateFlow<Boolean> = _showInterruptedCollectionBanner.asStateFlow()
@@ -108,9 +124,51 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val shouldShow = checkFirstRunUseCase()
             if (shouldShow) {
-                _showUnifiedInitDialog.value = true
+                if (!kisApiKeyProvider.isConfigured()) {
+                    // API 키 미설정 시 API 키 입력 다이얼로그를 먼저 표시
+                    _showApiKeyDialog.value = true
+                } else {
+                    // API 키 설정 완료 시 통합 초기화 다이얼로그로 진행
+                    _showUnifiedInitDialog.value = true
+                }
             }
         }
+    }
+
+    /**
+     * API 키 입력 확인 시 호출합니다.
+     * 입력된 키를 각 Provider에 저장한 후 통합 초기화 다이얼로그로 진행합니다.
+     */
+    fun saveApiKeys(
+        kisAppKey: String,
+        kisAppSecret: String,
+        fredApiKey: String,
+        aiProvider: String?,
+        aiApiKey: String?
+    ) {
+        if (kisAppKey.isNotBlank() && kisAppSecret.isNotBlank()) {
+            kisApiKeyProvider.setAppKey(kisAppKey)
+            kisApiKeyProvider.setAppSecret(kisAppSecret)
+        }
+        if (fredApiKey.isNotBlank()) {
+            fredApiKeyProvider.saveApiKey(fredApiKey)
+        }
+        if (aiProvider != null && !aiApiKey.isNullOrBlank()) {
+            val provider = AIProvider.fromString(aiProvider)
+            aiApiKeyProvider.setApiKey(provider, aiApiKey)
+            aiApiKeyProvider.setSelectedProvider(provider)
+        }
+        _showApiKeyDialog.value = false
+        _showUnifiedInitDialog.value = true
+    }
+
+    /**
+     * API 키 입력 다이얼로그를 닫을 때 호출합니다 (나중에 설정 가능).
+     * 다이얼로그를 닫고 통합 초기화 다이얼로그로 진행합니다.
+     */
+    fun dismissApiKeyDialog() {
+        _showApiKeyDialog.value = false
+        _showUnifiedInitDialog.value = true
     }
 
     fun onFirstRunDialogShown() {
@@ -215,6 +273,10 @@ class HomeViewModel @Inject constructor(
             val kospiResult = marketOscillatorRepository.initializeMarketData("KOSPI", days) { message, progress ->
                 _state.value = HomeState.Initializing(message, progress / 2)
             }
+
+            // KRX rate limit 쿨다운 (KOSPI 수집 후 403 방지)
+            _state.value = HomeState.Initializing("KRX 서버 대기 중...", 48)
+            delay(KRX_RATE_LIMIT_COOLDOWN_MS)
 
             val kosdaqResult = marketOscillatorRepository.initializeMarketData("KOSDAQ", days) { message, progress ->
                 _state.value = HomeState.Initializing(message, 50 + progress / 2)

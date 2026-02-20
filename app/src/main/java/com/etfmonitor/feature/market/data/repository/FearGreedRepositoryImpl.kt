@@ -15,6 +15,7 @@ import com.krxkt.KrxIndex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -59,6 +60,9 @@ class FearGreedRepositoryImpl @Inject constructor(
 
         // Minimum rows required before analysis (mirrors Python `if len(df) < 15`)
         private const val MIN_ROWS = 15
+
+        // KRX Akamai WAF rate-limit 대응: 배치 간 딜레이
+        private const val KRX_BATCH_DELAY_MS = 2_000L
     }
 
     // =========================================================================
@@ -235,16 +239,28 @@ class FearGreedRepositoryImpl @Inject constructor(
             // ------------------------------------------------------------------
             onProgress?.invoke("원시 데이터 수집 중...", 30)
 
+            // KRX Akamai WAF rate-limit 대응: 7개 요청을 2 배치로 분할 (4+3)
             val (callVol, putVol, bond5y, bond10y, vkospi, kospi, kosdaq) = coroutineScope {
+                // Batch 1: 옵션 + 채권 데이터 (4개)
                 val callD = async { runCatching { krxIndex.getCallOptionVolume(startDate, endDate) } }
                 val putD  = async { runCatching { krxIndex.getPutOptionVolume(startDate, endDate) } }
                 val b5D   = async { runCatching { krxIndex.getBond5y(startDate, endDate) } }
                 val b10D  = async { runCatching { krxIndex.getBond10y(startDate, endDate) } }
+                val callResult = callD.await()
+                val putResult = putD.await()
+                val b5Result = b5D.await()
+                val b10Result = b10D.await()
+
+                // 배치 간 딜레이 (KRX Akamai rate limit 방지)
+                delay(KRX_BATCH_DELAY_MS)
+
+                // Batch 2: 변동성 + 지수 데이터 (3개)
                 val vkD   = async { runCatching { krxIndex.getVkospi(startDate, endDate) } }
                 val kpD   = async { runCatching { krxIndex.getKospi(startDate, endDate) } }
                 val kqD   = async { runCatching { krxIndex.getKosdaq(startDate, endDate) } }
+
                 FetchResults(
-                    callD.await(), putD.await(), b5D.await(), b10D.await(),
+                    callResult, putResult, b5Result, b10Result,
                     vkD.await(), kpD.await(), kqD.await()
                 )
             }

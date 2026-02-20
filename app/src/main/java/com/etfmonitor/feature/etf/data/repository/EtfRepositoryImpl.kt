@@ -65,9 +65,21 @@ class EtfRepositoryImpl @Inject constructor(
         private val logger = AppLogger.getLogger("EtfRepositoryImpl")
         // Holding weight change threshold for status determination (in percentage points)
         private const val WEIGHT_CHANGE_THRESHOLD = 0.01f
-        private const val PARALLEL_LIMIT = 5
+        private const val PARALLEL_LIMIT = 3  // KRX Akamai WAF rate-limit 대응: 동시 요청 최대 3개
+        private const val PER_CHUNK_DELAY_MS = 500L  // 청크 간 딜레이 (rate limit 방지)
         // Basis points threshold for statistics (1% = 100 bps)
         private const val WEIGHT_CHANGE_THRESHOLD_BPS = 100
+    }
+
+    // One-shot flag: normalize yyyyMMdd → yyyy-MM-dd in holdings table (Critical Rule #10)
+    @Volatile
+    private var dateFormatNormalized = false
+
+    private suspend fun ensureDateFormatNormalized() {
+        if (!dateFormatNormalized) {
+            etfDao.normalizeDateFormat()
+            dateFormatNormalized = true
+        }
     }
 
     // ========== ETF List ==========
@@ -112,6 +124,7 @@ class EtfRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getComparison(etfTicker: String): ComparisonResult? = withContext(Dispatchers.IO) {
+        ensureDateFormatNormalized()
         val dates = localDataSource.getDates(etfTicker)
 
         logger.d("getComparison for $etfTicker: ${dates.size} dates available")
@@ -252,6 +265,7 @@ class EtfRepositoryImpl @Inject constructor(
         startDate: String,
         endDate: String
     ): ComparisonResult? = withContext(Dispatchers.IO) {
+        ensureDateFormatNormalized()
         val allDates = localDataSource.getDates(etfTicker)
         val datesInRange = allDates.filter { it in startDate..endDate }
 
@@ -679,7 +693,7 @@ class EtfRepositoryImpl @Inject constructor(
         val allStocksToSync = mutableListOf<Pair<String, String>>()
 
         val results = etfs.chunked(PARALLEL_LIMIT).flatMap { chunk ->
-            chunk.map { etf ->
+            val chunkResults = chunk.map { etf ->
                 async {
                     try {
                         val existingHoldings = etfDao.getHoldings(etf.ticker, formattedDate)
@@ -704,6 +718,8 @@ class EtfRepositoryImpl @Inject constructor(
                     }
                 }
             }.awaitAll()
+            delay(PER_CHUNK_DELAY_MS)  // KRX Akamai rate limit 방지
+            chunkResults
         }
 
         results.flatMap { it.holdings }

@@ -5,6 +5,7 @@ import com.etfmonitor.core.database.entities.Etf
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 /**
@@ -22,7 +23,8 @@ class GetKrxEtfListUseCase @Inject constructor(
     private val krxEtfRepository: KrxEtfRepositoryImpl
 ) {
     companion object {
-        private const val PARALLEL_LIMIT = 10  // Concurrent API calls limit
+        private const val PARALLEL_LIMIT = 3  // KRX Akamai WAF rate-limit 대응: 동시 요청 최대 3개
+        private const val PER_CHUNK_DELAY_MS = 500L  // 청크 간 딜레이 (rate limit 방지)
     }
 
     suspend operator fun invoke(
@@ -33,13 +35,15 @@ class GetKrxEtfListUseCase @Inject constructor(
         krxEtfRepository.getEtfList(date).mapCatching { tickers ->
             // Fetch ETF names in parallel (C1 fix: construct Etf entities with ticker + name)
             val etfs = tickers.chunked(PARALLEL_LIMIT).flatMap { chunk ->
-                chunk.map { ticker ->
+                val results = chunk.map { ticker ->
                     async {
                         val nameResult = krxEtfRepository.getEtfName(ticker, date)
                         val name = nameResult.getOrElse { "" }
                         Etf(ticker = ticker, name = name)
                     }
                 }.awaitAll()
+                delay(PER_CHUNK_DELAY_MS)  // KRX Akamai rate limit 방지
+                results
             }
 
             // Filter by ETF name (C2 fix: Korean keywords match against name, not ticker)
