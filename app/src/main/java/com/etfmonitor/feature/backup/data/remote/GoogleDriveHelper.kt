@@ -14,6 +14,7 @@ import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.DriveScopes
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -97,6 +98,8 @@ class GoogleDriveHelper @Inject constructor(
             ensureBackupFolderExists()
 
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -162,6 +165,8 @@ class GoogleDriveHelper @Inject constructor(
                     modifiedTime = uploadedFile.modifiedTime?.value ?: System.currentTimeMillis()
                 )
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -182,6 +187,8 @@ class GoogleDriveHelper @Inject constructor(
             }
 
             Result.success(destinationFile)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -218,6 +225,8 @@ class GoogleDriveHelper @Inject constructor(
             }
 
             Result.success(backups)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -234,6 +243,8 @@ class GoogleDriveHelper @Inject constructor(
 
             drive.files().delete(fileId).execute()
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -248,6 +259,8 @@ class GoogleDriveHelper @Inject constructor(
             driveService = null
             backupFolderId = null
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -274,6 +287,8 @@ class GoogleDriveHelper @Inject constructor(
                     usedInDrive = quota.usageInDrive ?: 0L
                 )
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }

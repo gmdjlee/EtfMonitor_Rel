@@ -113,21 +113,18 @@ class NaverFinanceScraper @Inject constructor() {
             .header("Referer", "https://finance.naver.com/")
             .build()
 
-        val response = try {
-            httpClient.newCall(request).execute()
+        val html = try {
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    logger.e("HTTP ${response.code} for page $page")
+                    return emptyList()
+                }
+                response.body?.string()
+            }
         } catch (e: IOException) {
             logger.e("HTTP request failed for page $page", e)
             return emptyList()
         }
-
-        if (!response.isSuccessful) {
-            logger.e("HTTP ${response.code} for page $page")
-            response.close()
-            return emptyList()
-        }
-
-        val html = response.body?.string()
-        response.close()
 
         if (html == null) {
             logger.e("Empty response body for page $page")

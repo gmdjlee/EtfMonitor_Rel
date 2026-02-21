@@ -12,13 +12,13 @@ interface EtfDao {
 
     // ========== ETF ==========
 
-    @Query("SELECT * FROM etfs ORDER BY name")
+    @Query("SELECT * FROM etfs ORDER BY name LIMIT 1000")
     fun getAllEtfs(): Flow<List<Etf>>
 
-    @Query("SELECT * FROM etfs ORDER BY name")
+    @Query("SELECT * FROM etfs ORDER BY name LIMIT 1000")
     suspend fun getAllEtfsSuspend(): List<Etf>
 
-    @Query("SELECT * FROM etfs WHERE name LIKE '%' || :query || '%' ORDER BY name")
+    @Query("SELECT * FROM etfs WHERE name LIKE '%' || :query || '%' ORDER BY name LIMIT 100")
     fun searchEtfs(query: String): Flow<List<Etf>>
 
     // ✅ 단일 ETF 조회 추가

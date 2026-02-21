@@ -33,6 +33,7 @@ import com.etfmonitor.core.ui.theme.ThemeManager
 import com.etfmonitor.core.ui.theme.createScaledTypography
 import com.etfmonitor.core.worker.WorkManagerHelper
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -181,6 +182,8 @@ class MainActivity : ComponentActivity() {
                         showNetworkErrorDialog.value = true
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error retrying stock initialization", e)
             }
@@ -218,6 +221,8 @@ class MainActivity : ComponentActivity() {
 
                 // 차트 색상 설정 로드
                 loadChartColorSettings()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error loading theme setting", e)
             }
@@ -270,6 +275,8 @@ class MainActivity : ComponentActivity() {
                 // 데이터 아카이빙 스케줄 설정 (월 1회)
                 WorkManagerHelper.scheduleDataArchiving(this@MainActivity)
                 logger.d("Data archiving scheduled (monthly)")
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("Error initializing stock database", e)
             }
@@ -313,11 +320,19 @@ class MainActivity : ComponentActivity() {
                     lineColor2 = loadColor("feargreed", "line2", default.fearGreed.lineColor2),
                     textColor = loadColor("feargreed", "text", default.fearGreed.textColor),
                     legendColor = loadColor("feargreed", "legend", default.fearGreed.legendColor)
+                ),
+                bloodIndicator = SingleChartColorSettings(
+                    lineColor1 = loadColor("bloodindicator", "line1", default.bloodIndicator.lineColor1),
+                    lineColor2 = loadColor("bloodindicator", "line2", default.bloodIndicator.lineColor2),
+                    textColor = loadColor("bloodindicator", "text", default.bloodIndicator.textColor),
+                    legendColor = loadColor("bloodindicator", "legend", default.bloodIndicator.legendColor)
                 )
             )
 
             themeManager.setChartColorSettings(settings)
             logger.d("Chart color settings loaded")
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Error loading chart color settings", e)
         }

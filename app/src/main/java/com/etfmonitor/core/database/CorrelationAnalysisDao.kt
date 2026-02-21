@@ -16,7 +16,7 @@ interface CorrelationAnalysisDao {
     /**
      * 특정 시장의 모든 분석 결과 조회 (날짜 내림차순)
      */
-    @Query("SELECT * FROM correlation_analysis_result WHERE market = :market ORDER BY analysisDate DESC")
+    @Query("SELECT * FROM correlation_analysis_result WHERE market = :market ORDER BY analysisDate DESC LIMIT 365")
     fun getAllByMarket(market: String): Flow<List<CorrelationAnalysisResult>>
 
     /**

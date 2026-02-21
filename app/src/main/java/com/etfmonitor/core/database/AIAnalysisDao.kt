@@ -16,7 +16,7 @@ interface AIAnalysisDao {
     /**
      * 특정 시장의 모든 AI 분석 결과 조회 (날짜 내림차순)
      */
-    @Query("SELECT * FROM ai_analysis_result WHERE market = :market ORDER BY analysisDate DESC")
+    @Query("SELECT * FROM ai_analysis_result WHERE market = :market ORDER BY analysisDate DESC LIMIT 200")
     fun getAllByMarket(market: String): Flow<List<AIAnalysisResult>>
 
     /**
@@ -62,7 +62,7 @@ interface AIAnalysisDao {
     /**
      * 특정 AI 제공자의 결과만 조회
      */
-    @Query("SELECT * FROM ai_analysis_result WHERE market = :market AND aiProvider = :provider ORDER BY createdAt DESC")
+    @Query("SELECT * FROM ai_analysis_result WHERE market = :market AND aiProvider = :provider ORDER BY createdAt DESC LIMIT 200")
     fun getByMarketAndProvider(market: String, provider: String): Flow<List<AIAnalysisResult>>
 
     /**

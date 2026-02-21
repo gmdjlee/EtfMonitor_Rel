@@ -51,7 +51,7 @@ class FredApiKeyProvider @Inject constructor(
     }
 
     companion object {
-        const val PREFS_NAME = "fred_api_prefs"
+        private const val PREFS_NAME = "fred_api_prefs"
         private const val KEY_FRED_API_KEY = "fred_api_key"
     }
 }

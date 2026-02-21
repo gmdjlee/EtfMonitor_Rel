@@ -120,7 +120,7 @@ class ClaudeApiClient @Inject constructor(
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string() ?: "Unknown error"
-                logger.e("API call failed: ${response.code} - $errorBody")
+                logger.e("API call failed: ${response.code} - ${errorBody.take(200)}")
                 throw ApiException.fromStatusCode(response.code, "Claude", errorBody)
             }
 
@@ -212,7 +212,7 @@ class ClaudeApiClient @Inject constructor(
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string() ?: "Unknown error"
-                logger.e("Chat API call failed: ${response.code} - $errorBody")
+                logger.e("Chat API call failed: ${response.code} - ${errorBody.take(200)}")
                 throw ApiException.fromStatusCode(response.code, "Claude", errorBody)
             }
 
@@ -278,7 +278,7 @@ class ClaudeApiClient @Inject constructor(
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
                         val errorBody = response.body?.string() ?: "Unknown error"
-                        logger.e("Models API call failed: ${response.code} - $errorBody")
+                        logger.e("Models API call failed: ${response.code} - ${errorBody.take(200)}")
                         throw ApiException.fromStatusCode(response.code, "Claude", errorBody)
                     }
 

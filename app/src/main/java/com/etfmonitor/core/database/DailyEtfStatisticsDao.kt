@@ -12,7 +12,7 @@ interface DailyEtfStatisticsDao {
     /**
      * 모든 일별 통계 조회 (날짜 역순)
      */
-    @Query("SELECT * FROM daily_etf_statistics ORDER BY date DESC")
+    @Query("SELECT * FROM daily_etf_statistics ORDER BY date DESC LIMIT 730")
     fun getAll(): Flow<List<DailyEtfStatistics>>
 
     /**

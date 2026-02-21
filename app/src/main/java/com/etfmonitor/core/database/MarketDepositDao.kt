@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MarketDepositDao {
-    @Query("SELECT * FROM market_deposits ORDER BY date DESC")
+    @Query("SELECT * FROM market_deposits ORDER BY date DESC LIMIT 730")
     fun getAllDeposits(): Flow<List<MarketDeposit>>
 
     @Query("SELECT * FROM market_deposits WHERE date = :date")

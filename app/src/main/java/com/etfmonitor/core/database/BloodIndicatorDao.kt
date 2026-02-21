@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface BloodIndicatorDao {
-    @Query("SELECT * FROM blood_indicator ORDER BY date DESC")
+    @Query("SELECT * FROM blood_indicator ORDER BY date DESC LIMIT 730")
     fun getAll(): Flow<List<BloodIndicator>>
 
     @Query("SELECT * FROM blood_indicator WHERE date = :date")

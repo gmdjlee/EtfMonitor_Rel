@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface PriceCacheDao {
-    @Query("SELECT * FROM price_cache WHERE ticker = :ticker ORDER BY date DESC")
+    @Query("SELECT * FROM price_cache WHERE ticker = :ticker ORDER BY date DESC LIMIT 365")
     fun getPricesByTicker(ticker: String): Flow<List<PriceCache>>
 
     @Query("SELECT * FROM price_cache WHERE ticker = :ticker AND date = :date")

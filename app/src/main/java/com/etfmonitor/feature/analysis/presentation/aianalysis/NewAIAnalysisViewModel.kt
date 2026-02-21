@@ -2,6 +2,7 @@ package com.etfmonitor.feature.analysis.presentation.aianalysis
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.network.ai.AIApiClientFactory
 import com.etfmonitor.core.network.ai.AIProvider
 import com.etfmonitor.core.network.ai.ApiKeyProvider
@@ -48,6 +49,7 @@ class NewAIAnalysisViewModel @Inject constructor(
 ) : ViewModel() {
 
     companion object {
+        private val logger = AppLogger.getLogger("NewAIAnalysisVM")
         private const val QUICK_CHART_ANALYSIS_KEY = "quick_chart_analysis_enabled"
     }
 
@@ -195,7 +197,7 @@ class NewAIAnalysisViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                android.util.Log.e("NewAIAnalysisVM", "Error loading latest results", e)
+                logger.e("Error loading latest results", e)
                 _state.value = NewAIAnalysisState.Idle
             }
         }

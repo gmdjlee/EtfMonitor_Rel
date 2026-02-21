@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etfmonitor.core.common.util.AppLogger
+import com.etfmonitor.core.common.util.KrxConstants
 import com.etfmonitor.core.service.CollectionState
 import com.etfmonitor.core.ui.component.ChartLabelCalculator
 import com.etfmonitor.core.ui.component.DateRangeOption
@@ -53,7 +54,7 @@ class MarketOscillatorViewModel @Inject constructor(
 
     companion object {
         private val logger = AppLogger.getLogger("MarketOscillatorViewModel")
-        private const val KRX_RATE_LIMIT_COOLDOWN_MS = 15_000L
+        private val KRX_RATE_LIMIT_COOLDOWN_MS = KrxConstants.KRX_RATE_LIMIT_COOLDOWN_MS
     }
 
     // Body 폰트 스케일

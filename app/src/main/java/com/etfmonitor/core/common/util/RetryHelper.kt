@@ -1,5 +1,6 @@
 package com.etfmonitor.core.common.util
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -107,6 +108,8 @@ object RetryHelper {
     ): Result<T> {
         return try {
             Result.success(retryWithBackoff(times, initialDelay, maxDelay, factor, block = block))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }

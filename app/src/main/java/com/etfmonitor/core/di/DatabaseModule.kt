@@ -23,6 +23,7 @@ import com.etfmonitor.core.database.MIGRATION_17_18
 import com.etfmonitor.core.database.MIGRATION_18_19
 import com.etfmonitor.core.database.MIGRATION_19_20
 import com.etfmonitor.core.database.MIGRATION_20_21
+import com.etfmonitor.core.database.MIGRATION_21_22
 import com.etfmonitor.core.database.FinancialCacheDao
 import com.etfmonitor.core.database.AIChatDao
 import com.etfmonitor.core.database.AIAnalysisDao
@@ -100,7 +101,8 @@ object DatabaseModule {
                 MIGRATION_17_18,
                 MIGRATION_18_19,
                 MIGRATION_19_20,
-                MIGRATION_20_21
+                MIGRATION_20_21,
+                MIGRATION_21_22
             )
             .build()
     }

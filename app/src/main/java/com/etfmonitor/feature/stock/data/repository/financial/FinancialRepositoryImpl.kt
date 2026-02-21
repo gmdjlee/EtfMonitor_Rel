@@ -158,7 +158,7 @@ class FinancialRepositoryImpl @Inject constructor(
 
         if (body.isEmpty()) throw Exception("Empty token response")
         if (!isSuccessful) {
-            throw Exception("Token request failed: $code - $body")
+            throw Exception("KIS token request failed: HTTP $code")
         }
 
         val tokenResponse = json.decodeFromString<KisTokenResponse>(body)

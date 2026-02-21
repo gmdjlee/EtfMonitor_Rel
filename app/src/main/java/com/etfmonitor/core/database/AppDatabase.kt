@@ -71,7 +71,7 @@ import com.etfmonitor.core.database.entities.FinancialCache
         BloodIndicator::class,
         FinancialCache::class
     ],
-    version = 21,
+    version = 22,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -858,5 +858,18 @@ val MIGRATION_20_21 = object : Migration(20, 21) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `idx_ai_chat_session_market` ON `ai_chat_session` (`market`)")
         db.execSQL("CREATE INDEX IF NOT EXISTS `idx_ai_chat_message_timestamp` ON `ai_chat_message` (`timestamp`)")
         db.execSQL("CREATE INDEX IF NOT EXISTS `idx_correlation_date` ON `correlation_analysis_result` (`analysisDate`)")
+    }
+}
+
+/**
+ * Migration from version 21 to 22: Add composite indexes for market+date queries
+ * fear_greed_index, market_oscillator, price_cache 테이블에
+ * 복합 인덱스를 추가하여 market+date 필터링 쿼리 성능 개선
+ */
+val MIGRATION_21_22 = object : Migration(21, 22) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_fear_greed_index_market_date` ON `fear_greed_index` (`market`, `date`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_market_oscillator_market_date` ON `market_oscillator` (`market`, `date`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_price_cache_date` ON `price_cache` (`date`)")
     }
 }

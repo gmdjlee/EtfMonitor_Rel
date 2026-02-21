@@ -7,6 +7,8 @@ data class KisApiKeyConfig(
 ) {
     fun isValid(): Boolean = appKey.isNotBlank() && appSecret.isNotBlank()
 
+    override fun toString() = "KisApiKeyConfig(appKey=*****, appSecret=*****, investmentMode=$investmentMode)"
+
     fun getBaseUrl(): String = when (investmentMode) {
         InvestmentMode.MOCK -> "https://openapivts.koreainvestment.com:29443"
         InvestmentMode.PRODUCTION -> "https://openapi.koreainvestment.com:9443"

@@ -11,6 +11,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.etfmonitor.core.common.util.AppLogger
+import com.etfmonitor.core.common.util.KrxConstants
 import com.etfmonitor.MainActivity
 import com.etfmonitor.R
 import com.etfmonitor.feature.etf.domain.model.DataProgress
@@ -84,7 +85,7 @@ class DataCollectionService : Service() {
         private const val CHANNEL_NAME = "데이터 수집"
         private const val WAKELOCK_TAG = "EtfMonitor:DataCollectionWakeLock"
         private const val WAKELOCK_TIMEOUT_MS = 180 * 60 * 1000L  // 3 hours max (FearGreed 90d + Oscillator 365d)
-        private const val KRX_RATE_LIMIT_COOLDOWN_MS = 15_000L  // KRX 서버 rate limit 쿨다운
+        private val KRX_RATE_LIMIT_COOLDOWN_MS = KrxConstants.KRX_RATE_LIMIT_COOLDOWN_MS
 
         const val ACTION_INITIALIZE = "action_initialize"
         const val ACTION_INITIALIZE_ALL = "action_initialize_all"

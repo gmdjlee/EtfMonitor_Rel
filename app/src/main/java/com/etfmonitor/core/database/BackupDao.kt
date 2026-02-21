@@ -57,7 +57,8 @@ interface BackupDao {
     suspend fun insertSettingsIgnore(settings: List<Setting>): List<Long>
 
     // ==================== Holding ====================
-    @Query("SELECT * FROM holdings")
+    @Deprecated("Use getHoldingsByDateRange instead for OOM safety")
+    @Query("SELECT * FROM holdings LIMIT 50000")
     suspend fun getAllHoldings(): List<Holding>
 
     @Query("SELECT * FROM holdings WHERE date >= :startDate AND date <= :endDate")
@@ -72,7 +73,8 @@ interface BackupDao {
     @Query("SELECT MAX(date) FROM holdings")
     suspend fun getHoldingMaxDate(): String?
 
-    @Query("SELECT DISTINCT etfTicker || '-' || stockTicker || '-' || date FROM holdings")
+    @Deprecated("Use date-range chunking for backup delta")
+    @Query("SELECT DISTINCT etfTicker || '-' || stockTicker || '-' || date FROM holdings LIMIT 50000")
     suspend fun getAllHoldingKeys(): List<String>
 
     @Transaction
@@ -218,7 +220,8 @@ interface BackupDao {
     suspend fun insertBloodIndicatorsIgnore(indicators: List<BloodIndicator>): List<Long>
 
     // ==================== PriceCache ====================
-    @Query("SELECT * FROM price_cache")
+    @Deprecated("Use getPriceCachesByDateRange instead for OOM safety")
+    @Query("SELECT * FROM price_cache LIMIT 50000")
     suspend fun getAllPriceCaches(): List<PriceCache>
 
     @Query("SELECT * FROM price_cache WHERE date >= :startDate AND date <= :endDate")
@@ -233,7 +236,8 @@ interface BackupDao {
     @Query("SELECT MAX(date) FROM price_cache")
     suspend fun getPriceCacheMaxDate(): String?
 
-    @Query("SELECT ticker || '-' || date FROM price_cache")
+    @Deprecated("Use date-range chunking for backup delta")
+    @Query("SELECT ticker || '-' || date FROM price_cache LIMIT 50000")
     suspend fun getAllPriceCacheKeys(): List<String>
 
     @Transaction

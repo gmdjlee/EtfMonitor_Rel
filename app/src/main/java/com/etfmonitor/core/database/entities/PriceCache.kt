@@ -1,6 +1,7 @@
 package com.etfmonitor.core.database.entities
 
 import androidx.room.Entity
+import androidx.room.Index
 
 /**
  * ML 예측용 가격 캐시 엔티티
@@ -10,7 +11,8 @@ import androidx.room.Entity
  */
 @Entity(
     tableName = "price_cache",
-    primaryKeys = ["ticker", "date"]
+    primaryKeys = ["ticker", "date"],
+    indices = [Index(value = ["date"])]
 )
 data class PriceCache(
     val ticker: String,

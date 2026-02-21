@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,7 +18,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class SharedPreferencesApiKeyProvider @Inject constructor(
-    context: Context
+    @ApplicationContext context: Context
 ) : ApiKeyProvider {
 
     private val sharedPreferences: SharedPreferences = run {

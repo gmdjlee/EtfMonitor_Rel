@@ -163,29 +163,28 @@ object BloodIndicatorCalculator {
     /**
      * Forward fill values to match target dates.
      * Matches pandas reindex(method="ffill") behavior.
+     *
+     * O(n+m) two-pointer approach: requires targetDates to be sorted ascending.
+     * Both sorted data and sorted targetDates are walked with a single pointer each.
      */
     internal fun forwardFillToIndex(
         data: List<Pair<LocalDate, Double>>,
         targetDates: List<LocalDate>
     ): Map<LocalDate, Double> {
+        if (data.isEmpty() || targetDates.isEmpty()) return emptyMap()
         val result = mutableMapOf<LocalDate, Double>()
         val sorted = data.sortedBy { it.first }
-
-        for (targetDate in targetDates) {
-            // Find the latest data point on or before targetDate
-            var lastValue: Double? = null
-            for ((date, value) in sorted) {
-                if (date <= targetDate) {
-                    lastValue = value
-                } else {
-                    break
-                }
+        val sortedTargets = targetDates.sorted()
+        var dataIdx = 0
+        for (targetDate in sortedTargets) {
+            // Advance data pointer while the next data point is still <= targetDate
+            while (dataIdx < sorted.size - 1 && sorted[dataIdx + 1].first <= targetDate) {
+                dataIdx++
             }
-            if (lastValue != null) {
-                result[targetDate] = lastValue
+            if (sorted[dataIdx].first <= targetDate) {
+                result[targetDate] = sorted[dataIdx].second
             }
         }
-
         return result
     }
 

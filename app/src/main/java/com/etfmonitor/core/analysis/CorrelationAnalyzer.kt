@@ -12,6 +12,7 @@ import com.etfmonitor.core.database.entities.FearGreedIndex
 import com.etfmonitor.core.database.entities.MarketDeposit
 import com.etfmonitor.core.database.entities.MarketIndex
 import com.etfmonitor.core.database.entities.MarketOscillatorData
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -117,6 +118,8 @@ class CorrelationAnalyzer @Inject constructor(
             logger.d("Correlation analysis completed: signal=${result.signal}, confidence=${result.confidence}")
             Result.success(result)
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Correlation analysis failed", e)
             Result.failure(e)
@@ -139,6 +142,8 @@ class CorrelationAnalyzer @Inject constructor(
         // Optional 데이터 - 예외 처리 (first() 사용하여 Flow에서 단일 값 추출)
         val fearGreedData = try {
             fearGreedDao.getByMarketAndDateRange(market, startDate, endDate).first()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.w("Fear & Greed data not available: ${e.message}")
             emptyList()
@@ -146,13 +151,17 @@ class CorrelationAnalyzer @Inject constructor(
 
         val oscillatorData = try {
             marketOscillatorDao.getDataByDateRange(market, startDate, endDate).first()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.w("Oscillator data not available: ${e.message}")
             emptyList()
         }
 
         val marketDeposits = try {
-            marketDepositDao.getAllDeposits().first().filter { it.date in startDate..endDate }
+            marketDepositDao.getByDateRangeSuspend(startDate, endDate)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.w("Market deposit data not available: ${e.message}")
             emptyList()

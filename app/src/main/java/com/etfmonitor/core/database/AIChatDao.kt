@@ -20,7 +20,7 @@ interface AIChatDao {
     /**
      * 모든 세션 조회 (최신순)
      */
-    @Query("SELECT * FROM ai_chat_session ORDER BY updatedAt DESC")
+    @Query("SELECT * FROM ai_chat_session ORDER BY updatedAt DESC LIMIT 100")
     fun getAllSessions(): Flow<List<AIChatSession>>
 
     /**
@@ -32,7 +32,7 @@ interface AIChatDao {
     /**
      * 특정 시장 관련 세션 조회
      */
-    @Query("SELECT * FROM ai_chat_session WHERE market = :market ORDER BY updatedAt DESC")
+    @Query("SELECT * FROM ai_chat_session WHERE market = :market ORDER BY updatedAt DESC LIMIT 50")
     fun getSessionsByMarket(market: String): Flow<List<AIChatSession>>
 
     /**

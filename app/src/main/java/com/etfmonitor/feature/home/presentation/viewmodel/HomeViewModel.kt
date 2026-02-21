@@ -17,6 +17,7 @@ import com.etfmonitor.core.network.ai.AIProvider
 import com.etfmonitor.core.network.ai.ApiKeyProvider
 import com.etfmonitor.core.network.blood.FredApiKeyProvider
 import com.etfmonitor.core.network.kis.KisApiKeyProvider
+import com.etfmonitor.core.common.util.KrxConstants
 import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
 import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepository
@@ -80,7 +81,7 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
 
     companion object {
-        private const val KRX_RATE_LIMIT_COOLDOWN_MS = 15_000L
+        private val KRX_RATE_LIMIT_COOLDOWN_MS = KrxConstants.KRX_RATE_LIMIT_COOLDOWN_MS
     }
 
     private val _state = MutableStateFlow<HomeState>(HomeState.Loading)

@@ -13,7 +13,7 @@ interface MarketIndexDao {
     /**
      * 특정 시장의 모든 데이터 조회 (날짜 역순)
      */
-    @Query("SELECT * FROM market_index WHERE market = :market ORDER BY date DESC")
+    @Query("SELECT * FROM market_index WHERE market = :market ORDER BY date DESC LIMIT 730")
     fun getAllByMarket(market: String): Flow<List<MarketIndex>>
 
     /**
