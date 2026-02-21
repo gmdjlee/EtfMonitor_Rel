@@ -66,6 +66,7 @@ class NaverFinanceScraper @Inject constructor() {
                     delay(REQUEST_DELAY_MS)
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 logger.e("Error scraping page $page", e)
                 // 개별 페이지 오류는 무시하고 계속 진행
             }

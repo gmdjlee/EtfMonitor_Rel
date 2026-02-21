@@ -167,7 +167,7 @@ internal fun AmountRankingTab(
             contentPadding = PaddingValues(MaterialTheme.spacing.medium),
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
         ) {
-            items(rankings.size) { index ->
+            items(rankings.size, key = { rankings[it].stockTicker }) { index ->
                 val item = rankings[index]
                 AmountRankingCard(index + 1, item, onStockClick)
             }

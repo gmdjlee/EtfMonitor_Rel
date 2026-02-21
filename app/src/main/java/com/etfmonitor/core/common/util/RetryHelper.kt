@@ -69,6 +69,7 @@ object RetryHelper {
             try {
                 return block()
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 lastException = e
 
                 if (!shouldRetry(e)) {

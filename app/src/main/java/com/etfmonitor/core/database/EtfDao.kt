@@ -46,14 +46,16 @@ interface EtfDao {
         SELECT * FROM holdings
         WHERE etfTicker = :etfTicker AND date = :date
         ORDER BY weightBps DESC
+        LIMIT 500
     """)
     suspend fun getHoldings(etfTicker: String, date: String): List<Holding>
 
     @Query("""
-        SELECT DISTINCT date 
-        FROM holdings 
-        WHERE etfTicker = :etfTicker 
+        SELECT DISTINCT date
+        FROM holdings
+        WHERE etfTicker = :etfTicker
         ORDER BY date DESC
+        LIMIT 730
     """)
     suspend fun getDates(etfTicker: String): List<String>
 
@@ -78,6 +80,7 @@ interface EtfDao {
         FROM holdings
         WHERE etfTicker = :etfTicker AND stockTicker = :stockTicker
         ORDER BY date ASC
+        LIMIT 730
     """)
     suspend fun getHoldingTimeSeries(
         etfTicker: String,
@@ -295,6 +298,7 @@ interface EtfDao {
         WHERE stockName LIKE '%원화예금%' OR stockName LIKE '%cash%'
         GROUP BY date
         ORDER BY date ASC
+        LIMIT 730
     """)
     suspend fun getCashDepositTrend(): List<CashDepositTrend>
 
@@ -312,6 +316,7 @@ interface EtfDao {
         WHERE stockTicker = :stockTicker
         GROUP BY date
         ORDER BY date ASC
+        LIMIT 730
     """)
     suspend fun getStockAggregatedTrend(stockTicker: String): List<StockAggregatedTimePoint>
 
@@ -353,6 +358,7 @@ interface EtfDao {
         INNER JOIN etfs e ON h.etfTicker = e.ticker
         WHERE h.stockTicker = :stockTicker AND h.date = :date
         ORDER BY h.amountMillion DESC
+        LIMIT 100
     """)
     suspend fun getStockHoldingsByDate(stockTicker: String, date: String): List<StockHoldingByEtf>
 

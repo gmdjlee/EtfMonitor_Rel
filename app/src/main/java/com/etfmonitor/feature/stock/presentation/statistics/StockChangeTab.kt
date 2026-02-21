@@ -47,7 +47,7 @@ internal fun StockChangeTab(
             contentPadding = PaddingValues(MaterialTheme.spacing.medium),
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)
         ) {
-            items(stocks) { stock ->
+            items(stocks, key = { it.stockTicker + "_" + it.etfTicker }) { stock ->
                 StockChangeCard(stock, status, onStockClick)
             }
         }

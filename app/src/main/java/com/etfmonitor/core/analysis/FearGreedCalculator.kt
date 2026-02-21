@@ -93,13 +93,20 @@ object FearGreedCalculator {
     fun rollingMean5(values: List<Long>): List<Double> {
         if (values.isEmpty()) return emptyList()
         val period = 5
-        return values.indices.map { i ->
+        val result = mutableListOf<Double>()
+        var runningSum = 0L
+        for (i in values.indices) {
+            runningSum += values[i]
             if (i < period - 1) {
-                Double.NaN
+                result.add(Double.NaN)
             } else {
-                values.subList(i - period + 1, i + 1).average()
+                if (i >= period) {
+                    runningSum -= values[i - period]
+                }
+                result.add(runningSum.toDouble() / period)
             }
         }
+        return result
     }
 
     /**
@@ -426,13 +433,20 @@ object FearGreedCalculator {
     private fun rollingSimpleMean(values: List<Double>, period: Int): List<Double> {
         val n = values.size
         if (n == 0) return emptyList()
-        return values.indices.map { i ->
+        val result = mutableListOf<Double>()
+        var runningSum = 0.0
+        for (i in 0 until n) {
+            runningSum += values[i]
             if (i < period - 1) {
-                Double.NaN
+                result.add(Double.NaN)
             } else {
-                values.subList(i - period + 1, i + 1).average()
+                if (i >= period) {
+                    runningSum -= values[i - period]
+                }
+                result.add(runningSum / period)
             }
         }
+        return result
     }
 
     /**

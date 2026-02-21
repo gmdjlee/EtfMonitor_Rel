@@ -15,7 +15,7 @@ import java.io.IOException
 /**
  * Database migration tests for ETF Monitor.
  *
- * Tests all 20 migrations (v1 -> v21) to ensure:
+ * Tests all 21 migrations (v1 -> v22) to ensure:
  * 1. Schema changes are applied correctly
  * 2. Data is preserved during migration
  * 3. No exceptions occur during migration
@@ -54,7 +54,8 @@ class MigrationTest {
         MIGRATION_17_18,
         MIGRATION_18_19,
         MIGRATION_19_20,
-        MIGRATION_20_21
+        MIGRATION_20_21,
+        MIGRATION_21_22
     )
 
     // ===========================================
@@ -489,13 +490,87 @@ class MigrationTest {
         dataCursor.close()
     }
 
+    @Test
+    @Throws(IOException::class)
+    fun migrate21To22_addsCompositeIndices() {
+        val db = helper.createDatabase(testDb, 21).apply {
+            // Insert test data into tables that will get new composite indices
+            execSQL(
+                "INSERT INTO fear_greed_index (date, value, rsiScore, macdScore, volumeScore, priceStrengthScore, safeHavenScore) VALUES ('2026-02-20', 50.0, 50.0, 50.0, 50.0, 50.0, 50.0)"
+            )
+            execSQL(
+                "INSERT INTO market_oscillator (date, oscillatorValue) VALUES ('2026-02-20', 0.5)"
+            )
+            close()
+        }
+
+        val migratedDb = helper.runMigrationsAndValidate(testDb, 22, true,
+            MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20,
+            MIGRATION_20_21, MIGRATION_21_22)
+
+        // Verify the three new composite indices were created
+        val indexCursor = migratedDb.query(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name IN (" +
+                "'index_fear_greed_index_market_date'," +
+                "'index_market_oscillator_market_date'," +
+                "'index_price_cache_date')"
+        )
+        val createdIndices = mutableListOf<String>()
+        while (indexCursor.moveToNext()) {
+            createdIndices.add(indexCursor.getString(0))
+        }
+        indexCursor.close()
+
+        assertTrue(
+            createdIndices.contains("index_fear_greed_index_market_date"),
+            "index_fear_greed_index_market_date should exist after migration 21->22"
+        )
+        assertTrue(
+            createdIndices.contains("index_market_oscillator_market_date"),
+            "index_market_oscillator_market_date should exist after migration 21->22"
+        )
+        assertTrue(
+            createdIndices.contains("index_price_cache_date"),
+            "index_price_cache_date should exist after migration 21->22"
+        )
+
+        // Verify previously inserted data is preserved after index-only migration
+        val dataCursor = migratedDb.query("SELECT COUNT(*) FROM fear_greed_index")
+        dataCursor.moveToFirst()
+        assertEquals(
+            "Data should be preserved after composite index migration",
+            1, dataCursor.getInt(0)
+        )
+        dataCursor.close()
+
+        // Verify previously created v20->v21 single-column indices are still present
+        val oldIndexCursor = migratedDb.query(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name IN (" +
+                "'idx_fear_greed_date','idx_market_oscillator_date')"
+        )
+        val oldIndices = mutableListOf<String>()
+        while (oldIndexCursor.moveToNext()) {
+            oldIndices.add(oldIndexCursor.getString(0))
+        }
+        oldIndexCursor.close()
+
+        assertTrue(
+            oldIndices.contains("idx_fear_greed_date"),
+            "Original v20->v21 idx_fear_greed_date should still exist after migration 21->22"
+        )
+        assertTrue(
+            oldIndices.contains("idx_market_oscillator_date"),
+            "Original v20->v21 idx_market_oscillator_date should still exist after migration 21->22"
+        )
+    }
+
     // ===========================================
     // Full Migration Test
     // ===========================================
 
     @Test
     @Throws(IOException::class)
-    fun migrateAll_version1To21() {
+    fun migrateAll_version1To22() {
         // Create v1 database with initial data
         helper.createDatabase(testDb, 1).apply {
             execSQL("INSERT INTO etfs (ticker, name) VALUES ('069500', 'KODEX 200')")
@@ -505,7 +580,7 @@ class MigrationTest {
         }
 
         // Run all migrations
-        val db = helper.runMigrationsAndValidate(testDb, 21, true, *allMigrations)
+        val db = helper.runMigrationsAndValidate(testDb, 22, true, *allMigrations)
 
         // Verify final schema has all expected tables
         val expectedTables = listOf(

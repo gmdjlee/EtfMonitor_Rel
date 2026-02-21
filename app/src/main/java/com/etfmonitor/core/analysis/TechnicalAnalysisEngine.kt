@@ -183,13 +183,20 @@ object TechnicalAnalysisEngine {
         }
 
         val cmf = mutableListOf<Double>()
+        var runningSumMfv = 0.0
+        var runningSumVol = 0L
+
         for (i in high.indices) {
+            runningSumMfv += mfv[i]
+            runningSumVol += volume[i]
             if (i < period - 1) {
                 cmf.add(0.0)
             } else {
-                val sumMfv = mfv.subList(i - period + 1, i + 1).sum()
-                val sumVol = volume.subList(i - period + 1, i + 1).sum().toDouble()
-                cmf.add(if (sumVol > 0) sumMfv / sumVol else 0.0)
+                if (i >= period) {
+                    runningSumMfv -= mfv[i - period]
+                    runningSumVol -= volume[i - period]
+                }
+                cmf.add(if (runningSumVol > 0) runningSumMfv / runningSumVol.toDouble() else 0.0)
             }
         }
 
@@ -482,13 +489,17 @@ object TechnicalAnalysisEngine {
         if (values.size < period) return List(values.size) { 0L }
 
         val result = mutableListOf<Long>()
+        var runningSum = 0L
 
         for (i in values.indices) {
+            runningSum += values[i]
             if (i < period - 1) {
                 result.add(0L)
             } else {
-                val sum = values.subList(i - period + 1, i + 1).sum()
-                result.add(sum)
+                if (i >= period) {
+                    runningSum -= values[i - period]
+                }
+                result.add(runningSum)
             }
         }
 

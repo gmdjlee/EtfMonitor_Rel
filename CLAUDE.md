@@ -167,7 +167,7 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 | Ranking feature | `feature/ranking/` | 5 ranking types via Kiwoom REST API (12 files: domain/data/presentation/di) |
 | Chart Color Settings | `feature/settings/presentation/component/ChartColorCards.kt`, `ColorPickerComponents.kt` | 4 chart color cards + color picker dialog |
 | KRX Constants | `core/common/util/KrxConstants.kt` | Shared KRX rate limit constants |
-| Tests | `app/src/test/`, `app/src/androidTest/` | JUnit5, MockK, Turbine (1749 tests, 98 test files + 5 androidTest files) |
+| Tests | `app/src/test/`, `app/src/androidTest/` | JUnit5, MockK, Turbine (1816 tests, 100 test files + 5 androidTest files) |
 
 ---
 
@@ -310,26 +310,22 @@ All former Python scripts have been replaced by native Kotlin implementations:
 - maxDays 365로 제한 중 (kotlin_krx date chunking 수정 후 730 복원 필요)
 - ETF 목록 조회 timeout 60s 증가 검토
 - Certificate pin rotation: Anthropic API pin expires 2026-06-30
-- TechnicalAnalysisEngineTest: Elder Impulse 경계값 테스트 2개 실패 (pre-existing)
 - First-launch flow has TWO dialogs: ApiKeyInputDialog (KIS + FRED + Kiwoom + AI keys, all optional) → UnifiedInitializationDialog
 - AndroidView `factory` 블록의 axis/legend 색상이 `update` 블록에서 갱신 안 됨 (chart color 변경 시 축/범례 색상 stale)
-- KIS appKey/appSecret sent as plaintext HTTP headers (KIS API design limitation — needs cert pinning for KIS endpoints)
-- Settings screen ApiKeyInputDialog: API key text fields lack PasswordVisualTransformation (shoulder-surfing risk)
-- TimeSeriesAnalysisHelper: 30+ force unwrap (!!) operators — safe in current context but fragile if refactored
-- Rolling window calculations use subList().average() instead of running-sum (minor perf)
+- KIS appKey/appSecret sent as plaintext HTTP headers (KIS API design limitation — cert pinning not recommended due to unknown KIS cert rotation schedule)
 - Database not encrypted at rest (risk-acceptance: only API keys need protection, not market data)
 
 ---
 
-## Project Review & Hardening Summary (2026-02-21)
+## Project Review & Hardening Summary (2026-02-22)
 
-| Category | Before | After | Key Improvements |
-|----------|--------|-------|------------------|
-| Security | 72 | **96** | CE guards (216+ catch blocks), FredApiKeyProvider (AES256-GCM), OkHttp leak fixes, log redaction, network security config |
-| Performance | 62 | **95** | KRX rate limiting (Semaphore+chunked), DB indices (11개, v20→v22), LIMIT clauses, O(n+m) forwardFill, Oscillator 4.8x speedup |
-| Reliability | 91 | **96** | NonCancellable wraps, @Transaction (22 methods), CollectionState persistence, BackupDao OOM fix, CookieJar thread-safety |
-| Test Coverage | 18 | **95** | 1749 tests (98 files), 16/16 ViewModels, 34/34 UseCases, 25/25 Repositories, 2 pre-existing failures only |
-| **Overall** | **53.5** | **~95.5** | |
+| Category | Before | After (v1) | Final (v3) | Key Improvements |
+|----------|--------|------------|------------|------------------|
+| Security | 72 | 96 | **98** | CE guards (216+), AES256-GCM (4 providers), backup exclusions (4/4), network security config (7 domains), PasswordVisualTransformation, RetryHelper CE guard |
+| Performance | 62 | 95 | **98** | KRX rate limiting, DB indices (11개), LIMIT clauses (all DAOs), O(n) running-sum (FearGreed+TechnicalAnalysis), LazyColumn keys, Oscillator 4.8x speedup |
+| Reliability | 91 | 96 | **98** | NonCancellable wraps, @Transaction (22 methods), CE rethrow everywhere, safe-navigation (no !!), Elder Impulse tests fixed, 0 test failures |
+| Test Coverage | 18 | 95 | **96** | 1816 tests (100+ files), 16/16 ViewModels, 35/35 UseCases, 25/25 Repositories, 0 failures |
+| **Overall** | **53.5** | **~95.5** | **~97.5** | |
 
 ---
 

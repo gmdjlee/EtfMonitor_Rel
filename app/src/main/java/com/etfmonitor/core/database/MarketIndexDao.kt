@@ -103,6 +103,6 @@ interface MarketIndexDao {
     /**
      * 모든 날짜 목록 조회 (중복 제거)
      */
-    @Query("SELECT DISTINCT date FROM market_index ORDER BY date DESC")
+    @Query("SELECT DISTINCT date FROM market_index ORDER BY date DESC LIMIT 1000")
     suspend fun getAllDates(): List<String>
 }

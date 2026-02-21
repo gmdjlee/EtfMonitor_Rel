@@ -1428,8 +1428,8 @@ class TimeSeriesAnalysisHelper @Inject constructor(
         // Fear & Greed vs 종가
         val commonDates = stockPrices.keys.filter { fearGreedMap.containsKey(it) }.sorted()
         if (commonDates.size >= 10) {
-            val fgValues = commonDates.map { fearGreedMap[it]!!.fearGreedValue }
-            val priceValues = commonDates.map { stockPrices[it]!! }
+            val fgValues = commonDates.map { fearGreedMap[it]?.fearGreedValue ?: 0.0 }
+            val priceValues = commonDates.map { stockPrices[it] ?: 0.0 }
 
             // 선행/후행 상관관계 계산
             val leadLag = calculateLeadLagCorrelation(fgValues, priceValues)
@@ -1478,8 +1478,8 @@ class TimeSeriesAnalysisHelper @Inject constructor(
             if (etfAmounts.isNotEmpty()) {
                 val etfCommonDates = commonDates.filter { etfAmounts.containsKey(it) }
                 if (etfCommonDates.size >= 10) {
-                    val fgValuesEtf = etfCommonDates.map { fearGreedMap[it]!!.fearGreedValue }
-                    val etfValues = etfCommonDates.map { etfAmounts[it]!! }
+                    val fgValuesEtf = etfCommonDates.map { fearGreedMap[it]?.fearGreedValue ?: 0.0 }
+                    val etfValues = etfCommonDates.map { etfAmounts[it] ?: 0.0 }
                     val leadLagEtf = calculateLeadLagCorrelation(fgValuesEtf, etfValues)
                     val corrEtf = if (abs(leadLagEtf.optimalCorrelation) > abs(leadLagEtf.simultaneousCorrelation))
                         leadLagEtf.optimalCorrelation else leadLagEtf.simultaneousCorrelation
@@ -1503,7 +1503,7 @@ class TimeSeriesAnalysisHelper @Inject constructor(
             }
 
             // RSI vs 주가
-            val rsiValues = commonDates.map { fearGreedMap[it]!!.rsi }
+            val rsiValues = commonDates.map { fearGreedMap[it]?.rsi ?: 0.0 }
             val leadLagRsi = calculateLeadLagCorrelation(rsiValues, priceValues)
             val corrRsi = if (abs(leadLagRsi.optimalCorrelation) > abs(leadLagRsi.simultaneousCorrelation))
                 leadLagRsi.optimalCorrelation else leadLagRsi.simultaneousCorrelation
@@ -1525,7 +1525,7 @@ class TimeSeriesAnalysisHelper @Inject constructor(
             }
 
             // 모멘텀 vs 주가
-            val momentumValues = commonDates.map { fearGreedMap[it]!!.momentum }
+            val momentumValues = commonDates.map { fearGreedMap[it]?.momentum ?: 0.0 }
             val leadLagMomentum = calculateLeadLagCorrelation(momentumValues, priceValues)
             val corrMomentum = if (abs(leadLagMomentum.optimalCorrelation) > abs(leadLagMomentum.simultaneousCorrelation))
                 leadLagMomentum.optimalCorrelation else leadLagMomentum.simultaneousCorrelation
@@ -1563,8 +1563,8 @@ class TimeSeriesAnalysisHelper @Inject constructor(
 
         val commonDates = stockPrices.keys.filter { oscillatorMap.containsKey(it) }.sorted()
         if (commonDates.size >= 10) {
-            val oscValues = commonDates.map { oscillatorMap[it]!!.oscillator }
-            val priceValues = commonDates.map { stockPrices[it]!! }
+            val oscValues = commonDates.map { oscillatorMap[it]?.oscillator ?: 0.0 }
+            val priceValues = commonDates.map { stockPrices[it] ?: 0.0 }
 
             // Oscillator vs 종가 (선행/후행 분석)
             val leadLag = calculateLeadLagCorrelation(oscValues, priceValues)
@@ -1613,8 +1613,8 @@ class TimeSeriesAnalysisHelper @Inject constructor(
             if (etfAmounts.isNotEmpty()) {
                 val etfCommonDates = commonDates.filter { etfAmounts.containsKey(it) }
                 if (etfCommonDates.size >= 10) {
-                    val oscValuesEtf = etfCommonDates.map { oscillatorMap[it]!!.oscillator }
-                    val etfValues = etfCommonDates.map { etfAmounts[it]!! }
+                    val oscValuesEtf = etfCommonDates.map { oscillatorMap[it]?.oscillator ?: 0.0 }
+                    val etfValues = etfCommonDates.map { etfAmounts[it] ?: 0.0 }
                     val leadLagEtf = calculateLeadLagCorrelation(oscValuesEtf, etfValues)
                     val corrEtf = if (abs(leadLagEtf.optimalCorrelation) > abs(leadLagEtf.simultaneousCorrelation))
                         leadLagEtf.optimalCorrelation else leadLagEtf.simultaneousCorrelation
@@ -1654,11 +1654,11 @@ class TimeSeriesAnalysisHelper @Inject constructor(
 
         val commonDates = stockPrices.keys.filter { depositMap.containsKey(it) }.sorted()
         if (commonDates.size >= 10) {
-            val priceValues = commonDates.map { stockPrices[it]!! }
+            val priceValues = commonDates.map { stockPrices[it] ?: 0.0 }
             val changeValues = commonDates.map { stockChanges[it] ?: 0.0 }
 
             // 예탁금 vs 종가
-            val depositAmounts = commonDates.map { depositMap[it]!!.depositAmount }
+            val depositAmounts = commonDates.map { depositMap[it]?.depositAmount ?: 0.0 }
             val leadLagDeposit = calculateLeadLagCorrelation(depositAmounts, priceValues)
             val corrDepositPrice = if (abs(leadLagDeposit.optimalCorrelation) > abs(leadLagDeposit.simultaneousCorrelation))
                 leadLagDeposit.optimalCorrelation else leadLagDeposit.simultaneousCorrelation
@@ -1680,7 +1680,7 @@ class TimeSeriesAnalysisHelper @Inject constructor(
             }
 
             // 예탁금 변화 vs 등락률
-            val depositChanges = commonDates.map { depositMap[it]!!.depositChange }
+            val depositChanges = commonDates.map { depositMap[it]?.depositChange ?: 0.0 }
             val leadLagDepositChange = calculateLeadLagCorrelation(depositChanges, changeValues)
             val corrDepositChange = if (abs(leadLagDepositChange.optimalCorrelation) > abs(leadLagDepositChange.simultaneousCorrelation))
                 leadLagDepositChange.optimalCorrelation else leadLagDepositChange.simultaneousCorrelation
@@ -1702,7 +1702,7 @@ class TimeSeriesAnalysisHelper @Inject constructor(
             }
 
             // 신용잔고 vs 종가
-            val creditAmounts = commonDates.map { depositMap[it]!!.creditAmount }
+            val creditAmounts = commonDates.map { depositMap[it]?.creditAmount ?: 0.0 }
             val leadLagCredit = calculateLeadLagCorrelation(creditAmounts, priceValues)
             val corrCreditPrice = if (abs(leadLagCredit.optimalCorrelation) > abs(leadLagCredit.simultaneousCorrelation))
                 leadLagCredit.optimalCorrelation else leadLagCredit.simultaneousCorrelation
@@ -1724,7 +1724,7 @@ class TimeSeriesAnalysisHelper @Inject constructor(
             }
 
             // 신용 변화 vs 등락률
-            val creditChanges = commonDates.map { depositMap[it]!!.creditChange }
+            val creditChanges = commonDates.map { depositMap[it]?.creditChange ?: 0.0 }
             val leadLagCreditChange = calculateLeadLagCorrelation(creditChanges, changeValues)
             val corrCreditChange = if (abs(leadLagCreditChange.optimalCorrelation) > abs(leadLagCreditChange.simultaneousCorrelation))
                 leadLagCreditChange.optimalCorrelation else leadLagCreditChange.simultaneousCorrelation
@@ -1749,8 +1749,8 @@ class TimeSeriesAnalysisHelper @Inject constructor(
             if (etfAmounts.isNotEmpty()) {
                 val etfCommonDates = commonDates.filter { etfAmounts.containsKey(it) }
                 if (etfCommonDates.size >= 10) {
-                    val depositAmountsEtf = etfCommonDates.map { depositMap[it]!!.depositAmount }
-                    val etfValues = etfCommonDates.map { etfAmounts[it]!! }
+                    val depositAmountsEtf = etfCommonDates.map { depositMap[it]?.depositAmount ?: 0.0 }
+                    val etfValues = etfCommonDates.map { etfAmounts[it] ?: 0.0 }
                     val leadLagDepositEtf = calculateLeadLagCorrelation(depositAmountsEtf, etfValues)
                     val corrDepositEtf = if (abs(leadLagDepositEtf.optimalCorrelation) > abs(leadLagDepositEtf.simultaneousCorrelation))
                         leadLagDepositEtf.optimalCorrelation else leadLagDepositEtf.simultaneousCorrelation
@@ -1790,11 +1790,11 @@ class TimeSeriesAnalysisHelper @Inject constructor(
 
         val commonDates = stockPrices.keys.filter { statsMap.containsKey(it) }.sorted()
         if (commonDates.size >= 10) {
-            val priceValues = commonDates.map { stockPrices[it]!! }
+            val priceValues = commonDates.map { stockPrices[it] ?: 0.0 }
             val changeValues = commonDates.map { stockChanges[it] ?: 0.0 }
 
             // 신규편입 수 vs 종가
-            val newStockCounts = commonDates.map { statsMap[it]!!.newStockCount.toDouble() }
+            val newStockCounts = commonDates.map { statsMap[it]?.newStockCount?.toDouble() ?: 0.0 }
             val leadLagNewCount = calculateLeadLagCorrelation(newStockCounts, priceValues)
             val corrNewCount = if (abs(leadLagNewCount.optimalCorrelation) > abs(leadLagNewCount.simultaneousCorrelation))
                 leadLagNewCount.optimalCorrelation else leadLagNewCount.simultaneousCorrelation
@@ -1816,7 +1816,7 @@ class TimeSeriesAnalysisHelper @Inject constructor(
             }
 
             // 신규편입 금액 vs 종가
-            val newStockAmounts = commonDates.map { statsMap[it]!!.newStockAmount.toDouble() }
+            val newStockAmounts = commonDates.map { statsMap[it]?.newStockAmount?.toDouble() ?: 0.0 }
             val leadLagNewAmount = calculateLeadLagCorrelation(newStockAmounts, priceValues)
             val corrNewAmount = if (abs(leadLagNewAmount.optimalCorrelation) > abs(leadLagNewAmount.simultaneousCorrelation))
                 leadLagNewAmount.optimalCorrelation else leadLagNewAmount.simultaneousCorrelation
@@ -1838,7 +1838,7 @@ class TimeSeriesAnalysisHelper @Inject constructor(
             }
 
             // 편출 수 vs 등락률
-            val removedCounts = commonDates.map { statsMap[it]!!.removedStockCount.toDouble() }
+            val removedCounts = commonDates.map { statsMap[it]?.removedStockCount?.toDouble() ?: 0.0 }
             val leadLagRemoved = calculateLeadLagCorrelation(removedCounts, changeValues)
             val corrRemoved = if (abs(leadLagRemoved.optimalCorrelation) > abs(leadLagRemoved.simultaneousCorrelation))
                 leadLagRemoved.optimalCorrelation else leadLagRemoved.simultaneousCorrelation
@@ -1860,7 +1860,7 @@ class TimeSeriesAnalysisHelper @Inject constructor(
             }
 
             // 비중증가 수 vs 종가
-            val increasedCounts = commonDates.map { statsMap[it]!!.increasedStockCount.toDouble() }
+            val increasedCounts = commonDates.map { statsMap[it]?.increasedStockCount?.toDouble() ?: 0.0 }
             val leadLagIncreased = calculateLeadLagCorrelation(increasedCounts, priceValues)
             val corrIncreased = if (abs(leadLagIncreased.optimalCorrelation) > abs(leadLagIncreased.simultaneousCorrelation))
                 leadLagIncreased.optimalCorrelation else leadLagIncreased.simultaneousCorrelation
@@ -1882,7 +1882,7 @@ class TimeSeriesAnalysisHelper @Inject constructor(
             }
 
             // 비중감소 수 vs 등락률
-            val decreasedCounts = commonDates.map { statsMap[it]!!.decreasedStockCount.toDouble() }
+            val decreasedCounts = commonDates.map { statsMap[it]?.decreasedStockCount?.toDouble() ?: 0.0 }
             val leadLagDecreased = calculateLeadLagCorrelation(decreasedCounts, changeValues)
             val corrDecreased = if (abs(leadLagDecreased.optimalCorrelation) > abs(leadLagDecreased.simultaneousCorrelation))
                 leadLagDecreased.optimalCorrelation else leadLagDecreased.simultaneousCorrelation
@@ -1905,7 +1905,8 @@ class TimeSeriesAnalysisHelper @Inject constructor(
 
             // 순편입 (신규 - 편출) vs 종가
             val netFlows = commonDates.map {
-                (statsMap[it]!!.newStockCount - statsMap[it]!!.removedStockCount).toDouble()
+                val stats = statsMap[it]
+                ((stats?.newStockCount ?: 0) - (stats?.removedStockCount ?: 0)).toDouble()
             }
             val leadLagNetFlow = calculateLeadLagCorrelation(netFlows, priceValues)
             val corrNetFlow = if (abs(leadLagNetFlow.optimalCorrelation) > abs(leadLagNetFlow.simultaneousCorrelation))
@@ -1928,7 +1929,7 @@ class TimeSeriesAnalysisHelper @Inject constructor(
             }
 
             // ETF 원화예금 vs 종가
-            val cashDeposits = commonDates.map { statsMap[it]!!.cashDepositAmount.toDouble() }
+            val cashDeposits = commonDates.map { statsMap[it]?.cashDepositAmount?.toDouble() ?: 0.0 }
             val leadLagCash = calculateLeadLagCorrelation(cashDeposits, priceValues)
             val corrCash = if (abs(leadLagCash.optimalCorrelation) > abs(leadLagCash.simultaneousCorrelation))
                 leadLagCash.optimalCorrelation else leadLagCash.simultaneousCorrelation
@@ -1955,9 +1956,10 @@ class TimeSeriesAnalysisHelper @Inject constructor(
                 if (etfCommonDates.size >= 10) {
                     // 순편입 vs ETF 보유금액
                     val netFlowsEtf = etfCommonDates.map {
-                        (statsMap[it]!!.newStockCount - statsMap[it]!!.removedStockCount).toDouble()
+                        val stats = statsMap[it]
+                        ((stats?.newStockCount ?: 0) - (stats?.removedStockCount ?: 0)).toDouble()
                     }
-                    val etfValues = etfCommonDates.map { etfAmounts[it]!! }
+                    val etfValues = etfCommonDates.map { etfAmounts[it] ?: 0.0 }
                     val leadLagNetFlowEtf = calculateLeadLagCorrelation(netFlowsEtf, etfValues)
                     val corrNetFlowEtf = if (abs(leadLagNetFlowEtf.optimalCorrelation) > abs(leadLagNetFlowEtf.simultaneousCorrelation))
                         leadLagNetFlowEtf.optimalCorrelation else leadLagNetFlowEtf.simultaneousCorrelation

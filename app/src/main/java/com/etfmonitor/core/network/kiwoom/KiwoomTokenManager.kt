@@ -107,10 +107,8 @@ class KiwoomTokenManager @Inject constructor(
                 .post(requestBody.toRequestBody("application/json".toMediaType()))
                 .build()
 
-            val (responseBody, responseCode, isSuccessful) = withContext(Dispatchers.IO) {
-                httpClient.newCall(request).execute().use { response ->
-                    Triple(response.body?.string(), response.code, response.isSuccessful)
-                }
+            val (responseBody, responseCode, isSuccessful) = httpClient.newCall(request).execute().use { response ->
+                Triple(response.body?.string(), response.code, response.isSuccessful)
             }
 
             if (!isSuccessful || responseBody == null) {

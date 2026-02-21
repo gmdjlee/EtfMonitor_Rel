@@ -450,32 +450,37 @@ class TechnicalAnalysisEngineTest {
         @Test
         @DisplayName("단조 증가 데이터: 후반부 impulse는 1 (bull)")
         fun `calculateElderImpulse_withStronglyRisingPrices_producesBullSignal`() {
-            // 강하게 상승하는 데이터: EMA 기울기 양수, MACD 히스토그램 기울기 양수
-            val close = (1..50).map { it.toDouble() * 10 }
+            // 가속 상승 데이터: i^2 성장으로 EMA 기울기와 MACD 히스토그램 기울기 모두 양수 보장
+            // 선형 데이터는 MACD 히스토그램이 상수로 수렴(기울기=0)하여 bull 신호가 생성되지 않음
+            // 가속 성장(이차 함수)은 MACD 히스토그램이 계속 확장되어 histSlope > 0 보장
+            val close = (1..80).map { it.toDouble() * it.toDouble() }
 
             val result = TechnicalAnalysisEngine.calculateElderImpulse(close)
 
             assertEquals(close.size, result.impulse.size)
-            // EMA와 MACD가 안정화되는 후반 20개 구간에서 bull 신호가 있어야 함
-            val tailImpulse = result.impulse.takeLast(20)
+            // EMA와 MACD가 안정화되는 후반 30개 구간에서 bull 신호가 있어야 함
+            val tailImpulse = result.impulse.takeLast(30)
             assertTrue(
                 tailImpulse.any { it == 1 },
-                "Strongly rising series should produce at least one bull impulse in the last 20 bars"
+                "Strongly accelerating rising series should produce at least one bull impulse in the last 30 bars"
             )
         }
 
         @Test
         @DisplayName("단조 감소 데이터: 후반부 impulse는 -1 (bear)")
         fun `calculateElderImpulse_withStronglyFallingPrices_producesBearSignal`() {
-            val close = (50 downTo 1).map { it.toDouble() * 10 }
+            // 가속 하락 데이터: 선형 하락은 MACD 히스토그램이 상수로 수렴하여 bear 신호가 생성되지 않음
+            // close[i] = 10000 - i^2 형태로, 낙폭이 매 bar 증가(3, 5, 7, ...씩 추가 하락)
+            // → EMA 기울기 음수, MACD 히스토그램 기울기 음수 모두 보장
+            val close = (1..80).map { i -> 10000.0 - i.toDouble() * i.toDouble() }
 
             val result = TechnicalAnalysisEngine.calculateElderImpulse(close)
 
             assertEquals(close.size, result.impulse.size)
-            val tailImpulse = result.impulse.takeLast(20)
+            val tailImpulse = result.impulse.takeLast(30)
             assertTrue(
                 tailImpulse.any { it == -1 },
-                "Strongly falling series should produce at least one bear impulse in the last 20 bars"
+                "Strongly accelerating falling series should produce at least one bear impulse in the last 30 bars"
             )
         }
 

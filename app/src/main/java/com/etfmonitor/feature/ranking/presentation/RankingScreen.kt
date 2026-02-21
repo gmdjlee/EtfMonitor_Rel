@@ -319,7 +319,7 @@ private fun RankingTable(
             RankingTableHeader(result)
         }
 
-        itemsIndexed(result.items) { index, item ->
+        itemsIndexed(result.items, key = { index, _ -> index }) { index, item ->
             RankingTableRow(
                 item = item,
                 result = result,

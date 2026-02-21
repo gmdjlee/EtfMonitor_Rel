@@ -89,6 +89,17 @@
     </domain-config>
 
     <!--
+        Kiwoom Open API
+        Used for real-time ranking data
+    -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">kiwoom.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!--
         Yahoo Finance
         Used for IRX and SPY market data in BloodIndicator
     -->
