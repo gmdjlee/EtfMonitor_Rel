@@ -224,3 +224,12 @@ val AIInsightsSubtext = Color(0xFFFFFFFF).copy(alpha = 0.8f)  // Semi-transparen
 // ============================================
 val FeaturedCardOverlay = Color(0xFFFFFFFF).copy(alpha = 0.1f)  // White overlay for effects
 val FeaturedCardBlur = Color(0xFFFFFFFF).copy(alpha = 0.2f)     // Blur background effect
+
+// ============================================
+// Korean Stock Market Colors (Red=Up, Blue=Down)
+// ============================================
+val StockPriceUp = Color(0xFFF44336)        // Red - 상승
+val StockPriceUpDark = Color(0xFFFF6B6B)    // Brighter red for dark mode
+val StockPriceDown = Color(0xFF2196F3)      // Blue - 하락
+val StockPriceDownDark = Color(0xFF64B5F6)  // Brighter blue for dark mode
+val StockPriceNeutral = Color(0xFF9E9E9E)   // Gray - 보합

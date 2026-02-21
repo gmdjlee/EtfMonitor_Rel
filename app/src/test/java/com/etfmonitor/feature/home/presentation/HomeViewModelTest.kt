@@ -63,6 +63,7 @@ class HomeViewModelTest {
     private lateinit var kisApiKeyProvider: KisApiKeyProvider
     private lateinit var fredApiKeyProvider: FredApiKeyProvider
     private lateinit var aiApiKeyProvider: ApiKeyProvider
+    private lateinit var kiwoomApiKeyProvider: com.etfmonitor.core.network.kiwoom.KiwoomApiKeyProvider
     private lateinit var context: Context
 
     private lateinit var viewModel: HomeViewModel
@@ -82,6 +83,7 @@ class HomeViewModelTest {
         kisApiKeyProvider = mockk(relaxed = true)
         fredApiKeyProvider = mockk(relaxed = true)
         aiApiKeyProvider = mockk(relaxed = true)
+        kiwoomApiKeyProvider = mockk(relaxed = true)
         context = mockk(relaxed = true)
 
         // Default mock behavior - not first run, KIS keys already configured
@@ -106,6 +108,7 @@ class HomeViewModelTest {
             kisApiKeyProvider = kisApiKeyProvider,
             fredApiKeyProvider = fredApiKeyProvider,
             aiApiKeyProvider = aiApiKeyProvider,
+            kiwoomApiKeyProvider = kiwoomApiKeyProvider,
             context = context
         )
     }

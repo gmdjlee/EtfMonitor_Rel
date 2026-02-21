@@ -3,7 +3,6 @@ package com.etfmonitor.feature.settings.presentation
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -12,6 +11,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.etfmonitor.R
+import com.etfmonitor.core.ui.component.HubHeader
 import com.etfmonitor.feature.backup.presentation.screen.BackupTabContent
 import com.etfmonitor.feature.backup.presentation.viewmodel.BackupViewModel
 import com.etfmonitor.feature.settings.presentation.component.*
@@ -35,10 +35,11 @@ import com.etfmonitor.feature.settings.presentation.component.*
  * - ColorPickerComponents.kt: Color picker UI components
  */
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
-    onNavigateBack: () -> Unit,
+    isDarkTheme: Boolean,
+    onToggleTheme: () -> Unit,
+    onNavigateBack: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
     backupViewModel: BackupViewModel = hiltViewModel()
 ) {
@@ -60,7 +61,7 @@ fun SettingsScreen(
     val message by viewModel.message.collectAsState()
 
     // General settings
-    val isDarkTheme by viewModel.isDarkTheme.collectAsState()
+    val isDarkThemeSetting by viewModel.isDarkTheme.collectAsState()
     val fontScaleSettings by viewModel.fontScaleSettings.collectAsState()
     val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
 
@@ -87,25 +88,10 @@ fun SettingsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(R.string.settings_title),
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.nav_back)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
+            HubHeader(
+                title = stringResource(R.string.settings_title),
+                isDarkTheme = isDarkTheme,
+                onToggleTheme = onToggleTheme
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -140,7 +126,7 @@ fun SettingsScreen(
             // Tab Content
             when (selectedTabIndex) {
                 0 -> GeneralTab(
-                    isDarkTheme = isDarkTheme,
+                    isDarkTheme = isDarkThemeSetting,
                     fontScaleSettings = fontScaleSettings,
                     quickChartAnalysisEnabled = quickChartAnalysisEnabled,
                     viewModel = viewModel
@@ -202,6 +188,8 @@ private fun GeneralTab(
     val isLoadingGeminiModels by viewModel.isLoadingGeminiModels.collectAsState()
     val isFredApiKeyConfigured by viewModel.isFredApiKeyConfigured.collectAsState()
     val isKisApiKeyConfigured by viewModel.isKisApiKeyConfigured.collectAsState()
+    val isKiwoomApiKeyConfigured by viewModel.isKiwoomApiKeyConfigured.collectAsState()
+    val kiwoomInvestmentMode by viewModel.kiwoomInvestmentMode.collectAsState()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -267,6 +255,18 @@ private fun GeneralTab(
                 onSetAppKey = { viewModel.setKisAppKey(it) },
                 onSetAppSecret = { viewModel.setKisAppSecret(it) },
                 onClearApiKeys = { viewModel.clearKisApiKeys() }
+            )
+        }
+
+        // Kiwoom API 키 설정 (순위 조회용)
+        item {
+            KiwoomApiKeyCard(
+                isConfigured = isKiwoomApiKeyConfigured,
+                currentInvestmentMode = kiwoomInvestmentMode,
+                onSetAppKey = { viewModel.setKiwoomAppKey(it) },
+                onSetSecretKey = { viewModel.setKiwoomSecretKey(it) },
+                onSetInvestmentMode = { viewModel.setKiwoomInvestmentMode(it) },
+                onClearApiKeys = { viewModel.clearKiwoomApiKeys() }
             )
         }
 

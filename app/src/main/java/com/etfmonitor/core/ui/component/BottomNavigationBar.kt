@@ -32,12 +32,14 @@ import androidx.compose.ui.unit.sp
 /**
  * Bottom Navigation Bar - Moss Green Nature Theme
  *
- * New menu structure:
+ * Menu structure (7-tab symmetric layout):
  * - 시장 지표: Fear & Greed, 과매수/과매도, 증시 자금 동향
+ * - 순위: 호가잔량급증, 거래량급증, 당일거래량상위, 신용비율상위, 외국인/기관상위
  * - ETF: ETF 목록, ETF 통계
  * - 홈: Home (center button)
  * - 종목: 종목 수급 분석
  * - 분석: AI 분석, ML 예측, 고급 분석
+ * - 설정: 앱 설정
  */
 
 enum class MainNavItem(
@@ -47,10 +49,12 @@ enum class MainNavItem(
     val unselectedIcon: ImageVector
 ) {
     MARKET_INDICATOR("market_indicator", "시장 지표", Icons.Filled.BarChart, Icons.Outlined.BarChart),
+    RANKING("ranking", "순위", Icons.Filled.Leaderboard, Icons.Outlined.Leaderboard),
     ETF("etf_hub", "ETF", Icons.Filled.PieChart, Icons.Outlined.PieChart),
     HOME("home", "홈", Icons.Filled.Home, Icons.Outlined.Home),
     STOCKS("stocks", "종목", Icons.AutoMirrored.Filled.ShowChart, Icons.AutoMirrored.Outlined.ShowChart),
-    ANALYSIS("analysis", "분석", Icons.Filled.Analytics, Icons.Outlined.Analytics)
+    ANALYSIS("analysis", "분석", Icons.Filled.Analytics, Icons.Outlined.Analytics),
+    SETTINGS("settings", "설정", Icons.Filled.Settings, Icons.Outlined.Settings)
 }
 
 @Composable
@@ -72,7 +76,7 @@ fun MainBottomNavigationBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp)
+                .padding(horizontal = 4.dp)
                 .padding(top = 8.dp, bottom = 24.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
@@ -131,7 +135,7 @@ private fun MainNavItemButton(
                 indication = null,
                 onClick = onClick
             )
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 6.dp, vertical = 8.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -184,7 +188,7 @@ private fun CenterHomeButton(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(horizontal = 8.dp)
+        modifier = Modifier.padding(horizontal = 4.dp)
     ) {
         Box(
             modifier = Modifier

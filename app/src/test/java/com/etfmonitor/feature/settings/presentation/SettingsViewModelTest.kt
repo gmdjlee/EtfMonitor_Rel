@@ -75,6 +75,7 @@ class SettingsViewModelTest {
     private lateinit var apiKeyProvider: ApiKeyProvider
     private lateinit var kisApiKeyProvider: KisApiKeyProvider
     private lateinit var fredApiKeyProvider: FredApiKeyProvider
+    private lateinit var kiwoomApiKeyProvider: com.etfmonitor.core.network.kiwoom.KiwoomApiKeyProvider
     private lateinit var etfDao: EtfDao
     private lateinit var themeManager: ThemeManager
     private lateinit var context: android.content.Context
@@ -110,6 +111,7 @@ class SettingsViewModelTest {
         apiKeyProvider = mockk(relaxed = true)
         kisApiKeyProvider = mockk(relaxed = true)
         fredApiKeyProvider = mockk(relaxed = true)
+        kiwoomApiKeyProvider = mockk(relaxed = true)
         etfDao = mockk(relaxed = true)
         themeManager = mockk(relaxed = true)
         context = mockk(relaxed = true)
@@ -126,6 +128,7 @@ class SettingsViewModelTest {
         every { apiKeyProvider.hasApiKey(any()) } returns false
         every { fredApiKeyProvider.isConfigured() } returns false
         every { kisApiKeyProvider.isConfigured() } returns false
+        every { kiwoomApiKeyProvider.isConfigured() } returns false
         coEvery { stockRepository.getStockCount() } returns 0
         coEvery { stockRepository.getLastUpdateTime() } returns null
         coEvery { marketDepositRepository.getDepositCount() } returns 0
@@ -152,6 +155,7 @@ class SettingsViewModelTest {
         apiKeyProvider = apiKeyProvider,
         kisApiKeyProvider = kisApiKeyProvider,
         fredApiKeyProvider = fredApiKeyProvider,
+        kiwoomApiKeyProvider = kiwoomApiKeyProvider,
         etfDao = etfDao,
         themeManager = themeManager,
         context = context

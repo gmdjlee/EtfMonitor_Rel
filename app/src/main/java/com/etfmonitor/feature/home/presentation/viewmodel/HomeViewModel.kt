@@ -17,6 +17,7 @@ import com.etfmonitor.core.network.ai.AIProvider
 import com.etfmonitor.core.network.ai.ApiKeyProvider
 import com.etfmonitor.core.network.blood.FredApiKeyProvider
 import com.etfmonitor.core.network.kis.KisApiKeyProvider
+import com.etfmonitor.core.network.kiwoom.KiwoomApiKeyProvider
 import com.etfmonitor.core.common.util.KrxConstants
 import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
@@ -77,6 +78,7 @@ class HomeViewModel @Inject constructor(
     private val kisApiKeyProvider: KisApiKeyProvider,
     private val fredApiKeyProvider: FredApiKeyProvider,
     private val aiApiKeyProvider: ApiKeyProvider,
+    private val kiwoomApiKeyProvider: KiwoomApiKeyProvider,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -145,7 +147,9 @@ class HomeViewModel @Inject constructor(
         kisAppSecret: String,
         fredApiKey: String,
         aiProvider: String?,
-        aiApiKey: String?
+        aiApiKey: String?,
+        kiwoomAppKey: String = "",
+        kiwoomSecretKey: String = ""
     ) {
         if (kisAppKey.isNotBlank() && kisAppSecret.isNotBlank()) {
             kisApiKeyProvider.setAppKey(kisAppKey)
@@ -158,6 +162,12 @@ class HomeViewModel @Inject constructor(
             val provider = AIProvider.fromString(aiProvider)
             aiApiKeyProvider.setApiKey(provider, aiApiKey)
             aiApiKeyProvider.setSelectedProvider(provider)
+        }
+        if (kiwoomAppKey.isNotBlank()) {
+            kiwoomApiKeyProvider.setAppKey(kiwoomAppKey)
+        }
+        if (kiwoomSecretKey.isNotBlank()) {
+            kiwoomApiKeyProvider.setSecretKey(kiwoomSecretKey)
         }
         _showApiKeyDialog.value = false
         _showUnifiedInitDialog.value = true

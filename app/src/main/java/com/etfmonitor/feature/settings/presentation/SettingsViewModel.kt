@@ -7,6 +7,8 @@ import com.etfmonitor.core.network.ai.AIProvider
 import com.etfmonitor.core.network.ai.ApiKeyProvider
 import com.etfmonitor.core.network.blood.FredApiKeyProvider
 import com.etfmonitor.core.network.kis.KisApiKeyProvider
+import com.etfmonitor.core.network.kiwoom.KiwoomApiKeyProvider
+import com.etfmonitor.core.network.kiwoom.KiwoomInvestmentMode
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.entities.Setting
 import com.etfmonitor.feature.market.domain.repository.BloodIndicatorRepository
@@ -137,6 +139,7 @@ class SettingsViewModel @Inject constructor(
     private val apiKeyProvider: ApiKeyProvider,
     private val kisApiKeyProvider: KisApiKeyProvider,
     private val fredApiKeyProvider: FredApiKeyProvider,
+    private val kiwoomApiKeyProvider: KiwoomApiKeyProvider,
     private val etfDao: EtfDao,
     private val themeManager: ThemeManager,
     @ApplicationContext private val context: Context
@@ -244,6 +247,13 @@ class SettingsViewModel @Inject constructor(
     // KIS API key for Financial Info
     private val _isKisApiKeyConfigured = MutableStateFlow(false)
     val isKisApiKeyConfigured: StateFlow<Boolean> = _isKisApiKeyConfigured.asStateFlow()
+
+    // Kiwoom API key for Ranking feature
+    private val _isKiwoomApiKeyConfigured = MutableStateFlow(false)
+    val isKiwoomApiKeyConfigured: StateFlow<Boolean> = _isKiwoomApiKeyConfigured.asStateFlow()
+
+    private val _kiwoomInvestmentMode = MutableStateFlow(KiwoomInvestmentMode.MOCK)
+    val kiwoomInvestmentMode: StateFlow<KiwoomInvestmentMode> = _kiwoomInvestmentMode.asStateFlow()
 
     private val _apiKeyTestState = MutableStateFlow<ApiKeyTestState>(ApiKeyTestState.Idle)
     val apiKeyTestState: StateFlow<ApiKeyTestState> = _apiKeyTestState.asStateFlow()
@@ -1221,6 +1231,8 @@ class SettingsViewModel @Inject constructor(
             _isFredApiKeyConfigured.value = fredApiKeyProvider.isConfigured()
             // Check KIS API key
             _isKisApiKeyConfigured.value = kisApiKeyProvider.isConfigured()
+            _isKiwoomApiKeyConfigured.value = kiwoomApiKeyProvider.isConfigured()
+            _kiwoomInvestmentMode.value = kiwoomApiKeyProvider.getConfig().investmentMode
         }
     }
 
@@ -1301,6 +1313,36 @@ class SettingsViewModel @Inject constructor(
     fun clearKisApiKeys() = saveSetting("KIS API 키가 삭제되었습니다") {
         kisApiKeyProvider.clearAll()
         _isKisApiKeyConfigured.value = false
+    }
+
+    // ==================== Kiwoom API Key Management (Ranking) ====================
+
+    fun setKiwoomAppKey(appKey: String) {
+        if (appKey.isBlank()) { _message.value = "Kiwoom App Key를 입력해주세요"; return }
+        saveSetting("Kiwoom App Key가 저장되었습니다") {
+            kiwoomApiKeyProvider.setAppKey(appKey)
+            _isKiwoomApiKeyConfigured.value = kiwoomApiKeyProvider.isConfigured()
+        }
+    }
+
+    fun setKiwoomSecretKey(secretKey: String) {
+        if (secretKey.isBlank()) { _message.value = "Kiwoom Secret Key를 입력해주세요"; return }
+        saveSetting("Kiwoom Secret Key가 저장되었습니다") {
+            kiwoomApiKeyProvider.setSecretKey(secretKey)
+            _isKiwoomApiKeyConfigured.value = kiwoomApiKeyProvider.isConfigured()
+        }
+    }
+
+    fun setKiwoomInvestmentMode(mode: KiwoomInvestmentMode) {
+        saveSetting("${mode.displayName} 모드로 변경되었습니다") {
+            kiwoomApiKeyProvider.setInvestmentMode(mode)
+            _kiwoomInvestmentMode.value = mode
+        }
+    }
+
+    fun clearKiwoomApiKeys() = saveSetting("Kiwoom API 키가 삭제되었습니다") {
+        kiwoomApiKeyProvider.clearAll()
+        _isKiwoomApiKeyConfigured.value = false
     }
 
     /**

@@ -32,7 +32,9 @@ internal fun ApiKeyInputDialog(
         kisAppSecret: String,
         fredApiKey: String,
         aiProvider: String?,
-        aiApiKey: String?
+        aiApiKey: String?,
+        kiwoomAppKey: String,
+        kiwoomSecretKey: String
     ) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -44,11 +46,16 @@ internal fun ApiKeyInputDialog(
     var selectedAiProvider by remember { mutableStateOf("CLAUDE") }
     var aiApiKey by remember { mutableStateOf("") }
 
+    var kiwoomAppKey by remember { mutableStateOf("") }
+    var kiwoomSecretKey by remember { mutableStateOf("") }
+
     // 최소 하나의 키가 입력되었거나, 아무 것도 입력하지 않아도 등록 가능 (나중에 설정 가능)
     val hasAnyInput = kisAppKey.trim().isNotBlank() ||
             kisAppSecret.trim().isNotBlank() ||
             fredApiKey.trim().isNotBlank() ||
-            (useAiApi && aiApiKey.trim().isNotBlank())
+            (useAiApi && aiApiKey.trim().isNotBlank()) ||
+            kiwoomAppKey.trim().isNotBlank() ||
+            kiwoomSecretKey.trim().isNotBlank()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -124,6 +131,37 @@ internal fun ApiKeyInputDialog(
                     value = fredApiKey,
                     onValueChange = { fredApiKey = it },
                     label = { Text("FRED API Key") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // ── Kiwoom API Section ──
+                Text(
+                    text = "Kiwoom Open API",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "실시간 순위 데이터 조회에 사용됩니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = kiwoomAppKey,
+                    onValueChange = { kiwoomAppKey = it },
+                    label = { Text("앱키 (App Key)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = kiwoomSecretKey,
+                    onValueChange = { kiwoomSecretKey = it },
+                    label = { Text("시크릿키 (Secret Key)") },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -222,7 +260,9 @@ internal fun ApiKeyInputDialog(
                         kisAppSecret.trim(),
                         fredApiKey.trim(),
                         if (useAiApi && aiApiKey.trim().isNotBlank()) selectedAiProvider else null,
-                        if (useAiApi) aiApiKey.trim().takeIf { it.isNotBlank() } else null
+                        if (useAiApi) aiApiKey.trim().takeIf { it.isNotBlank() } else null,
+                        kiwoomAppKey.trim(),
+                        kiwoomSecretKey.trim()
                     )
                 },
                 shape = MaterialTheme.extendedShapes.button

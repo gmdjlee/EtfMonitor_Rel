@@ -48,7 +48,6 @@ import com.etfmonitor.feature.home.presentation.viewmodel.HomeViewModel
 fun HomeScreen(
     isDarkTheme: Boolean,
     onToggleTheme: () -> Unit,
-    onNavigateToSettings: () -> Unit,
     onNavigateToMarketIndicator: () -> Unit,
     onNavigateToEtf: () -> Unit,
     onNavigateToStocks: () -> Unit,
@@ -119,7 +118,6 @@ fun HomeScreen(
                     lastDate = lastDate,
                     isDarkTheme = isDarkTheme,
                     onToggleTheme = onToggleTheme,
-                    onNavigateToSettings = onNavigateToSettings,
                     onNavigateToMarketIndicator = onNavigateToMarketIndicator,
                     onNavigateToEtf = onNavigateToEtf,
                     onNavigateToStocks = onNavigateToStocks,
@@ -132,9 +130,9 @@ fun HomeScreen(
     // Dialogs
     if (showApiKeyInputDialog) {
         ApiKeyInputDialog(
-            onConfirm = { kisAppKey, kisAppSecret, fredApiKey, aiProvider, aiApiKey ->
+            onConfirm = { kisAppKey, kisAppSecret, fredApiKey, aiProvider, aiApiKey, kiwoomAppKey, kiwoomSecretKey ->
                 showApiKeyInputDialog = false
-                viewModel.saveApiKeys(kisAppKey, kisAppSecret, fredApiKey, aiProvider, aiApiKey)
+                viewModel.saveApiKeys(kisAppKey, kisAppSecret, fredApiKey, aiProvider, aiApiKey, kiwoomAppKey, kiwoomSecretKey)
             },
             onDismiss = {
                 showApiKeyInputDialog = false
@@ -234,7 +232,6 @@ private fun HomeContent(
     lastDate: String?,
     isDarkTheme: Boolean,
     onToggleTheme: () -> Unit,
-    onNavigateToSettings: () -> Unit,
     onNavigateToMarketIndicator: () -> Unit,
     onNavigateToEtf: () -> Unit,
     onNavigateToStocks: () -> Unit,
@@ -254,8 +251,7 @@ private fun HomeContent(
         HomeHeader(
             lastDate = lastDate,
             isDarkTheme = isDarkTheme,
-            onToggleTheme = onToggleTheme,
-            onSettingsClick = onNavigateToSettings
+            onToggleTheme = onToggleTheme
         )
 
         Column(
@@ -365,8 +361,7 @@ private fun HomeContent(
 private fun HomeHeader(
     lastDate: String?,
     isDarkTheme: Boolean,
-    onToggleTheme: () -> Unit,
-    onSettingsClick: () -> Unit
+    onToggleTheme: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -394,25 +389,13 @@ private fun HomeHeader(
             }
         }
 
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            // Theme toggle
-            IconButton(onClick = onToggleTheme) {
-                Icon(
-                    imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
-                    contentDescription = if (isDarkTheme) "라이트 모드" else "다크 모드",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            // Settings
-            IconButton(onClick = onSettingsClick) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = stringResource(R.string.nav_settings),
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
+        // Theme toggle
+        IconButton(onClick = onToggleTheme) {
+            Icon(
+                imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                contentDescription = if (isDarkTheme) "라이트 모드" else "다크 모드",
+                tint = MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }

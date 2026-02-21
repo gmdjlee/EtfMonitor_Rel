@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import com.etfmonitor.R
 import com.etfmonitor.core.network.ai.AIModel
 import com.etfmonitor.core.network.ai.AIProvider
+import com.etfmonitor.core.network.kiwoom.KiwoomInvestmentMode
 import com.etfmonitor.feature.settings.presentation.ApiKeyTestState
 import com.etfmonitor.core.ui.theme.FontScaleSettings
 
@@ -983,6 +984,252 @@ fun KisApiKeyCard(
             icon = { Icon(Icons.Default.Warning, null) },
             title = { Text("KIS API 키 삭제") },
             text = { Text("저장된 KIS App Key와 App Secret을 삭제하시겠습니까?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onClearApiKeys()
+                        showClearConfirmDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text(stringResource(R.string.settings_action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirmDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+}
+
+/**
+ * Kiwoom API Key Card for Ranking feature.
+ * Kiwoom Open API provides real-time ranking data.
+ */
+@Composable
+fun KiwoomApiKeyCard(
+    isConfigured: Boolean,
+    currentInvestmentMode: KiwoomInvestmentMode,
+    onSetAppKey: (String) -> Unit,
+    onSetSecretKey: (String) -> Unit,
+    onSetInvestmentMode: (KiwoomInvestmentMode) -> Unit,
+    onClearApiKeys: () -> Unit
+) {
+    var showAppKeyDialog by remember { mutableStateOf(false) }
+    var showSecretKeyDialog by remember { mutableStateOf(false) }
+    var showClearConfirmDialog by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Leaderboard,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    "Kiwoom API 키 설정",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            HorizontalDivider()
+
+            Text(
+                "키움증권 Open API 키를 입력하면 실시간 순위 데이터를 조회할 수 있습니다.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            // API 키 상태 표시
+            Surface(
+                color = if (isConfigured)
+                    MaterialTheme.colorScheme.primaryContainer
+                else
+                    MaterialTheme.colorScheme.errorContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            if (isConfigured) Icons.Default.CheckCircle else Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = if (isConfigured)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            if (isConfigured) "Kiwoom API 키 설정됨" else "Kiwoom API 키 미설정",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isConfigured)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+
+            // 투자 모드 선택
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        "투자 모드",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    KiwoomInvestmentMode.values().forEach { mode ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSetInvestmentMode(mode) }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = mode == currentInvestmentMode,
+                                onClick = { onSetInvestmentMode(mode) }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    mode.displayName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                Text(
+                                    mode.description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 버튼
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { showAppKeyDialog = true },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        if (isConfigured) Icons.Default.Edit else Icons.Default.Key,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text("App Key 설정")
+                }
+
+                Button(
+                    onClick = { showSecretKeyDialog = true },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        if (isConfigured) Icons.Default.Edit else Icons.Default.Key,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text("Secret Key 설정")
+                }
+
+                if (isConfigured) {
+                    IconButton(
+                        onClick = { showClearConfirmDialog = true }
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "삭제",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+
+            // 안내 문구
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Text(
+                        "Kiwoom Open API 신청:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "https://openapi.kiwoom.com",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+
+    // App Key 입력 다이얼로그
+    if (showAppKeyDialog) {
+        ApiKeyInputDialog(
+            title = "Kiwoom App Key 설정",
+            placeholder = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            onDismiss = { showAppKeyDialog = false },
+            onConfirm = { appKey ->
+                onSetAppKey(appKey)
+                showAppKeyDialog = false
+            }
+        )
+    }
+
+    // Secret Key 입력 다이얼로그
+    if (showSecretKeyDialog) {
+        ApiKeyInputDialog(
+            title = "Kiwoom Secret Key 설정",
+            placeholder = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            onDismiss = { showSecretKeyDialog = false },
+            onConfirm = { secretKey ->
+                onSetSecretKey(secretKey)
+                showSecretKeyDialog = false
+            }
+        )
+    }
+
+    // 삭제 확인 다이얼로그
+    if (showClearConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmDialog = false },
+            icon = { Icon(Icons.Default.Warning, null) },
+            title = { Text("Kiwoom API 키 삭제") },
+            text = { Text("저장된 Kiwoom App Key와 Secret Key를 삭제하시겠습니까?") },
             confirmButton = {
                 Button(
                     onClick = {

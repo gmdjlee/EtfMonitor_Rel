@@ -20,7 +20,7 @@ fun HubHeader(
     title: String,
     isDarkTheme: Boolean,
     onToggleTheme: () -> Unit,
-    onSettingsClick: () -> Unit,
+    onSettingsClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -38,25 +38,13 @@ fun HubHeader(
             color = MaterialTheme.colorScheme.onBackground
         )
 
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            // Theme toggle button
-            IconButton(onClick = onToggleTheme) {
-                Icon(
-                    imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
-                    contentDescription = if (isDarkTheme) "라이트 모드" else "다크 모드",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            // Settings button
-            IconButton(onClick = onSettingsClick) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "설정",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
+        // Theme toggle button
+        IconButton(onClick = onToggleTheme) {
+            Icon(
+                imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                contentDescription = if (isDarkTheme) "라이트 모드" else "다크 모드",
+                tint = MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }

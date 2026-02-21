@@ -130,7 +130,11 @@ data class ExtendedColors(
     val aiInsightsBackground: androidx.compose.ui.graphics.Color,
     val aiInsightsAccent: androidx.compose.ui.graphics.Color,
     val aiInsightsText: androidx.compose.ui.graphics.Color,
-    val aiInsightsSubtext: androidx.compose.ui.graphics.Color
+    val aiInsightsSubtext: androidx.compose.ui.graphics.Color,
+    // Korean Stock Market Colors (Red=Up, Blue=Down convention)
+    val stockPriceUp: androidx.compose.ui.graphics.Color,
+    val stockPriceDown: androidx.compose.ui.graphics.Color,
+    val stockPriceNeutral: androidx.compose.ui.graphics.Color
 )
 
 val LocalExtendedColors = staticCompositionLocalOf {
@@ -160,7 +164,10 @@ val LocalExtendedColors = staticCompositionLocalOf {
         aiInsightsBackground = AIInsightsBackground,
         aiInsightsAccent = AIInsightsAccent,
         aiInsightsText = AIInsightsText,
-        aiInsightsSubtext = AIInsightsSubtext
+        aiInsightsSubtext = AIInsightsSubtext,
+        stockPriceUp = StockPriceUp,
+        stockPriceDown = StockPriceDown,
+        stockPriceNeutral = StockPriceNeutral
     )
 }
 
@@ -208,7 +215,10 @@ fun EtfMonitorTheme(
         aiInsightsBackground = AIInsightsBackground,
         aiInsightsAccent = AIInsightsAccent,
         aiInsightsText = AIInsightsText,
-        aiInsightsSubtext = AIInsightsSubtext
+        aiInsightsSubtext = AIInsightsSubtext,
+        stockPriceUp = if (darkTheme) StockPriceUpDark else StockPriceUp,
+        stockPriceDown = if (darkTheme) StockPriceDownDark else StockPriceDown,
+        stockPriceNeutral = StockPriceNeutral
     )
 
     CompositionLocalProvider(

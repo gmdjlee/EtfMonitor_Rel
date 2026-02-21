@@ -30,11 +30,13 @@ import com.etfmonitor.feature.etf.presentation.hub.EtfHubScreen
 import com.etfmonitor.feature.stock.presentation.hub.StocksHubScreen
 import com.etfmonitor.feature.analysis.presentation.hub.AnalysisHubScreen
 import com.etfmonitor.feature.backup.presentation.screen.BackupScreen
+import com.etfmonitor.feature.ranking.presentation.RankingScreen
 
 sealed class Screen(val route: String) {
     // Main navigation tabs
     object Home : Screen("home")
     object MarketIndicator : Screen("market_indicator")
+    object Ranking : Screen("ranking")
     object EtfHub : Screen("etf_hub?stockTicker={stockTicker}") {
         fun createRoute(stockTicker: String? = null) = if (stockTicker != null) {
             "etf_hub?stockTicker=$stockTicker"
@@ -91,9 +93,11 @@ sealed class Screen(val route: String) {
 private val mainNavRoutes = setOf(
     Screen.Home.route,
     Screen.MarketIndicator.route,
+    Screen.Ranking.route,
     Screen.EtfHub.route,
     Screen.Stocks.route,
-    Screen.Analysis.route
+    Screen.Analysis.route,
+    Screen.Settings.route
 )
 
 // Additional routes that show bottom navigation (ETF sub-screens and analysis)
@@ -163,7 +167,6 @@ fun Navigation(
                 HomeScreen(
                     isDarkTheme = isDarkTheme,
                     onToggleTheme = onToggleTheme,
-                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                     onNavigateToMarketIndicator = {
                         navController.navigate(Screen.MarketIndicator.route) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -199,6 +202,23 @@ fun Navigation(
                 MarketIndicatorHubScreen(
                     isDarkTheme = isDarkTheme,
                     onToggleTheme = onToggleTheme,
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                )
+            }
+
+            composable(Screen.Ranking.route) {
+                RankingScreen(
+                    isDarkTheme = isDarkTheme,
+                    onToggleTheme = onToggleTheme,
+                    onStockClick = { ticker ->
+                        navController.navigate(Screen.Stocks.createRoute(ticker)) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = false
+                        }
+                    },
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
                 )
             }
@@ -318,7 +338,8 @@ fun Navigation(
 
             composable(Screen.Settings.route) {
                 SettingsScreen(
-                    onNavigateBack = { navController.popBackStack() }
+                    isDarkTheme = isDarkTheme,
+                    onToggleTheme = onToggleTheme
                 )
             }
 

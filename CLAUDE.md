@@ -3,10 +3,10 @@
 ## Project Identity
 
 Korean stock market (KRX) ETF monitoring Android app.
-Kotlin 2.1.0 | Jetpack Compose + M3 | MVVM + Clean Architecture | Hilt 2.54 | Room 2.8.3 (schema v22) | Claude & Gemini AI APIs | KIS Open API (재무정보)
+Kotlin 2.1.0 | Jetpack Compose + M3 | MVVM + Clean Architecture | Hilt 2.54 | Room 2.8.3 (schema v22) | Claude & Gemini AI APIs | KIS Open API (재무정보) | Kiwoom Open API (실시간 순위)
 
-Package: `com.etfmonitor` | DB: `etf_monitor.db` | 300 Kotlin files | 0 Python scripts
-Structure: `core/` (133 files) shared infra, `feature/` (164 files) 7 modules, `navigation/` (1 file)
+Package: `com.etfmonitor` | DB: `etf_monitor.db` | 320 Kotlin files | 0 Python scripts
+Structure: `core/` (141 files) shared infra, `feature/` (176 files) 8 modules, `navigation/` (1 file)
 Each feature: `domain/{model,repository,usecase}` → `data/{mapper,repository}` → `presentation/` → `di/`
 
 ---
@@ -73,7 +73,7 @@ New ViewModels should use sealed classes.
 - Check `isApiKeyConfigured` before calling AI APIs
 - AI parser handles Korean signals: 강력매수, 매수, 중립, 매도, 강력매도
 - Handle Gemini `SAFETY`/`RECITATION` blocks (returns empty instead of error)
-- API keys stored with AES256-GCM via Android Keystore (`SharedPreferencesApiKeyProvider`, `KisApiKeyProvider`, `FredApiKeyProvider`)
+- API keys stored with AES256-GCM via Android Keystore (`SharedPreferencesApiKeyProvider`, `KisApiKeyProvider`, `FredApiKeyProvider`, `KiwoomApiKeyProvider`)
 
 ### 10. kotlin_krx Date Format — Always Convert
 kotlin_krx returns dates in `"yyyyMMdd"` format. Room entities and UI expect `"yyyy-MM-dd"` (ISO).
@@ -144,14 +144,14 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 | Category | Path | Notes |
 |----------|------|-------|
 | Entry | `MainActivity.kt`, `EtfMonitorApp.kt` | Theme, permissions |
-| Navigation | `navigation/Navigation.kt` | 17 screen routes |
+| Navigation | `navigation/Navigation.kt` | 18 screen routes, 7-tab bottom nav |
 | Database | `core/database/AppDatabase.kt` | 23 entities, 21 DAOs, 21 migrations (v22) |
 | Database entities | `core/database/entities/` | 22 files, 23 entities (AIChatSession in AIChatMessage.kt) |
 | Blood Indicator | `core/network/blood/` | BloodIndicatorClient (OkHttp: Yahoo Finance + FRED API) |
 | AI clients | `core/network/ai/` | ClaudeApiClient, GeminiApiClient, AIApiClientFactory (11 files) |
 | Theme | `core/ui/theme/` | Theme.kt, ThemeManager.kt |
 | Workers | `core/worker/` | 9 workers + WorkManagerHelper |
-| DI | `core/di/` + `feature/*/di/` | 11 modules (4 core + 7 feature) |
+| DI | `core/di/` + `feature/*/di/` | 13 modules (5 core + 8 feature) |
 | kotlin_krx repos | `core/data/repository/krx/` | KrxStockDataRepositoryImpl, KrxEtfDataRepositoryImpl, KrxMarketDataRepositoryImpl |
 | kotlin_krx UseCases | `core/domain/usecase/krx/` | 11 UseCases (MarketCap, IndexComponents, MarketData, EtfHoldings, EtfList, BusinessDays, TrendSignal, ElderImpulse, DemarkTD, StockOhlcv, IndexData) |
 | Analysis engines | `core/analysis/` | FearGreedCalculator, TechnicalAnalysisEngine, MarketOscillatorCalculator, BloodIndicatorCalculator |
@@ -161,10 +161,13 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 | KIS API client | `feature/stock/data/repository/financial/` | FinancialRepositoryImpl (OAuth2 + 5 KIS REST APIs, 24h cache) |
 | FRED API keys | `core/network/blood/` | FredApiKeyProvider (EncryptedSharedPreferences, AES256-GCM) |
 | KIS API keys | `core/network/kis/` | KisApiKeyProvider (EncryptedSharedPreferences), KisApiKeyConfig |
-| API Key Dialog | `feature/home/presentation/component/ApiKeyInputDialog.kt` | First-launch key input: KIS + FRED + AI (shown before UnifiedInitializationDialog if keys not set) |
+| API Key Dialog | `feature/home/presentation/component/ApiKeyInputDialog.kt` | First-launch key input: KIS + FRED + Kiwoom + AI (shown before UnifiedInitializationDialog if keys not set) |
+| Kiwoom API | `core/network/kiwoom/` | KiwoomApiClient, KiwoomTokenManager, KiwoomApiKeyProvider (6 files) |
+| Kiwoom DI | `core/di/KiwoomModule.kt` | @KiwoomOkHttp OkHttpClient (30s timeout) |
+| Ranking feature | `feature/ranking/` | 5 ranking types via Kiwoom REST API (12 files: domain/data/presentation/di) |
 | Chart Color Settings | `feature/settings/presentation/component/ChartColorCards.kt`, `ColorPickerComponents.kt` | 4 chart color cards + color picker dialog |
 | KRX Constants | `core/common/util/KrxConstants.kt` | Shared KRX rate limit constants |
-| Tests | `app/src/test/`, `app/src/androidTest/` | JUnit5, MockK, Turbine (1655 tests, 95 test files + 5 androidTest files) |
+| Tests | `app/src/test/`, `app/src/androidTest/` | JUnit5, MockK, Turbine (1749 tests, 98 test files + 5 androidTest files) |
 
 ---
 
@@ -263,6 +266,33 @@ Default model: **sonnet**. Use tiered agents in `.claude/agents/` for cost-effic
 **Chaquopy embedded Python has been completely removed** from this project.
 All former Python scripts have been replaced by native Kotlin implementations:
 
+### Kiwoom Open API (실시간 순위 — Any Network)
+
+**Module**: `core/network/kiwoom/` (6 files) + `feature/ranking/` (12 files)
+**DI**: `KiwoomModule` provides `@KiwoomOkHttp OkHttpClient` (30s timeout), `RankingModule` binds `RankingRepository`
+
+**API Endpoints** (all POST to `$baseUrl/api/dostk/rkinfo`):
+| Ranking Type | API ID | Description |
+|-------------|--------|-------------|
+| 호가잔량급증 | ka10021 | Order book surge |
+| 거래량급증 | ka10023 | Volume surge |
+| 거래량상위 | ka10030 | Daily volume top |
+| 신용잔고율상위 | ka10033 | Credit ratio top |
+| 외국인/기관순매수 | ka90009 | Foreign/institution trading |
+
+**Key Behaviors**:
+- OAuth2 token: `POST $baseUrl/oauth2/token` (api-id: au10001), cached in-memory with Mutex
+- Rate limiting: 500ms min interval via `CategoryRateLimiter` (Mutex + delay)
+- Token retry: 3 attempts with exponential backoff (1s, 2s, 4s)
+- Auto-retry on 401/403 with token refresh
+- JSON normalization: strips `+` prefix from numbers (`"+12345"` → `"12345"`)
+- API keys: EncryptedSharedPreferences via `KiwoomApiKeyProvider` (AES256-GCM)
+- Investment modes: MOCK (`mockapi.kiwoom.com`), PRODUCTION (`api.kiwoom.com`)
+- CancellationException rethrow guard in all catch blocks
+
+**Architecture**: ViewModel (12 StateFlows) → GetRankingUseCase → RankingRepository → KiwoomApiClient → OkHttp
+**UI**: 7-tab bottom nav (시장지표, 순위, ETF, 홈, 종목, 분석, 설정), Korean stock colors (Red=Up, Blue=Down)
+
 ### Kotlin Native Computation Engines (replaced Python)
 
 | Engine | Replaces | Key Functions |
@@ -281,7 +311,7 @@ All former Python scripts have been replaced by native Kotlin implementations:
 - ETF 목록 조회 timeout 60s 증가 검토
 - Certificate pin rotation: Anthropic API pin expires 2026-06-30
 - TechnicalAnalysisEngineTest: Elder Impulse 경계값 테스트 2개 실패 (pre-existing)
-- First-launch flow has TWO dialogs: ApiKeyInputDialog (KIS + FRED + AI keys, all optional) → UnifiedInitializationDialog
+- First-launch flow has TWO dialogs: ApiKeyInputDialog (KIS + FRED + Kiwoom + AI keys, all optional) → UnifiedInitializationDialog
 - AndroidView `factory` 블록의 axis/legend 색상이 `update` 블록에서 갱신 안 됨 (chart color 변경 시 축/범례 색상 stale)
 - KIS appKey/appSecret sent as plaintext HTTP headers (KIS API design limitation — needs cert pinning for KIS endpoints)
 - Settings screen ApiKeyInputDialog: API key text fields lack PasswordVisualTransformation (shoulder-surfing risk)
@@ -298,7 +328,7 @@ All former Python scripts have been replaced by native Kotlin implementations:
 | Security | 72 | **96** | CE guards (216+ catch blocks), FredApiKeyProvider (AES256-GCM), OkHttp leak fixes, log redaction, network security config |
 | Performance | 62 | **95** | KRX rate limiting (Semaphore+chunked), DB indices (11개, v20→v22), LIMIT clauses, O(n+m) forwardFill, Oscillator 4.8x speedup |
 | Reliability | 91 | **96** | NonCancellable wraps, @Transaction (22 methods), CollectionState persistence, BackupDao OOM fix, CookieJar thread-safety |
-| Test Coverage | 18 | **95** | 1655 tests (95 files), 15/15 ViewModels, 33/33 UseCases, 24/24 Repositories, 2 pre-existing failures only |
+| Test Coverage | 18 | **95** | 1749 tests (98 files), 16/16 ViewModels, 34/34 UseCases, 25/25 Repositories, 2 pre-existing failures only |
 | **Overall** | **53.5** | **~95.5** | |
 
 ---
