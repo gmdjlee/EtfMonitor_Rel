@@ -57,7 +57,7 @@ class GetEtfListUseCaseTest {
                 Etf(ticker = "069500", name = "KODEX 200"),
                 Etf(ticker = "102110", name = "TIGER 200")
             )
-            every { repository.getAllEtfs() } returns flowOf(etfs)
+            every { repository.getVisibleEtfs() } returns flowOf(etfs)
 
             // When & Then
             useCase().test {
@@ -73,7 +73,7 @@ class GetEtfListUseCaseTest {
         @DisplayName("invoke_withEmptyRepository_returnsEmptyFlow")
         fun `invoke_withEmptyRepository_returnsEmptyFlow`() = runTest {
             // Given
-            every { repository.getAllEtfs() } returns flowOf(emptyList())
+            every { repository.getVisibleEtfs() } returns flowOf(emptyList())
 
             // When & Then
             useCase().test {
@@ -88,7 +88,7 @@ class GetEtfListUseCaseTest {
         fun `invoke_withSingleEtf_returnsSingleItemFlow`() = runTest {
             // Given
             val etfs = listOf(Etf(ticker = "069500", name = "KODEX 200"))
-            every { repository.getAllEtfs() } returns flowOf(etfs)
+            every { repository.getVisibleEtfs() } returns flowOf(etfs)
 
             // When & Then
             useCase().test {
@@ -106,7 +106,7 @@ class GetEtfListUseCaseTest {
             val etfs = (1..100).map { i ->
                 Etf(ticker = i.toString().padStart(6, '0'), name = "ETF종목$i")
             }
-            every { repository.getAllEtfs() } returns flowOf(etfs)
+            every { repository.getVisibleEtfs() } returns flowOf(etfs)
 
             // When & Then
             useCase().test {
@@ -134,7 +134,7 @@ class GetEtfListUseCaseTest {
                 Etf("069500", "KODEX 200"),
                 Etf("102110", "TIGER 200")
             )
-            every { repository.getAllEtfs() } returns kotlinx.coroutines.flow.flow {
+            every { repository.getVisibleEtfs() } returns kotlinx.coroutines.flow.flow {
                 emit(firstList)
                 emit(secondList)
             }
@@ -158,7 +158,7 @@ class GetEtfListUseCaseTest {
                 Etf(ticker = "114800", name = "KODEX 인버스"),
                 Etf(ticker = "122630", name = "KODEX 레버리지")
             )
-            every { repository.getAllEtfs() } returns flowOf(etfs)
+            every { repository.getVisibleEtfs() } returns flowOf(etfs)
 
             // When & Then
             useCase().test {

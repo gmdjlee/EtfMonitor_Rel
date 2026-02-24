@@ -85,25 +85,25 @@ data class MarketOscillator(
     val lastUpdated: Long
 ) {
     /**
-     * 과매수/과매도 상태 반환
+     * 과매수/과매도 상태 반환 ([-100,-50] ∪ (50,100] 범위)
      */
     fun getStatus(): String = when {
-        oscillator >= 80 -> "Overbought"
-        oscillator >= 60 -> "Strong"
-        oscillator >= 40 -> "Neutral"
-        oscillator >= 20 -> "Weak"
-        else -> "Oversold"
+        oscillator >= 80 -> "Extreme Overbought"
+        oscillator >= 50 -> "Overbought"
+        oscillator <= -80 -> "Extreme Oversold"
+        oscillator <= -50 -> "Oversold"
+        else -> "Neutral"
     }
 
     /**
-     * 과매수/과매도 상태 한글 반환
+     * 과매수/과매도 상태 한글 반환 ([-100,-50] ∪ (50,100] 범위)
      */
     fun getStatusKorean(): String = when {
-        oscillator >= 80 -> "과매수"
-        oscillator >= 60 -> "강세"
-        oscillator >= 40 -> "중립"
-        oscillator >= 20 -> "약세"
-        else -> "과매도"
+        oscillator >= 80 -> "극도과매수"
+        oscillator >= 50 -> "과매수"
+        oscillator <= -80 -> "극도과매도"
+        oscillator <= -50 -> "과매도"
+        else -> "중립"
     }
 }
 

@@ -666,7 +666,7 @@ private fun ThresholdSettingsDialog(
                     shape = MaterialTheme.shapes.small
                 ) {
                     Text(
-                        "• 과매수: Oscillator가 설정값 이상\n• 과매도: Oscillator가 설정값 이하",
+                        "• 과매수: Oscillator가 설정값 이상\n• 과매도: Oscillator가 설정값 이하\n• 범위: -100~100 (양수: 50~100, 음수: -100~-50)",
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(8.dp)
                     )

@@ -67,7 +67,7 @@ interface StockStatisticsRepository {
      * @param previousDate 이전일 (yyyy-MM-dd)
      * @return 금액순위 목록
      */
-    suspend fun getStockAmountRankingInRange(currentDate: String, previousDate: String): List<StockAmountRanking>
+    suspend fun getStockAmountRankingInRange(currentDate: String, previousDate: String, etfNameFilter: String? = null): List<StockAmountRanking>
 
     // ========== 종목 변화 ==========
 
@@ -85,7 +85,7 @@ interface StockStatisticsRepository {
      * @param previousDate 이전일 (yyyy-MM-dd)
      * @return 신규 편입 종목 목록
      */
-    suspend fun getAllNewStocksInRange(currentDate: String, previousDate: String): List<StockChangeInfo>
+    suspend fun getAllNewStocksInRange(currentDate: String, previousDate: String, etfNameFilter: String? = null): List<StockChangeInfo>
 
     /**
      * 제외된 종목 조회
@@ -101,7 +101,7 @@ interface StockStatisticsRepository {
      * @param previousDate 이전일 (yyyy-MM-dd)
      * @return 제외된 종목 목록
      */
-    suspend fun getAllRemovedStocksInRange(currentDate: String, previousDate: String): List<StockChangeInfo>
+    suspend fun getAllRemovedStocksInRange(currentDate: String, previousDate: String, etfNameFilter: String? = null): List<StockChangeInfo>
 
     /**
      * 비중 증가 종목 조회
@@ -117,7 +117,7 @@ interface StockStatisticsRepository {
      * @param previousDate 이전일 (yyyy-MM-dd)
      * @return 비중 증가 종목 목록
      */
-    suspend fun getAllIncreasedStocksInRange(currentDate: String, previousDate: String): List<StockChangeInfo>
+    suspend fun getAllIncreasedStocksInRange(currentDate: String, previousDate: String, etfNameFilter: String? = null): List<StockChangeInfo>
 
     /**
      * 비중 감소 종목 조회
@@ -133,7 +133,7 @@ interface StockStatisticsRepository {
      * @param previousDate 이전일 (yyyy-MM-dd)
      * @return 비중 감소 종목 목록
      */
-    suspend fun getAllDecreasedStocksInRange(currentDate: String, previousDate: String): List<StockChangeInfo>
+    suspend fun getAllDecreasedStocksInRange(currentDate: String, previousDate: String, etfNameFilter: String? = null): List<StockChangeInfo>
 
     // ========== 종목 분석 ==========
 
@@ -160,7 +160,7 @@ interface StockStatisticsRepository {
      *
      * @return 원화예금 추이 목록
      */
-    suspend fun getCashDepositTrend(): List<CashDepositTrend>
+    suspend fun getCashDepositTrend(etfNameFilter: String? = null): List<CashDepositTrend>
 
     // ========== 종목 통합 추이 ==========
 

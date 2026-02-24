@@ -296,10 +296,10 @@ class OscillatorCalculatorTest {
         }
 
         @Test
-        @DisplayName("avgOsc > 0.005 이고 MACD > Signal이면 STRONG_BUY를 반환한다")
-        fun `analyzeSignal high avgOsc and MACD above signal returns STRONG_BUY`() {
+        @DisplayName("latestOsc > 0.005 이고 MACD > Signal이면 STRONG_BUY를 반환한다")
+        fun `analyzeSignal high latestOsc and MACD above signal returns STRONG_BUY`() {
             val n = 30
-            // score: avgOsc > 0.005 → +40, MACD > Signal (no cross) → +15,
+            // score: latestOsc > 0.005 → +40, MACD > Signal (no cross) → +15,
             //        histogram 상승 추세 → +30 → total = 85 → STRONG_BUY
             val oscillator = List(n - 3) { 0.006 } + listOf(0.004, 0.005, 0.007)
             val macd = List(n) { 0.01 }
@@ -312,10 +312,10 @@ class OscillatorCalculatorTest {
         }
 
         @Test
-        @DisplayName("avgOsc < -0.005 이고 MACD < Signal이면 STRONG_SELL을 반환한다")
-        fun `analyzeSignal low avgOsc and MACD below signal returns STRONG_SELL`() {
+        @DisplayName("latestOsc < -0.005 이고 MACD < Signal이면 STRONG_SELL을 반환한다")
+        fun `analyzeSignal low latestOsc and MACD below signal returns STRONG_SELL`() {
             val n = 30
-            // score: avgOsc < -0.005 → -40, MACD < Signal (no cross) → -15,
+            // score: latestOsc < -0.005 → -40, MACD < Signal (no cross) → -15,
             //        histogram 하락 추세 → -30 → total = -85 → STRONG_SELL
             val oscillator = List(n - 3) { -0.006 } + listOf(-0.007, -0.008, -0.009)
             val macd = List(n) { -0.01 }
@@ -335,12 +335,12 @@ class OscillatorCalculatorTest {
             // macd[n-2] <= signal[n-2] 이었다가 macd[n-1] > signal[n-1]
             val macd = List(n - 1) { -0.005 } + listOf(0.005)       // 마지막 양수
             val signal = List(n) { 0.0 }                              // signal = 0
-            val oscillator = List(n) { 0.001 }                        // 약한 양수 (avgOsc ~0.001 → 0점)
+            val oscillator = List(n) { 0.001 }                        // 약한 양수 (latestOsc ~0.001 → 0점)
 
             val result = buildOscillatorResult(n, oscillator, macd, signal)
             val analysis = OscillatorCalculator.analyzeSignal(result)
 
-            // score = 0 (avgOsc ~0.001) + 30 (골든크로스) + 0 (히스토그램 미미) = 30+ → BUY 이상
+            // score = 0 (latestOsc ~0.001) + 30 (골든크로스) + 0 (히스토그램 미미) = 30+ → BUY 이상
             assertTrue(
                 analysis.score >= 20.0,
                 "Expected score ≥ 20 for golden cross but got: ${analysis.score}"
@@ -362,8 +362,8 @@ class OscillatorCalculatorTest {
         }
 
         @Test
-        @DisplayName("avgOsc > 0이면 foreignTrend와 institutionTrend가 '순매수'다")
-        fun `analyzeSignal positive avgOsc gives net buy trend labels`() {
+        @DisplayName("latestOsc > 0이면 foreignTrend와 institutionTrend가 '순매수'다")
+        fun `analyzeSignal positive latestOsc gives net buy trend labels`() {
             val n = 30
             val oscillator = List(n) { 0.001 }
             val macd = List(n) { 0.005 }
@@ -377,8 +377,8 @@ class OscillatorCalculatorTest {
         }
 
         @Test
-        @DisplayName("avgOsc < 0이면 foreignTrend와 institutionTrend가 '순매도'다")
-        fun `analyzeSignal negative avgOsc gives net sell trend labels`() {
+        @DisplayName("latestOsc < 0이면 foreignTrend와 institutionTrend가 '순매도'다")
+        fun `analyzeSignal negative latestOsc gives net sell trend labels`() {
             val n = 30
             val oscillator = List(n) { -0.001 }
             val macd = List(n) { -0.005 }
@@ -420,8 +420,8 @@ class OscillatorCalculatorTest {
         }
 
         @Test
-        @DisplayName("avgOsc > 0.003 이면 trend가 '강한 매수세'다")
-        fun `analyzeSignal avgOsc above 0_003 trend is strong buy`() {
+        @DisplayName("latestOsc > 0.003 이면 trend가 '강한 매수세'다")
+        fun `analyzeSignal latestOsc above 0_003 trend is strong buy`() {
             val n = 30
             val oscillator = List(n) { 0.005 }
             val macd = List(n) { 0.01 }
@@ -434,8 +434,8 @@ class OscillatorCalculatorTest {
         }
 
         @Test
-        @DisplayName("avgOsc < -0.003 이면 trend가 '강한 매도세'다")
-        fun `analyzeSignal avgOsc below -0_003 trend is strong sell`() {
+        @DisplayName("latestOsc < -0.003 이면 trend가 '강한 매도세'다")
+        fun `analyzeSignal latestOsc below -0_003 trend is strong sell`() {
             val n = 30
             val oscillator = List(n) { -0.005 }
             val macd = List(n) { -0.01 }

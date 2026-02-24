@@ -19,6 +19,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import com.etfmonitor.R
 import com.etfmonitor.core.network.ai.AIModel
 import com.etfmonitor.core.network.ai.AIProvider
+import com.etfmonitor.core.common.model.SharesType
 import com.etfmonitor.core.network.kiwoom.KiwoomInvestmentMode
 import com.etfmonitor.feature.settings.presentation.ApiKeyTestState
 import com.etfmonitor.core.ui.theme.FontScaleSettings
@@ -80,6 +81,64 @@ fun QuickChartAnalysisCard(
                     checked = isEnabled,
                     onCheckedChange = onEnabledChange
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun SharesTypeCard(
+    selectedType: SharesType,
+    onSharesTypeChange: (SharesType) -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.PieChart,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("시가총액 주식수 기준", style = MaterialTheme.typography.titleMedium)
+            }
+
+            HorizontalDivider()
+
+            Text(
+                "시가총액 계산 시 사용할 주식수 기준을 선택합니다.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SharesType.entries.forEach { type ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSharesTypeChange(type) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedType == type,
+                            onClick = { onSharesTypeChange(type) }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(type.displayName, style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                type.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
             }
         }
     }

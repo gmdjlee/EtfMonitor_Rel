@@ -9,6 +9,7 @@ import com.etfmonitor.core.network.blood.FredApiKeyProvider
 import com.etfmonitor.core.network.kis.KisApiKeyProvider
 import com.etfmonitor.core.network.kiwoom.KiwoomApiKeyProvider
 import com.etfmonitor.core.network.kiwoom.KiwoomInvestmentMode
+import com.etfmonitor.core.common.model.SharesType
 import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.entities.Setting
 import com.etfmonitor.feature.market.domain.repository.BloodIndicatorRepository
@@ -19,6 +20,7 @@ import com.etfmonitor.feature.market.domain.repository.MarketOscillatorRepositor
 import com.etfmonitor.feature.etf.domain.model.DataProgress
 import com.etfmonitor.feature.etf.domain.repository.EtfRepository
 import com.etfmonitor.feature.analysis.domain.repository.AIAnalysisRepository
+import com.etfmonitor.feature.stock.domain.repository.StockAnalysisRepository
 import com.etfmonitor.feature.stock.domain.repository.StockRepository
 import com.etfmonitor.core.ui.theme.ChartColorSettings
 import com.etfmonitor.core.ui.theme.FontScaleSettings
@@ -136,6 +138,7 @@ class SettingsViewModel @Inject constructor(
     private val marketIndexRepository: MarketIndexRepository,
     private val bloodIndicatorRepository: BloodIndicatorRepository,
     private val aiAnalysisRepository: AIAnalysisRepository,
+    private val stockAnalysisRepository: StockAnalysisRepository,
     private val apiKeyProvider: ApiKeyProvider,
     private val kisApiKeyProvider: KisApiKeyProvider,
     private val fredApiKeyProvider: FredApiKeyProvider,
@@ -160,6 +163,7 @@ class SettingsViewModel @Inject constructor(
             const val BLOOD_INDICATOR_PERIOD = "blood_indicator_period_days"
             const val DARK_THEME = "dark_theme"
             const val QUICK_CHART_ANALYSIS = "quick_chart_analysis_enabled"
+            const val SHARES_TYPE = "shares_type"
 
             fun updateHour(type: String) = "${type}_update_hour"
             fun updateMinute(type: String) = "${type}_update_minute"
@@ -224,6 +228,9 @@ class SettingsViewModel @Inject constructor(
     private val _quickChartAnalysisEnabled = MutableStateFlow(false)
     val quickChartAnalysisEnabled: StateFlow<Boolean> = _quickChartAnalysisEnabled.asStateFlow()
 
+    private val _sharesType = MutableStateFlow(SharesType.FLOATING)
+    val sharesType: StateFlow<SharesType> = _sharesType.asStateFlow()
+
     private val _fontScaleSettings = MutableStateFlow(FontScaleSettings())
     val fontScaleSettings: StateFlow<FontScaleSettings> = _fontScaleSettings.asStateFlow()
 
@@ -279,6 +286,16 @@ class SettingsViewModel @Inject constructor(
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
+    // 키워드 증분 수집 다이얼로그 상태
+    private val _showCollectionDialog = MutableStateFlow(false)
+    val showCollectionDialog: StateFlow<Boolean> = _showCollectionDialog.asStateFlow()
+
+    private val _pendingKeyword = MutableStateFlow<String?>(null)
+    val pendingKeyword: StateFlow<String?> = _pendingKeyword.asStateFlow()
+
+    private val _isCollectingKeyword = MutableStateFlow(false)
+    val isCollectingKeyword: StateFlow<Boolean> = _isCollectingKeyword.asStateFlow()
+
     init {
         loadAllSettings()
     }
@@ -324,6 +341,9 @@ class SettingsViewModel @Inject constructor(
         _marketOscillatorPeriodDays.value = etfDao.getSetting(Keys.OSCILLATOR_PERIOD)?.toIntOrNull() ?: 365
         _marketIndexPeriodDays.value = etfDao.getSetting(Keys.MARKET_INDEX_PERIOD)?.toIntOrNull() ?: 30
         _bloodIndicatorPeriodDays.value = etfDao.getSetting(Keys.BLOOD_INDICATOR_PERIOD)?.toIntOrNull() ?: 1825
+        _sharesType.value = etfDao.getSetting(Keys.SHARES_TYPE)?.let {
+            try { SharesType.valueOf(it) } catch (_: Exception) { SharesType.FLOATING }
+        } ?: SharesType.FLOATING
     }
 
     private suspend fun loadUpdateScheduleSettings() {
@@ -570,10 +590,57 @@ class SettingsViewModel @Inject constructor(
 
     fun addTheme(theme: String) {
         if (theme.isBlank()) { _message.value = "키워드를 입력하세요"; return }
-        saveSetting("테마 추가됨: $theme") {
-            etfRepository.addTheme(theme)
-            _themes.value = etfRepository.getThemes()
+        viewModelScope.launch {
+            try {
+                etfRepository.addTheme(theme)
+                _themes.value = etfRepository.getThemes()
+                _message.value = "테마 추가됨: $theme"
+                // 추가된 키워드에 대해 수집 다이얼로그 표시
+                _pendingKeyword.value = theme
+                _showCollectionDialog.value = true
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _message.value = "설정 실패: ${e.message}"
+            }
         }
+    }
+
+    fun confirmKeywordCollection() {
+        val keyword = _pendingKeyword.value ?: return
+        _showCollectionDialog.value = false
+        viewModelScope.launch {
+            _isCollectingKeyword.value = true
+            _message.value = "'$keyword' ETF 데이터 수집 중..."
+            try {
+                val result = withContext(NonCancellable) {
+                    etfRepository.collectForNewKeyword(keyword)
+                }
+                if (result.isSuccess) {
+                    val count = result.getOrNull() ?: 0
+                    _message.value = if (count > 0) {
+                        "${count}개의 ETF가 추가되었습니다"
+                    } else {
+                        "새로 추가할 ETF가 없습니다"
+                    }
+                    loadDataInfo()
+                } else {
+                    _message.value = "수집 실패: ${result.exceptionOrNull()?.message}"
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _message.value = "수집 실패: ${e.message}"
+            } finally {
+                _isCollectingKeyword.value = false
+                _pendingKeyword.value = null
+            }
+        }
+    }
+
+    fun dismissKeywordCollection() {
+        _showCollectionDialog.value = false
+        _pendingKeyword.value = null
     }
 
     fun removeTheme(theme: String) = saveSetting("테마 제거됨: $theme") {
@@ -1083,6 +1150,14 @@ class SettingsViewModel @Inject constructor(
     ) {
         etfDao.saveSetting(Setting(Keys.QUICK_CHART_ANALYSIS, enabled.toString()))
         _quickChartAnalysisEnabled.value = enabled
+    }
+
+    fun setSharesType(type: SharesType) = saveSetting(
+        "시가총액 계산 기준이 ${type.displayName}(으)로 변경되었습니다"
+    ) {
+        etfDao.saveSetting(Setting(Keys.SHARES_TYPE, type.name))
+        _sharesType.value = type
+        stockAnalysisRepository.clearAllCache()
     }
 
     fun setDisplayScale(scale: Float) = setFontScale("display", scale, "Display") { _fontScaleSettings.value.copy(displayScale = scale) }

@@ -1,46 +1,46 @@
 Read TASK.md and PROGRESS.md.
 
-Reference files:
-- D:\android_2025\mini_stock\docs\RANKING_FEATURE_SPEC.md (feature specification)
-- D:\android_2025\mini_stock\docs\RANKING_FEATURE_UI_SPEC.md (UI specification)
-- D:\android_2025\mini_stock\StockApp\ (source code to migrate from)
-
-Mission: Migrate the Ranking feature from StockApp to the current project. Replicate exact functionality. Follow MVVM + Clean Architecture + Feature module pattern.
+Mission: Update Stock menu features. 4 items: sync supply-demand oscillator algorithm, sync trend signal algorithm, fix elder impulse bug, migrate intraday real-time feature. Keep current API approach except where real-time requires new APIs. Do not change anything else.
 
 Agent Team (3 members): Spawn 3 teammates.
-1. Integrator (Sonnet): Use feature-extractor to scan StockApp ranking code, then use source-migrator and kotlin-implementer to build in current project architecture.
-2. QA-Engineer (Sonnet): Use qa-verifier. Verify build, test each ranking type, UI rendering, data flow correctness.
-3. Architect-Reviewer (Opus): Approve data layer schema and navigation integration plan before implementation.
+1. Integrator (Sonnet): Use source-migrator and kotlin-implementer subagents. Analyze reference implementations, implement algorithm updates and real-time feature. Follow MVVM + Clean Architecture + Feature module pattern.
+2. QA-Engineer (Sonnet): Use qa-verifier subagent. Verify algorithm output parity, elder impulse fix, real-time data flow, build and tests.
+3. Architect-Reviewer (Opus): Approve real-time feature integration plan (new API usage, data flow). Review algorithm changes before apply.
 
 Use Subagents:
-- feature-extractor (haiku): Scan StockApp source for ranking-related files.
-- source-migrator (sonnet): Transform StockApp code to current project patterns.
+- feature-extractor (haiku): Scan reference source for algorithm logic.
+- source-migrator (sonnet): Adapt reference code to current project.
 - kotlin-implementer (sonnet): Implement in Clean Architecture layers.
-- qa-verifier (sonnet): Test and verify.
+- qa-verifier (sonnet): Test and verify parity.
 
 Rules:
-- Read BOTH spec documents completely before any implementation.
-- Implementation plan required before coding. Write to PROGRESS.md, Architect approves.
-- If rejected: revise and resubmit (max 2 retries).
+- Read reference implementations first. Identify exact differences before changing code.
+- Algorithm updates: diff current vs reference, apply only the differences.
+- Elder impulse: debug first, understand root cause, then fix.
+- Real-time: use current API approach. Only add new API calls specifically needed for real-time data.
+- Do NOT modify any other features or APIs.
 - After every code change: run gradlew assembleDebug.
-- Must match StockApp ranking functionality exactly.
-- Log all changes to PROGRESS.md.
+- Log all changes with before/after diff to PROGRESS.md.
 
 Workflow:
 1. Lead reads TASK.md, picks next task.
-2. Analysis tasks: feature-extractor scans StockApp, logs findings.
-3. Implementation tasks: plan in PROGRESS.md, Architect approves, implement, QA verifies.
-4. Lead marks task done after verification.
+2. Algorithm tasks: feature-extractor analyzes reference, Integrator diffs and updates, Architect approves changes.
+3. Bug fix: debug trace first, document cause, then fix.
+4. Real-time: Architect approves API and data flow plan before implementation.
+5. QA verifies each change: build passes, output matches reference.
+6. Lead marks task done after verification.
 
 Completion (ALL must be met):
 - Every task in TASK.md is checked done.
-- All ranking types from spec implemented and functional.
-- UI matches RANKING_FEATURE_UI_SPEC.md.
+- Supply-demand oscillator matches reference algorithm exactly.
+- Trend signal matches reference algorithm exactly.
+- Elder impulse bug resolved.
+- Real-time intraday feature working with minimal new API usage.
+- No other features changed.
 - gradlew assembleDebug passes.
 - gradlew test passes.
-- Functionality matches StockApp exactly.
-- IMPLEMENTATION_REPORT.md generated.
-- CLAUDE.md updated with ranking feature architecture.
+- CHANGE_LOG.md generated with all changes (before/after).
+- CLAUDE.md updated.
 - PROGRESS.md contains LOOP_COMPLETE.
 
 Output COMPLETE when ALL verified.

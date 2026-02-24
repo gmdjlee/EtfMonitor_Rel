@@ -14,6 +14,7 @@ import com.etfmonitor.R
 import com.etfmonitor.core.ui.component.HubHeader
 import com.etfmonitor.feature.backup.presentation.screen.BackupTabContent
 import com.etfmonitor.feature.backup.presentation.viewmodel.BackupViewModel
+import com.etfmonitor.core.common.model.SharesType
 import com.etfmonitor.feature.settings.presentation.component.*
 
 /**
@@ -64,6 +65,7 @@ fun SettingsScreen(
     val isDarkThemeSetting by viewModel.isDarkTheme.collectAsState()
     val fontScaleSettings by viewModel.fontScaleSettings.collectAsState()
     val quickChartAnalysisEnabled by viewModel.quickChartAnalysisEnabled.collectAsState()
+    val sharesType by viewModel.sharesType.collectAsState()
 
     // Chart color settings
     val chartColorSettings by viewModel.chartColorSettings.collectAsState()
@@ -129,13 +131,22 @@ fun SettingsScreen(
                     isDarkTheme = isDarkThemeSetting,
                     fontScaleSettings = fontScaleSettings,
                     quickChartAnalysisEnabled = quickChartAnalysisEnabled,
+                    sharesType = sharesType,
                     viewModel = viewModel
                 )
-                1 -> KeywordTab(
-                    themes = themes,
-                    exclusions = exclusions,
-                    viewModel = viewModel
-                )
+                1 -> {
+                    val showCollectionDialog by viewModel.showCollectionDialog.collectAsState()
+                    val pendingKeyword by viewModel.pendingKeyword.collectAsState()
+                    val isCollectingKeyword by viewModel.isCollectingKeyword.collectAsState()
+                    KeywordTab(
+                        themes = themes,
+                        exclusions = exclusions,
+                        showCollectionDialog = showCollectionDialog,
+                        pendingKeyword = pendingKeyword,
+                        isCollectingKeyword = isCollectingKeyword,
+                        viewModel = viewModel
+                    )
+                }
                 2 -> DataUpdateTab(
                     stockUpdateSettings = stockUpdateSettings,
                     marketDepositUpdateSettings = marketDepositUpdateSettings,
@@ -173,6 +184,7 @@ private fun GeneralTab(
     isDarkTheme: Boolean?,
     fontScaleSettings: com.etfmonitor.core.ui.theme.FontScaleSettings,
     quickChartAnalysisEnabled: Boolean,
+    sharesType: SharesType,
     viewModel: SettingsViewModel
 ) {
     val selectedProvider by viewModel.selectedProvider.collectAsState()
@@ -209,6 +221,14 @@ private fun GeneralTab(
             QuickChartAnalysisCard(
                 isEnabled = quickChartAnalysisEnabled,
                 onEnabledChange = { viewModel.setQuickChartAnalysisEnabled(it) }
+            )
+        }
+
+        // 시가총액 주식수 기준 설정
+        item {
+            SharesTypeCard(
+                selectedType = sharesType,
+                onSharesTypeChange = { viewModel.setSharesType(it) }
             )
         }
 
@@ -297,6 +317,9 @@ private fun BackupTab(
 private fun KeywordTab(
     themes: List<String>,
     exclusions: List<String>,
+    showCollectionDialog: Boolean,
+    pendingKeyword: String?,
+    isCollectingKeyword: Boolean,
     viewModel: SettingsViewModel
 ) {
     LazyColumn(
@@ -321,6 +344,16 @@ private fun KeywordTab(
                 onRemoveExclusion = { viewModel.removeExclusion(it) }
             )
         }
+    }
+
+    // 키워드 증분 수집 확인 다이얼로그
+    if (showCollectionDialog && pendingKeyword != null) {
+        KeywordCollectionDialog(
+            keyword = pendingKeyword,
+            isCollecting = isCollectingKeyword,
+            onConfirm = { viewModel.confirmKeywordCollection() },
+            onDismiss = { viewModel.dismissKeywordCollection() }
+        )
     }
 }
 

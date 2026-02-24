@@ -47,28 +47,30 @@ class StatisticsAnalysisRepositoryImpl @Inject constructor(
 
                 logger.d("Calculating statistics for $currentDate (vs $previousDate)")
 
+                val allEtfTickers = etfDao.getAllEtfsSuspend().map { it.ticker }
+
                 // 신규 편입 통계
-                val newStocks = etfDao.getAllNewStocks(currentDate, previousDate)
+                val newStocks = etfDao.getAllNewStocks(currentDate, previousDate, allEtfTickers)
                 val newStockCount = newStocks.size
                 val newStockAmount = newStocks.sumOf { it.currentAmount.toLong() }
 
                 // 제외 종목 통계
-                val removedStocks = etfDao.getAllRemovedStocks(currentDate, previousDate)
+                val removedStocks = etfDao.getAllRemovedStocks(currentDate, previousDate, allEtfTickers)
                 val removedStockCount = removedStocks.size
                 val removedStockAmount = removedStocks.sumOf { (it.previousWeight * 1000000).toLong() }
 
                 // 비중 증가 통계
-                val increasedStocks = etfDao.getAllIncreasedStocks(currentDate, previousDate)
+                val increasedStocks = etfDao.getAllIncreasedStocks(currentDate, previousDate, allEtfTickers)
                 val increasedStockCount = increasedStocks.size
                 val increasedStockAmount = increasedStocks.sumOf { it.currentAmount.toLong() }
 
                 // 비중 감소 통계
-                val decreasedStocks = etfDao.getAllDecreasedStocks(currentDate, previousDate)
+                val decreasedStocks = etfDao.getAllDecreasedStocks(currentDate, previousDate, allEtfTickers)
                 val decreasedStockCount = decreasedStocks.size
                 val decreasedStockAmount = decreasedStocks.sumOf { it.currentAmount.toLong() }
 
                 // 원화예금 통계
-                val cashTrend = etfDao.getCashDepositTrend()
+                val cashTrend = etfDao.getCashDepositTrend(allEtfTickers)
                 val currentCash = cashTrend.findLast { it.date == currentDate }
                 val previousCash = cashTrend.findLast { it.date == previousDate }
 
@@ -83,7 +85,7 @@ class StatisticsAnalysisRepositoryImpl @Inject constructor(
 
                 // ETF 수 및 총 보유 금액
                 val etfCount = etfDao.getEtfCount()
-                val currentHoldings = etfDao.getStockAmountRanking(currentDate, previousDate)
+                val currentHoldings = etfDao.getStockAmountRanking(currentDate, previousDate, allEtfTickers)
                 val totalHoldingAmount = currentHoldings.sumOf { it.totalAmount.toLong() }
 
                 // 통계 객체 생성

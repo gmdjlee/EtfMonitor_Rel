@@ -10,6 +10,11 @@ import com.etfmonitor.core.analysis.model.*
  * - CMF (Chaikin Money Flow): 자금 유입/유출
  * - Fear & Greed Index: 시장 심리
  * - 매수/매도 시그널
+ *
+ * determineSignal은 참조 TrendCalculator.calcTrend와 동일한
+ * 2-of-3 투표 로직으로 구현된다. MarketMonitor의 5-state 시그널
+ * (STRONG_BUY/BUY/NEUTRAL/SELL/STRONG_SELL)을 유지하면서
+ * FG 극단값으로 STRONG 등급을 부여한다.
  */
 object TrendSignalCalculator {
 
@@ -39,7 +44,7 @@ object TrendSignalCalculator {
         val recentSellCount = data.sellSignal.takeLast(recentPeriod).sum() +
                 data.auxSellSignal.takeLast(recentPeriod).sum()
 
-        // 추세 신호 결정
+        // 추세 신호 결정 — 2-of-3 투표 + FG 극단값 STRONG 승격
         val signal = determineSignal(
             currentPrice = currentPrice,
             maPrice = maPrice,
@@ -74,7 +79,28 @@ object TrendSignalCalculator {
     }
 
     /**
-     * 매매 신호 결정
+     * 매매 신호 결정 — 2-of-3 투표 로직
+     *
+     * 참조: TrendCalculator.calcTrend (lines 385-422)
+     *
+     * 1단계: 3개 지표로 bullish/bearish/neutral 판별
+     *   - MA 위치: price > ma → bull, price < ma → bear
+     *   - CMF:     cmf > 0.05 → bull, cmf < -0.05 → bear
+     *   - FG:      fg > 0.5   → bull, fg < -0.5   → bear
+     *
+     * 2단계: 2개 이상 동의 시 방향 확정
+     *   bullCount >= 2 → "bullish"
+     *   bearCount >= 2 → "bearish"
+     *   그 외         → "neutral"
+     *
+     * 3단계: FG 극단값으로 STRONG 등급 승격
+     *   bullish  + fg > 1.0  → STRONG_BUY
+     *   bullish              → BUY
+     *   bearish  + fg < -0.8 → STRONG_SELL
+     *   bearish              → SELL
+     *   neutral              → NEUTRAL
+     *
+     * 5-state 시그널은 UI 역호환을 위해 유지된다.
      */
     private fun determineSignal(
         currentPrice: Double,
@@ -84,46 +110,37 @@ object TrendSignalCalculator {
         recentBuyCount: Int,
         recentSellCount: Int
     ): TrendTradeSignal {
-        var score = 0
+        var bullCount = 0
+        var bearCount = 0
 
-        // 1. 가격 위치 (MA 대비) - 30점
-        if (currentPrice > maPrice) {
-            score += 30
-        } else if (currentPrice < maPrice) {
-            score -= 30
-        }
-
-        // 2. CMF (자금 유입/유출) - 30점
+        // 1. 가격 위치 (MA 대비)
         when {
-            cmfValue > 0.1 -> score += 30
-            cmfValue > 0 -> score += 15
-            cmfValue < -0.1 -> score -= 30
-            cmfValue < 0 -> score -= 15
+            currentPrice > maPrice -> bullCount++
+            currentPrice < maPrice -> bearCount++
         }
 
-        // 3. Fear & Greed - 20점
+        // 2. CMF (자금 흐름)
         when {
-            fearGreedValue > 0.4 -> score += 20   // 탐욕 (매수세 강함)
-            fearGreedValue > 0 -> score += 10
-            fearGreedValue < -0.4 -> score -= 20  // 공포 (매도세 강함)
-            fearGreedValue < 0 -> score -= 10
+            cmfValue > 0.05 -> bullCount++
+            cmfValue < -0.05 -> bearCount++
         }
 
-        // 4. 최근 시그널 빈도 - 20점
-        val signalDiff = recentBuyCount - recentSellCount
+        // 3. Fear & Greed Index
         when {
-            signalDiff >= 2 -> score += 20
-            signalDiff >= 1 -> score += 10
-            signalDiff <= -2 -> score -= 20
-            signalDiff <= -1 -> score -= 10
+            fearGreedValue > 0.5 -> bullCount++
+            fearGreedValue < -0.5 -> bearCount++
         }
 
-        // 신호 결정 (-100 ~ +100)
+        // 2-of-3 투표로 기본 방향 결정 후 FG 극단값으로 STRONG 승격
         return when {
-            score >= 70 -> TrendTradeSignal.STRONG_BUY
-            score >= 30 -> TrendTradeSignal.BUY
-            score <= -70 -> TrendTradeSignal.STRONG_SELL
-            score <= -30 -> TrendTradeSignal.SELL
+            bullCount >= 2 -> {
+                if (fearGreedValue > 1.0) TrendTradeSignal.STRONG_BUY
+                else TrendTradeSignal.BUY
+            }
+            bearCount >= 2 -> {
+                if (fearGreedValue < -0.8) TrendTradeSignal.STRONG_SELL
+                else TrendTradeSignal.SELL
+            }
             else -> TrendTradeSignal.NEUTRAL
         }
     }

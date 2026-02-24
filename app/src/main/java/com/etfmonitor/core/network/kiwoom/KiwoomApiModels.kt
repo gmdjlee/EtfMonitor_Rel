@@ -18,6 +18,17 @@ data class KiwoomTokenResponse(
     @SerialName("expires_dt") val expiresDt: String? = null
 )
 
+/**
+ * ka10001 - 주식 기본정보 응답
+ */
+@Serializable
+data class StockBasicInfoResponse(
+    @SerialName("return_code") val returnCode: Int = 0,
+    @SerialName("return_msg") val returnMsg: String? = null,
+    @SerialName("stk_nm") val stkNm: String? = null,
+    @SerialName("flo_stk") val floStk: String? = null   // 유통주식수 (천주 단위)
+)
+
 sealed class KiwoomApiError(override val message: String) : Exception(message) {
     class AuthError(msg: String) : KiwoomApiError(msg)
     class NetworkError(msg: String) : KiwoomApiError(msg)

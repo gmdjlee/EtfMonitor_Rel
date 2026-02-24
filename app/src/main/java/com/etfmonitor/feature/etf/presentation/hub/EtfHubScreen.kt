@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,6 +36,7 @@ import com.etfmonitor.core.database.entities.HoldingStatus
 import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.core.ui.component.DateRangeOption
 import com.etfmonitor.core.ui.component.DateRangeSelector
+import com.etfmonitor.core.ui.component.FilterChipRow
 import com.etfmonitor.core.ui.component.TabNavigationBar
 import com.etfmonitor.core.ui.component.HubHeader
 import com.etfmonitor.feature.etf.presentation.list.EtfListViewModel
@@ -55,6 +57,7 @@ import kotlinx.coroutines.launch
  */
 
 private val ETF_TABS = listOf("테마 목록", "통계")
+private val ETF_CATEGORIES = listOf("전체", "액티브", "반도체", "바이오", "2차전지", "금융", "에너지", "IT")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -147,6 +150,28 @@ private fun EtfListHubContent(
             onClearSearch = viewModel::onClearSearch,
             onSearchDone = { keyboardController?.hide() }
         )
+
+        // 필터 칩
+        var selectedFilterIndex by remember { mutableIntStateOf(0) }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+        ) {
+            FilterChipRow(
+                filters = ETF_CATEGORIES,
+                selectedIndex = selectedFilterIndex,
+                onFilterSelected = { index ->
+                    selectedFilterIndex = index
+                    if (index == 0) {
+                        viewModel.onClearSearch()
+                    } else {
+                        viewModel.onSearchQueryChanged(ETF_CATEGORIES[index])
+                    }
+                }
+            )
+        }
 
         when (val s = state) {
             is EtfListState.Loading -> {
@@ -379,6 +404,11 @@ private fun StatisticsHubContent(
     val selectedRange by viewModel.selectedRange.collectAsState()
     val dates by viewModel.dates.collectAsState()
 
+    // Category filter state
+    val categoryFilter by viewModel.categoryFilter.collectAsState()
+    val selectedCategoryIndex = if (categoryFilter == null) 0
+        else ETF_CATEGORIES.indexOf(categoryFilter).coerceAtLeast(0)
+
     // Start on Analysis tab (6) if initialStockTicker is provided
     var selectedTab by remember { mutableIntStateOf(if (initialStockTicker != null) 6 else 0) }
 
@@ -423,6 +453,22 @@ private fun StatisticsHubContent(
                         }
                     )
                 }
+            }
+
+            // Category filter chips
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+            ) {
+                FilterChipRow(
+                    filters = ETF_CATEGORIES,
+                    selectedIndex = selectedCategoryIndex,
+                    onFilterSelected = { index ->
+                        viewModel.onCategoryFilterChanged(index, ETF_CATEGORIES)
+                    }
+                )
             }
 
             // Date Range Selector (except for Analysis tab which has its own search)

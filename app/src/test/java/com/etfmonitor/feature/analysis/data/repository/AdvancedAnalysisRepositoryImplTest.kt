@@ -105,7 +105,7 @@ class AdvancedAnalysisRepositoryImplTest {
                 createStockAmountRanking("005930", "삼성전자", newEtfCount = 1, totalAmount = 5_000_000_000f),
                 createStockAmountRanking("000660", "SK하이닉스", removedEtfCount = 1, totalAmount = 2_000_000_000f)
             )
-            coEvery { etfDao.getStockAmountRanking(any(), any()) } returns stockChanges
+            coEvery { etfDao.getStockAmountRanking(any(), any(), any()) } returns stockChanges
 
             // When
             val result = repository.calculateMarketCapWeightedFlow("2026-01-15", "2026-01-14", "ALL")
@@ -121,7 +121,7 @@ class AdvancedAnalysisRepositoryImplTest {
         @DisplayName("calculateMarketCapWeightedFlow_withEmptyStockChanges_returnsEmptyFlow")
         fun `calculateMarketCapWeightedFlow_withEmptyStockChanges_returnsEmptyFlow`() = runTest {
             // Given
-            coEvery { etfDao.getStockAmountRanking(any(), any()) } returns emptyList()
+            coEvery { etfDao.getStockAmountRanking(any(), any(), any()) } returns emptyList()
 
             // When
             val result = repository.calculateMarketCapWeightedFlow("2026-01-15", "2026-01-14", "ALL")
@@ -137,7 +137,7 @@ class AdvancedAnalysisRepositoryImplTest {
         @DisplayName("calculateMarketCapWeightedFlow_whenDaoThrows_returnsEmptyFlow")
         fun `calculateMarketCapWeightedFlow_whenDaoThrows_returnsEmptyFlow`() = runTest {
             // Given
-            coEvery { etfDao.getStockAmountRanking(any(), any()) } throws RuntimeException("DB error")
+            coEvery { etfDao.getStockAmountRanking(any(), any(), any()) } throws RuntimeException("DB error")
 
             // When
             val result = repository.calculateMarketCapWeightedFlow("2026-01-15", "2026-01-14", "ALL")
@@ -293,7 +293,7 @@ class AdvancedAnalysisRepositoryImplTest {
             val stockChanges = listOf(
                 createStockAmountRanking("005930", "삼성전자", newEtfCount = 1)
             )
-            coEvery { etfDao.getStockAmountRanking(any(), any()) } returns stockChanges
+            coEvery { etfDao.getStockAmountRanking(any(), any(), any()) } returns stockChanges
             coEvery { sectorAnalysisDao.insertAll(any()) } returns Unit
 
             // When
@@ -308,7 +308,7 @@ class AdvancedAnalysisRepositoryImplTest {
         @DisplayName("calculateAndSaveSectorAnalysis_withEmptyData_returnsEmptyList")
         fun `calculateAndSaveSectorAnalysis_withEmptyData_returnsEmptyList`() = runTest {
             // Given
-            coEvery { etfDao.getStockAmountRanking(any(), any()) } returns emptyList()
+            coEvery { etfDao.getStockAmountRanking(any(), any(), any()) } returns emptyList()
             coEvery { sectorAnalysisDao.insertAll(any()) } returns Unit
 
             // When
@@ -380,7 +380,7 @@ class AdvancedAnalysisRepositoryImplTest {
     @DisplayName("calculateMarketCapWeightedFlow_whenCancelled_rethrowsCancellationException")
     fun `calculateMarketCapWeightedFlow_whenCancelled_rethrowsCancellationException`() = runTest {
         // Given
-        coEvery { etfDao.getStockAmountRanking(any(), any()) } throws CancellationException("Cancelled")
+        coEvery { etfDao.getStockAmountRanking(any(), any(), any()) } throws CancellationException("Cancelled")
 
         // When & Then
         var exceptionCaught: Throwable? = null

@@ -2,16 +2,22 @@ package com.etfmonitor.core.data.repository.krx
 
 import com.etfmonitor.core.analysis.TechnicalAnalysisEngine
 import com.etfmonitor.core.analysis.model.*
+import com.etfmonitor.core.common.model.SharesType
 import com.etfmonitor.core.common.util.AppLogger
 import com.etfmonitor.core.data.krx.adapter.DateAdapter
 import com.etfmonitor.core.data.krx.adapter.KrxRepositoryBase
+import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.StockDao
 import com.etfmonitor.core.domain.repository.StockDataRepository
+import com.etfmonitor.core.network.kiwoom.KiwoomApiClient
+import com.etfmonitor.core.network.kiwoom.KiwoomApiKeyProvider
+import com.etfmonitor.core.network.kiwoom.StockBasicInfoResponse
 import com.krxkt.KrxStock
 import com.krxkt.model.Market
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -47,7 +53,11 @@ import javax.inject.Singleton
 @Singleton
 class KrxStockDataRepositoryImpl @Inject constructor(
     private val krxStock: KrxStock,
-    private val stockDao: StockDao
+    private val stockDao: StockDao,
+    private val kiwoomApiClient: KiwoomApiClient,
+    private val kiwoomApiKeyProvider: KiwoomApiKeyProvider,
+    private val json: Json,
+    private val etfDao: EtfDao
 ) : KrxRepositoryBase(), StockDataRepository {
 
     companion object {
@@ -211,74 +221,14 @@ class KrxStockDataRepositoryImpl @Inject constructor(
             val dates = ohlcvList.map { it.date }
             val close = ohlcvList.map { it.close }
 
-            // 2. Get latest market cap for shares outstanding
-            // Use latest business day from OHLCV data (not end date which could be weekend/holiday)
-            // NOTE: kotlin_krx returns dates in REVERSE chronological order (newest first)
-            // NOTE: Market cap data may have significant lag, so we try up to 30 recent business days
-
-            var sharesOutstanding = 0L
-            var successfulDate: String? = null
-
-            // Try up to 30 most recent business days to find when market cap data becomes available
-            for (i in 0 until minOf(7, dates.size)) {
-                val candidateDate = dates[i]
-                logger.d("Attempting market cap query for date: $candidateDate (index=$i)")
-
-                val capResult = krxCall(TIMEOUT_30S) {
-                    krxStock.getMarketCap(candidateDate, Market.ALL)
-                }
-
-                if (capResult.isSuccess) {
-                    val caps = capResult.getOrNull() ?: emptyList()
-                    logger.d("getMarketCap returned ${caps.size} records for date $candidateDate")
-
-                    if (caps.isNotEmpty()) {
-                        val cap = caps.find { it.ticker == ticker }
-                        if (cap != null) {
-
-                            sharesOutstanding = if (cap.sharesOutstanding > 0) {
-                                // Use actual shares outstanding from KRX API
-                                cap.sharesOutstanding
-                            } else {
-                                logger.w("sharesOutstanding is 0, falling back to calculation")
-                                if (cap.marketCap > 0 && cap.close > 0) {
-                                    (cap.marketCap / cap.close)
-                                } else {
-                                    logger.e("Cannot calculate sharesOutstanding: marketCap=${cap.marketCap}, close=${cap.close}")
-                                    0L
-                                }
-                            }
-
-                            if (sharesOutstanding > 0) {
-                                successfulDate = candidateDate
-                                logger.d("✅ Successfully retrieved sharesOutstanding=$sharesOutstanding from date $candidateDate")
-                                break  // Success! Stop trying
-                            } else {
-                                logger.w("sharesOutstanding is 0 for date $candidateDate, trying previous date...")
-                            }
-                        } else {
-                            logger.w("Ticker $ticker not found in ${caps.size} market cap records for date $candidateDate")
-                            logger.d("Available tickers sample: ${caps.take(5).map { it.ticker }}")
-                            // Try next date
-                        }
-                    } else {
-                        logger.w("getMarketCap returned 0 records for date $candidateDate, trying previous date...")
-                    }
-                } else {
-                    logger.w("getMarketCap API failed for date $candidateDate: ${capResult.exceptionOrNull()?.message}")
-                }
+            // 2. Get shares for market cap calculation based on user setting
+            val (shares, sharesSource) = fetchSharesBySettings(ticker, dates)
+            if (shares > 0) {
+                logger.d("Market cap source: $sharesSource, shares=$shares")
             }
 
-            if (successfulDate != null) {
-                logger.d("Using market cap data from date: $successfulDate (data lag handled)")
-            } else {
-                logger.e("Failed to retrieve market cap data from any of the 30 most recent business days")
-                logger.e("  Tried dates from ${dates.firstOrNull()} to ${dates.getOrNull(29)}")
-                logger.e("  This suggests the KRX Market Cap API may be unavailable or broken")
-            }
-
-            // 3. Approximate market cap history: close[i] * sharesOutstanding
-            val marketCap = close.map { c -> (c * sharesOutstanding).toLong() }
+            // 3. Approximate market cap history: close[i] * shares
+            val marketCap = close.map { c -> (c * shares).toLong() }
 
             // 4. Get investor trading data (foreign + institution net buy)
             val tradingResult = krxCall(TIMEOUT_30S) {
@@ -307,7 +257,7 @@ class KrxStockDataRepositoryImpl @Inject constructor(
                     logger.d("  foreignDaily sample (first 3): ${foreignDaily.take(3)}")
                     logger.d("  institutionDaily sample (first 3): ${institutionDaily.take(3)}")
 
-                    // Calculate 5-day rolling sum
+                    // Rolling sum on newest-first data directly (StockApp 방식)
                     val foreign5dSum = calculateRollingSum(foreignDaily, 5)
                     val institution5dSum = calculateRollingSum(institutionDaily, 5)
 
@@ -410,6 +360,8 @@ class KrxStockDataRepositoryImpl @Inject constructor(
             val ohlcvData = getStockOhlcv(ticker, days, interval) ?: return@withContext null
 
             // 2. Generate signals (MA + CMF + Fear&Greed + buy/sell)
+            // cmfPeriod: daily=20 (reference default), weekly=4 (reference weekly default)
+            val cmfPeriod = if (interval == "w") 4 else 20
             val signalResult = TechnicalAnalysisEngine.generateSignals(
                 dates = ohlcvData.dates,
                 high = ohlcvData.high,
@@ -417,7 +369,7 @@ class KrxStockDataRepositoryImpl @Inject constructor(
                 close = ohlcvData.close,
                 volume = ohlcvData.volume,
                 maPeriod = 20,
-                cmfPeriod = 4
+                cmfPeriod = cmfPeriod
             )
 
             TrendSignalData(
@@ -464,29 +416,9 @@ class KrxStockDataRepositoryImpl @Inject constructor(
             // 1. Get OHLCV data
             val ohlcvData = getStockOhlcv(ticker, days, interval) ?: return@withContext null
 
-            // 2. Get market cap approximation (retry up to 7 OHLCV dates to handle weekends/holidays)
-            var sharesOutstanding = 0L
-            for (i in 0 until minOf(7, ohlcvData.dates.size)) {
-                val candidateDate = ohlcvData.dates[i]
-                val capResult = krxCall(TIMEOUT_30S) {
-                    krxStock.getMarketCap(candidateDate, Market.ALL)
-                }
-                if (capResult.isSuccess) {
-                    val cap = capResult.getOrNull()?.find { it.ticker == ticker }
-                    if (cap != null) {
-                        sharesOutstanding = if (cap.sharesOutstanding > 0) {
-                            cap.sharesOutstanding
-                        } else if (cap.marketCap > 0 && cap.close > 0) {
-                            (cap.marketCap / cap.close)
-                        } else {
-                            0L
-                        }
-                        if (sharesOutstanding > 0) break
-                    }
-                }
-            }
-
-            val marketCap = ohlcvData.close.map { c -> (c * sharesOutstanding).toLong() }
+            // 2. Get market cap based on user setting
+            val (sharesForElder, _) = fetchSharesBySettings(ticker, ohlcvData.dates)
+            val marketCap = ohlcvData.close.map { c -> (c * sharesForElder).toLong() }
 
             // 3. Calculate Elder Impulse
             val impulseResult = TechnicalAnalysisEngine.calculateElderImpulse(
@@ -519,6 +451,106 @@ class KrxStockDataRepositoryImpl @Inject constructor(
     }
 
     // ============================================================
+    // Shared: Shares lookup based on user setting
+    // ============================================================
+
+    /**
+     * Fetch shares count based on the user's SharesType setting.
+     *
+     * @return Pair of (shares count, source label) e.g. (1234567L, "kiwoom_floating")
+     */
+    private suspend fun fetchSharesBySettings(
+        ticker: String,
+        dates: List<String>
+    ): Pair<Long, String> {
+        val sharesTypeName = etfDao.getSetting("shares_type") ?: SharesType.FLOATING.name
+        val sharesType = try { SharesType.valueOf(sharesTypeName) } catch (_: Exception) { SharesType.FLOATING }
+
+        when (sharesType) {
+            SharesType.FLOATING -> {
+                val floatingShares = fetchFloatingShares(ticker)
+                if (floatingShares > 0) {
+                    logger.d("Using floatingShares from Kiwoom ka10001: $floatingShares")
+                    return Pair(floatingShares, "kiwoom_floating")
+                }
+            }
+            SharesType.OUTSTANDING -> {
+                for (i in 0 until minOf(7, dates.size)) {
+                    val candidateDate = dates[i]
+                    val capResult = krxCall(TIMEOUT_30S) {
+                        krxStock.getMarketCap(candidateDate, Market.ALL)
+                    }
+                    if (capResult.isSuccess) {
+                        val cap = capResult.getOrNull()?.find { it.ticker == ticker }
+                        if (cap != null) {
+                            val shares = when {
+                                cap.sharesOutstanding > 0 -> cap.sharesOutstanding
+                                cap.marketCap > 0 && cap.close > 0 -> cap.marketCap / cap.close
+                                else -> 0L
+                            }
+                            if (shares > 0) {
+                                logger.d("Using sharesOutstanding from KRX: $shares (date=$candidateDate)")
+                                return Pair(shares, "krx_outstanding")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        logger.e("Failed to retrieve shares data for $ticker (mode=$sharesType)")
+        return Pair(0L, "none")
+    }
+
+    // ============================================================
+    // Kiwoom ka10001 — 유통주식수 (floating shares)
+    // ============================================================
+
+    /**
+     * Fetch floating shares from Kiwoom ka10001 (주식 기본정보).
+     *
+     * @return Floating shares count (actual shares, not 천주), or 0L if unavailable.
+     */
+    private suspend fun fetchFloatingShares(ticker: String): Long {
+        try {
+            val config = kiwoomApiKeyProvider.getConfig()
+            if (!config.isValid()) {
+                logger.d("Kiwoom API not configured, skipping floatingShares fetch")
+                return 0L
+            }
+
+            val result = kiwoomApiClient.call(
+                apiId = "ka10001",
+                url = "/api/dostk/stkinfo",
+                body = mapOf("stk_cd" to ticker),
+                appKey = config.appKey,
+                secretKey = config.secretKey,
+                baseUrl = config.getBaseUrl()
+            ) { responseJson ->
+                json.decodeFromString<StockBasicInfoResponse>(responseJson)
+            }
+
+            if (result.isSuccess) {
+                val response = result.getOrNull()
+                val floStk = response?.floStk?.replace(",", "")?.trim()?.toLongOrNull() ?: 0L
+                val floatingShares = if (floStk > 0) floStk * 1000 else 0L  // 천주 → 실제 주식수
+                if (floatingShares > 0) {
+                    logger.d("Kiwoom ka10001 floatingShares for $ticker: $floatingShares (flo_stk=$floStk 천주)")
+                }
+                return floatingShares
+            } else {
+                logger.w("Kiwoom ka10001 failed for $ticker: ${result.exceptionOrNull()?.message}")
+                return 0L
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.w("fetchFloatingShares error for $ticker: ${e.message}")
+            return 0L
+        }
+    }
+
+    // ============================================================
     // DeMark TD Setup
     // ============================================================
 
@@ -533,29 +565,9 @@ class KrxStockDataRepositoryImpl @Inject constructor(
             // 1. Get OHLCV data
             val ohlcvData = getStockOhlcv(ticker, days, interval) ?: return@withContext null
 
-            // 2. Get market cap approximation (retry up to 7 OHLCV dates to handle weekends/holidays)
-            var sharesOutstanding = 0L
-            for (i in 0 until minOf(7, ohlcvData.dates.size)) {
-                val candidateDate = ohlcvData.dates[i]
-                val capResult = krxCall(TIMEOUT_30S) {
-                    krxStock.getMarketCap(candidateDate, Market.ALL)
-                }
-                if (capResult.isSuccess) {
-                    val cap = capResult.getOrNull()?.find { it.ticker == ticker }
-                    if (cap != null) {
-                        sharesOutstanding = if (cap.sharesOutstanding > 0) {
-                            cap.sharesOutstanding
-                        } else if (cap.marketCap > 0 && cap.close > 0) {
-                            (cap.marketCap / cap.close)
-                        } else {
-                            0L
-                        }
-                        if (sharesOutstanding > 0) break
-                    }
-                }
-            }
-
-            val marketCap = ohlcvData.close.map { c -> (c * sharesOutstanding).toLong() }
+            // 2. Get market cap based on user setting
+            val (sharesForTD, _) = fetchSharesBySettings(ticker, ohlcvData.dates)
+            val marketCap = ohlcvData.close.map { c -> (c * sharesForTD).toLong() }
 
             // 3. Calculate DeMark TD Setup
             val tdResult = TechnicalAnalysisEngine.calculateDemarkTD(ohlcvData.close)

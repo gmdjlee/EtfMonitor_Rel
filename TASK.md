@@ -1,26 +1,28 @@
-# TASK.md — Ranking Feature Migration
+# TASK.md — Stock Menu Feature Updates
 
-## Phase 1: Source Analysis (iterations 1-3)
-- [ ] R-001 Read RANKING_FEATURE_SPEC.md and RANKING_FEATURE_UI_SPEC.md completely
-- [ ] R-002 Scan StockApp source: identify ranking data models, API calls, ViewModels, UI components
-- [ ] R-003 Create IMPLEMENTATION_PLAN.md: StockApp component to current project module mapping. Architect approves.
+## Phase 1: Analysis (iterations 1-3)
+- [x] S-001 Diff supply-demand oscillator: current implementation vs reference. Document exact differences.
+- [x] S-002 Diff trend signal: current implementation vs reference. Document exact differences.
+- [x] S-003 Debug elder impulse bug: trace data flow, identify root cause, document in PROGRESS.md.
+- [x] S-004 Analyze real-time intraday feature in reference: identify required APIs, data flow, UI updates.
 
-## Phase 2: Data Layer (iterations 4-6)
-- [ ] R-004 Create data models: Entity, DTOs, response mappers for ranking data
-- [ ] R-005 Create API service interface for ranking endpoints
-- [ ] R-006 Create Repository implementation: fetch ranking data, handle pagination if applicable
+## Phase 2: Algorithm Updates (iterations 4-6)
+- [x] S-005 Update supply-demand oscillator algorithm to match reference. Architect approves diff before apply.
+- [x] S-006 Update trend signal judgment method and algorithm to match reference. Architect approves.
+- [x] S-007 Fix elder impulse bug based on root cause analysis.
+- [x] S-008 Verify: all 3 fixes produce correct output. Build passes.
 
-## Phase 3: Domain Layer (iterations 7-8)
-- [ ] R-007 Create domain Entity, Repository interface
-- [ ] R-008 Create UseCases for each ranking type (per spec document)
+## Phase 3: Real-Time Feature (iterations 7-10)
+- [x] S-009 Write real-time integration plan: which APIs needed, data flow, UI refresh strategy. Architect approves.
+- [x] S-010 Implement real-time data source: add only the new API calls needed for intraday data.
+- [x] S-011 Implement real-time UI updates: live data display in stock menu during market hours.
+- [x] S-012 Verify: real-time data flows correctly, existing APIs unchanged, build passes.
 
-## Phase 4: Presentation Layer (iterations 9-11)
-- [ ] R-009 Create RankingViewModel with StateFlow (loading, data, error, filter states)
-- [ ] R-010 Create ranking UI: list, tabs, filters per RANKING_FEATURE_UI_SPEC.md
-- [ ] R-011 Wire navigation: add ranking screen to app navigation graph
+## Phase 4: Verification and Report (iterations 11-12)
+- [x] S-013 Full regression: confirm no other features are affected by changes.
+- [x] S-014 Generate CHANGE_LOG.md (before/after for every change). Update CLAUDE.md.
 
-## Phase 5: Integration and Verification (iterations 12-15)
-- [ ] R-012 Create Hilt DI module for ranking feature dependencies
-- [ ] R-013 Test each ranking type: data loads, displays correctly, matches StockApp behavior
-- [ ] R-014 Build verification: assembleDebug passes, all tests pass
-- [ ] R-015 Generate IMPLEMENTATION_REPORT.md, update CLAUDE.md
+## Constraints
+- API: Keep current approach. Only add APIs specifically required for real-time.
+- Architecture: MVVM + Clean Architecture + Feature modules.
+- Scope: ONLY modify the 4 items listed. Do not touch anything else.

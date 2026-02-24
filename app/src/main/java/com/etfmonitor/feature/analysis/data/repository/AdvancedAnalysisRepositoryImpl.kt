@@ -94,7 +94,8 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
         market: String
     ): MarketCapFlow = withContext(Dispatchers.IO) {
         try {
-            val stockChanges = etfDao.getStockAmountRanking(currentDate, previousDate)
+            val allEtfTickers = etfDao.getAllEtfsSuspend().map { it.ticker }
+            val stockChanges = etfDao.getStockAmountRanking(currentDate, previousDate, allEtfTickers)
                 .filter { market == "ALL" || getStockMarket(it.stockTicker) == market }
 
             if (stockChanges.isEmpty()) {
@@ -314,7 +315,8 @@ class AdvancedAnalysisRepositoryImpl @Inject constructor(
         previousDate: String
     ): List<SectorAnalysisData> = withContext(Dispatchers.IO) {
         try {
-            val stockChanges = etfDao.getStockAmountRanking(currentDate, previousDate)
+            val allEtfTickers = etfDao.getAllEtfsSuspend().map { it.ticker }
+            val stockChanges = etfDao.getStockAmountRanking(currentDate, previousDate, allEtfTickers)
             val sectorMap = mutableMapOf<String, MutableList<StockAmountRanking>>()
 
             for (stock in stockChanges) {

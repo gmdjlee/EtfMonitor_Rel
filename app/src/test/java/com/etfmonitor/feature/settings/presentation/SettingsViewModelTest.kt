@@ -13,6 +13,7 @@ import com.etfmonitor.core.ui.theme.ChartColorSettings
 import com.etfmonitor.core.ui.theme.ThemeManager
 import com.etfmonitor.feature.analysis.domain.repository.AIAnalysisRepository
 import com.etfmonitor.feature.etf.domain.repository.EtfRepository
+import com.etfmonitor.feature.stock.domain.repository.StockAnalysisRepository
 import com.etfmonitor.feature.market.domain.repository.BloodIndicatorRepository
 import com.etfmonitor.feature.market.domain.repository.FearGreedRepository
 import com.etfmonitor.feature.market.domain.repository.MarketDepositRepository
@@ -72,6 +73,7 @@ class SettingsViewModelTest {
     private lateinit var marketIndexRepository: MarketIndexRepository
     private lateinit var bloodIndicatorRepository: BloodIndicatorRepository
     private lateinit var aiAnalysisRepository: AIAnalysisRepository
+    private lateinit var stockAnalysisRepository: StockAnalysisRepository
     private lateinit var apiKeyProvider: ApiKeyProvider
     private lateinit var kisApiKeyProvider: KisApiKeyProvider
     private lateinit var fredApiKeyProvider: FredApiKeyProvider
@@ -108,6 +110,7 @@ class SettingsViewModelTest {
         marketIndexRepository = mockk(relaxed = true)
         bloodIndicatorRepository = mockk(relaxed = true)
         aiAnalysisRepository = mockk(relaxed = true)
+        stockAnalysisRepository = mockk(relaxed = true)
         apiKeyProvider = mockk(relaxed = true)
         kisApiKeyProvider = mockk(relaxed = true)
         fredApiKeyProvider = mockk(relaxed = true)
@@ -152,6 +155,7 @@ class SettingsViewModelTest {
         marketIndexRepository = marketIndexRepository,
         bloodIndicatorRepository = bloodIndicatorRepository,
         aiAnalysisRepository = aiAnalysisRepository,
+        stockAnalysisRepository = stockAnalysisRepository,
         apiKeyProvider = apiKeyProvider,
         kisApiKeyProvider = kisApiKeyProvider,
         fredApiKeyProvider = fredApiKeyProvider,

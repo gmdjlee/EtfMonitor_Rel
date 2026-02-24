@@ -20,6 +20,8 @@ import com.etfmonitor.feature.stock.domain.repository.StockAnalysisRepository
 import com.etfmonitor.feature.stock.domain.repository.StockRepository
 import com.etfmonitor.feature.stock.domain.repository.StockStatisticsRepository
 import com.etfmonitor.feature.stock.domain.repository.StockTrendRepository
+import com.etfmonitor.core.network.kiwoom.KiwoomApiClient
+import com.etfmonitor.core.network.kiwoom.KiwoomApiKeyProvider
 import com.krxkt.KrxStock
 import com.etfmonitor.feature.stock.domain.usecase.AnalyzeStockUseCase
 import com.etfmonitor.feature.stock.domain.usecase.GetCashDepositTrendUseCase
@@ -90,8 +92,12 @@ object StockModule {
     @Singleton
     fun provideStockDataRepository(
         krxStock: KrxStock,
-        stockDao: StockDao
-    ): StockDataRepository = KrxStockDataRepositoryImpl(krxStock, stockDao)
+        stockDao: StockDao,
+        kiwoomApiClient: KiwoomApiClient,
+        kiwoomApiKeyProvider: KiwoomApiKeyProvider,
+        json: Json,
+        etfDao: EtfDao
+    ): StockDataRepository = KrxStockDataRepositoryImpl(krxStock, stockDao, kiwoomApiClient, kiwoomApiKeyProvider, json, etfDao)
 
     @Provides
     @Singleton

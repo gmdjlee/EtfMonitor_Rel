@@ -3,7 +3,7 @@
 ## Project Identity
 
 Korean stock market (KRX) ETF monitoring Android app.
-Kotlin 2.1.0 | Jetpack Compose + M3 | MVVM + Clean Architecture | Hilt 2.54 | Room 2.8.3 (schema v22) | Claude & Gemini AI APIs | KIS Open API (재무정보) | Kiwoom Open API (실시간 순위)
+Kotlin 2.1.0 | Jetpack Compose + M3 | MVVM + Clean Architecture | Hilt 2.54 | Room 2.8.3 (schema v22) | Claude & Gemini AI APIs | KIS Open API (재무정보) | Kiwoom Open API (실시간 순위 + 장중수급)
 
 Package: `com.etfmonitor` | DB: `etf_monitor.db` | 320 Kotlin files | 0 Python scripts
 Structure: `core/` (141 files) shared infra, `feature/` (176 files) 8 modules, `navigation/` (1 file)
@@ -37,7 +37,7 @@ In SQL queries, convert: `CAST(weightBps AS REAL) / 10000.0`, `CAST(amountMillio
 | BloodIndicatorClient | **30s** per HTTP call | Yahoo Finance + FRED API (3 retries) |
 | FearGreedRepositoryImpl | **90s** | 7 kotlin_krx API calls (2 batches: 4+3) + FearGreedCalculator |
 | KrxRepositoryBase | 30s-180s | Configurable per kotlin_krx call |
-| MarketOscillatorCalculator | **no timeout** | 200 tickers × Semaphore(3) parallel fetch — use `NonCancellable` in ViewModel |
+| MarketOscillatorCalculator | **no timeout** | N dates × sequential getMarketOhlcv (500ms delay) + 1 getPortfolioTickers — use `NonCancellable` in ViewModel |
 
 ### 4. IMPORTANT: FearGreed — Repository Handles 3x Internally
 Moving averages lose leading data. `FearGreedRepositoryImpl` internally multiplies by 3x.
@@ -62,6 +62,7 @@ IMPORTANT: Always add migration BEFORE changing schema. Never use `fallbackToDes
 | MarketDeposit | 12h | AND latest == today |
 | FearGreed | 12h | OR latest != today |
 | Financial | 24h | By ticker, manual refresh bypasses cache |
+| RealtimeSupply | 60s | In-memory ConcurrentHashMap, by ticker |
 
 ### 8. ViewModel State Exceptions
 Most ViewModels use sealed class state. Two exceptions use individual StateFlows (intentional):
@@ -104,7 +105,7 @@ Financial info uses KIS Open API with OAuth2 client credentials (`/oauth2/tokenP
 KRX CDN returns HTTP 403 "Access Denied" after ~50-65 rapid requests. All KRX data sources use chunked parallel with delays:
 | Source | Concurrency | Delay | Pattern |
 |--------|-------------|-------|---------|
-| MarketOscillatorCalculator | Semaphore(3) | 500ms per request | 1 warmup ticker sync → remaining async with semaphore |
+| MarketOscillatorCalculator | sequential | 500ms per request | 1 getPortfolioTickers + N getMarketOhlcv sequential |
 | GetKrxEtfListUseCase | chunked(3) | 500ms per chunk | ETF name lookups in chunks of 3 |
 | EtfRepositoryImpl | chunked(3) | 500ms per chunk | ETF holdings fetches in chunks of 3 |
 | FearGreedRepositoryImpl | 2 batches (4+3) | 2s between batches | 7 index API calls split into 2 batches |
@@ -165,9 +166,10 @@ ABI: arm64-v8a, x86_64 only (64-bit)
 | Kiwoom API | `core/network/kiwoom/` | KiwoomApiClient, KiwoomTokenManager, KiwoomApiKeyProvider (6 files) |
 | Kiwoom DI | `core/di/KiwoomModule.kt` | @KiwoomOkHttp OkHttpClient (30s timeout) |
 | Ranking feature | `feature/ranking/` | 5 ranking types via Kiwoom REST API (12 files: domain/data/presentation/di) |
+| Realtime Supply | `feature/stock/*/realtime/` + `feature/stock/di/RealtimeSupplyModule.kt` | 장중수급 (ka10063): ViewModel + Compose UI + 60s auto-refresh (9 files) |
 | Chart Color Settings | `feature/settings/presentation/component/ChartColorCards.kt`, `ColorPickerComponents.kt` | 4 chart color cards + color picker dialog |
 | KRX Constants | `core/common/util/KrxConstants.kt` | Shared KRX rate limit constants |
-| Tests | `app/src/test/`, `app/src/androidTest/` | JUnit5, MockK, Turbine (1816 tests, 100 test files + 5 androidTest files) |
+| Tests | `app/src/test/`, `app/src/androidTest/` | JUnit5, MockK, Turbine (1861 tests, 100+ test files + 5 androidTest files) |
 
 ---
 
@@ -279,6 +281,7 @@ All former Python scripts have been replaced by native Kotlin implementations:
 | 거래량상위 | ka10030 | Daily volume top |
 | 신용잔고율상위 | ka10033 | Credit ratio top |
 | 외국인/기관순매수 | ka90009 | Foreign/institution trading |
+| 장중투자자별매매 | ka10063 | Realtime investor supply/demand (per-stock) |
 
 **Key Behaviors**:
 - OAuth2 token: `POST $baseUrl/oauth2/token` (api-id: au10001), cached in-memory with Mutex
@@ -291,7 +294,8 @@ All former Python scripts have been replaced by native Kotlin implementations:
 - CancellationException rethrow guard in all catch blocks
 
 **Architecture**: ViewModel (12 StateFlows) → GetRankingUseCase → RankingRepository → KiwoomApiClient → OkHttp
-**UI**: 7-tab bottom nav (시장지표, 순위, ETF, 홈, 종목, 분석, 설정), Korean stock colors (Red=Up, Blue=Down)
+**Realtime Supply**: RealtimeSupplyViewModel (sealed state) → GetRealtimeSupplyUseCase → RealtimeSupplyRepository → KiwoomApiClient (ka10063) → OkHttp. Auto-refresh 60s during trading hours (09:00-15:30 KST Mon-Fri).
+**UI**: 7-tab bottom nav (시장지표, 순위, ETF, 홈, 종목, 분석, 설정), Korean stock colors (Red=Up/Buy, Blue=Down/Sell)
 
 ### Kotlin Native Computation Engines (replaced Python)
 
@@ -301,7 +305,7 @@ All former Python scripts have been replaced by native Kotlin implementations:
 | `BloodIndicatorClient` (@Singleton) | blood_indicator.py HTTP | fetchIrxData (Yahoo), fetchHighYieldSpread (FRED), fetchSpyData (Yahoo) |
 | `FearGreedCalculator` (object) | feargreed.py | calcRsi, calcMacd, calcFearGreed, rollingMean5, minMaxNormalize |
 | `TechnicalAnalysisEngine` (object) | trend_signal.py | calculateEMA, resampleWeekly/Monthly, calculateCMF, generateSignals, calculateElderImpulse, calculateDemarkTD |
-| `MarketOscillatorCalculator` (@Singleton) | market.py Oscillator | analyze (top-200 market cap proxy for index components) |
+| `MarketOscillatorCalculator` (@Singleton) | market.py Oscillator | analyze (pykrx _calc(): KOSPI200/KOSDAQ150 component filtering + vol/pts dual-weighted nonlinear transform → [-100,-50]∪(50,100]) |
 
 ---
 
@@ -324,7 +328,7 @@ All former Python scripts have been replaced by native Kotlin implementations:
 | Security | 72 | 96 | **98** | CE guards (216+), AES256-GCM (4 providers), backup exclusions (4/4), network security config (7 domains), PasswordVisualTransformation, RetryHelper CE guard |
 | Performance | 62 | 95 | **98** | KRX rate limiting, DB indices (11개), LIMIT clauses (all DAOs), O(n) running-sum (FearGreed+TechnicalAnalysis), LazyColumn keys, Oscillator 4.8x speedup |
 | Reliability | 91 | 96 | **98** | NonCancellable wraps, @Transaction (22 methods), CE rethrow everywhere, safe-navigation (no !!), Elder Impulse tests fixed, 0 test failures |
-| Test Coverage | 18 | 95 | **96** | 1816 tests (100+ files), 16/16 ViewModels, 35/35 UseCases, 25/25 Repositories, 0 failures |
+| Test Coverage | 18 | 95 | **96** | 1861 tests (100+ files), 16/16 ViewModels, 35/35 UseCases, 25/25 Repositories, 0 failures |
 | **Overall** | **53.5** | **~95.5** | **~97.5** | |
 
 ---

@@ -1,8 +1,13 @@
 package com.etfmonitor.core.data.repository.krx
 
 import com.etfmonitor.MainDispatcherExtension
+import com.etfmonitor.core.database.EtfDao
 import com.etfmonitor.core.database.StockDao
+import com.etfmonitor.core.network.kiwoom.KiwoomApiClient
+import com.etfmonitor.core.network.kiwoom.KiwoomApiKeyProvider
+import com.etfmonitor.core.network.kiwoom.KiwoomApiKeyConfig
 import com.krxkt.KrxStock
+import kotlinx.serialization.json.Json
 import com.krxkt.model.Market
 import com.krxkt.model.MarketCap
 import com.krxkt.model.StockOhlcvHistory
@@ -41,13 +46,24 @@ class KrxStockDataRepositoryImplTest {
 
     private lateinit var krxStock: KrxStock
     private lateinit var stockDao: StockDao
+    private lateinit var kiwoomApiClient: KiwoomApiClient
+    private lateinit var kiwoomApiKeyProvider: KiwoomApiKeyProvider
+    private lateinit var etfDao: EtfDao
     private lateinit var repository: KrxStockDataRepositoryImpl
 
     @BeforeEach
     fun setup() {
         krxStock = mockk(relaxed = true)
         stockDao = mockk(relaxed = true)
-        repository = KrxStockDataRepositoryImpl(krxStock, stockDao)
+        kiwoomApiClient = mockk(relaxed = true)
+        kiwoomApiKeyProvider = mockk(relaxed = true)
+        etfDao = mockk(relaxed = true)
+        coEvery { kiwoomApiKeyProvider.getConfig() } returns KiwoomApiKeyConfig()
+        coEvery { etfDao.getSetting("shares_type") } returns null
+        repository = KrxStockDataRepositoryImpl(
+            krxStock, stockDao, kiwoomApiClient, kiwoomApiKeyProvider,
+            Json { ignoreUnknownKeys = true }, etfDao
+        )
     }
 
     // ============================================================

@@ -58,7 +58,7 @@ class SearchEtfsUseCaseTest {
             // Given: ticker로 검색
             val query = "069500"
             val etfs = listOf(Etf(ticker = "069500", name = "KODEX 200"))
-            every { repository.searchEtfs(query) } returns flowOf(etfs)
+            every { repository.searchVisibleEtfs(query) } returns flowOf(etfs)
 
             // When & Then
             useCase(query).test {
@@ -79,7 +79,7 @@ class SearchEtfsUseCaseTest {
                 Etf(ticker = "114800", name = "KODEX 인버스"),
                 Etf(ticker = "122630", name = "KODEX 레버리지")
             )
-            every { repository.searchEtfs(query) } returns flowOf(etfs)
+            every { repository.searchVisibleEtfs(query) } returns flowOf(etfs)
 
             // When & Then
             useCase(query).test {
@@ -99,7 +99,7 @@ class SearchEtfsUseCaseTest {
                 Etf(ticker = "114800", name = "KODEX 인버스"),
                 Etf(ticker = "252670", name = "KODEX 200선물인버스2X")
             )
-            every { repository.searchEtfs(query) } returns flowOf(etfs)
+            every { repository.searchVisibleEtfs(query) } returns flowOf(etfs)
 
             // When & Then
             useCase(query).test {
@@ -115,7 +115,7 @@ class SearchEtfsUseCaseTest {
         fun `invoke_withQuery_delegatesQueryToRepository`() = runTest {
             // Given
             val query = "TIGER"
-            every { repository.searchEtfs(query) } returns flowOf(emptyList())
+            every { repository.searchVisibleEtfs(query) } returns flowOf(emptyList())
 
             // When & Then
             useCase(query).test {
@@ -124,7 +124,7 @@ class SearchEtfsUseCaseTest {
             }
 
             // Then: 정확한 query로 한 번만 호출
-            verify(exactly = 1) { repository.searchEtfs(query) }
+            verify(exactly = 1) { repository.searchVisibleEtfs(query) }
         }
     }
 
@@ -141,7 +141,7 @@ class SearchEtfsUseCaseTest {
         fun `invoke_withNoMatchingQuery_returnsEmptyList`() = runTest {
             // Given
             val query = "NOMATCH_TICKER_XYZ"
-            every { repository.searchEtfs(query) } returns flowOf(emptyList())
+            every { repository.searchVisibleEtfs(query) } returns flowOf(emptyList())
 
             // When & Then
             useCase(query).test {
@@ -155,7 +155,7 @@ class SearchEtfsUseCaseTest {
         @DisplayName("invoke_withEmptyQuery_returnsEmptyList")
         fun `invoke_withEmptyQuery_returnsEmptyList`() = runTest {
             // Given: 빈 검색어 (repository 동작에 위임)
-            every { repository.searchEtfs("") } returns flowOf(emptyList())
+            every { repository.searchVisibleEtfs("") } returns flowOf(emptyList())
 
             // When & Then
             useCase("").test {
@@ -184,7 +184,7 @@ class SearchEtfsUseCaseTest {
                 Etf("102110", "TIGER 200")
             )
             val query = "200"
-            every { repository.searchEtfs(query) } returns flow {
+            every { repository.searchVisibleEtfs(query) } returns flow {
                 emit(firstResult)
                 emit(secondResult)
             }
@@ -205,7 +205,7 @@ class SearchEtfsUseCaseTest {
             // Given
             val query = "0695"
             val etfs = listOf(Etf(ticker = "069500", name = "KODEX 200"))
-            every { repository.searchEtfs(query) } returns flowOf(etfs)
+            every { repository.searchVisibleEtfs(query) } returns flowOf(etfs)
 
             // When & Then
             useCase(query).test {

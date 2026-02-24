@@ -106,8 +106,6 @@ object OscillatorCalculator {
         }
 
         // 최근 데이터
-        val lastIdx = result.oscillator.size - 1
-        val recentOsc = result.oscillator.takeLast(5)
         val recentMACD = result.macd.takeLast(5)
         val recentSignal = result.signal.takeLast(5)
         val recentHisto = result.histogram.takeLast(5)
@@ -116,13 +114,13 @@ object OscillatorCalculator {
         var score = 0.0
 
         // 1. 오실레이터 값 평가 (±40점)
-        // 레퍼런스 로직: 수급비율 기반 (배율 없음)
-        val avgOsc = recentOsc.average()
+        // 레퍼런스 로직: 최신 오실레이터 값 1개 사용 (Python osc[-1] 방식)
+        val latestOsc = result.oscillator.last()
         score += when {
-            avgOsc > 0.005 -> 40.0   // 0.5% 이상
-            avgOsc > 0.002 -> 20.0   // 0.2% 이상
-            avgOsc < -0.005 -> -40.0 // -0.5% 이하
-            avgOsc < -0.002 -> -20.0 // -0.2% 이하
+            latestOsc > 0.005 -> 40.0   // 0.5% 이상
+            latestOsc > 0.002 -> 20.0   // 0.2% 이상
+            latestOsc < -0.005 -> -40.0 // -0.5% 이하
+            latestOsc < -0.002 -> -20.0 // -0.2% 이하
             else -> 0.0
         }
 
@@ -140,11 +138,11 @@ object OscillatorCalculator {
             score -= 15.0
         }
 
-        // 3. 히스토그램 추세 (±30점)
+        // 3. 히스토그램 추세 (±30점) — strict monotone (Python _is_increasing 방식)
         val histoTrend = recentHisto.takeLast(3)
-        if (histoTrend.all { it > 0 } && histoTrend[2] > histoTrend[0]) {
+        if (histoTrend.all { it > 0 } && histoTrend.zipWithNext().all { (a, b) -> b > a }) {
             score += 30.0 // 상승 추세
-        } else if (histoTrend.all { it < 0 } && histoTrend[2] < histoTrend[0]) {
+        } else if (histoTrend.all { it < 0 } && histoTrend.zipWithNext().all { (a, b) -> b < a }) {
             score -= 30.0 // 하락 추세
         }
 
@@ -159,16 +157,16 @@ object OscillatorCalculator {
 
         // 추세 설명 (임계값 조정)
         val trend = when {
-            avgOsc > 0.003 -> "강한 매수세"   // 0.3%
-            avgOsc > 0 -> "매수 우위"
-            avgOsc < -0.003 -> "강한 매도세"  // -0.3%
-            avgOsc < 0 -> "매도 우위"
+            latestOsc > 0.003 -> "강한 매수세"   // 0.3%
+            latestOsc > 0 -> "매수 우위"
+            latestOsc < -0.003 -> "강한 매도세"  // -0.3%
+            latestOsc < 0 -> "매도 우위"
             else -> "균형"
         }
 
         // 외국인/기관 동향 (단순화)
-        val foreignTrend = if (avgOsc > 0) "순매수" else "순매도"
-        val institutionTrend = if (avgOsc > 0) "순매수" else "순매도"
+        val foreignTrend = if (latestOsc > 0) "순매수" else "순매도"
+        val institutionTrend = if (latestOsc > 0) "순매수" else "순매도"
 
         // 투자 권고
         val recommendation = when (signal) {

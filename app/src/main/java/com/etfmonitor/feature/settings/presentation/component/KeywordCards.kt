@@ -18,7 +18,7 @@ import com.etfmonitor.core.ui.theme.*
 
 /**
  * Settings Screen - Keyword Tab Card Components
- * Contains ThemeCard and ExclusionCard for managing ETF filter keywords
+ * Contains ThemeCard, ExclusionCard, and KeywordCollectionDialog for managing ETF filter keywords
  */
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -252,4 +252,47 @@ fun ExclusionCard(
             }
         )
     }
+}
+
+@Composable
+fun KeywordCollectionDialog(
+    keyword: String,
+    isCollecting: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = { if (!isCollecting) onDismiss() },
+        title = { Text("키워드 변경") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("'$keyword' 테마가 추가되었습니다.\nETF 데이터를 수집하시겠습니까?")
+                if (isCollecting) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        Text("수집 중...", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                enabled = !isCollecting
+            ) {
+                Text("수집")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isCollecting
+            ) {
+                Text("나중에")
+            }
+        }
+    )
 }

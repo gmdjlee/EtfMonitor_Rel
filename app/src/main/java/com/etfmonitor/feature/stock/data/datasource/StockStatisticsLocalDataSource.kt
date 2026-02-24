@@ -38,53 +38,53 @@ class StockStatisticsLocalDataSource @Inject constructor(
 
     // ========== 금액순위 ==========
 
-    suspend fun getStockAmountRanking(currentDate: String, previousDate: String): List<StockAmountRanking> {
-        return etfDao.getStockAmountRanking(currentDate, previousDate)
+    suspend fun getStockAmountRanking(currentDate: String, previousDate: String, visibleEtfTickers: List<String>): List<StockAmountRanking> {
+        return etfDao.getStockAmountRanking(currentDate, previousDate, visibleEtfTickers)
     }
 
     // ========== 종목 변화 ==========
 
-    suspend fun getAllNewStocks(currentDate: String, previousDate: String): List<StockChangeInfo> {
-        return etfDao.getAllNewStocks(currentDate, previousDate)
+    suspend fun getAllNewStocks(currentDate: String, previousDate: String, visibleEtfTickers: List<String>): List<StockChangeInfo> {
+        return etfDao.getAllNewStocks(currentDate, previousDate, visibleEtfTickers)
     }
 
-    suspend fun getAllRemovedStocks(currentDate: String, previousDate: String): List<StockChangeInfo> {
-        return etfDao.getAllRemovedStocks(currentDate, previousDate)
+    suspend fun getAllRemovedStocks(currentDate: String, previousDate: String, visibleEtfTickers: List<String>): List<StockChangeInfo> {
+        return etfDao.getAllRemovedStocks(currentDate, previousDate, visibleEtfTickers)
     }
 
-    suspend fun getAllIncreasedStocks(currentDate: String, previousDate: String): List<StockChangeInfo> {
-        return etfDao.getAllIncreasedStocks(currentDate, previousDate)
+    suspend fun getAllIncreasedStocks(currentDate: String, previousDate: String, visibleEtfTickers: List<String>): List<StockChangeInfo> {
+        return etfDao.getAllIncreasedStocks(currentDate, previousDate, visibleEtfTickers)
     }
 
-    suspend fun getAllDecreasedStocks(currentDate: String, previousDate: String): List<StockChangeInfo> {
-        return etfDao.getAllDecreasedStocks(currentDate, previousDate)
+    suspend fun getAllDecreasedStocks(currentDate: String, previousDate: String, visibleEtfTickers: List<String>): List<StockChangeInfo> {
+        return etfDao.getAllDecreasedStocks(currentDate, previousDate, visibleEtfTickers)
     }
 
     // ========== 종목 검색 ==========
 
-    suspend fun searchStocks(query: String): List<StockSearchResult> {
-        return etfDao.searchStocks(query)
+    suspend fun searchStocks(query: String, visibleEtfTickers: List<String>): List<StockSearchResult> {
+        return etfDao.searchStocks(query, visibleEtfTickers)
     }
 
     // ========== 종목 분석용 데이터 ==========
 
     suspend fun getLatestTwoDates(): List<String> = etfDao.getLatestTwoDates()
 
-    suspend fun getStockHoldingsByDate(stockTicker: String, date: String) =
-        etfDao.getStockHoldingsByDate(stockTicker, date)
+    suspend fun getStockHoldingsByDate(stockTicker: String, date: String, visibleEtfTickers: List<String>) =
+        etfDao.getStockHoldingsByDate(stockTicker, date, visibleEtfTickers)
 
     suspend fun getStockName(stockTicker: String): String? = etfDao.getStockName(stockTicker)
 
     // ========== 원화예금 추이 ==========
 
-    suspend fun getCashDepositTrend(): List<CashDepositTrend> {
-        return etfDao.getCashDepositTrend()
+    suspend fun getCashDepositTrend(visibleEtfTickers: List<String>): List<CashDepositTrend> {
+        return etfDao.getCashDepositTrend(visibleEtfTickers)
     }
 
     // ========== 종목 통합 추이 ==========
 
-    suspend fun getStockAggregatedTrend(stockTicker: String): List<StockAggregatedTimePoint> {
-        return etfDao.getStockAggregatedTrend(stockTicker)
+    suspend fun getStockAggregatedTrend(stockTicker: String, visibleEtfTickers: List<String>): List<StockAggregatedTimePoint> {
+        return etfDao.getStockAggregatedTrend(stockTicker, visibleEtfTickers)
     }
 
     // ========== ETF 정보 ==========

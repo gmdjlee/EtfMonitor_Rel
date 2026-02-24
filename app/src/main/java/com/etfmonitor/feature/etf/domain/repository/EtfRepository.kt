@@ -28,12 +28,30 @@ interface EtfRepository {
     fun getAllEtfs(): Flow<List<Etf>>
 
     /**
+     * 현재 키워드 설정 기반으로 필터링된 ETF 목록 조회
+     *
+     * DB의 전체 ETF에서 포함/제외 키워드를 적용하여 표시할 ETF만 반환합니다.
+     * 키워드 변경 시 Flow가 자동으로 재평가됩니다.
+     *
+     * @return 필터링된 ETF 목록 Flow
+     */
+    fun getVisibleEtfs(): Flow<List<Etf>>
+
+    /**
      * ETF 검색
      *
      * @param query 검색어 (ticker 또는 name)
      * @return 검색 결과 Flow
      */
     fun searchEtfs(query: String): Flow<List<Etf>>
+
+    /**
+     * 현재 키워드 설정 기반으로 필터링된 ETF 검색
+     *
+     * @param query 검색어 (ticker 또는 name)
+     * @return 필터링된 검색 결과 Flow
+     */
+    fun searchVisibleEtfs(query: String): Flow<List<Etf>>
 
     // ========== Data Status ==========
 
@@ -122,6 +140,17 @@ interface EtfRepository {
      * @return 진행 상태 Flow
      */
     fun updateData(): Flow<DataProgress>
+
+    /**
+     * 새로 추가된 포함 키워드에 대해서만 증분 수집
+     *
+     * 최신 영업일의 ETF 목록에서 해당 키워드에 매칭되는 ETF를 찾아
+     * 기존 DB에 없는 ETF만 수집합니다.
+     *
+     * @param keyword 새로 추가된 포함 키워드
+     * @return 추가된 ETF 수
+     */
+    suspend fun collectForNewKeyword(keyword: String): Result<Int>
 
     /**
      * 데이터베이스 초기화

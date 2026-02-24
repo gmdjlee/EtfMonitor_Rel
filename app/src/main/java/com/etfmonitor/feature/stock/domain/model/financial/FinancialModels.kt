@@ -143,6 +143,30 @@ data class FinancialSummary(
         get() = debtRatios.any { it != 0.0 } ||
                 currentRatios.any { it != 0.0 } ||
                 borrowingDependencies.any { it != 0.0 }
+
+    fun trimToLast(count: Int): FinancialSummary {
+        val n = count.coerceAtLeast(MIN_DISPLAY_QUARTERS)
+        if (n >= periods.size) return this
+        return copy(
+            periods = periods.takeLast(n),
+            displayPeriods = displayPeriods.takeLast(n),
+            revenues = revenues.takeLast(n),
+            operatingProfits = operatingProfits.takeLast(n),
+            netIncomes = netIncomes.takeLast(n),
+            revenueGrowthRates = revenueGrowthRates.takeLast(n),
+            operatingProfitGrowthRates = operatingProfitGrowthRates.takeLast(n),
+            netIncomeGrowthRates = netIncomeGrowthRates.takeLast(n),
+            equityGrowthRates = equityGrowthRates.takeLast(n),
+            totalAssetsGrowthRates = totalAssetsGrowthRates.takeLast(n),
+            debtRatios = debtRatios.takeLast(n),
+            currentRatios = currentRatios.takeLast(n),
+            borrowingDependencies = borrowingDependencies.takeLast(n),
+        )
+    }
+
+    companion object {
+        const val MIN_DISPLAY_QUARTERS = 4
+    }
 }
 
 // ========== UI State ==========
@@ -338,6 +362,13 @@ fun FinancialData.toSummary(): FinancialSummary {
     val operatingProfits = convertYtdToQuarterly(sortedPeriods, rawOperatingProfits)
     val netIncomes = convertYtdToQuarterly(sortedPeriods, rawNetIncomes)
 
+    val apiNetIncomeGrowths = sortedPeriods.map { growthRatios[it]?.netIncomeGrowth ?: 0.0 }
+    val netIncomeGrowthRates = if (apiNetIncomeGrowths.all { it == 0.0 } && netIncomes.any { it != 0L }) {
+        calculateYoYGrowthRates(netIncomes, sortedPeriods)
+    } else {
+        apiNetIncomeGrowths
+    }
+
     return FinancialSummary(
         ticker = ticker,
         name = name,
@@ -348,7 +379,7 @@ fun FinancialData.toSummary(): FinancialSummary {
         netIncomes = netIncomes,
         revenueGrowthRates = sortedPeriods.map { growthRatios[it]?.revenueGrowth ?: 0.0 },
         operatingProfitGrowthRates = sortedPeriods.map { growthRatios[it]?.operatingProfitGrowth ?: 0.0 },
-        netIncomeGrowthRates = sortedPeriods.map { growthRatios[it]?.netIncomeGrowth ?: 0.0 },
+        netIncomeGrowthRates = netIncomeGrowthRates,
         equityGrowthRates = sortedPeriods.map { growthRatios[it]?.equityGrowth ?: 0.0 },
         totalAssetsGrowthRates = sortedPeriods.map { growthRatios[it]?.totalAssetsGrowth ?: 0.0 },
         debtRatios = sortedPeriods.map { stabilityRatios[it]?.debtRatio ?: 0.0 },
@@ -396,18 +427,43 @@ private fun convertYtdToQuarterly(
     return result
 }
 
+private fun calculateYoYGrowthRates(
+    quarterlyValues: List<Long>,
+    periods: List<String>
+): List<Double> {
+    val periodInfos = periods.map { FinancialPeriod.fromYearMonth(it) }
+    return quarterlyValues.mapIndexed { i, current ->
+        val currentPeriod = periodInfos[i]
+        val prevIndex = periodInfos.indexOfFirst {
+            it.year == currentPeriod.year - 1 && it.quarter == currentPeriod.quarter
+        }
+        if (prevIndex >= 0) {
+            val previous = quarterlyValues[prevIndex]
+            if (previous != 0L) {
+                (current.toDouble() - previous.toDouble()) / kotlin.math.abs(previous.toDouble()) * 100.0
+            } else 0.0
+        } else 0.0
+    }
+}
+
 // ========== Formatting Utilities ==========
 
-fun formatNumber(value: Long): String = when {
-    value >= 10_000L -> "${value / 10_000}.${(value % 10_000) / 1_000}만억"
-    value >= 1_000L -> "${value / 1_000}.${(value % 1_000) / 100}천억"
-    else -> "${value}억"
+fun formatNumber(value: Long): String {
+    val absValue = kotlin.math.abs(value)
+    val sign = if (value < 0) "-" else ""
+    return when {
+        absValue >= 10_000L -> {
+            val jo = absValue / 10_000
+            val remainder = (absValue % 10_000) / 1_000
+            "${sign}${jo}.${remainder}조"
+        }
+        absValue >= 1_000L -> {
+            val cheonEok = absValue / 1_000
+            val remainder = (absValue % 1_000) / 100
+            "${sign}${cheonEok}.${remainder}천억"
+        }
+        else -> "${sign}${absValue}억"
+    }
 }
 
 fun formatPercent(value: Double): String = "${"%.1f".format(value)}%"
-
-fun formatFinancialValue(value: Long): String = when {
-    value >= 10_000L -> "${value / 10_000}.${(value % 10_000) / 1_000}조"
-    value >= 1_000L -> "${value / 1_000}.${(value % 1_000) / 100}천억"
-    else -> "${value}억"
-}

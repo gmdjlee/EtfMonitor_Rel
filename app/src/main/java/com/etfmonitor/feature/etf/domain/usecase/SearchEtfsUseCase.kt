@@ -17,9 +17,9 @@ class SearchEtfsUseCase @Inject constructor(
 ) {
     /**
      * @param query 검색어 (ticker 또는 name)
-     * @return 검색 결과 Flow
+     * @return 현재 키워드 설정 기반으로 필터링된 검색 결과 Flow
      */
     operator fun invoke(query: String): Flow<List<Etf>> =
-        repository.searchEtfs(query)
+        repository.searchVisibleEtfs(query)
             .flowOn(Dispatchers.IO)
 }

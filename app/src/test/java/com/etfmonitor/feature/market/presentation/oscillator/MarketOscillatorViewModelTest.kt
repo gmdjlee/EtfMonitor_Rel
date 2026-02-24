@@ -76,7 +76,7 @@ class MarketOscillatorViewModelTest {
     private fun makeOscillator(
         market: String = "KOSPI",
         date: String = "2025-01-15",
-        oscillator: Double = 65.0
+        oscillator: Double = 75.0
     ) = MarketOscillator(
         id = "$market-$date",
         market = market,

@@ -69,13 +69,13 @@ class StatisticsAnalysisRepositoryImplTest {
         fun `calculateAndStoreDailyStatistics_withTwoDates_computesAndSavesStatistics`() = runTest {
             // Given
             coEvery { etfDao.getLatestTwoDates() } returns listOf("2026-01-15", "2026-01-14")
-            coEvery { etfDao.getAllNewStocks(any(), any()) } returns emptyList()
-            coEvery { etfDao.getAllRemovedStocks(any(), any()) } returns emptyList()
-            coEvery { etfDao.getAllIncreasedStocks(any(), any()) } returns emptyList()
-            coEvery { etfDao.getAllDecreasedStocks(any(), any()) } returns emptyList()
-            coEvery { etfDao.getCashDepositTrend() } returns emptyList()
+            coEvery { etfDao.getAllNewStocks(any(), any(), any()) } returns emptyList()
+            coEvery { etfDao.getAllRemovedStocks(any(), any(), any()) } returns emptyList()
+            coEvery { etfDao.getAllIncreasedStocks(any(), any(), any()) } returns emptyList()
+            coEvery { etfDao.getAllDecreasedStocks(any(), any(), any()) } returns emptyList()
+            coEvery { etfDao.getCashDepositTrend(any()) } returns emptyList()
             coEvery { etfDao.getEtfCount() } returns 50
-            coEvery { etfDao.getStockAmountRanking(any(), any()) } returns emptyList()
+            coEvery { etfDao.getStockAmountRanking(any(), any(), any()) } returns emptyList()
             coEvery { dailyEtfStatisticsDao.insert(any()) } returns Unit
 
             // When
@@ -132,13 +132,13 @@ class StatisticsAnalysisRepositoryImplTest {
         fun `calculateAndStoreDailyStatistics_usesCurrentDateFromDates_notParameter`() = runTest {
             // Given: latest dates differ from parameter — repository uses dates[0]
             coEvery { etfDao.getLatestTwoDates() } returns listOf("2026-01-22", "2026-01-15")
-            coEvery { etfDao.getAllNewStocks(any(), any()) } returns emptyList()
-            coEvery { etfDao.getAllRemovedStocks(any(), any()) } returns emptyList()
-            coEvery { etfDao.getAllIncreasedStocks(any(), any()) } returns emptyList()
-            coEvery { etfDao.getAllDecreasedStocks(any(), any()) } returns emptyList()
-            coEvery { etfDao.getCashDepositTrend() } returns emptyList()
+            coEvery { etfDao.getAllNewStocks(any(), any(), any()) } returns emptyList()
+            coEvery { etfDao.getAllRemovedStocks(any(), any(), any()) } returns emptyList()
+            coEvery { etfDao.getAllIncreasedStocks(any(), any(), any()) } returns emptyList()
+            coEvery { etfDao.getAllDecreasedStocks(any(), any(), any()) } returns emptyList()
+            coEvery { etfDao.getCashDepositTrend(any()) } returns emptyList()
             coEvery { etfDao.getEtfCount() } returns 50
-            coEvery { etfDao.getStockAmountRanking(any(), any()) } returns emptyList()
+            coEvery { etfDao.getStockAmountRanking(any(), any(), any()) } returns emptyList()
             coEvery { dailyEtfStatisticsDao.insert(any()) } returns Unit
 
             // When

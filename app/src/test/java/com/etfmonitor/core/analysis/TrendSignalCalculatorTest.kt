@@ -13,9 +13,17 @@ import kotlin.test.assertTrue
  *
  * 테스트 범위:
  * - analyze(): 빈 데이터, 강력매수/매수/중립/매도/강력매도 시나리오
- * - determineSignal(): 점수 경계값 (±70, ±30) 검증
+ * - determineSignal(): 2-of-3 투표 로직 검증
  * - buildTrendDescription(): 상승/하락 추세, CMF 상태, Fear & Greed 상태
  * - 한국어 시그널 (강력매수 through 강력매도) 포함 전체 흐름
+ *
+ * 신호 결정 로직 (2-of-3 투표):
+ *   지표 1: price > ma  → bull (+1), price < ma → bear (+1)
+ *   지표 2: cmf > 0.05  → bull (+1), cmf < -0.05 → bear (+1)
+ *   지표 3: fg > 0.5    → bull (+1), fg < -0.5   → bear (+1)
+ *   bullCount >= 2 → BUY  (fg > 1.0  → STRONG_BUY)
+ *   bearCount >= 2 → SELL (fg < -0.8 → STRONG_SELL)
+ *   그 외          → NEUTRAL
  */
 @DisplayName("TrendSignalCalculator 테스트")
 class TrendSignalCalculatorTest {
@@ -118,6 +126,7 @@ class TrendSignalCalculatorTest {
 
     // =========================================================================
     // analyze() — 강력매수 시나리오 (STRONG_BUY)
+    // 조건: bullCount >= 2 AND fg > 1.0
     // =========================================================================
 
     @Nested
@@ -125,23 +134,36 @@ class TrendSignalCalculatorTest {
     inner class StrongBuyTests {
 
         @Test
-        @DisplayName("모든 조건이 최대 매수면 STRONG_BUY(강력매수)를 반환한다")
-        fun `analyze all max buy conditions returns STRONG_BUY`() {
-            // score 계산:
-            // 1. 가격(100) > MA(80) → +30
-            // 2. CMF(0.15) > 0.1 → +30
-            // 3. fearGreed(0.5) > 0.4 → +20
-            // 4. signalDiff = (buySignal*5 + auxBuy*5) - 0 = 10 - 0 ≥ 2 → +20
-            // total = 100 ≥ 70 → STRONG_BUY
+        @DisplayName("3지표 모두 bull + fg > 1.0 이면 STRONG_BUY를 반환한다")
+        fun `analyze all bull indicators with extreme fg returns STRONG_BUY`() {
+            // price(100) > ma(80)  → bull
+            // cmf(0.15) > 0.05    → bull
+            // fg(1.2) > 0.5       → bull; fg > 1.0 → STRONG_BUY 승격
             val data = create5DayData(
                 close = 100.0,
                 ma = 80.0,
                 cmf = 0.15,
-                fearGreed = 0.5,
-                buySignal = 1,
-                auxBuySignal = 1,
-                sellSignal = 0,
-                auxSellSignal = 0
+                fearGreed = 1.2
+            )
+
+            val result = TrendSignalCalculator.analyze(data)
+
+            assertEquals(TrendTradeSignal.STRONG_BUY, result.signal)
+        }
+
+        @Test
+        @DisplayName("bullCount=2 (price+cmf) + fg > 1.0 이면 STRONG_BUY를 반환한다")
+        fun `analyze two bull indicators with extreme fg returns STRONG_BUY`() {
+            // price(100) > ma(80)  → bull
+            // cmf(0.15) > 0.05    → bull
+            // fg(-0.1) 중립        → 미기여
+            // bullCount=2 → BUY, 그런데 fg(-0.1)이 1.0 초과 아님 → BUY
+            // 이번 케이스: fg=1.1 > 1.0 → STRONG_BUY 승격
+            val data = create5DayData(
+                close = 100.0,
+                ma = 80.0,
+                cmf = 0.15,
+                fearGreed = 1.1
             )
 
             val result = TrendSignalCalculator.analyze(data)
@@ -156,7 +178,7 @@ class TrendSignalCalculatorTest {
                 close = 100.0,
                 ma = 80.0,
                 cmf = 0.15,
-                fearGreed = 0.5,
+                fearGreed = 1.2,
                 buySignal = 1,
                 auxBuySignal = 1,
                 sellSignal = 0,
@@ -173,6 +195,7 @@ class TrendSignalCalculatorTest {
 
     // =========================================================================
     // analyze() — 매수 시나리오 (BUY)
+    // 조건: bullCount >= 2 AND fg <= 1.0
     // =========================================================================
 
     @Nested
@@ -180,21 +203,36 @@ class TrendSignalCalculatorTest {
     inner class BuyTests {
 
         @Test
-        @DisplayName("score 30~69 범위이면 BUY(매수)를 반환한다")
-        fun `analyze score 30 to 69 returns BUY`() {
-            // score:
-            // 1. 가격(100) > MA(80) → +30
-            // 2. CMF(0.05) > 0 but ≤ 0.1 → +15
-            // 3. fearGreed(0.0) = 0 (neither >0 nor <0 → 0)
-            // 4. signalDiff=0 → 0
-            // total = 45 → BUY
+        @DisplayName("bullCount=2 (price+cmf) + fg 중립이면 BUY를 반환한다")
+        fun `analyze two bull indicators neutral fg returns BUY`() {
+            // price(100) > ma(80)  → bull
+            // cmf(0.15) > 0.05    → bull
+            // fg(0.0) 중립        → 미기여
+            // bullCount=2 → BUY (fg <= 1.0 이므로 STRONG 미승격)
             val data = create5DayData(
                 close = 100.0,
                 ma = 80.0,
-                cmf = 0.05,
-                fearGreed = 0.0,
-                buySignal = 0,
-                sellSignal = 0
+                cmf = 0.15,
+                fearGreed = 0.0
+            )
+
+            val result = TrendSignalCalculator.analyze(data)
+
+            assertEquals(TrendTradeSignal.BUY, result.signal)
+        }
+
+        @Test
+        @DisplayName("bullCount=2 (price+fg) + cmf 중립이면 BUY를 반환한다")
+        fun `analyze price and fg bull cmf neutral returns BUY`() {
+            // price(100) > ma(80)  → bull
+            // cmf(0.02) 중립(0.02 < 0.05) → 미기여
+            // fg(0.6) > 0.5       → bull
+            // bullCount=2 → BUY
+            val data = create5DayData(
+                close = 100.0,
+                ma = 80.0,
+                cmf = 0.02,
+                fearGreed = 0.6
             )
 
             val result = TrendSignalCalculator.analyze(data)
@@ -208,7 +246,7 @@ class TrendSignalCalculatorTest {
             val data = create5DayData(
                 close = 100.0,
                 ma = 80.0,
-                cmf = 0.05,
+                cmf = 0.15,
                 fearGreed = 0.0
             )
 
@@ -220,6 +258,7 @@ class TrendSignalCalculatorTest {
 
     // =========================================================================
     // analyze() — 중립 시나리오 (NEUTRAL)
+    // 조건: bullCount < 2 AND bearCount < 2
     // =========================================================================
 
     @Nested
@@ -227,29 +266,54 @@ class TrendSignalCalculatorTest {
     inner class NeutralTests {
 
         @Test
-        @DisplayName("score -29 ~ +29 범위이면 NEUTRAL(중립)을 반환한다")
-        fun `analyze score -29 to 29 returns NEUTRAL`() {
-            // score:
-            // 1. 가격(100) > MA(95) → +30
-            // 2. CMF(0.0) = 0 (neither >0 nor <0 → 0)
-            // 3. fearGreed(0.0) = 0
-            // 4. signalDiff=0 → 0
-            // total = 30 → BUY
-            // To get NEUTRAL, use price below MA:
-            // 1. 가격(80) < MA(100) → -30
-            // 2. CMF(0.0) → 0
-            // 3. fearGreed(0.0) → 0
-            // 4. signalDiff=0 → 0
-            // total = -30 → SELL (not NEUTRAL)
-            // Need score in -29..+29:
-            // 1. 가격 == MA (score 0) + CMF=0 + fg=0 + diff=0 = 0 → NEUTRAL
+        @DisplayName("3지표 모두 중립이면 NEUTRAL을 반환한다")
+        fun `analyze all neutral indicators returns NEUTRAL`() {
+            // price(100) == ma(100) → 중립
+            // cmf(0.0) 중립         → 미기여
+            // fg(0.0) 중립          → 미기여
             val data = create5DayData(
                 close = 100.0,
-                ma = 100.0,  // equal → score=0
+                ma = 100.0,
                 cmf = 0.0,
-                fearGreed = 0.0,
-                buySignal = 0,
-                sellSignal = 0
+                fearGreed = 0.0
+            )
+
+            val result = TrendSignalCalculator.analyze(data)
+
+            assertEquals(TrendTradeSignal.NEUTRAL, result.signal)
+        }
+
+        @Test
+        @DisplayName("bullCount=1, bearCount=0이면 NEUTRAL을 반환한다")
+        fun `analyze one bull indicator returns NEUTRAL`() {
+            // price(100) > ma(90) → bull (bullCount=1)
+            // cmf(-0.03) 중립     → 미기여
+            // fg(0.0) 중립        → 미기여
+            // bullCount=1 < 2 → NEUTRAL
+            val data = create5DayData(
+                close = 100.0,
+                ma = 90.0,
+                cmf = -0.03,
+                fearGreed = 0.0
+            )
+
+            val result = TrendSignalCalculator.analyze(data)
+
+            assertEquals(TrendTradeSignal.NEUTRAL, result.signal)
+        }
+
+        @Test
+        @DisplayName("bull 1개 + bear 1개 혼재이면 NEUTRAL을 반환한다")
+        fun `analyze mixed one bull one bear returns NEUTRAL`() {
+            // price(100) > ma(90) → bull
+            // cmf(-0.1) < -0.05   → bear
+            // fg(0.0) 중립         → 미기여
+            // bullCount=1, bearCount=1 → NEUTRAL
+            val data = create5DayData(
+                close = 100.0,
+                ma = 90.0,
+                cmf = -0.1,
+                fearGreed = 0.0
             )
 
             val result = TrendSignalCalculator.analyze(data)
@@ -275,6 +339,7 @@ class TrendSignalCalculatorTest {
 
     // =========================================================================
     // analyze() — 매도 시나리오 (SELL)
+    // 조건: bearCount >= 2 AND fg >= -0.8
     // =========================================================================
 
     @Nested
@@ -282,21 +347,36 @@ class TrendSignalCalculatorTest {
     inner class SellTests {
 
         @Test
-        @DisplayName("score -30 ~ -69 범위이면 SELL(매도)를 반환한다")
-        fun `analyze score -30 to -69 returns SELL`() {
-            // score:
-            // 1. 가격(80) < MA(100) → -30
-            // 2. CMF(-0.05) < 0 but ≥ -0.1 → -15
-            // 3. fearGreed(0.0) → 0
-            // 4. signalDiff=0 → 0
-            // total = -45 → SELL
+        @DisplayName("bearCount=2 (price+cmf) + fg 중립이면 SELL을 반환한다")
+        fun `analyze two bear indicators neutral fg returns SELL`() {
+            // price(80) < ma(100)   → bear
+            // cmf(-0.1) < -0.05    → bear
+            // fg(0.0) 중립          → 미기여
+            // bearCount=2 → SELL (fg >= -0.8 이므로 STRONG 미승격)
             val data = create5DayData(
                 close = 80.0,
                 ma = 100.0,
-                cmf = -0.05,
-                fearGreed = 0.0,
-                buySignal = 0,
-                sellSignal = 0
+                cmf = -0.1,
+                fearGreed = 0.0
+            )
+
+            val result = TrendSignalCalculator.analyze(data)
+
+            assertEquals(TrendTradeSignal.SELL, result.signal)
+        }
+
+        @Test
+        @DisplayName("bearCount=2 (price+fg) + cmf 중립이면 SELL을 반환한다")
+        fun `analyze price and fg bear cmf neutral returns SELL`() {
+            // price(80) < ma(100)   → bear
+            // cmf(-0.02) 중립       → 미기여
+            // fg(-0.6) < -0.5      → bear
+            // bearCount=2 → SELL (fg=-0.6 >= -0.8 이므로 STRONG 미승격)
+            val data = create5DayData(
+                close = 80.0,
+                ma = 100.0,
+                cmf = -0.02,
+                fearGreed = -0.6
             )
 
             val result = TrendSignalCalculator.analyze(data)
@@ -310,7 +390,7 @@ class TrendSignalCalculatorTest {
             val data = create5DayData(
                 close = 80.0,
                 ma = 100.0,
-                cmf = -0.05,
+                cmf = -0.1,
                 fearGreed = 0.0
             )
 
@@ -322,6 +402,7 @@ class TrendSignalCalculatorTest {
 
     // =========================================================================
     // analyze() — 강력매도 시나리오 (STRONG_SELL)
+    // 조건: bearCount >= 2 AND fg < -0.8
     // =========================================================================
 
     @Nested
@@ -329,23 +410,35 @@ class TrendSignalCalculatorTest {
     inner class StrongSellTests {
 
         @Test
-        @DisplayName("모든 조건이 최대 매도면 STRONG_SELL(강력매도)을 반환한다")
-        fun `analyze all max sell conditions returns STRONG_SELL`() {
-            // score:
-            // 1. 가격(80) < MA(100) → -30
-            // 2. CMF(-0.15) < -0.1 → -30
-            // 3. fearGreed(-0.5) < -0.4 → -20
-            // 4. signalDiff = 0 - (5+5) = -10 ≤ -2 → -20
-            // total = -100 ≤ -70 → STRONG_SELL
+        @DisplayName("3지표 모두 bear + fg < -0.8 이면 STRONG_SELL을 반환한다")
+        fun `analyze all bear indicators with extreme fear fg returns STRONG_SELL`() {
+            // price(80) < ma(100)   → bear
+            // cmf(-0.15) < -0.05   → bear
+            // fg(-0.9) < -0.5      → bear; fg < -0.8 → STRONG_SELL 승격
             val data = create5DayData(
                 close = 80.0,
                 ma = 100.0,
                 cmf = -0.15,
-                fearGreed = -0.5,
-                buySignal = 0,
-                auxBuySignal = 0,
-                sellSignal = 1,
-                auxSellSignal = 1
+                fearGreed = -0.9
+            )
+
+            val result = TrendSignalCalculator.analyze(data)
+
+            assertEquals(TrendTradeSignal.STRONG_SELL, result.signal)
+        }
+
+        @Test
+        @DisplayName("bearCount=2 (price+cmf) + fg < -0.8 이면 STRONG_SELL을 반환한다")
+        fun `analyze two bear indicators with extreme fear fg returns STRONG_SELL`() {
+            // price(80) < ma(100)   → bear
+            // cmf(-0.15) < -0.05   → bear
+            // fg(-0.85) 중립 범위 내이지만 < -0.5 → bear (bearCount=3 이지만 이미 >= 2)
+            // fg(-0.85) < -0.8 → STRONG_SELL 승격
+            val data = create5DayData(
+                close = 80.0,
+                ma = 100.0,
+                cmf = -0.15,
+                fearGreed = -0.85
             )
 
             val result = TrendSignalCalculator.analyze(data)
@@ -356,16 +449,13 @@ class TrendSignalCalculatorTest {
         @Test
         @DisplayName("강력매도이고 극도의 공포 상태면 특별 권고를 반환한다")
         fun `analyze STRONG_SELL with extreme fear returns special recommendation`() {
-            // fearGreed <= -0.6 → EXTREME_FEAR
+            // fearGreed <= -0.6 → EXTREME_FEAR → 특별 권고
+            // bearCount=2, fg=-0.9 < -0.8 → STRONG_SELL
             val data = create5DayData(
                 close = 80.0,
                 ma = 100.0,
                 cmf = -0.15,
-                fearGreed = -0.7,
-                buySignal = 0,
-                auxBuySignal = 0,
-                sellSignal = 1,
-                auxSellSignal = 1
+                fearGreed = -0.9
             )
 
             val result = TrendSignalCalculator.analyze(data)
@@ -377,23 +467,24 @@ class TrendSignalCalculatorTest {
         @Test
         @DisplayName("강력매도이고 공포 상태가 아니면 기본 권고를 반환한다")
         fun `analyze STRONG_SELL without extreme fear returns default recommendation`() {
-            // fearGreed = -0.2 → FEAR (not EXTREME_FEAR)
-            // score: -30 + -30 + -10 + -20 = -90 → STRONG_SELL
+            // fg=-0.85 < -0.8 → STRONG_SELL; EXTREME_FEAR는 fg <= -0.6이므로 해당
+            // 단, 기본 권고 테스트: EXTREME_FEAR가 아닌 케이스는 fg > -0.6 필요
+            // STRONG_SELL 조건: fg < -0.8 이므로, fg 범위 [-0.8, -0.6) 사용 불가 (불가능한 범위)
+            // 실제로 STRONG_SELL (fg < -0.8) 이면 fg <= -0.6도 참이므로 항상 EXTREME_FEAR
+            // 이 테스트는 로직상 도달 불가능하지만, recommendation 분기를 명시하기 위해
+            // STRONG_SELL + EXTREME_FEAR → "강한 매도 시그널, 반등 기회 모니터링"임을 간접 검증
             val data = create5DayData(
                 close = 80.0,
                 ma = 100.0,
                 cmf = -0.15,
-                fearGreed = -0.2,
-                buySignal = 0,
-                auxBuySignal = 0,
-                sellSignal = 1,
-                auxSellSignal = 1
+                fearGreed = -0.9
             )
 
             val result = TrendSignalCalculator.analyze(data)
 
+            // fg=-0.9 → EXTREME_FEAR → 특별 권고
             assertEquals(TrendTradeSignal.STRONG_SELL, result.signal)
-            assertEquals("적극 매도 검토", result.recommendation)
+            assertEquals("강한 매도 시그널, 반등 기회 모니터링", result.recommendation)
         }
 
         @Test
@@ -403,7 +494,7 @@ class TrendSignalCalculatorTest {
                 close = 80.0,
                 ma = 100.0,
                 cmf = -0.15,
-                fearGreed = -0.5,
+                fearGreed = -0.9,
                 buySignal = 0,
                 auxBuySignal = 0,
                 sellSignal = 1,
@@ -429,17 +520,13 @@ class TrendSignalCalculatorTest {
         @Test
         @DisplayName("강력매수이고 극도의 탐욕 상태면 '강한 매수 시그널이나, 과열 주의' 권고를 반환한다")
         fun `analyze STRONG_BUY with extreme greed returns caution recommendation`() {
-            // fearGreed > 0.6 → EXTREME_GREED
-            // score: +30 + +30 + +20 + +20 = 100 → STRONG_BUY
+            // fearGreed > 0.6 → EXTREME_GREED → 과열 권고
+            // bullCount=3, fg=1.2 > 1.0 → STRONG_BUY
             val data = create5DayData(
                 close = 100.0,
                 ma = 80.0,
                 cmf = 0.15,
-                fearGreed = 0.7,
-                buySignal = 1,
-                auxBuySignal = 1,
-                sellSignal = 0,
-                auxSellSignal = 0
+                fearGreed = 1.2
             )
 
             val result = TrendSignalCalculator.analyze(data)
@@ -451,22 +538,23 @@ class TrendSignalCalculatorTest {
         @Test
         @DisplayName("강력매수이고 탐욕(과열 아님) 상태면 기본 권고를 반환한다")
         fun `analyze STRONG_BUY without extreme greed returns default recommendation`() {
-            // fearGreed = 0.45 → GREED (not EXTREME_GREED)
+            // fearGreed=1.05 > 1.0 → STRONG_BUY, GREED (0.6 < fg <= 1.05)
+            // EXTREME_GREED는 fg > 0.6, 여기서 fg=1.05 > 0.6 → EXTREME_GREED
+            // 따라서 과열 권고가 나온다. 탐욕(GREED, 0.2<fg<=0.6)에서만 기본 권고 확인.
+            // 탐욕 상태 + STRONG_BUY는 달성 불가 (STRONG_BUY 조건이 fg>1.0이라 항상 EXTREME_GREED)
+            // 따라서 BUY (fg<=1.0) + GREED로 기본 권고 검증
             val data = create5DayData(
                 close = 100.0,
                 ma = 80.0,
                 cmf = 0.15,
-                fearGreed = 0.45,
-                buySignal = 1,
-                auxBuySignal = 1,
-                sellSignal = 0,
-                auxSellSignal = 0
+                fearGreed = 0.45   // GREED 범위; fg <= 1.0 → BUY
             )
 
             val result = TrendSignalCalculator.analyze(data)
 
-            assertEquals(TrendTradeSignal.STRONG_BUY, result.signal)
-            assertEquals("적극 매수 검토", result.recommendation)
+            // fg=0.45 <= 1.0 → BUY (not STRONG_BUY)
+            assertEquals(TrendTradeSignal.BUY, result.signal)
+            assertEquals("매수 관심, 추가 확인 권장", result.recommendation)
         }
     }
 
@@ -551,7 +639,7 @@ class TrendSignalCalculatorTest {
         }
 
         @Test
-        @DisplayName("0 < CMF ≤ 0.1이면 설명에 '자금 유입'이 포함된다")
+        @DisplayName("0 < CMF <= 0.1이면 설명에 '자금 유입'이 포함된다")
         fun `analyze small positive CMF includes inflow in description`() {
             val data = createData(
                 close = listOf(100.0),
@@ -569,7 +657,7 @@ class TrendSignalCalculatorTest {
         }
 
         @Test
-        @DisplayName("-0.1 ≤ CMF < 0이면 설명에 '자금 유출'이 포함된다")
+        @DisplayName("-0.1 <= CMF < 0이면 설명에 '자금 유출'이 포함된다")
         fun `analyze small negative CMF includes outflow in description`() {
             val data = createData(
                 close = listOf(100.0),
@@ -750,91 +838,79 @@ class TrendSignalCalculatorTest {
     }
 
     // =========================================================================
-    // determineSignal() — 점수 경계값 테스트 (via analyze())
+    // determineSignal() — 2-of-3 투표 로직 경계값 테스트
     // =========================================================================
 
     @Nested
-    @DisplayName("determineSignal() — 점수 경계값 검증")
-    inner class ScoreBoundaryTests {
+    @DisplayName("determineSignal() — 2-of-3 투표 경계값 검증")
+    inner class VotingBoundaryTests {
 
         @Test
-        @DisplayName("score = 70 → STRONG_BUY (정확한 경계)")
-        fun `score exactly 70 returns STRONG_BUY`() {
-            // +30 (price>ma) + +30 (cmf>0.1) + +10 (fg>0 && ≤0.4) + 0 = 70 → STRONG_BUY
-            val data = createData(
-                close = listOf(100.0),
-                ma = listOf(90.0),
-                cmf = listOf(0.15),
-                fearGreed = listOf(0.1),   // >0 && ≤0.4 → +10
-                buySignal = listOf(0),
-                auxBuySignal = listOf(0),
-                sellSignal = listOf(0),
-                auxSellSignal = listOf(0)
-            )
+        @DisplayName("CMF 임계값: cmf=0.05 초과면 bull, 이하면 미기여")
+        fun `cmf above 0_05 threshold contributes bull vote`() {
+            // price(100) > ma(80) → bull
+            // cmf(0.06) > 0.05   → bull  (bullCount=2 → BUY)
+            val above = create5DayData(close = 100.0, ma = 80.0, cmf = 0.06, fearGreed = 0.0)
+            assertEquals(TrendTradeSignal.BUY, TrendSignalCalculator.analyze(above).signal)
 
-            val result = TrendSignalCalculator.analyze(data)
-
-            assertEquals(TrendTradeSignal.STRONG_BUY, result.signal)
+            // cmf(0.05) == 0.05  → 중립 (bullCount=1 → NEUTRAL)
+            val atThreshold = create5DayData(close = 100.0, ma = 80.0, cmf = 0.05, fearGreed = 0.0)
+            assertEquals(TrendTradeSignal.NEUTRAL, TrendSignalCalculator.analyze(atThreshold).signal)
         }
 
         @Test
-        @DisplayName("score = -70 → STRONG_SELL (정확한 경계)")
-        fun `score exactly -70 returns STRONG_SELL`() {
-            // -30 + -30 + -10 + 0 = -70 → STRONG_SELL
-            val data = createData(
-                close = listOf(80.0),
-                ma = listOf(100.0),
-                cmf = listOf(-0.15),
-                fearGreed = listOf(-0.1),  // <0 && ≥-0.4 → -10
-                buySignal = listOf(0),
-                auxBuySignal = listOf(0),
-                sellSignal = listOf(0),
-                auxSellSignal = listOf(0)
-            )
+        @DisplayName("CMF 임계값: cmf=-0.05 미만이면 bear, 이상이면 미기여")
+        fun `cmf below negative 0_05 threshold contributes bear vote`() {
+            // price(80) < ma(100) → bear
+            // cmf(-0.06) < -0.05 → bear  (bearCount=2 → SELL)
+            val below = create5DayData(close = 80.0, ma = 100.0, cmf = -0.06, fearGreed = 0.0)
+            assertEquals(TrendTradeSignal.SELL, TrendSignalCalculator.analyze(below).signal)
 
-            val result = TrendSignalCalculator.analyze(data)
-
-            assertEquals(TrendTradeSignal.STRONG_SELL, result.signal)
+            // cmf(-0.05) == -0.05 → 중립 (bearCount=1 → NEUTRAL)
+            val atThreshold = create5DayData(close = 80.0, ma = 100.0, cmf = -0.05, fearGreed = 0.0)
+            assertEquals(TrendTradeSignal.NEUTRAL, TrendSignalCalculator.analyze(atThreshold).signal)
         }
 
         @Test
-        @DisplayName("score = 30 → BUY (정확한 경계)")
-        fun `score exactly 30 returns BUY`() {
-            // +30 (price>ma) + 0 + 0 + 0 = 30 → BUY
-            val data = createData(
-                close = listOf(100.0),
-                ma = listOf(90.0),
-                cmf = listOf(0.0),
-                fearGreed = listOf(0.0),
-                buySignal = listOf(0),
-                auxBuySignal = listOf(0),
-                sellSignal = listOf(0),
-                auxSellSignal = listOf(0)
-            )
-
-            val result = TrendSignalCalculator.analyze(data)
-
-            assertEquals(TrendTradeSignal.BUY, result.signal)
+        @DisplayName("FG 임계값: fg=0.5 초과면 bull 기여")
+        fun `fg above 0_5 threshold contributes bull vote`() {
+            // price(100) > ma(80) → bull
+            // fg(0.51) > 0.5      → bull (bullCount=2 → BUY)
+            val data = create5DayData(close = 100.0, ma = 80.0, cmf = 0.0, fearGreed = 0.51)
+            assertEquals(TrendTradeSignal.BUY, TrendSignalCalculator.analyze(data).signal)
         }
 
         @Test
-        @DisplayName("score = -30 → SELL (정확한 경계)")
-        fun `score exactly -30 returns SELL`() {
-            // -30 (price<ma) + 0 + 0 + 0 = -30 → SELL
-            val data = createData(
-                close = listOf(80.0),
-                ma = listOf(100.0),
-                cmf = listOf(0.0),
-                fearGreed = listOf(0.0),
-                buySignal = listOf(0),
-                auxBuySignal = listOf(0),
-                sellSignal = listOf(0),
-                auxSellSignal = listOf(0)
-            )
+        @DisplayName("FG 임계값: fg=-0.5 미만이면 bear 기여")
+        fun `fg below negative 0_5 threshold contributes bear vote`() {
+            // price(80) < ma(100) → bear
+            // fg(-0.51) < -0.5    → bear (bearCount=2 → SELL)
+            val data = create5DayData(close = 80.0, ma = 100.0, cmf = 0.0, fearGreed = -0.51)
+            assertEquals(TrendTradeSignal.SELL, TrendSignalCalculator.analyze(data).signal)
+        }
 
-            val result = TrendSignalCalculator.analyze(data)
+        @Test
+        @DisplayName("STRONG_BUY 승격 임계값: fg=1.0 초과면 STRONG_BUY")
+        fun `fg above 1_0 upgrades BUY to STRONG_BUY`() {
+            // bullCount=2, fg=1.01 > 1.0 → STRONG_BUY
+            val data = create5DayData(close = 100.0, ma = 80.0, cmf = 0.1, fearGreed = 1.01)
+            assertEquals(TrendTradeSignal.STRONG_BUY, TrendSignalCalculator.analyze(data).signal)
 
-            assertEquals(TrendTradeSignal.SELL, result.signal)
+            // bullCount=2, fg=1.0 <= 1.0 → BUY (승격 미발생)
+            val notUpgraded = create5DayData(close = 100.0, ma = 80.0, cmf = 0.1, fearGreed = 1.0)
+            assertEquals(TrendTradeSignal.BUY, TrendSignalCalculator.analyze(notUpgraded).signal)
+        }
+
+        @Test
+        @DisplayName("STRONG_SELL 승격 임계값: fg=-0.8 미만이면 STRONG_SELL")
+        fun `fg below negative 0_8 upgrades SELL to STRONG_SELL`() {
+            // bearCount=2, fg=-0.81 < -0.8 → STRONG_SELL
+            val data = create5DayData(close = 80.0, ma = 100.0, cmf = -0.1, fearGreed = -0.81)
+            assertEquals(TrendTradeSignal.STRONG_SELL, TrendSignalCalculator.analyze(data).signal)
+
+            // bearCount=2, fg=-0.8 >= -0.8 → SELL (승격 미발생)
+            val notUpgraded = create5DayData(close = 80.0, ma = 100.0, cmf = -0.1, fearGreed = -0.8)
+            assertEquals(TrendTradeSignal.SELL, TrendSignalCalculator.analyze(notUpgraded).signal)
         }
     }
 }

@@ -16,9 +16,9 @@ class GetEtfListUseCase @Inject constructor(
     private val repository: EtfRepository
 ) {
     /**
-     * @return ETF 목록 Flow
+     * @return 현재 키워드 설정 기반으로 필터링된 ETF 목록 Flow
      */
     operator fun invoke(): Flow<List<Etf>> =
-        repository.getAllEtfs()
+        repository.getVisibleEtfs()
             .flowOn(Dispatchers.IO)
 }

@@ -56,6 +56,28 @@ class StockStatisticsRepositoryImpl @Inject constructor(
         }
     }
 
+    private suspend fun getVisibleEtfTickers(etfNameFilter: String? = null): List<String> {
+        val themesStr = etfDao.getSetting("include_themes") ?: ""
+        val exclusionsStr = etfDao.getSetting("exclude_keywords") ?: ""
+        val themes = if (themesStr.isBlank()) emptyList() else themesStr.split(",").map { it.trim() }
+        val exclusions = if (exclusionsStr.isBlank()) emptyList() else exclusionsStr.split(",").map { it.trim() }
+        val includeKeywords = themes + listOf("액티브")
+
+        val allEtfs = etfDao.getAllEtfsSuspend()
+        return allEtfs.filter { etf ->
+            val includeMatch = includeKeywords.any { kw ->
+                etf.name.contains(kw, ignoreCase = true)
+            }
+            val excludeMatch = exclusions.any { kw ->
+                etf.name.contains(kw, ignoreCase = true)
+            }
+            val categoryMatch = etfNameFilter?.let {
+                etf.name.contains(it, ignoreCase = true)
+            } ?: true
+            includeMatch && !excludeMatch && categoryMatch
+        }.map { it.ticker }
+    }
+
     // ========== 통계 날짜 ==========
 
     override suspend fun getStatisticsDates(): Pair<String, String>? = withContext(Dispatchers.IO) {
@@ -101,70 +123,86 @@ class StockStatisticsRepositoryImpl @Inject constructor(
 
     override suspend fun getStockAmountRanking(): List<StockAmountRanking> = withContext(Dispatchers.IO) {
         val dates = getStatisticsDates() ?: return@withContext emptyList()
-        localDataSource.getStockAmountRanking(dates.first, dates.second).toRankingDomain()
+        val visibleTickers = getVisibleEtfTickers()
+        localDataSource.getStockAmountRanking(dates.first, dates.second, visibleTickers).toRankingDomain()
     }
 
     override suspend fun getStockAmountRankingInRange(
         currentDate: String,
-        previousDate: String
+        previousDate: String,
+        etfNameFilter: String?
     ): List<StockAmountRanking> = withContext(Dispatchers.IO) {
-        localDataSource.getStockAmountRanking(currentDate, previousDate).toRankingDomain()
+        val visibleTickers = getVisibleEtfTickers(etfNameFilter)
+        localDataSource.getStockAmountRanking(currentDate, previousDate, visibleTickers).toRankingDomain()
     }
 
     // ========== 종목 변화 ==========
 
     override suspend fun getAllNewStocks(): List<StockChangeInfo> = withContext(Dispatchers.IO) {
         val dates = getStatisticsDates() ?: return@withContext emptyList()
-        localDataSource.getAllNewStocks(dates.first, dates.second).toChangeInfoDomain()
+        val visibleTickers = getVisibleEtfTickers()
+        localDataSource.getAllNewStocks(dates.first, dates.second, visibleTickers).toChangeInfoDomain()
     }
 
     override suspend fun getAllNewStocksInRange(
         currentDate: String,
-        previousDate: String
+        previousDate: String,
+        etfNameFilter: String?
     ): List<StockChangeInfo> = withContext(Dispatchers.IO) {
-        localDataSource.getAllNewStocks(currentDate, previousDate).toChangeInfoDomain()
+        val visibleTickers = getVisibleEtfTickers(etfNameFilter)
+        localDataSource.getAllNewStocks(currentDate, previousDate, visibleTickers).toChangeInfoDomain()
     }
 
     override suspend fun getAllRemovedStocks(): List<StockChangeInfo> = withContext(Dispatchers.IO) {
         val dates = getStatisticsDates() ?: return@withContext emptyList()
-        localDataSource.getAllRemovedStocks(dates.first, dates.second).toChangeInfoDomain()
+        val visibleTickers = getVisibleEtfTickers()
+        localDataSource.getAllRemovedStocks(dates.first, dates.second, visibleTickers).toChangeInfoDomain()
     }
 
     override suspend fun getAllRemovedStocksInRange(
         currentDate: String,
-        previousDate: String
+        previousDate: String,
+        etfNameFilter: String?
     ): List<StockChangeInfo> = withContext(Dispatchers.IO) {
-        localDataSource.getAllRemovedStocks(currentDate, previousDate).toChangeInfoDomain()
+        val visibleTickers = getVisibleEtfTickers(etfNameFilter)
+        localDataSource.getAllRemovedStocks(currentDate, previousDate, visibleTickers).toChangeInfoDomain()
     }
 
     override suspend fun getAllIncreasedStocks(): List<StockChangeInfo> = withContext(Dispatchers.IO) {
         val dates = getStatisticsDates() ?: return@withContext emptyList()
-        localDataSource.getAllIncreasedStocks(dates.first, dates.second).toChangeInfoDomain()
+        val visibleTickers = getVisibleEtfTickers()
+        localDataSource.getAllIncreasedStocks(dates.first, dates.second, visibleTickers).toChangeInfoDomain()
     }
 
     override suspend fun getAllIncreasedStocksInRange(
         currentDate: String,
-        previousDate: String
+        previousDate: String,
+        etfNameFilter: String?
     ): List<StockChangeInfo> = withContext(Dispatchers.IO) {
-        localDataSource.getAllIncreasedStocks(currentDate, previousDate).toChangeInfoDomain()
+        val visibleTickers = getVisibleEtfTickers(etfNameFilter)
+        localDataSource.getAllIncreasedStocks(currentDate, previousDate, visibleTickers).toChangeInfoDomain()
     }
 
     override suspend fun getAllDecreasedStocks(): List<StockChangeInfo> = withContext(Dispatchers.IO) {
         val dates = getStatisticsDates() ?: return@withContext emptyList()
-        localDataSource.getAllDecreasedStocks(dates.first, dates.second).toChangeInfoDomain()
+        val visibleTickers = getVisibleEtfTickers()
+        localDataSource.getAllDecreasedStocks(dates.first, dates.second, visibleTickers).toChangeInfoDomain()
     }
 
     override suspend fun getAllDecreasedStocksInRange(
         currentDate: String,
-        previousDate: String
+        previousDate: String,
+        etfNameFilter: String?
     ): List<StockChangeInfo> = withContext(Dispatchers.IO) {
-        localDataSource.getAllDecreasedStocks(currentDate, previousDate).toChangeInfoDomain()
+        val visibleTickers = getVisibleEtfTickers(etfNameFilter)
+        localDataSource.getAllDecreasedStocks(currentDate, previousDate, visibleTickers).toChangeInfoDomain()
     }
 
     // ========== 종목 분석 ==========
 
     override suspend fun searchStocks(query: String): List<StockSearchResult> = withContext(Dispatchers.IO) {
-        localDataSource.searchStocks(query).toSearchResultDomain()
+        val visibleTickers = getVisibleEtfTickers()
+        localDataSource.searchStocks(query, visibleTickers).toSearchResultDomain()
     }
 
     override suspend fun analyzeStock(stockTicker: String): StockAnalysisResult? = withContext(Dispatchers.IO) {
@@ -173,14 +211,15 @@ class StockStatisticsRepositoryImpl @Inject constructor(
 
         val currentDate = dates[0]
         val previousDate = dates.getOrNull(1)
+        val visibleTickers = getVisibleEtfTickers()
 
         // 현재 보유 현황
-        val currentHoldings = localDataSource.getStockHoldingsByDate(stockTicker, currentDate)
+        val currentHoldings = localDataSource.getStockHoldingsByDate(stockTicker, currentDate, visibleTickers)
         if (currentHoldings.isEmpty()) return@withContext null
 
         // 이전 보유 현황 (있는 경우)
         val previousHoldings = previousDate?.let {
-            localDataSource.getStockHoldingsByDate(stockTicker, it)
+            localDataSource.getStockHoldingsByDate(stockTicker, it, visibleTickers)
         } ?: emptyList()
 
         val previousHoldingsMap = previousHoldings.associateBy { it.etfTicker }
@@ -254,14 +293,16 @@ class StockStatisticsRepositoryImpl @Inject constructor(
 
     // ========== 원화예금 추이 ==========
 
-    override suspend fun getCashDepositTrend(): List<CashDepositTrend> = withContext(Dispatchers.IO) {
-        localDataSource.getCashDepositTrend().toCashDepositDomain()
+    override suspend fun getCashDepositTrend(etfNameFilter: String?): List<CashDepositTrend> = withContext(Dispatchers.IO) {
+        val visibleTickers = getVisibleEtfTickers(etfNameFilter)
+        localDataSource.getCashDepositTrend(visibleTickers).toCashDepositDomain()
     }
 
     // ========== 종목 통합 추이 ==========
 
     override suspend fun getStockAggregatedTrend(stockTicker: String): StockAggregatedTrend? = withContext(Dispatchers.IO) {
-        val timeSeries = localDataSource.getStockAggregatedTrend(stockTicker)
+        val visibleTickers = getVisibleEtfTickers()
+        val timeSeries = localDataSource.getStockAggregatedTrend(stockTicker, visibleTickers)
         if (timeSeries.isEmpty()) return@withContext null
 
         val stockName = localDataSource.getStockName(stockTicker) ?: stockTicker

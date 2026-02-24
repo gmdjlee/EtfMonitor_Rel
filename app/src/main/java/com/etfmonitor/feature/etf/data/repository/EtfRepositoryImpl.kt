@@ -27,6 +27,8 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -75,6 +77,9 @@ class EtfRepositoryImpl @Inject constructor(
     @Volatile
     private var dateFormatNormalized = false
 
+    // 키워드 변경 시 Flow 재평가 트리거
+    private val _keywordVersion = MutableStateFlow(0L)
+
     private suspend fun ensureDateFormatNormalized() {
         if (!dateFormatNormalized) {
             etfDao.normalizeDateFormat()
@@ -89,10 +94,26 @@ class EtfRepositoryImpl @Inject constructor(
             .map { entities -> entities.toDomain() }
             .flowOn(Dispatchers.IO)
 
+    override fun getVisibleEtfs(): Flow<List<Etf>> =
+        combine(
+            localDataSource.getAllEtfs().map { entities -> entities.toDomain() },
+            _keywordVersion
+        ) { etfs, _ ->
+            applyKeywordFilter(etfs)
+        }.flowOn(Dispatchers.IO)
+
     override fun searchEtfs(query: String): Flow<List<Etf>> =
         localDataSource.searchEtfs(query)
             .map { entities -> entities.toDomain() }
             .flowOn(Dispatchers.IO)
+
+    override fun searchVisibleEtfs(query: String): Flow<List<Etf>> =
+        combine(
+            localDataSource.searchEtfs(query).map { entities -> entities.toDomain() },
+            _keywordVersion
+        ) { etfs, _ ->
+            applyKeywordFilter(etfs)
+        }.flowOn(Dispatchers.IO)
 
     // ========== Data Status ==========
 
@@ -644,6 +665,7 @@ class EtfRepositoryImpl @Inject constructor(
         if (!current.contains(theme)) {
             current.add(theme)
             etfDao.saveSetting(Setting("themes", current.joinToString(",")))
+            _keywordVersion.value = System.currentTimeMillis()
         }
     }
 
@@ -651,6 +673,7 @@ class EtfRepositoryImpl @Inject constructor(
         val current = getThemes().toMutableList()
         current.remove(theme)
         etfDao.saveSetting(Setting("themes", current.joinToString(",")))
+        _keywordVersion.value = System.currentTimeMillis()
     }
 
     override suspend fun getExclusions(): List<String> = withContext(Dispatchers.IO) {
@@ -674,6 +697,7 @@ class EtfRepositoryImpl @Inject constructor(
         if (!current.contains(keyword)) {
             current.add(keyword)
             etfDao.saveSetting(Setting("exclusions", current.joinToString(",")))
+            _keywordVersion.value = System.currentTimeMillis()
         }
     }
 
@@ -681,6 +705,77 @@ class EtfRepositoryImpl @Inject constructor(
         val current = getExclusions().toMutableList()
         current.remove(keyword)
         etfDao.saveSetting(Setting("exclusions", current.joinToString(",")))
+        _keywordVersion.value = System.currentTimeMillis()
+    }
+
+    // ========== Keyword Filtering ==========
+
+    private suspend fun applyKeywordFilter(etfs: List<Etf>): List<Etf> {
+        val themes = getThemes()
+        val exclusions = getExclusions()
+        val includeKeywords = themes + listOf("액티브")
+        return etfs.filter { etf ->
+            val includeMatch = includeKeywords.any { kw ->
+                etf.name.contains(kw, ignoreCase = true)
+            }
+            val excludeMatch = exclusions.any { kw ->
+                etf.name.contains(kw, ignoreCase = true)
+            }
+            includeMatch && !excludeMatch
+        }
+    }
+
+    override suspend fun collectForNewKeyword(keyword: String): Result<Int> = withContext(Dispatchers.IO) {
+        try {
+            logger.d("collectForNewKeyword: START for '$keyword'")
+
+            // 1. 최신 영업일 조회 (최근 5일 내 가장 최근 영업일)
+            val businessDays = getKrxBusinessDaysUseCase(5).getOrElse { emptyList() }
+            if (businessDays.isEmpty()) {
+                return@withContext Result.failure(Exception("영업일을 찾을 수 없습니다"))
+            }
+            val latestDate = businessDays.first()
+            val dateYYYYMMDD = latestDate.replace("-", "")
+
+            // 2. 해당 키워드만으로 ETF 목록 조회
+            val exclusions = getExclusions()
+            val validEtfs = getKrxEtfListUseCase(
+                date = dateYYYYMMDD,
+                includeKeywords = listOf(keyword),
+                excludeKeywords = exclusions
+            ).getOrElse {
+                logger.e("kotlin_krx ETF list failed for keyword '$keyword'")
+                emptyList()
+            }
+
+            if (validEtfs.isEmpty()) {
+                logger.d("collectForNewKeyword: No ETFs found for '$keyword'")
+                return@withContext Result.success(0)
+            }
+
+            // 3. 기존 DB에 없는 ETF만 필터
+            val existingTickers = etfDao.getAllEtfsSuspend().map { it.ticker }.toSet()
+            val newEtfs = validEtfs.filter { it.ticker !in existingTickers }
+
+            if (newEtfs.isEmpty()) {
+                logger.d("collectForNewKeyword: All ${validEtfs.size} ETFs already in DB")
+                return@withContext Result.success(0)
+            }
+
+            logger.d("collectForNewKeyword: ${newEtfs.size} new ETFs to collect")
+
+            // 4. 새 ETF + holdings 수집 (rate limiting 포함)
+            val results = processEtfsInParallel(newEtfs, dateYYYYMMDD, latestDate)
+            val addedCount = results.count { it.holdings.isNotEmpty() }
+
+            logger.d("collectForNewKeyword: COMPLETE - $addedCount ETFs added for '$keyword'")
+            Result.success(addedCount)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.e("collectForNewKeyword: ERROR", e)
+            Result.failure(e)
+        }
     }
 
     // ========== Private Helpers ==========

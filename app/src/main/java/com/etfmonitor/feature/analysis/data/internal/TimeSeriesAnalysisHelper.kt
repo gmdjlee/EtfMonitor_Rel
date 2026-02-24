@@ -1095,7 +1095,8 @@ class TimeSeriesAnalysisHelper @Inject constructor(
             logger.d("Collecting stock ETF holding time series for $ticker, $periodDays days")
 
             val stockName = etfDao.getStockName(ticker) ?: ticker
-            val trendData = etfDao.getStockAggregatedTrend(ticker)
+            val allEtfTickers = etfDao.getAllEtfsSuspend().map { it.ticker }
+            val trendData = etfDao.getStockAggregatedTrend(ticker, allEtfTickers)
 
             if (trendData.isEmpty()) {
                 return@withContext Result.failure(Exception("해당 종목의 ETF 보유 데이터가 없습니다: $ticker"))

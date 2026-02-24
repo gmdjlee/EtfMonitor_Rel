@@ -102,7 +102,8 @@ fun mapToGrowthRatios(item: Map<String, String?>): GrowthRatios? {
         period = FinancialPeriod.fromYearMonth(yearMonth),
         revenueGrowth = parseNumericDouble(item["grs"]),
         operatingProfitGrowth = parseNumericDouble(item["bsop_prfi_inrt"]),
-        netIncomeGrowth = parseNumericDouble(item["ntin_inrt"]),
+        netIncomeGrowth = parseNumericDouble(item["ntin_inrt"])
+            ?: parseNumericDouble(item["thtr_ntin_inrt"]),
         equityGrowth = parseNumericDouble(item["equt_inrt"])
             ?: parseNumericDouble(item["cptl_ntin_rate"]),
         totalAssetsGrowth = parseNumericDouble(item["totl_aset_inrt"])

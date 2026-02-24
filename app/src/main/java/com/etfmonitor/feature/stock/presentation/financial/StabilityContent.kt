@@ -6,12 +6,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.etfmonitor.R
+import com.etfmonitor.core.ui.component.CustomMarkerView
 import com.etfmonitor.feature.stock.domain.model.financial.FinancialSummary
 import com.etfmonitor.feature.stock.domain.model.financial.formatPercent
 import com.github.mikephil.charting.charts.LineChart
@@ -20,6 +26,7 @@ import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import com.github.mikephil.charting.formatter.ValueFormatter
 
 @Composable
 fun StabilityContent(
@@ -38,6 +45,12 @@ fun StabilityContent(
             )
         }
         return
+    }
+
+    val totalQuarters = summary.periods.size
+    var selectedQuarterCount by remember(totalQuarters) { mutableIntStateOf(totalQuarters) }
+    val trimmedSummary = remember(summary, selectedQuarterCount) {
+        summary.trimToLast(selectedQuarterCount)
     }
 
     Column(
@@ -82,6 +95,15 @@ fun StabilityContent(
             }
         }
 
+        // Quarter selector
+        if (totalQuarters > FinancialSummary.MIN_DISPLAY_QUARTERS) {
+            QuarterSelector(
+                totalQuarters = totalQuarters,
+                selectedCount = selectedQuarterCount,
+                onSelect = { selectedQuarterCount = it }
+            )
+        }
+
         // Combined stability chart
         ChartCard(title = "안정성 지표 추이") {
             AndroidView(
@@ -96,35 +118,35 @@ fun StabilityContent(
                     }
                 },
                 update = { chart ->
-                    updateCombinedStabilityChart(chart, summary)
+                    updateCombinedStabilityChart(chart, trimmedSummary)
                 }
             )
         }
 
         // Individual charts
-        if (summary.debtRatios.any { it != 0.0 }) {
+        if (trimmedSummary.debtRatios.any { it != 0.0 }) {
             IndividualRatioChart(
                 title = "부채비율",
-                data = summary.debtRatios,
-                labels = summary.displayPeriods,
+                data = trimmedSummary.debtRatios,
+                labels = trimmedSummary.displayPeriods,
                 colorHex = "#F44336"
             )
         }
 
-        if (summary.currentRatios.any { it != 0.0 }) {
+        if (trimmedSummary.currentRatios.any { it != 0.0 }) {
             IndividualRatioChart(
                 title = "유동비율",
-                data = summary.currentRatios,
-                labels = summary.displayPeriods,
+                data = trimmedSummary.currentRatios,
+                labels = trimmedSummary.displayPeriods,
                 colorHex = "#4CAF50"
             )
         }
 
-        if (summary.borrowingDependencies.any { it != 0.0 }) {
+        if (trimmedSummary.borrowingDependencies.any { it != 0.0 }) {
             IndividualRatioChart(
                 title = "차입금 의존도",
-                data = summary.borrowingDependencies,
-                labels = summary.displayPeriods,
+                data = trimmedSummary.borrowingDependencies,
+                labels = trimmedSummary.displayPeriods,
                 colorHex = "#FF9800"
             )
         }
@@ -209,8 +231,19 @@ private fun IndividualRatioChart(
                     granularity = 1f
                     setDrawGridLines(false)
                 }
-                chart.axisLeft.setDrawGridLines(true)
+                chart.axisLeft.apply {
+                    setDrawGridLines(true)
+                    valueFormatter = object : ValueFormatter() {
+                        override fun getFormattedValue(value: Float): String = "%.0f%%".format(value)
+                    }
+                }
                 chart.axisRight.isEnabled = false
+
+                chart.marker = CustomMarkerView(
+                    chart.context, R.layout.marker_view, labels
+                ) { value -> "%.1f%%".format(value) }
+                chart.isHighlightPerTapEnabled = true
+
                 chart.invalidate()
             }
         )
@@ -251,8 +284,19 @@ private fun updateCombinedStabilityChart(chart: LineChart, summary: FinancialSum
         granularity = 1f
         setDrawGridLines(false)
     }
-    chart.axisLeft.setDrawGridLines(true)
+    chart.axisLeft.apply {
+        setDrawGridLines(true)
+        valueFormatter = object : ValueFormatter() {
+            override fun getFormattedValue(value: Float): String = "%.0f%%".format(value)
+        }
+    }
     chart.axisRight.isEnabled = false
+
+    chart.marker = CustomMarkerView(
+        chart.context, R.layout.marker_view, summary.displayPeriods
+    ) { value -> "%.1f%%".format(value) }
+    chart.isHighlightPerTapEnabled = true
+
     chart.invalidate()
 }
 

@@ -132,6 +132,7 @@ interface EtfDao {
                 FROM holdings prev
                 WHERE prev.stockTicker = curr.stockTicker
                 AND prev.date = :previousDate
+                AND prev.etfTicker IN (:visibleEtfTickers)
                 AND NOT EXISTS (
                     SELECT 1 FROM holdings curr2
                     WHERE curr2.stockTicker = prev.stockTicker
@@ -141,11 +142,12 @@ interface EtfDao {
             ), 0) as removedEtfCount
         FROM holdings curr
         WHERE curr.date = :currentDate
+        AND curr.etfTicker IN (:visibleEtfTickers)
         GROUP BY curr.stockTicker, curr.stockName
         ORDER BY totalAmount DESC
         LIMIT 500
     """)
-    suspend fun getStockAmountRanking(currentDate: String, previousDate: String): List<StockAmountRanking>
+    suspend fun getStockAmountRanking(currentDate: String, previousDate: String, visibleEtfTickers: List<String>): List<StockAmountRanking>
 
     /**
      * 전체 신규 편입 종목 (LIMIT 300: 메모리 최적화)
@@ -163,6 +165,7 @@ interface EtfDao {
         FROM holdings curr
         INNER JOIN etfs e ON curr.etfTicker = e.ticker
         WHERE curr.date = :currentDate
+        AND curr.etfTicker IN (:visibleEtfTickers)
         AND NOT EXISTS (
             SELECT 1 FROM holdings prev
             WHERE prev.stockTicker = curr.stockTicker
@@ -172,7 +175,7 @@ interface EtfDao {
         ORDER BY curr.amountMillion DESC
         LIMIT 300
     """)
-    suspend fun getAllNewStocks(currentDate: String, previousDate: String): List<StockChangeInfo>
+    suspend fun getAllNewStocks(currentDate: String, previousDate: String, visibleEtfTickers: List<String>): List<StockChangeInfo>
 
     /**
      * 전체 제외 종목 (LIMIT 300: 메모리 최적화)
@@ -190,6 +193,7 @@ interface EtfDao {
         FROM holdings prev
         INNER JOIN etfs e ON prev.etfTicker = e.ticker
         WHERE prev.date = :previousDate
+        AND prev.etfTicker IN (:visibleEtfTickers)
         AND NOT EXISTS (
             SELECT 1 FROM holdings curr
             WHERE curr.stockTicker = prev.stockTicker
@@ -199,7 +203,7 @@ interface EtfDao {
         ORDER BY prev.amountMillion DESC
         LIMIT 300
     """)
-    suspend fun getAllRemovedStocks(currentDate: String, previousDate: String): List<StockChangeInfo>
+    suspend fun getAllRemovedStocks(currentDate: String, previousDate: String, visibleEtfTickers: List<String>): List<StockChangeInfo>
 
     /**
      * 전체 비중 증가 종목 (LIMIT 300: 메모리 최적화)
@@ -221,11 +225,12 @@ interface EtfDao {
         INNER JOIN etfs e ON curr.etfTicker = e.ticker
         WHERE curr.date = :currentDate
         AND prev.date = :previousDate
+        AND curr.etfTicker IN (:visibleEtfTickers)
         AND curr.weightBps > prev.weightBps + 100
         ORDER BY (curr.weightBps - prev.weightBps) DESC
         LIMIT 300
     """)
-    suspend fun getAllIncreasedStocks(currentDate: String, previousDate: String): List<StockChangeInfo>
+    suspend fun getAllIncreasedStocks(currentDate: String, previousDate: String, visibleEtfTickers: List<String>): List<StockChangeInfo>
 
     // ========== Settings ==========
 
@@ -280,11 +285,12 @@ interface EtfDao {
         INNER JOIN etfs e ON curr.etfTicker = e.ticker
         WHERE curr.date = :currentDate
         AND prev.date = :previousDate
+        AND curr.etfTicker IN (:visibleEtfTickers)
         AND curr.weightBps < prev.weightBps - 100
         ORDER BY (curr.weightBps - prev.weightBps) ASC
         LIMIT 300
     """)
-    suspend fun getAllDecreasedStocks(currentDate: String, previousDate: String): List<StockChangeInfo>
+    suspend fun getAllDecreasedStocks(currentDate: String, previousDate: String, visibleEtfTickers: List<String>): List<StockChangeInfo>
 
     /**
      * 원화예금 추이 (모든 ETF 합계)
@@ -295,12 +301,12 @@ interface EtfDao {
             SUM(CAST(amountMillion AS REAL) * 1000000.0) as totalAmount,
             COUNT(DISTINCT etfTicker) as etfCount
         FROM holdings
-        WHERE stockName LIKE '%원화예금%' OR stockName LIKE '%cash%'
+        WHERE (stockName LIKE '%원화예금%' OR stockName LIKE '%cash%') AND etfTicker IN (:visibleEtfTickers)
         GROUP BY date
         ORDER BY date ASC
         LIMIT 730
     """)
-    suspend fun getCashDepositTrend(): List<CashDepositTrend>
+    suspend fun getCashDepositTrend(visibleEtfTickers: List<String>): List<CashDepositTrend>
 
     /**
      * 특정 종목의 전체 ETF 통합 추이
@@ -314,11 +320,12 @@ interface EtfDao {
             AVG(CAST(weightBps AS REAL) / 10000.0) as avgWeight
         FROM holdings
         WHERE stockTicker = :stockTicker
+        AND etfTicker IN (:visibleEtfTickers)
         GROUP BY date
         ORDER BY date ASC
         LIMIT 730
     """)
-    suspend fun getStockAggregatedTrend(stockTicker: String): List<StockAggregatedTimePoint>
+    suspend fun getStockAggregatedTrend(stockTicker: String, visibleEtfTickers: List<String>): List<StockAggregatedTimePoint>
 
     /**
      * 종목명 가져오기
@@ -337,13 +344,13 @@ interface EtfDao {
     @Query("""
         SELECT DISTINCT stockTicker, stockName
         FROM holdings
-        WHERE stockName LIKE '%' || :query || '%'
-           OR stockTicker LIKE '%' || :query || '%'
+        WHERE (stockName LIKE '%' || :query || '%'
+           OR stockTicker LIKE '%' || :query || '%') AND etfTicker IN (:visibleEtfTickers)
         GROUP BY stockTicker
         ORDER BY stockName
         LIMIT 50
     """)
-    suspend fun searchStocks(query: String): List<StockSearchResult>
+    suspend fun searchStocks(query: String, visibleEtfTickers: List<String>): List<StockSearchResult>
 
     /**
      * 특정 종목의 현재/이전 날짜 ETF 보유 현황
@@ -357,10 +364,11 @@ interface EtfDao {
         FROM holdings h
         INNER JOIN etfs e ON h.etfTicker = e.ticker
         WHERE h.stockTicker = :stockTicker AND h.date = :date
+        AND h.etfTicker IN (:visibleEtfTickers)
         ORDER BY h.amountMillion DESC
         LIMIT 100
     """)
-    suspend fun getStockHoldingsByDate(stockTicker: String, date: String): List<StockHoldingByEtf>
+    suspend fun getStockHoldingsByDate(stockTicker: String, date: String, visibleEtfTickers: List<String>): List<StockHoldingByEtf>
 
     // ========== 데이터 아카이빙 관련 ==========
 

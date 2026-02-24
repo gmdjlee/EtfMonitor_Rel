@@ -77,11 +77,11 @@ class MarketOscillatorViewModel @Inject constructor(
     private val _marketData = MutableStateFlow<List<MarketOscillator>>(emptyList())
     val marketData: StateFlow<List<MarketOscillator>> = _marketData.asStateFlow()
 
-    // 과매수 기준 (기본 80%)
+    // 과매수 기준 (기본 80)
     private val _overboughtThreshold = MutableStateFlow(80.0)
     val overboughtThreshold: StateFlow<Double> = _overboughtThreshold.asStateFlow()
 
-    // 과매도 기준 (기본 -80%)
+    // 과매도 기준 (기본 -80)
     private val _oversoldThreshold = MutableStateFlow(-80.0)
     val oversoldThreshold: StateFlow<Double> = _oversoldThreshold.asStateFlow()
 

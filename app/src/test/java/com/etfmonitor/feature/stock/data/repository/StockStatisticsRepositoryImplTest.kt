@@ -222,7 +222,7 @@ class StockStatisticsRepositoryImplTest {
                 createTestStockAmountRanking("005930", "삼성전자", 5_000_000_000f),
                 createTestStockAmountRanking("000660", "SK하이닉스", 3_000_000_000f)
             )
-            coEvery { localDataSource.getStockAmountRanking("2026-01-15", "2026-01-14") } returns rankings
+            coEvery { localDataSource.getStockAmountRanking("2026-01-15", "2026-01-14", any()) } returns rankings
 
             // When
             val result = repository.getStockAmountRanking()
@@ -256,7 +256,7 @@ class StockStatisticsRepositoryImplTest {
         // Given
         coEvery { localDataSource.getLatestTwoDates() } returns listOf("2026-01-15", "2026-01-14")
         val newStocks = listOf(createTestStockChangeInfo("005930", "삼성전자"))
-        coEvery { localDataSource.getAllNewStocks("2026-01-15", "2026-01-14") } returns newStocks
+        coEvery { localDataSource.getAllNewStocks("2026-01-15", "2026-01-14", any()) } returns newStocks
 
         // When
         val result = repository.getAllNewStocks()
@@ -272,7 +272,7 @@ class StockStatisticsRepositoryImplTest {
         // Given
         coEvery { localDataSource.getLatestTwoDates() } returns listOf("2026-01-15", "2026-01-14")
         val removedStocks = listOf(createTestStockChangeInfo("035420", "NAVER"))
-        coEvery { localDataSource.getAllRemovedStocks("2026-01-15", "2026-01-14") } returns removedStocks
+        coEvery { localDataSource.getAllRemovedStocks("2026-01-15", "2026-01-14", any()) } returns removedStocks
 
         // When
         val result = repository.getAllRemovedStocks()
@@ -300,7 +300,7 @@ class StockStatisticsRepositoryImplTest {
     fun `getAllDecreasedStocks_withValidDates_delegatesToLocalDataSource`() = runTest {
         // Given
         coEvery { localDataSource.getLatestTwoDates() } returns listOf("2026-01-15", "2026-01-14")
-        coEvery { localDataSource.getAllDecreasedStocks("2026-01-15", "2026-01-14") } returns emptyList()
+        coEvery { localDataSource.getAllDecreasedStocks("2026-01-15", "2026-01-14", any()) } returns emptyList()
 
         // When
         val result = repository.getAllDecreasedStocks()
@@ -320,7 +320,7 @@ class StockStatisticsRepositoryImplTest {
         val searchResults = listOf(
             com.etfmonitor.core.database.StockSearchResult(stockTicker = "005930", stockName = "삼성전자")
         )
-        coEvery { localDataSource.searchStocks("삼성") } returns searchResults
+        coEvery { localDataSource.searchStocks("삼성", any()) } returns searchResults
 
         // When
         val result = repository.searchStocks("삼성")
@@ -334,7 +334,7 @@ class StockStatisticsRepositoryImplTest {
     @DisplayName("searchStocks_withNoMatch_returnsEmpty")
     fun `searchStocks_withNoMatch_returnsEmpty`() = runTest {
         // Given
-        coEvery { localDataSource.searchStocks(any()) } returns emptyList()
+        coEvery { localDataSource.searchStocks(any(), any()) } returns emptyList()
 
         // When
         val result = repository.searchStocks("존재하지않는종목")
@@ -355,7 +355,7 @@ class StockStatisticsRepositoryImplTest {
             CashDepositTrend(date = "2026-01-15", totalAmount = 50_000_000_000f, etfCount = 30),
             CashDepositTrend(date = "2026-01-14", totalAmount = 49_000_000_000f, etfCount = 30)
         )
-        coEvery { localDataSource.getCashDepositTrend() } returns trend
+        coEvery { localDataSource.getCashDepositTrend(any()) } returns trend
 
         // When
         val result = repository.getCashDepositTrend()
@@ -392,7 +392,7 @@ class StockStatisticsRepositoryImplTest {
                     avgWeight = 15.8f
                 )
             )
-            coEvery { localDataSource.getStockAggregatedTrend("005930") } returns timeSeries
+            coEvery { localDataSource.getStockAggregatedTrend("005930", any()) } returns timeSeries
             coEvery { localDataSource.getStockName("005930") } returns "삼성전자"
 
             // When
@@ -410,7 +410,7 @@ class StockStatisticsRepositoryImplTest {
         @DisplayName("getStockAggregatedTrend_withEmptyTimeSeries_returnsNull")
         fun `getStockAggregatedTrend_withEmptyTimeSeries_returnsNull`() = runTest {
             // Given
-            coEvery { localDataSource.getStockAggregatedTrend(any()) } returns emptyList()
+            coEvery { localDataSource.getStockAggregatedTrend(any(), any()) } returns emptyList()
 
             // When
             val result = repository.getStockAggregatedTrend("005930")
@@ -432,7 +432,7 @@ class StockStatisticsRepositoryImplTest {
                     avgWeight = 15.2f
                 )
             )
-            coEvery { localDataSource.getStockAggregatedTrend("999999") } returns timeSeries
+            coEvery { localDataSource.getStockAggregatedTrend("999999", any()) } returns timeSeries
             coEvery { localDataSource.getStockName("999999") } returns null  // not found
 
             // When
@@ -453,7 +453,7 @@ class StockStatisticsRepositoryImplTest {
     fun `getStockAmountRankingInRange_passesDatesToDatasource`() = runTest {
         // Given
         val rankings = listOf(createTestStockAmountRanking("005930", "삼성전자", 1_000_000f))
-        coEvery { localDataSource.getStockAmountRanking("2026-01-22", "2026-01-15") } returns rankings
+        coEvery { localDataSource.getStockAmountRanking("2026-01-22", "2026-01-15", any()) } returns rankings
 
         // When
         val result = repository.getStockAmountRankingInRange("2026-01-22", "2026-01-15")
@@ -467,7 +467,7 @@ class StockStatisticsRepositoryImplTest {
     fun `getAllNewStocksInRange_passesDatesToDatasource`() = runTest {
         // Given
         val newStocks = listOf(createTestStockChangeInfo("000660", "SK하이닉스"))
-        coEvery { localDataSource.getAllNewStocks("2026-01-22", "2026-01-15") } returns newStocks
+        coEvery { localDataSource.getAllNewStocks("2026-01-22", "2026-01-15", any()) } returns newStocks
 
         // When
         val result = repository.getAllNewStocksInRange("2026-01-22", "2026-01-15")

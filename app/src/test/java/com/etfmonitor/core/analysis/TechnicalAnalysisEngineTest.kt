@@ -448,39 +448,42 @@ class TechnicalAnalysisEngineTest {
     inner class CalculateElderImpulseTests {
 
         @Test
-        @DisplayName("단조 증가 데이터: 후반부 impulse는 1 (bull)")
+        @DisplayName("단조 증가 데이터: impulse에 1 (bull) 포함")
         fun `calculateElderImpulse_withStronglyRisingPrices_producesBullSignal`() {
-            // 가속 상승 데이터: i^2 성장으로 EMA 기울기와 MACD 히스토그램 기울기 모두 양수 보장
-            // 선형 데이터는 MACD 히스토그램이 상수로 수렴(기울기=0)하여 bull 신호가 생성되지 않음
-            // 가속 성장(이차 함수)은 MACD 히스토그램이 계속 확장되어 histSlope > 0 보장
-            val close = (1..80).map { it.toDouble() * it.toDouble() }
+            // 지수 감소 데이터 (newest-first: index 0 = 최신 = 최고가)
+            // 가격이 시간에 따라 지수적으로 상승: oldest 쪽이 낮고 newest 쪽이 높음
+            // newest-first이므로 값이 좌→우 감소 [40000, 37695, ..., 101]
+            // 지수적 일정 % 변화율 → MACD 지속 가속 → histSlope > 0 보장
+            val close = (0 until 100).map { i -> 40000.0 * Math.exp(-0.06 * i) }
+            // close[0]=40000 (newest, highest), close[99]≈101 (oldest, lowest)
+            // → EMA slope > 0, MACD hist slope > 0 → bull 신호
 
             val result = TechnicalAnalysisEngine.calculateElderImpulse(close)
 
             assertEquals(close.size, result.impulse.size)
-            // EMA와 MACD가 안정화되는 후반 30개 구간에서 bull 신호가 있어야 함
-            val tailImpulse = result.impulse.takeLast(30)
             assertTrue(
-                tailImpulse.any { it == 1 },
-                "Strongly accelerating rising series should produce at least one bull impulse in the last 30 bars"
+                result.impulse.any { it == 1 },
+                "Exponentially rising prices (newest-first) should produce at least one bull impulse"
             )
         }
 
         @Test
-        @DisplayName("단조 감소 데이터: 후반부 impulse는 -1 (bear)")
+        @DisplayName("단조 감소 데이터: impulse에 -1 (bear) 포함")
         fun `calculateElderImpulse_withStronglyFallingPrices_producesBearSignal`() {
-            // 가속 하락 데이터: 선형 하락은 MACD 히스토그램이 상수로 수렴하여 bear 신호가 생성되지 않음
-            // close[i] = 10000 - i^2 형태로, 낙폭이 매 bar 증가(3, 5, 7, ...씩 추가 하락)
-            // → EMA 기울기 음수, MACD 히스토그램 기울기 음수 모두 보장
-            val close = (1..80).map { i -> 10000.0 - i.toDouble() * i.toDouble() }
+            // 지수 성장 데이터 (newest-first: index 0 = 최신 = 최저가)
+            // 가격이 시간에 따라 지수적으로 하락: oldest 쪽이 높고 newest 쪽이 낮음
+            // newest-first이므로 값이 좌→우 증가 [100, 106, ..., 39646]
+            // 지수적 일정 % 변화율 → MACD 지속 가속 → histSlope < 0 보장
+            val close = (0 until 100).map { i -> 100.0 * Math.exp(0.06 * i) }
+            // close[0]=100 (newest, lowest), close[99]≈39,646 (oldest, highest)
+            // → EMA slope < 0, MACD hist slope < 0 → bear 신호
 
             val result = TechnicalAnalysisEngine.calculateElderImpulse(close)
 
             assertEquals(close.size, result.impulse.size)
-            val tailImpulse = result.impulse.takeLast(30)
             assertTrue(
-                tailImpulse.any { it == -1 },
-                "Strongly accelerating falling series should produce at least one bear impulse in the last 30 bars"
+                result.impulse.any { it == -1 },
+                "Exponentially falling prices (newest-first) should produce at least one bear impulse"
             )
         }
 
@@ -869,6 +872,452 @@ class TechnicalAnalysisEngineTest {
                 val result = TechnicalAnalysisEngine.calculateEMA(values, period = 5)
                 assertEquals(n, result.size, "EMA size mismatch for n=$n")
             }
+        }
+    }
+
+    // ============================================================
+    // calculateMa 테스트 (TrendCalculator 마이그레이션)
+    // ============================================================
+
+    @Nested
+    @DisplayName("calculateMa — 정수 단순이동평균")
+    inner class CalculateMaTests {
+
+        @Test
+        @DisplayName("처음 (period-1)개 값은 null")
+        fun `calculateMa_leadingValues_areNull`() {
+            val prices = listOf(10, 20, 30, 40, 50)
+
+            val result = TechnicalAnalysisEngine.calculateMa(prices, period = 3)
+
+            assertEquals(5, result.size)
+            assertEquals(null, result[0])
+            assertEquals(null, result[1])
+        }
+
+        @Test
+        @DisplayName("period 이상의 인덱스에서 정확한 SMA 계산")
+        fun `calculateMa_afterWarmup_returnsCorrectSma`() {
+            // [10, 20, 30, 40, 50], period=3
+            // index 2: (10+20+30)/3 = 20
+            // index 3: (20+30+40)/3 = 30
+            // index 4: (30+40+50)/3 = 40
+            val prices = listOf(10, 20, 30, 40, 50)
+
+            val result = TechnicalAnalysisEngine.calculateMa(prices, period = 3)
+
+            assertEquals(20, result[2])
+            assertEquals(30, result[3])
+            assertEquals(40, result[4])
+        }
+
+        @Test
+        @DisplayName("빈 입력은 빈 결과 반환")
+        fun `calculateMa_withEmptyInput_returnsEmpty`() {
+            val result = TechnicalAnalysisEngine.calculateMa(emptyList(), period = 5)
+            assertTrue(result.isEmpty())
+        }
+
+        @Test
+        @DisplayName("period=1이면 원본 값 그대로 반환")
+        fun `calculateMa_withPeriodOne_returnsOriginalValues`() {
+            val prices = listOf(100, 200, 300)
+
+            val result = TechnicalAnalysisEngine.calculateMa(prices, period = 1)
+
+            assertEquals(100, result[0])
+            assertEquals(200, result[1])
+            assertEquals(300, result[2])
+        }
+
+        @Test
+        @DisplayName("데이터 크기가 period와 같으면 마지막 값만 유효")
+        fun `calculateMa_dataSizeEqualsperiod_onlyLastIsNonNull`() {
+            val prices = listOf(10, 20, 30)
+
+            val result = TechnicalAnalysisEngine.calculateMa(prices, period = 3)
+
+            assertEquals(null, result[0])
+            assertEquals(null, result[1])
+            assertEquals(20, result[2])  // (10+20+30)/3 = 20
+        }
+    }
+
+    // ============================================================
+    // calcMaSignal 테스트 (TrendCalculator 마이그레이션)
+    // ============================================================
+
+    @Nested
+    @DisplayName("calcMaSignal — 일봉 3-MA 정렬 시그널")
+    inner class CalcMaSignalTests {
+
+        @Test
+        @DisplayName("MA5 > MA20 > MA60이면 bull 시그널 1")
+        fun `calcMaSignal_whenMa5GtMa20GtMa60_returnsBull`() {
+            val ma5  = listOf<Int?>(null, null, null, null, 30)
+            val ma20 = listOf<Int?>(null, null, null, null, 20)
+            val ma60 = listOf<Int?>(null, null, null, null, 10)
+
+            val result = TechnicalAnalysisEngine.calcMaSignal(ma5, ma20, ma60)
+
+            assertEquals(1, result[4])
+        }
+
+        @Test
+        @DisplayName("MA5 < MA20 < MA60이면 bear 시그널 -1")
+        fun `calcMaSignal_whenMa5LtMa20LtMa60_returnsBear`() {
+            val ma5  = listOf<Int?>(10)
+            val ma20 = listOf<Int?>(20)
+            val ma60 = listOf<Int?>(30)
+
+            val result = TechnicalAnalysisEngine.calcMaSignal(ma5, ma20, ma60)
+
+            assertEquals(-1, result[0])
+        }
+
+        @Test
+        @DisplayName("MA 중 하나라도 null이면 0")
+        fun `calcMaSignal_whenAnyMaIsNull_returnsZero`() {
+            val ma5  = listOf<Int?>(null)
+            val ma20 = listOf<Int?>(20)
+            val ma60 = listOf<Int?>(30)
+
+            val result = TechnicalAnalysisEngine.calcMaSignal(ma5, ma20, ma60)
+
+            assertEquals(0, result[0])
+        }
+
+        @Test
+        @DisplayName("MA5 > MA20이지만 MA20 < MA60이면 0 (정렬 안됨)")
+        fun `calcMaSignal_whenPartialAlignment_returnsZero`() {
+            val ma5  = listOf<Int?>(30)
+            val ma20 = listOf<Int?>(25)
+            val ma60 = listOf<Int?>(27)  // MA20 < MA60 이므로 bull 정렬 아님
+
+            val result = TechnicalAnalysisEngine.calcMaSignal(ma5, ma20, ma60)
+
+            assertEquals(0, result[0])
+        }
+    }
+
+    // ============================================================
+    // calcMaSignalWeeklyReference 테스트
+    // ============================================================
+
+    @Nested
+    @DisplayName("calcMaSignalWeeklyReference — 주봉 3-조건 시그널")
+    inner class CalcMaSignalWeeklyReferenceTests {
+
+        @Test
+        @DisplayName("High > PrevHigh AND Close > MA10 AND CMF > 0 이면 buy 시그널 1")
+        fun `calcMaSignalWeekly_withAllBuyConditions_returnsBuy`() {
+            // oldest-first: index 0 = prev, index 1 = current
+            val closes = listOf(100, 110)
+            val highs  = listOf(105, 115)   // 115 > 105
+            val lows   = listOf(95, 105)
+            val ma10   = listOf<Int?>(null, 108) // close(110) > ma10(108)
+            val cmf    = listOf(0.0, 0.1)        // cmf > 0
+
+            val result = TechnicalAnalysisEngine.calcMaSignalWeeklyReference(closes, highs, lows, ma10, cmf)
+
+            assertEquals(0, result[0]) // 첫 번째는 prev 없음
+            assertEquals(1, result[1]) // buy signal
+        }
+
+        @Test
+        @DisplayName("Low < PrevLow AND Close < MA10 AND CMF < 0 이면 sell 시그널 -1")
+        fun `calcMaSignalWeekly_withAllSellConditions_returnsSell`() {
+            val closes = listOf(110, 100)
+            val highs  = listOf(115, 105)
+            val lows   = listOf(105, 95)    // 95 < 105
+            val ma10   = listOf<Int?>(null, 102) // close(100) < ma10(102)
+            val cmf    = listOf(0.0, -0.1)       // cmf < 0
+
+            val result = TechnicalAnalysisEngine.calcMaSignalWeeklyReference(closes, highs, lows, ma10, cmf)
+
+            assertEquals(0, result[0])
+            assertEquals(-1, result[1])
+        }
+
+        @Test
+        @DisplayName("첫 번째 인덱스는 항상 0 (prev 없음)")
+        fun `calcMaSignalWeekly_firstIndex_alwaysZero`() {
+            val closes = listOf(100)
+            val highs  = listOf(110)
+            val lows   = listOf(90)
+            val ma10   = listOf<Int?>(95)
+            val cmf    = listOf(0.5)
+
+            val result = TechnicalAnalysisEngine.calcMaSignalWeeklyReference(closes, highs, lows, ma10, cmf)
+
+            assertEquals(1, result.size)
+            assertEquals(0, result[0])
+        }
+
+        @Test
+        @DisplayName("MA10이 null인 인덱스는 0")
+        fun `calcMaSignalWeekly_whenMa10IsNull_returnsZero`() {
+            val closes = listOf(100, 110)
+            val highs  = listOf(105, 115)
+            val lows   = listOf(95, 105)
+            val ma10   = listOf<Int?>(null, null)  // ma10 null
+            val cmf    = listOf(0.0, 0.1)
+
+            val result = TechnicalAnalysisEngine.calcMaSignalWeeklyReference(closes, highs, lows, ma10, cmf)
+
+            assertEquals(0, result[1])
+        }
+    }
+
+    // ============================================================
+    // calcTrend 테스트 (TrendCalculator 마이그레이션)
+    // ============================================================
+
+    @Nested
+    @DisplayName("calcTrend — 2-of-3 투표 추세 판별")
+    inner class CalcTrendTests {
+
+        @Test
+        @DisplayName("maSignal=1, cmf>0.05, fg>0.5 → bullish")
+        fun `calcTrend_allBull_returnsBullish`() {
+            val maSignal  = listOf(1)
+            val cmf       = listOf(0.1)
+            val fearGreed = listOf(0.6)
+
+            val result = TechnicalAnalysisEngine.calcTrend(maSignal, cmf, fearGreed)
+
+            assertEquals("bullish", result[0])
+        }
+
+        @Test
+        @DisplayName("maSignal=-1, cmf<-0.05, fg<-0.5 → bearish")
+        fun `calcTrend_allBear_returnsBearish`() {
+            val maSignal  = listOf(-1)
+            val cmf       = listOf(-0.1)
+            val fearGreed = listOf(-0.6)
+
+            val result = TechnicalAnalysisEngine.calcTrend(maSignal, cmf, fearGreed)
+
+            assertEquals("bearish", result[0])
+        }
+
+        @Test
+        @DisplayName("2개만 bull → bullish")
+        fun `calcTrend_twoBullIndicators_returnsBullish`() {
+            val maSignal  = listOf(1)
+            val cmf       = listOf(0.1)
+            val fearGreed = listOf(0.0)  // neutral
+
+            val result = TechnicalAnalysisEngine.calcTrend(maSignal, cmf, fearGreed)
+
+            assertEquals("bullish", result[0])
+        }
+
+        @Test
+        @DisplayName("1개만 bull → neutral")
+        fun `calcTrend_oneBullIndicator_returnsNeutral`() {
+            val maSignal  = listOf(1)
+            val cmf       = listOf(0.0)  // neutral (≤ 0.05)
+            val fearGreed = listOf(0.0)
+
+            val result = TechnicalAnalysisEngine.calcTrend(maSignal, cmf, fearGreed)
+
+            assertEquals("neutral", result[0])
+        }
+
+        @Test
+        @DisplayName("bull 1개 + bear 1개 혼재 → neutral")
+        fun `calcTrend_mixedOneBullOneBear_returnsNeutral`() {
+            val maSignal  = listOf(1)
+            val cmf       = listOf(-0.1)  // bear
+            val fearGreed = listOf(0.0)
+
+            val result = TechnicalAnalysisEngine.calcTrend(maSignal, cmf, fearGreed)
+
+            assertEquals("neutral", result[0])
+        }
+
+        @Test
+        @DisplayName("결과 크기가 입력 크기와 동일")
+        fun `calcTrend_outputSize_matchesInputSize`() {
+            val n = 10
+            val maSignal  = List(n) { 0 }
+            val cmf       = List(n) { 0.0 }
+            val fearGreed = List(n) { 0.0 }
+
+            val result = TechnicalAnalysisEngine.calcTrend(maSignal, cmf, fearGreed)
+
+            assertEquals(n, result.size)
+        }
+
+        @Test
+        @DisplayName("결과 값은 bullish/neutral/bearish 중 하나")
+        fun `calcTrend_allResultValues_areValidStrings`() {
+            val valid = setOf("bullish", "neutral", "bearish")
+            val maSignal  = listOf(1, 0, -1, 1, -1)
+            val cmf       = listOf(0.1, 0.0, -0.1, -0.1, 0.1)
+            val fearGreed = listOf(0.6, 0.0, -0.6, 0.6, -0.6)
+
+            val result = TechnicalAnalysisEngine.calcTrend(maSignal, cmf, fearGreed)
+
+            result.forEachIndexed { i, v ->
+                assertTrue(v in valid, "trend[$i]=$v is not in $valid")
+            }
+        }
+    }
+
+    // ============================================================
+    // generateSignals — 새 필드 검증
+    // ============================================================
+
+    @Nested
+    @DisplayName("generateSignals — 새 필드 (ma5/ma10/ma20/ma60/maSignal/trend)")
+    inner class GenerateSignalsNewFieldsTests {
+
+        @Test
+        @DisplayName("충분한 데이터가 있으면 새 필드가 채워진다")
+        fun `generateSignals_withEnoughData_populatesNewFields`() {
+            val n = 70  // ma60 워밍업을 위해 60개 이상 필요
+            val dates  = (1..n).map { "202501${it.toString().padStart(2, '0')}" }
+            val high   = List(n) { 110.0 + it }
+            val low    = List(n) { 90.0  + it }
+            val close  = List(n) { 100.0 + it }
+            val volume = List(n) { 1000L }
+
+            val result = TechnicalAnalysisEngine.generateSignals(
+                dates, high, low, close, volume, maPeriod = 20, cmfPeriod = 20
+            )
+
+            assertEquals(n, result.ma5.size)
+            assertEquals(n, result.ma10.size)
+            assertEquals(n, result.ma20.size)
+            assertEquals(n, result.ma60.size)
+            assertEquals(n, result.maSignal.size)
+            assertEquals(n, result.trend.size)
+        }
+
+        @Test
+        @DisplayName("ma5~ma60 처음 (period-1)개는 null")
+        fun `generateSignals_leadingMaValues_areNull`() {
+            val n = 70
+            val dates  = (1..n).map { "202501${it.toString().padStart(2, '0')}" }
+            val high   = List(n) { 110.0 + it }
+            val low    = List(n) { 90.0  + it }
+            val close  = List(n) { 100.0 + it }
+            val volume = List(n) { 1000L }
+
+            val result = TechnicalAnalysisEngine.generateSignals(
+                dates, high, low, close, volume, maPeriod = 20, cmfPeriod = 20
+            )
+
+            // MA5: 처음 4개 null
+            for (i in 0 until 4) {
+                assertEquals(null, result.ma5[i], "ma5[$i] should be null")
+            }
+            // MA60: 처음 59개 null
+            for (i in 0 until 59) {
+                assertEquals(null, result.ma60[i], "ma60[$i] should be null")
+            }
+        }
+
+        @Test
+        @DisplayName("trend 값은 bullish/neutral/bearish 중 하나")
+        fun `generateSignals_trendValues_areValidStrings`() {
+            val valid = setOf("bullish", "neutral", "bearish")
+            val n = 70
+            val dates  = (1..n).map { "202501${it.toString().padStart(2, '0')}" }
+            val close  = List(n) { 100.0 + it }
+
+            val result = TechnicalAnalysisEngine.generateSignals(
+                dates, close, close, close, List(n) { 1000L }
+            )
+
+            result.trend.forEachIndexed { i, v ->
+                assertTrue(v in valid, "trend[$i]=$v is not valid")
+            }
+        }
+
+        @Test
+        @DisplayName("빈 입력이면 새 필드도 빈 리스트")
+        fun `generateSignals_withEmptyInput_newFieldsAreEmpty`() {
+            val result = TechnicalAnalysisEngine.generateSignals(
+                dates = emptyList(),
+                high = emptyList(), low = emptyList(), close = emptyList(),
+                volume = emptyList()
+            )
+
+            assertTrue(result.ma5.isEmpty())
+            assertTrue(result.ma10.isEmpty())
+            assertTrue(result.ma20.isEmpty())
+            assertTrue(result.ma60.isEmpty())
+            assertTrue(result.maSignal.isEmpty())
+            assertTrue(result.trend.isEmpty())
+        }
+    }
+
+    // ============================================================
+    // calculateFearGreed — 재작성 검증
+    // ============================================================
+
+    @Nested
+    @DisplayName("calculateFearGreed — TrendCalculator 참조 알고리즘")
+    inner class CalculateFearGreedTests {
+
+        @Test
+        @DisplayName("데이터가 52개 미만이면 모두 0.0 반환")
+        fun `calculateFearGreed_withInsufficientData_returnsAllZeros`() {
+            val close  = List(30) { 100.0 + it }
+            val volume = List(30) { 1000L }
+
+            val result = TechnicalAnalysisEngine.calculateFearGreed(close, volume)
+
+            assertEquals(30, result.size)
+            result.forEach { assertEquals(0.0, it, 1e-9) }
+        }
+
+        @Test
+        @DisplayName("결과 크기가 입력 크기와 동일")
+        fun `calculateFearGreed_outputSize_matchesInputSize`() {
+            val n = 100
+            val close  = List(n) { 1000.0 + it * 10.0 }
+            val volume = List(n) { 10_000L }
+
+            val result = TechnicalAnalysisEngine.calculateFearGreed(close, volume)
+
+            assertEquals(n, result.size)
+        }
+
+        @Test
+        @DisplayName("처음 10개는 0.0 (FG_MIN_CALC_PERIOD)")
+        fun `calculateFearGreed_firstTenValues_areZero`() {
+            val n = 100
+            val close  = List(n) { 1000.0 + it * 10.0 }
+            val volume = List(n) { 10_000L }
+
+            val result = TechnicalAnalysisEngine.calculateFearGreed(close, volume)
+
+            for (i in 0 until 10) {
+                assertEquals(0.0, result[i], 1e-9, "FG[$i] should be 0.0 (warmup)")
+            }
+        }
+
+        @Test
+        @DisplayName("강한 상승장에서 FG 값이 양수")
+        fun `calculateFearGreed_withStronglyRisingPrices_returnsPositiveFg`() {
+            // 가속 상승: 매 bar 1% 상승 → Momentum5 지속 양수 → FG > 0 기대
+            val n = 100
+            var price = 1000.0
+            val close = (0 until n).map {
+                price *= 1.01
+                price
+            }
+            val volume = List(n) { 10_000L }
+
+            val result = TechnicalAnalysisEngine.calculateFearGreed(close, volume)
+
+            // 후반 20개의 평균이 양수여야 함
+            val tailAvg = result.takeLast(20).average()
+            assertTrue(tailAvg > 0.0, "FG should be positive in strong uptrend, got $tailAvg")
         }
     }
 }

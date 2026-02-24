@@ -37,6 +37,7 @@ import com.etfmonitor.core.database.entities.SearchHistory
 import com.etfmonitor.feature.stock.presentation.oscillator.OscillatorViewModel
 import com.etfmonitor.feature.stock.presentation.oscillator.OscillatorState
 import com.etfmonitor.feature.stock.presentation.financial.FinancialInfoContent
+import com.etfmonitor.feature.stock.presentation.realtime.RealtimeSupplyContent
 import com.etfmonitor.core.ui.component.HubHeader
 import com.etfmonitor.core.ui.component.StockSearchItem
 import com.etfmonitor.core.ui.component.UnifiedStockSearchField
@@ -68,7 +69,7 @@ fun StocksHubScreen(
     val selectedRange by viewModel.selectedRange.collectAsState()
     val currentTicker by viewModel.currentTicker.collectAsState()
 
-    // Main tab: 0 = 차트 분석, 1 = 재무정보
+    // Main tab: 0 = 차트 분석, 1 = 재무정보, 2 = 장중수급
     var mainTabIndex by remember { mutableIntStateOf(0) }
 
     // Set initial ticker if provided (skip history save when navigating via FAB)
@@ -235,6 +236,11 @@ fun StocksHubScreen(
                                 onClick = { mainTabIndex = 1 },
                                 text = { Text("재무정보") }
                             )
+                            Tab(
+                                selected = mainTabIndex == 2,
+                                onClick = { mainTabIndex = 2 },
+                                text = { Text("장중수급") }
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(4.dp))
@@ -314,6 +320,15 @@ fun StocksHubScreen(
                                 FinancialInfoContent(
                                     ticker = currentState.stockData.ticker,
                                     stockName = currentState.stockData.name,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f)
+                                )
+                            }
+                            2 -> {
+                                // Realtime Supply tab
+                                RealtimeSupplyContent(
+                                    ticker = currentState.stockData.ticker,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .weight(1f)

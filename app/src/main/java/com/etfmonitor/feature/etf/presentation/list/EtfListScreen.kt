@@ -36,7 +36,7 @@ import com.etfmonitor.core.ui.theme.*
  * Clean, modern list with search and filter functionality
  */
 
-private val ETF_CATEGORIES = listOf("전체", "반도체", "바이오", "2차전지", "금융", "에너지", "IT")
+private val ETF_CATEGORIES = listOf("전체", "액티브", "반도체", "바이오", "2차전지", "금융", "에너지", "IT")
 
 @Composable
 fun EtfListScreen(

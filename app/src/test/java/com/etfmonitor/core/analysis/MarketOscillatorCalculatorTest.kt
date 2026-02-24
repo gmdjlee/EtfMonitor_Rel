@@ -5,8 +5,7 @@ import com.krxkt.KrxIndex
 import com.krxkt.KrxStock
 import com.krxkt.model.IndexOhlcv
 import com.krxkt.model.Market
-import com.krxkt.model.MarketCap
-import com.krxkt.model.StockOhlcvHistory
+import com.krxkt.model.MarketOhlcv
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -25,25 +24,31 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * MarketOscillatorCalculator 단위 테스트
+ * MarketOscillatorCalculator 단위 테스트 (pykrx 알고리즘)
  *
  * 테스트 범위:
- * - analyze: KOSPI/KOSDAQ 라우팅, 성공 경로, 빈 데이터, 예외 처리
- * - calculateOscillator: analyze()를 통해 간접 검증 (all-up, all-down, stats)
- * - 엣지 케이스: zero components, CancellationException 전파
+ * - 공식 검증: vol+pts 가중 + 비선형 변환
+ * - 구성종목 필터링 (KOSPI200/KOSDAQ150)
+ * - 올바른 인덱스 티커 호출
+ * - 빈 구성종목 → null 반환
+ * - 출력 범위: [-100,-50] ∪ (50,100] (중간대 없음)
+ * - CancellationException 전파
+ * - 개별 날짜 실패 시 skip & continue
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @ExtendWith(MainDispatcherExtension::class)
-@DisplayName("MarketOscillatorCalculator 테스트")
+@DisplayName("MarketOscillatorCalculator 테스트 (pykrx)")
 class MarketOscillatorCalculatorTest {
 
     private lateinit var krxIndex: KrxIndex
     private lateinit var krxStock: KrxStock
     private lateinit var calculator: MarketOscillatorCalculator
 
-    // 테스트용 날짜 상수 (yyyyMMdd 형식)
     private val startDate = "20260101"
-    private val endDate = "20260105"
+    private val endDate = "20260110"
+
+    // KOSPI200 구성종목 (테스트용 3종목)
+    private val kospi200Tickers = listOf("005930", "000660", "035420")
 
     @BeforeEach
     fun setUp() {
@@ -56,9 +61,6 @@ class MarketOscillatorCalculatorTest {
     // 헬퍼 함수
     // ============================================================
 
-    /**
-     * IndexOhlcv 테스트 픽스처 생성 (yyyyMMdd 날짜 형식)
-     */
     private fun makeIndexOhlcv(date: String, close: Double = 2800.0): IndexOhlcv =
         IndexOhlcv(
             date = date,
@@ -73,53 +75,52 @@ class MarketOscillatorCalculatorTest {
         )
 
     /**
-     * MarketCap 테스트 픽스처 생성
+     * MarketOhlcv 테스트 픽스처 생성
+     *
+     * @param tickerRates ticker to (changeRate, volume) 맵
      */
-    private fun makeMarketCap(ticker: String, cap: Long = 1_000_000_000_000L): MarketCap =
-        MarketCap(
-            ticker = ticker,
-            name = "테스트종목${ticker}",
-            close = 50_000L,
-            changeRate = 0.5,
-            marketCap = cap,
-            sharesOutstanding = 20_000_000L
-        )
+    private fun makeMarketOhlcvList(tickerRates: List<Triple<String, Double, Long>>): List<MarketOhlcv> =
+        tickerRates.map { (ticker, rate, volume) ->
+            MarketOhlcv(
+                ticker = ticker,
+                name = "종목$ticker",
+                open = 50000L,
+                high = 51000L,
+                low = 49000L,
+                close = 50000L,
+                volume = volume,
+                tradingValue = 5_000_000_000L,
+                changeRate = rate
+            )
+        }
 
     /**
-     * StockOhlcvHistory 테스트 픽스처 생성 (yyyyMMdd 날짜 형식)
-     *
-     * @param date 날짜 (yyyyMMdd)
-     * @param close 종가 (Long)
+     * 간단한 MarketOhlcv 리스트 (구성종목만, 동일 거래량)
      */
-    private fun makeStockOhlcv(date: String, close: Long): StockOhlcvHistory =
-        StockOhlcvHistory(
-            date = date,
-            open = close - 100L,
-            high = close + 200L,
-            low = close - 200L,
-            close = close,
-            volume = 500_000L,
-            tradingValue = 25_000_000_000L,
-            changeRate = 1.0
-        )
+    private fun makeComponentOhlcv(changeRates: List<Double>, volume: Long = 100_000L): List<MarketOhlcv> =
+        changeRates.mapIndexed { idx, rate ->
+            MarketOhlcv(
+                ticker = kospi200Tickers.getOrElse(idx) { String.format("%06d", idx + 1) },
+                name = "종목${idx + 1}",
+                open = 50000L,
+                high = 51000L,
+                low = 49000L,
+                close = 50000L,
+                volume = volume,
+                tradingValue = 5_000_000_000L,
+                changeRate = rate
+            )
+        }
 
     /**
-     * 주어진 날짜 목록에 대해 지수/시가총액/OHLCV 목을 설정한다.
-     *
-     * @param market "KOSPI" 또는 "KOSDAQ"
-     * @param dates yyyyMMdd 날짜 목록 (지수 날짜)
-     * @param tickers 시가총액 상위 종목 코드 목록
-     * @param closePrices 각 티커별 날짜별 종가 목록 (tickers × dates 크기)
+     * 기본 mock 설정: 지수 데이터 + 구성종목
      */
-    private fun setupFullMocks(
+    private fun setupBasicMocks(
         market: String,
         dates: List<String>,
-        tickers: List<String>,
-        closePrices: Map<String, List<Long>>
+        componentTickers: List<String> = kospi200Tickers
     ) {
         val indexData = dates.mapIndexed { i, d -> makeIndexOhlcv(d, 2800.0 + i * 10) }
-        val latestDate = dates.last()
-        val marketEnum = if (market.uppercase() == "KOSPI") Market.KOSPI else Market.KOSDAQ
 
         if (market.uppercase() == "KOSPI") {
             coEvery { krxIndex.getKospi(startDate, endDate) } returns indexData
@@ -127,34 +128,452 @@ class MarketOscillatorCalculatorTest {
             coEvery { krxIndex.getKosdaq(startDate, endDate) } returns indexData
         }
 
-        coEvery { krxStock.getMarketCap(latestDate, marketEnum) } returns
-                tickers.mapIndexed { i, t -> makeMarketCap(t, 1_000_000_000_000L - i * 1_000_000L) }
+        // 구성종목 반환 (최신 거래일 기준)
+        val latestDate = dates.last()
+        val indexTicker = if (market.uppercase() == "KOSPI") "1028" else "2203"
+        coEvery { krxIndex.getIndexPortfolioTickers(latestDate, indexTicker) } returns componentTickers
+    }
 
-        for (ticker in tickers) {
-            val prices = closePrices[ticker] ?: dates.map { 50_000L }
-            coEvery { krxStock.getOhlcvByTicker(startDate, endDate, ticker) } returns
-                    dates.zip(prices).map { (d, p) -> makeStockOhlcv(d, p) }
+    // ============================================================
+    // FormulaTests: pykrx _calc() 공식 검증
+    // ============================================================
+
+    @Nested
+    @DisplayName("공식 검증 — vol+pts 가중 + 비선형 변환")
+    inner class FormulaTests {
+
+        @Test
+        @DisplayName("전종목 상승: volRatio=1, ptsRatio=1, avg=1 → oscillator=100")
+        fun `allUp_oscillator100`() = runTest {
+            val dates = listOf("20260101")
+            setupBasicMocks("KOSPI", dates)
+
+            // 3 구성종목 모두 상승
+            val ohlcv = makeComponentOhlcv(listOf(2.0, 1.5, 3.0))
+            coEvery { krxStock.getMarketOhlcv("20260101", Market.KOSPI) } returns ohlcv
+
+            val result = calculator.analyze("KOSPI", startDate, endDate)
+
+            assertNotNull(result)
+            assertEquals(100.0, result.oscillator[0], 0.001)
+        }
+
+        @Test
+        @DisplayName("전종목 하락: volRatio=0, ptsRatio=0, avg=0 → oscillator=-100")
+        fun `allDown_oscillatorMinus100`() = runTest {
+            val dates = listOf("20260101")
+            setupBasicMocks("KOSPI", dates)
+
+            val ohlcv = makeComponentOhlcv(listOf(-2.0, -1.5, -3.0))
+            coEvery { krxStock.getMarketOhlcv("20260101", Market.KOSPI) } returns ohlcv
+
+            val result = calculator.analyze("KOSPI", startDate, endDate)
+
+            assertNotNull(result)
+            // avg = (0 + 0) / 2 = 0 → avg - 1.0 = -1.0 → ×100 = -100
+            assertEquals(-100.0, result.oscillator[0], 0.001)
+        }
+
+        @Test
+        @DisplayName("50:50 상승/하락 (동일 거래량, 동일 등락률): avg=0.5 → oscillator=-50")
+        fun `halfAndHalf_oscillatorMinus50`() = runTest {
+            val dates = listOf("20260101")
+            setupBasicMocks("KOSPI", dates, listOf("005930", "000660"))
+
+            // 1 상승 +2%, 1 하락 -2% (동일 거래량 100K, 동일 절대값)
+            val ohlcv = makeComponentOhlcv(listOf(2.0, -2.0))
+            coEvery { krxStock.getMarketOhlcv("20260101", Market.KOSPI) } returns ohlcv
+
+            val result = calculator.analyze("KOSPI", startDate, endDate)
+
+            assertNotNull(result)
+            // volRatio = 100K / 200K = 0.5
+            // ptsRatio = 2.0 / 4.0 = 0.5
+            // avg = 0.5 → NOT > 0.5 → avg - 1.0 = -0.5 → ×100 = -50
+            assertEquals(-50.0, result.oscillator[0], 0.001)
+        }
+
+        @Test
+        @DisplayName("비대칭 거래량: 상승 거래량 비중이 높으면 oscillator 양수 영역")
+        fun `asymmetricVolume_oscillatorPositive`() = runTest {
+            val dates = listOf("20260101")
+            setupBasicMocks("KOSPI", dates, listOf("005930", "000660"))
+
+            // 005930: 상승 +2%, volume=300K
+            // 000660: 하락 -2%, volume=100K
+            val ohlcv = listOf(
+                Triple("005930", 2.0, 300_000L),
+                Triple("000660", -2.0, 100_000L)
+            ).let { makeMarketOhlcvList(it) }
+            coEvery { krxStock.getMarketOhlcv("20260101", Market.KOSPI) } returns ohlcv
+
+            val result = calculator.analyze("KOSPI", startDate, endDate)
+
+            assertNotNull(result)
+            // volRatio = 300K / 400K = 0.75
+            // ptsRatio = 2.0 / 4.0 = 0.5
+            // avg = (0.75 + 0.5) / 2 = 0.625 > 0.5 → oscillator = 0.625 × 100 = 62.5
+            assertEquals(62.5, result.oscillator[0], 0.001)
+        }
+
+        @Test
+        @DisplayName("보합 종목만: totalVol=0, totalPts=0 → 기본값 0.5/0.5 → avg=0.5 → -50")
+        fun `allFlat_oscillatorMinus50`() = runTest {
+            val dates = listOf("20260101")
+            setupBasicMocks("KOSPI", dates)
+
+            val ohlcv = makeComponentOhlcv(listOf(0.0, 0.0, 0.0))
+            coEvery { krxStock.getMarketOhlcv("20260101", Market.KOSPI) } returns ohlcv
+
+            val result = calculator.analyze("KOSPI", startDate, endDate)
+
+            assertNotNull(result)
+            // 보합만: upVol=0, downVol=0, gained=0, lost=0
+            // volRatio = 0.5 (default), ptsRatio = 0.5 (default)
+            // avg = 0.5 → NOT > 0.5 → -0.5 × 100 = -50
+            assertEquals(-50.0, result.oscillator[0], 0.001)
         }
     }
 
     // ============================================================
-    // AnalyzeTests: analyze() 메서드 라우팅 및 성공/실패 경로
+    // ComponentFilterTests: 구성종목 필터링 검증
     // ============================================================
 
     @Nested
-    @DisplayName("analyze — 분석 실행 테스트")
-    inner class AnalyzeTests {
+    @DisplayName("구성종목 필터링 검증")
+    inner class ComponentFilterTests {
+
+        @Test
+        @DisplayName("비구성종목은 oscillator 계산에서 제외된다")
+        fun `nonComponentStocks_areExcluded`() = runTest {
+            val dates = listOf("20260101")
+            // 구성종목은 005930만
+            setupBasicMocks("KOSPI", dates, listOf("005930"))
+
+            // 005930(구성): 상승 +3%, 999999(비구성): 하락 -5%
+            val ohlcv = listOf(
+                Triple("005930", 3.0, 100_000L),
+                Triple("999999", -5.0, 500_000L)  // 비구성종목 — 무시해야 함
+            ).let { makeMarketOhlcvList(it) }
+            coEvery { krxStock.getMarketOhlcv("20260101", Market.KOSPI) } returns ohlcv
+
+            val result = calculator.analyze("KOSPI", startDate, endDate)
+
+            assertNotNull(result)
+            // 구성종목(005930)만: 상승 100%
+            // volRatio = 1.0, ptsRatio = 1.0, avg = 1.0 → oscillator = 100
+            assertEquals(100.0, result.oscillator[0], 0.001)
+        }
+
+        @Test
+        @DisplayName("구성종목이 시장 데이터에 없으면 해당 날짜 skip")
+        fun `noComponentsInMarketData_dateSkipped`() = runTest {
+            val dates = listOf("20260101")
+            setupBasicMocks("KOSPI", dates, listOf("005930"))
+
+            // 시장 데이터에 구성종목이 없음
+            val ohlcv = listOf(
+                Triple("999999", 3.0, 100_000L)
+            ).let { makeMarketOhlcvList(it) }
+            coEvery { krxStock.getMarketOhlcv("20260101", Market.KOSPI) } returns ohlcv
+
+            val result = calculator.analyze("KOSPI", startDate, endDate)
+
+            // 유효 데이터 없음 → null
+            assertNull(result)
+        }
+    }
+
+    // ============================================================
+    // IndexTickerTests: 올바른 인덱스 티커 호출 확인
+    // ============================================================
+
+    @Nested
+    @DisplayName("인덱스 티커 라우팅 검증")
+    inner class IndexTickerTests {
+
+        @Test
+        @DisplayName("KOSPI → getIndexPortfolioTickers(date, '1028') 호출")
+        fun `kospi_usesTickerKospi200`() = runTest {
+            val dates = listOf("20260101")
+            setupBasicMocks("KOSPI", dates)
+            coEvery { krxStock.getMarketOhlcv(any(), Market.KOSPI) } returns makeComponentOhlcv(listOf(1.0, -1.0, 2.0))
+
+            calculator.analyze("KOSPI", startDate, endDate)
+
+            coVerify(exactly = 1) { krxIndex.getIndexPortfolioTickers("20260101", "1028") }
+        }
+
+        @Test
+        @DisplayName("KOSDAQ → getIndexPortfolioTickers(date, '2203') 호출")
+        fun `kosdaq_usesTickerKosdaq150`() = runTest {
+            val dates = listOf("20260101")
+            setupBasicMocks("KOSDAQ", dates)
+            coEvery { krxStock.getMarketOhlcv(any(), Market.KOSDAQ) } returns makeComponentOhlcv(listOf(1.0, -1.0, 2.0))
+
+            calculator.analyze("KOSDAQ", startDate, endDate)
+
+            coVerify(exactly = 1) { krxIndex.getIndexPortfolioTickers("20260101", "2203") }
+        }
+
+        @Test
+        @DisplayName("KOSPI 시장은 krxIndex.getKospi()로 라우팅된다")
+        fun `kospiMarket_routesToGetKospi`() = runTest {
+            val dates = listOf("20260101")
+            setupBasicMocks("KOSPI", dates)
+            coEvery { krxStock.getMarketOhlcv(any(), Market.KOSPI) } returns makeComponentOhlcv(listOf(1.0))
+
+            calculator.analyze("KOSPI", startDate, endDate)
+
+            coVerify(exactly = 1) { krxIndex.getKospi(startDate, endDate) }
+            coVerify(exactly = 0) { krxIndex.getKosdaq(any(), any()) }
+        }
+
+        @Test
+        @DisplayName("KOSDAQ 시장은 krxIndex.getKosdaq()으로 라우팅된다")
+        fun `kosdaqMarket_routesToGetKosdaq`() = runTest {
+            val dates = listOf("20260101")
+            setupBasicMocks("KOSDAQ", dates)
+            coEvery { krxStock.getMarketOhlcv(any(), Market.KOSDAQ) } returns makeComponentOhlcv(listOf(1.0))
+
+            calculator.analyze("KOSDAQ", startDate, endDate)
+
+            coVerify(exactly = 1) { krxIndex.getKosdaq(startDate, endDate) }
+            coVerify(exactly = 0) { krxIndex.getKospi(any(), any()) }
+        }
+    }
+
+    // ============================================================
+    // EmptyDataTests: 빈 데이터 처리
+    // ============================================================
+
+    @Nested
+    @DisplayName("빈 데이터 처리")
+    inner class EmptyDataTests {
+
+        @Test
+        @DisplayName("빈 지수 데이터는 null을 반환한다")
+        fun `emptyIndexData_returnsNull`() = runTest {
+            coEvery { krxIndex.getKospi(startDate, endDate) } returns emptyList()
+
+            val result = calculator.analyze("KOSPI", startDate, endDate)
+
+            assertNull(result)
+        }
+
+        @Test
+        @DisplayName("빈 구성종목 → null 반환")
+        fun `emptyComponentSet_returnsNull`() = runTest {
+            val dates = listOf("20260101")
+            val indexData = dates.map { makeIndexOhlcv(it) }
+            coEvery { krxIndex.getKospi(startDate, endDate) } returns indexData
+            coEvery { krxIndex.getIndexPortfolioTickers("20260101", "1028") } returns emptyList()
+
+            val result = calculator.analyze("KOSPI", startDate, endDate)
+
+            assertNull(result)
+        }
+
+        @Test
+        @DisplayName("getMarketOhlcv가 모든 날짜에서 빈 목록 → null 반환")
+        fun `allEmptyMarketOhlcv_returnsNull`() = runTest {
+            val dates = listOf("20260101", "20260102")
+            setupBasicMocks("KOSPI", dates)
+            coEvery { krxStock.getMarketOhlcv(any(), Market.KOSPI) } returns emptyList()
+
+            val result = calculator.analyze("KOSPI", startDate, endDate)
+
+            assertNull(result)
+        }
+    }
+
+    // ============================================================
+    // OutputRangeTests: 출력 범위 검증
+    // ============================================================
+
+    @Nested
+    @DisplayName("출력 범위 검증")
+    inner class OutputRangeTests {
+
+        @Test
+        @DisplayName("모든 oscillator 값이 [-100,-50] 또는 (50,100] 범위이다 (중간대 없음)")
+        fun `oscillatorValues_noMiddleGap`() = runTest {
+            val dates = listOf("20260101", "20260102", "20260105")
+            setupBasicMocks("KOSPI", dates)
+
+            coEvery {
+                krxStock.getMarketOhlcv("20260101", Market.KOSPI)
+            } returns makeComponentOhlcv(listOf(1.0, -1.0, 2.0))  // 2상승1하락
+
+            coEvery {
+                krxStock.getMarketOhlcv("20260102", Market.KOSPI)
+            } returns makeComponentOhlcv(listOf(-1.0, -2.0, -0.5))  // 전하락
+
+            coEvery {
+                krxStock.getMarketOhlcv("20260105", Market.KOSPI)
+            } returns makeComponentOhlcv(listOf(3.0, 2.0, 1.0))  // 전상승
+
+            val result = calculator.analyze("KOSPI", startDate, endDate)
+
+            assertNotNull(result)
+            result.oscillator.forEachIndexed { i, value ->
+                val inValidRange = value <= -50.0 || value > 50.0
+                assertTrue(
+                    inValidRange,
+                    "인덱스 ${i}의 oscillator($value)는 [-100,-50] 또는 (50,100] 범위여야 한다"
+                )
+            }
+        }
+    }
+
+    // ============================================================
+    // CancellationExceptionTests: CE 전파 검증
+    // ============================================================
+
+    @Nested
+    @DisplayName("CancellationException 전파 검증")
+    inner class CancellationExceptionTests {
+
+        @Test
+        @DisplayName("getMarketOhlcv에서 CE 발생 시 rethrow")
+        fun `getMarketOhlcv_CE_rethrows`() = runTest {
+            val dates = listOf("20260101")
+            setupBasicMocks("KOSPI", dates)
+            coEvery {
+                krxStock.getMarketOhlcv("20260101", Market.KOSPI)
+            } throws CancellationException("코루틴 취소됨")
+
+            assertThrows<CancellationException> {
+                calculator.analyze("KOSPI", startDate, endDate)
+            }
+        }
+
+        @Test
+        @DisplayName("getIndexPortfolioTickers에서 CE 발생 시 rethrow")
+        fun `getIndexPortfolioTickers_CE_rethrows`() = runTest {
+            val dates = listOf("20260101")
+            val indexData = dates.map { makeIndexOhlcv(it) }
+            coEvery { krxIndex.getKospi(startDate, endDate) } returns indexData
+            coEvery {
+                krxIndex.getIndexPortfolioTickers("20260101", "1028")
+            } throws CancellationException("코루틴 취소됨")
+
+            assertThrows<CancellationException> {
+                calculator.analyze("KOSPI", startDate, endDate)
+            }
+        }
+
+        @Test
+        @DisplayName("getKospi에서 CE 발생 시 rethrow")
+        fun `getKospi_CE_rethrows`() = runTest {
+            coEvery {
+                krxIndex.getKospi(startDate, endDate)
+            } throws CancellationException("코루틴 취소됨")
+
+            assertThrows<CancellationException> {
+                calculator.analyze("KOSPI", startDate, endDate)
+            }
+        }
+    }
+
+    // ============================================================
+    // ErrorRecoveryTests: 개별 날짜 실패 및 복구
+    // ============================================================
+
+    @Nested
+    @DisplayName("개별 날짜 실패 및 복구")
+    inner class ErrorRecoveryTests {
+
+        @Test
+        @DisplayName("개별 날짜 실패 시 해당 날짜는 건너뛰고 계속 진행한다")
+        fun `individualDateFails_continuesWithOtherDates`() = runTest {
+            val dates = listOf("20260101", "20260102", "20260105")
+            setupBasicMocks("KOSPI", dates)
+
+            // 첫 날짜 실패
+            coEvery {
+                krxStock.getMarketOhlcv("20260101", Market.KOSPI)
+            } throws RuntimeException("일시적 오류")
+
+            // 나머지 날짜 성공
+            coEvery {
+                krxStock.getMarketOhlcv("20260102", Market.KOSPI)
+            } returns makeComponentOhlcv(listOf(1.0, 2.0, -1.0))
+
+            coEvery {
+                krxStock.getMarketOhlcv("20260105", Market.KOSPI)
+            } returns makeComponentOhlcv(listOf(-1.0, -2.0, 3.0))
+
+            val result = calculator.analyze("KOSPI", startDate, endDate)
+
+            assertNotNull(result, "개별 날짜 실패 시에도 나머지 날짜로 계산해야 한다")
+            assertEquals(2, result.dates.size, "실패한 날짜를 제외한 2일 데이터만 포함")
+        }
+
+        @Test
+        @DisplayName("KrxIndex가 예외를 던지면 null을 반환한다")
+        fun `krxIndexThrowsException_returnsNull`() = runTest {
+            coEvery { krxIndex.getKospi(startDate, endDate) } throws RuntimeException("네트워크 오류")
+
+            val result = calculator.analyze("KOSPI", startDate, endDate)
+
+            assertNull(result)
+        }
+    }
+
+    // ============================================================
+    // StatsTests: OscillatorStats 검증
+    // ============================================================
+
+    @Nested
+    @DisplayName("OscillatorStats 검증")
+    inner class StatsTests {
+
+        @Test
+        @DisplayName("OscillatorStats의 mean, max, min, latest 필드가 올바르게 계산된다")
+        fun `oscillatorStats_areCorrect`() = runTest {
+            val dates = listOf("20260101", "20260102", "20260105")
+            setupBasicMocks("KOSPI", dates)
+
+            coEvery {
+                krxStock.getMarketOhlcv("20260101", Market.KOSPI)
+            } returns makeComponentOhlcv(listOf(1.0, 2.0, 3.0))  // 전상승
+
+            coEvery {
+                krxStock.getMarketOhlcv("20260102", Market.KOSPI)
+            } returns makeComponentOhlcv(listOf(-1.0, -2.0, -3.0))  // 전하락
+
+            coEvery {
+                krxStock.getMarketOhlcv("20260105", Market.KOSPI)
+            } returns makeComponentOhlcv(listOf(1.0, -1.0, 2.0))  // 2상승1하락
+
+            val result = calculator.analyze("KOSPI", startDate, endDate)
+
+            assertNotNull(result)
+            val osc = result.oscillator
+            val stats = result.stats
+
+            assertEquals(osc.average(), stats.mean, 0.001, "mean이 올바르지 않다")
+            assertEquals(osc.max(), stats.max, 0.001, "max가 올바르지 않다")
+            assertEquals(osc.min(), stats.min, 0.001, "min이 올바르지 않다")
+            assertEquals(osc.last(), stats.latest, 0.001, "latest가 올바르지 않다")
+        }
+    }
+
+    // ============================================================
+    // ResultFieldTests: 결과 필드 검증
+    // ============================================================
+
+    @Nested
+    @DisplayName("결과 필드 검증")
+    inner class ResultFieldTests {
 
         @Test
         @DisplayName("성공적인 분석은 올바른 필드를 가진 OscillatorResult를 반환한다")
-        fun `analyze_withValidData_returnsOscillatorResultWithCorrectFields`() = runTest {
-            val dates = listOf("20260101", "20260102", "20260105")
-            val tickers = listOf("005930", "000660")
-            val prices = mapOf(
-                "005930" to listOf(50_000L, 51_000L, 52_000L),
-                "000660" to listOf(80_000L, 81_000L, 82_000L)
-            )
-            setupFullMocks("KOSPI", dates, tickers, prices)
+        fun `validData_returnsCorrectFields`() = runTest {
+            val dates = listOf("20260101", "20260102")
+            setupBasicMocks("KOSPI", dates)
+            coEvery { krxStock.getMarketOhlcv(any(), Market.KOSPI) } returns makeComponentOhlcv(listOf(2.0, 1.5, -0.5))
 
             val result = calculator.analyze("KOSPI", startDate, endDate)
 
@@ -167,294 +586,44 @@ class MarketOscillatorCalculatorTest {
         }
 
         @Test
-        @DisplayName("빈 지수 데이터는 null을 반환한다")
-        fun `analyze_withEmptyIndexData_returnsNull`() = runTest {
-            coEvery { krxIndex.getKospi(startDate, endDate) } returns emptyList()
-
-            val result = calculator.analyze("KOSPI", startDate, endDate)
-
-            assertNull(result)
-        }
-
-        @Test
-        @DisplayName("KrxIndex가 예외를 던지면 null을 반환한다")
-        fun `analyze_withKrxIndexThrowingException_returnsNull`() = runTest {
-            coEvery { krxIndex.getKospi(startDate, endDate) } throws RuntimeException("네트워크 오류")
-
-            val result = calculator.analyze("KOSPI", startDate, endDate)
-
-            assertNull(result)
-        }
-
-        @Test
-        @DisplayName("KOSPI 시장은 krxIndex.getKospi()로 라우팅된다")
-        fun `analyze_kospiMarket_routesToGetKospi`() = runTest {
+        @DisplayName("결과의 indexValues는 유효 날짜에 해당하는 지수 종가를 담는다")
+        fun `resultIndexValues_matchValidDates`() = runTest {
             val dates = listOf("20260101", "20260102")
-            setupFullMocks("KOSPI", dates, listOf("005930"),
-                mapOf("005930" to listOf(50_000L, 51_000L)))
-
-            calculator.analyze("KOSPI", startDate, endDate)
-
-            coVerify(exactly = 1) { krxIndex.getKospi(startDate, endDate) }
-            coVerify(exactly = 0) { krxIndex.getKosdaq(any(), any()) }
-        }
-
-        @Test
-        @DisplayName("KOSDAQ 시장은 krxIndex.getKosdaq()으로 라우팅된다")
-        fun `analyze_kosdaqMarket_routesToGetKosdaq`() = runTest {
-            val dates = listOf("20260101", "20260102")
-            setupFullMocks("KOSDAQ", dates, listOf("247540"),
-                mapOf("247540" to listOf(15_000L, 15_500L)))
-
-            calculator.analyze("KOSDAQ", startDate, endDate)
-
-            coVerify(exactly = 1) { krxIndex.getKosdaq(startDate, endDate) }
-            coVerify(exactly = 0) { krxIndex.getKospi(any(), any()) }
-        }
-    }
-
-    // ============================================================
-    // OscillatorCalculationTests: 오실레이터 계산 로직 검증
-    // ============================================================
-
-    @Nested
-    @DisplayName("calculateOscillator — 오실레이터 계산 (analyze() 통해 간접 검증)")
-    inner class OscillatorCalculationTests {
-
-        @Test
-        @DisplayName("모든 종목이 상승하면 oscillator는 양수이다")
-        fun `analyze_allStocksUp_oscillatorIsPositive`() = runTest {
-            // 3일 데이터: 1일차 → 2일차 상승, 2일차 → 3일차 상승
-            val dates = listOf("20260101", "20260102", "20260105")
-            val tickers = listOf("005930", "000660", "035420")
-            // 모든 종목 단조 상승
-            val prices = mapOf(
-                "005930" to listOf(50_000L, 55_000L, 60_000L),
-                "000660" to listOf(80_000L, 85_000L, 90_000L),
-                "035420" to listOf(70_000L, 75_000L, 80_000L)
-            )
-            setupFullMocks("KOSPI", dates, tickers, prices)
-
-            val result = calculator.analyze("KOSPI", startDate, endDate)
-
-            assertNotNull(result)
-            // 인덱스 0은 항상 0.0 (첫날 변화율 계산 불가)
-            assertEquals(0.0, result.oscillator[0], 0.001)
-            // 인덱스 1, 2는 양수여야 함 (모든 종목 상승 → upVolume > 0, gainedPoints > 0)
-            for (i in 1 until result.oscillator.size) {
-                assertTrue(
-                    result.oscillator[i] > 0.0,
-                    "인덱스 ${i}의 oscillator는 양수여야 한다. 실제: ${result.oscillator[i]}"
-                )
-            }
-        }
-
-        @Test
-        @DisplayName("모든 종목이 하락하면 oscillator는 음수이다")
-        fun `analyze_allStocksDown_oscillatorIsNegative`() = runTest {
-            // 3일 데이터: 모든 종목 단조 하락
-            val dates = listOf("20260101", "20260102", "20260105")
-            val tickers = listOf("005930", "000660")
-            val prices = mapOf(
-                "005930" to listOf(60_000L, 55_000L, 50_000L),
-                "000660" to listOf(90_000L, 85_000L, 80_000L)
-            )
-            setupFullMocks("KOSPI", dates, tickers, prices)
-
-            val result = calculator.analyze("KOSPI", startDate, endDate)
-
-            assertNotNull(result)
-            // 인덱스 0은 항상 0.0
-            assertEquals(0.0, result.oscillator[0], 0.001)
-            // 인덱스 1, 2는 음수여야 함 (모든 종목 하락 → upVolume = 0, gainedPoints = 0)
-            for (i in 1 until result.oscillator.size) {
-                assertTrue(
-                    result.oscillator[i] < 0.0,
-                    "인덱스 ${i}의 oscillator는 음수여야 한다. 실제: ${result.oscillator[i]}"
-                )
-            }
-        }
-
-        @Test
-        @DisplayName("OscillatorStats의 mean, max, min, latest 필드가 올바르게 계산된다")
-        fun `analyze_withValidData_oscillatorStatsAreCorrect`() = runTest {
-            val dates = listOf("20260101", "20260102", "20260105")
-            val tickers = listOf("005930")
-            // 상승 → 하락 시나리오: i=1 상승, i=2 하락
-            val prices = mapOf(
-                "005930" to listOf(50_000L, 55_000L, 52_000L)
-            )
-            setupFullMocks("KOSPI", dates, tickers, prices)
-
-            val result = calculator.analyze("KOSPI", startDate, endDate)
-
-            assertNotNull(result)
-            val osc = result.oscillator
-            val stats = result.stats
-
-            // mean = 전체 평균
-            val expectedMean = osc.average()
-            assertEquals(expectedMean, stats.mean, 0.001, "mean이 올바르지 않다")
-
-            // max = 최대값
-            val expectedMax = osc.maxOrNull()!!
-            assertEquals(expectedMax, stats.max, 0.001, "max가 올바르지 않다")
-
-            // min = 최소값
-            val expectedMin = osc.minOrNull()!!
-            assertEquals(expectedMin, stats.min, 0.001, "min이 올바르지 않다")
-
-            // latest = 마지막값
-            val expectedLatest = osc.last()
-            assertEquals(expectedLatest, stats.latest, 0.001, "latest가 올바르지 않다")
-        }
-
-        @Test
-        @DisplayName("첫 번째 oscillator 값은 항상 0.0이다 (이전 데이터 없음)")
-        fun `analyze_firstOscillatorValue_isAlwaysZero`() = runTest {
-            val dates = listOf("20260101", "20260102", "20260105")
-            val tickers = listOf("005930", "000660")
-            val prices = mapOf(
-                "005930" to listOf(50_000L, 55_000L, 60_000L),
-                "000660" to listOf(80_000L, 85_000L, 90_000L)
-            )
-            setupFullMocks("KOSPI", dates, tickers, prices)
-
-            val result = calculator.analyze("KOSPI", startDate, endDate)
-
-            assertNotNull(result)
-            assertEquals(
-                0.0, result.oscillator[0], 0.0,
-                "첫 번째 oscillator 값은 항상 0.0이어야 한다"
-            )
-        }
-
-        @Test
-        @DisplayName("oscillator는 백분율로 변환된다 — 결과값에 100 곱해진 형태")
-        fun `analyze_oscillatorIsScaledByHundred`() = runTest {
-            // 모든 종목 상승: volumeRatio=1.0, pointRatio=1.0 → avg=1.0
-            // avg > 0.5 이므로 oscillator = avg = 1.0, pct = 100.0
-            val dates = listOf("20260101", "20260102")
-            val tickers = listOf("005930")
-            val prices = mapOf("005930" to listOf(50_000L, 60_000L))
-            setupFullMocks("KOSPI", dates, tickers, prices)
-
-            val result = calculator.analyze("KOSPI", startDate, endDate)
-
-            assertNotNull(result)
-            // 날짜가 2개이므로 oscillator 크기는 2
-            assertEquals(2, result.oscillator.size)
-            // 인덱스 1: 단일 종목 100% 상승 → volumeRatio=1.0, pointRatio=1.0
-            // avg=1.0 > 0.5 → oscillator=1.0 → pct=100.0
-            assertEquals(100.0, result.oscillator[1], 0.001,
-                "단일 종목 상승에서 oscillator는 100.0이어야 한다")
-        }
-    }
-
-    // ============================================================
-    // EdgeCaseTests: 경계 조건 및 특수 케이스
-    // ============================================================
-
-    @Nested
-    @DisplayName("경계 조건 및 특수 케이스")
-    inner class EdgeCaseTests {
-
-        @Test
-        @DisplayName("시가총액 조회가 빈 목록을 반환하면 null을 반환한다")
-        fun `analyze_zeroComponents_returnsNull`() = runTest {
-            val dates = listOf("20260101", "20260102")
-            val indexData = dates.mapIndexed { i, d -> makeIndexOhlcv(d, 2800.0 + i * 10) }
-            coEvery { krxIndex.getKospi(startDate, endDate) } returns indexData
-            // 시가총액 조회가 빈 목록 → tickers 비어있음 → component 없음
-            coEvery { krxStock.getMarketCap(dates.last(), Market.KOSPI) } returns emptyList()
-
-            val result = calculator.analyze("KOSPI", startDate, endDate)
-
-            // 구성종목 없음 → closePrices/volumes 비어있음 → calculateOscillator 빈 리스트 → null
-            assertNull(result)
-        }
-
-        @Test
-        @DisplayName("KrxStock.getOhlcvByTicker에서 CancellationException이 발생하면 재throw한다")
-        fun `analyze_cancellationExceptionFromKrxStock_rethrows`() = runTest {
-            // CE 가드가 적용되어 CancellationException은 catch되지 않고 재throw된다.
-            val dates = listOf("20260101", "20260102")
-            val indexData = dates.mapIndexed { i, d -> makeIndexOhlcv(d, 2800.0 + i * 10) }
-            coEvery { krxIndex.getKospi(startDate, endDate) } returns indexData
-            coEvery { krxStock.getMarketCap(dates.last(), Market.KOSPI) } returns
-                    listOf(makeMarketCap("005930"))
-            coEvery {
-                krxStock.getOhlcvByTicker(startDate, endDate, "005930")
-            } throws CancellationException("코루틴 취소됨")
-
-            assertThrows<CancellationException> {
-                calculator.analyze("KOSPI", startDate, endDate)
-            }
-        }
-
-        @Test
-        @DisplayName("개별 종목 OHLCV 조회 실패 시 해당 종목은 건너뛰고 계속 진행한다")
-        fun `analyze_individualTickerFails_continuesWithOtherTickers`() = runTest {
-            val dates = listOf("20260101", "20260102", "20260105")
-            val indexData = dates.mapIndexed { i, d -> makeIndexOhlcv(d, 2800.0 + i * 10) }
-            coEvery { krxIndex.getKospi(startDate, endDate) } returns indexData
-
-            val tickers = listOf("005930", "000660")
-            coEvery { krxStock.getMarketCap(dates.last(), Market.KOSPI) } returns
-                    tickers.map { makeMarketCap(it) }
-
-            // 첫 번째 종목은 IOException 발생 (CancellationException 아님)
-            coEvery {
-                krxStock.getOhlcvByTicker(startDate, endDate, "005930")
-            } throws RuntimeException("종목 데이터 조회 실패")
-
-            // 두 번째 종목은 정상 반환
-            coEvery {
-                krxStock.getOhlcvByTicker(startDate, endDate, "000660")
-            } returns dates.map { makeStockOhlcv(it, 80_000L + dates.indexOf(it) * 1_000L) }
-
-            // 두 번째 종목 데이터가 있으므로 null이 아닌 결과를 반환해야 한다
-            val result = calculator.analyze("KOSPI", startDate, endDate)
-
-            assertNotNull(result, "개별 종목 실패 시에도 다른 종목으로 계산해야 한다")
-        }
-
-        @Test
-        @DisplayName("결과 날짜 목록은 지수 데이터의 날짜와 일치한다")
-        fun `analyze_resultDates_matchIndexDates`() = runTest {
-            val dates = listOf("20260101", "20260102", "20260105")
-            val tickers = listOf("005930")
-            val prices = mapOf("005930" to listOf(50_000L, 51_000L, 52_000L))
-            setupFullMocks("KOSPI", dates, tickers, prices)
-
-            val result = calculator.analyze("KOSPI", startDate, endDate)
-
-            assertNotNull(result)
-            assertEquals(dates, result.dates, "결과 날짜 목록은 지수 데이터 날짜와 일치해야 한다")
-        }
-
-        @Test
-        @DisplayName("결과의 indexValues는 지수 종가를 담는다")
-        fun `analyze_resultIndexValues_containIndexClosePrices`() = runTest {
-            val dates = listOf("20260101", "20260102", "20260105")
-            val closePrices = listOf(2800.0, 2810.0, 2820.0)
+            val closePrices = listOf(2800.0, 2810.0)
             val indexData = dates.zip(closePrices).map { (d, c) -> makeIndexOhlcv(d, c) }
             coEvery { krxIndex.getKospi(startDate, endDate) } returns indexData
-
-            coEvery { krxStock.getMarketCap(dates.last(), Market.KOSPI) } returns
-                    listOf(makeMarketCap("005930"))
-            coEvery {
-                krxStock.getOhlcvByTicker(startDate, endDate, "005930")
-            } returns dates.zip(listOf(50_000L, 51_000L, 52_000L)).map { (d, p) ->
-                makeStockOhlcv(d, p)
-            }
+            coEvery { krxIndex.getIndexPortfolioTickers("20260102", "1028") } returns kospi200Tickers
+            coEvery { krxStock.getMarketOhlcv(any(), Market.KOSPI) } returns makeComponentOhlcv(listOf(1.0, -1.0, 2.0))
 
             val result = calculator.analyze("KOSPI", startDate, endDate)
 
             assertNotNull(result)
-            closePrices.zip(result.indexValues).forEachIndexed { i, (expected, actual) ->
-                assertEquals(expected, actual, 0.001, "인덱스 ${i}의 indexValue가 올바르지 않다")
-            }
+            assertEquals(2800.0, result.indexValues[0], 0.001)
+            assertEquals(2810.0, result.indexValues[1], 0.001)
+        }
+
+        @Test
+        @DisplayName("결과 날짜 목록은 유효한 데이터가 있는 날짜만 포함한다")
+        fun `resultDates_onlyContainValidDates`() = runTest {
+            val dates = listOf("20260101", "20260102", "20260105")
+            setupBasicMocks("KOSPI", dates)
+
+            coEvery {
+                krxStock.getMarketOhlcv("20260101", Market.KOSPI)
+            } returns makeComponentOhlcv(listOf(1.0, -1.0, 2.0))
+
+            coEvery {
+                krxStock.getMarketOhlcv("20260102", Market.KOSPI)
+            } returns emptyList()  // 빈 목록 → skip
+
+            coEvery {
+                krxStock.getMarketOhlcv("20260105", Market.KOSPI)
+            } returns makeComponentOhlcv(listOf(2.0, -2.0, 1.0))
+
+            val result = calculator.analyze("KOSPI", startDate, endDate)
+
+            assertNotNull(result)
+            assertEquals(listOf("20260101", "20260105"), result.dates)
         }
     }
 }

@@ -442,6 +442,20 @@ class AdvancedDashboardViewModelTest {
     @DisplayName("forceRefresh() 테스트")
     inner class ForceRefreshTests {
 
+        // forceRefresh() launches on Dispatchers.IO (real time, not test scheduler).
+        // Poll on Dispatchers.Default to use real wall-clock time for timeout/delay.
+        private suspend fun awaitForceRefreshSettled(viewModel: AdvancedDashboardViewModel) {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                kotlinx.coroutines.withTimeout(5000) {
+                    // Wait for state to leave Loading and isRefreshing to become false.
+                    // Handles both fast paths (error) and slow paths (success).
+                    while (viewModel.isRefreshing.value || viewModel.state.value is AdvancedDashboardState.Loading) {
+                        kotlinx.coroutines.delay(10)
+                    }
+                }
+            }
+        }
+
         @Test
         @DisplayName("forceRefresh() 날짜 부족 시 Error 상태")
         fun forceRefresh_insufficientDates_setsErrorState() = runTest {
@@ -451,11 +465,9 @@ class AdvancedDashboardViewModelTest {
             advanceUntilIdle()
 
             viewModel.forceRefresh()
-            advanceUntilIdle()
+            awaitForceRefreshSettled(viewModel)
 
-            viewModel.state.test {
-                assertIs<AdvancedDashboardState.Error>(awaitTerminalState())
-            }
+            assertIs<AdvancedDashboardState.Error>(viewModel.state.value)
         }
 
         @Test
@@ -469,7 +481,7 @@ class AdvancedDashboardViewModelTest {
             advanceUntilIdle()
 
             viewModel.forceRefresh()
-            advanceUntilIdle()
+            awaitForceRefreshSettled(viewModel)
 
             coVerify(atLeast = 1) { advancedRepository.calculateAndSaveLiquidityAnalysis(any()) }
         }
@@ -485,18 +497,9 @@ class AdvancedDashboardViewModelTest {
             advanceUntilIdle()
 
             viewModel.forceRefresh()
-            advanceUntilIdle()
+            awaitForceRefreshSettled(viewModel)
 
-            // isRefreshing starts false, goes true during forceRefresh, returns false when done.
-            // After advanceUntilIdle() all queued work is done; observe final stable value.
-            viewModel.isRefreshing.test {
-                // Drain any intermediate true emission (if still present), expect final false
-                var item = awaitItem()
-                while (item) {
-                    item = awaitItem()
-                }
-                assertFalse(item)
-            }
+            assertFalse(viewModel.isRefreshing.value)
         }
     }
 
@@ -556,6 +559,7 @@ class AdvancedDashboardViewModelTest {
                     item = awaitItem()
                 }
                 assertFalse(item)
+                cancelAndIgnoreRemainingEvents()
             }
         }
     }

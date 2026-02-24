@@ -397,7 +397,8 @@ class NewAIAnalysisViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             _isSearching.value = true
             try {
-                val results = etfDao.searchStocks(query)
+                val allEtfTickers = etfDao.getAllEtfsSuspend().map { it.ticker }
+                val results = etfDao.searchStocks(query, allEtfTickers)
                 _stockSearchResults.value = results.take(10).map {
                     Pair(it.stockTicker, it.stockName)
                 }

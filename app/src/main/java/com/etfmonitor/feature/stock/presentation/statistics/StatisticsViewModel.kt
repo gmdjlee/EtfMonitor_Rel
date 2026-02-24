@@ -92,6 +92,10 @@ class StatisticsViewModel @Inject constructor(
     private val _cashDepositTrend = MutableStateFlow<List<CashDepositTrend>>(emptyList())
     val cashDepositTrend: StateFlow<List<CashDepositTrend>> = _cashDepositTrend.asStateFlow()
 
+    // 카테고리 필터
+    private val _categoryFilter = MutableStateFlow<String?>(null)
+    val categoryFilter: StateFlow<String?> = _categoryFilter.asStateFlow()
+
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -160,17 +164,26 @@ class StatisticsViewModel @Inject constructor(
         loadStatistics()
     }
 
+    fun onCategoryFilterChanged(index: Int, categories: List<String>) {
+        val filter = if (index == 0) null else categories[index]
+        if (filter == _categoryFilter.value) return
+        _categoryFilter.value = filter
+        loadStatistics()
+    }
+
     private fun loadStatistics() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                val filter = _categoryFilter.value
+
                 // 선택된 기간에 따른 날짜 범위 계산
                 val (startDate, endDate) = ChartLabelCalculator.calculateDateRange(
                     option = _selectedRange.value,
                     endDate = LocalDate.now()
                 )
 
-                logger.d("Loading statistics for range: $startDate ~ $endDate")
+                logger.d("Loading statistics for range: $startDate ~ $endDate, filter: $filter")
 
                 // 날짜 범위 내 통계 날짜 조회
                 val datesInRange = repository.getStatisticsDatesInRange(startDate, endDate)
@@ -180,13 +193,13 @@ class StatisticsViewModel @Inject constructor(
                     val currentDate = datesInRange.first
                     val previousDate = datesInRange.second
 
-                    val ranking = repository.getStockAmountRankingInRange(currentDate, previousDate)
+                    val ranking = repository.getStockAmountRankingInRange(currentDate, previousDate, filter)
                     originalAmountRanking = ranking
                     _amountRanking.value = ranking
-                    _newStocks.value = repository.getAllNewStocksInRange(currentDate, previousDate)
-                    _removedStocks.value = repository.getAllRemovedStocksInRange(currentDate, previousDate)
-                    _increasedStocks.value = repository.getAllIncreasedStocksInRange(currentDate, previousDate)
-                    _decreasedStocks.value = repository.getAllDecreasedStocksInRange(currentDate, previousDate)
+                    _newStocks.value = repository.getAllNewStocksInRange(currentDate, previousDate, filter)
+                    _removedStocks.value = repository.getAllRemovedStocksInRange(currentDate, previousDate, filter)
+                    _increasedStocks.value = repository.getAllIncreasedStocksInRange(currentDate, previousDate, filter)
+                    _decreasedStocks.value = repository.getAllDecreasedStocksInRange(currentDate, previousDate, filter)
                 } else {
                     // 범위 내 데이터가 없으면 빈 목록
                     originalAmountRanking = emptyList()
@@ -197,8 +210,8 @@ class StatisticsViewModel @Inject constructor(
                     _decreasedStocks.value = emptyList()
                 }
 
-                // 원화예금 추이는 전체 기간 표시
-                _cashDepositTrend.value = repository.getCashDepositTrend()
+                // 원화예금 추이
+                _cashDepositTrend.value = repository.getCashDepositTrend(filter)
             } finally {
                 _isLoading.value = false
             }
